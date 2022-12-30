@@ -1,8 +1,8 @@
 # ars-est-in-verbo
 ## Purpose
-- Collecting some ideas for an art project written in Python
-- Make some notes of the step-by-step process
-
+- Scientific research journey into the art of words by means of coding
+- Making notes of the step-by-step process
+- Collecting ideas
 
 
 ## Rules / Guidelines / Best Practices
@@ -35,6 +35,9 @@
 - Parsing arguments from command line  
   - Maybe use [argparser](https://docs.python.org/3/library/argparse.html)
   - See [PEP 389 – argparse - New Command Line Parsing](https://www.python.org/dev/peps/pep-0389/)
+- Versioning
+  - Use `MAJOR.MINOR.PATCH`, see [semver.org](https://semver.org)
+  - See [Git-Basics-Tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging)
 
 
 ## Git examples
@@ -61,12 +64,16 @@
   - Push a newly created branch (including its changes):  
     `git push --set-upstream origin <branch>`
   - Commit file(s) using the last commit (= do a correction of the last commit):  
-    `git commit --amend -m "...Commit message..."`  
+    `git commit --amend -m "...Commit message..."`
+  - Tagging:  
+    `git tag -a "v1.3.0-beta" -m "version v1.3.0-beta"`  
+    `git push origin --tags`
 - Further examples:
   - `git status` List which files are staged, unstaged, and untracked
   - `git log`    Display the entire commit history using the default format
   - `git diff`   Show unstaged changes between your index and working directory
   - `gitk`       a git GUI
+
 
 ---
 
@@ -141,11 +148,29 @@ Maybe check later if some of these packages are really needed...
   `cd $HOME`  
   `git clone https://github.com/CastraRegina/ars-est-in-verbo`
 
+
+---
+
 ## Next steps / check in future / ToDos
 - How to handle examples / spikes / testing / unit-test 
 - Pipeline architecture
 - Check ArjanCodes Channel videos and his [https://arjancodes.com/designguide]
 
+### Ideas
+- Palindrome --> see [Wikipedia](https://en.wikipedia.org/wiki/Palindrome)  
+  Example: "SATOR AREPO TENET OPERA ROTAS"
+- Ambigram --> see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram)
+- Pictures of...  
+    Big Ben, Silhouette of town,
+    Black/white of portraits, Banksy,
+    Einstein, Mona Lisa, The Creation of Adam,
+    Nude front/back,
+    Dragonfly, Dear, Boar, Donkey half view
+
+### Fonts
+- Variable Fonts
+  - Grandstander --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
+  - Roboto Flex --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
 
 
 
