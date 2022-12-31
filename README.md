@@ -77,9 +77,8 @@
 
 ---
 
-# Diary
-## Day-0001 - 2022-12-25
-### General installation of Python
+# Step-by-step process
+## General installation of Python
 - Install latest Python version: 
   - Create folder /opt/python
   - Download version `3.11.1` from [python.org/downloads](https://www.python.org/downloads/)
@@ -95,7 +94,7 @@
 - Upgrade `pip`: `/opt/python/bin/pip3 install --upgrade pip`  
     Check pip-version: `python3 -m pip --version`
     
-### General project setup
+## General project setup
 - Setup a virtual environment for the project
   - Go to your home directory and create folder `cd $HOME ; mkdir ars-est-in-verbo`
   - Change into project folder `cd ars-est-in-verbo`
@@ -104,7 +103,7 @@
 - Upgrade/update modules `pip`, `setuptools`, `wheels`:  
   `python3 -m pip install --upgrade pip setuptools wheel`
   
-### Specific project setup
+## Specific project setup
 Maybe check later if some of these packages are really needed...
 - Install SW packages on operating system (don't know if they are really needed):  
   `sudo apt-get install python-dev python-pip ffmpeg libffi-dev`  
@@ -117,7 +116,7 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install -r requirements.txt`  
   `python3 -m pip freeze > requirements.txt`
   
-### Install Visual Studio Code 
+## Install Visual Studio Code 
 - Download VS Code: [code.visualstudio.com/download](https://code.visualstudio.com/download)
 - Extract `.tar.gz`-file into folder `/opt/VSCode`
 - Start VS Code: `/opt/VSCode/code`
@@ -141,9 +140,8 @@ Maybe check later if some of these packages are really needed...
   - Editor Format On Save
   - Python Formatting Provider
   - Python Linting Pylint Enabled
-  
-## Day-0002 - 2022-12-29
-### Git setup
+
+## Git setup
 - Clone github project `ars-est-in-verbo`:  
   `cd $HOME`  
   `git clone https://github.com/CastraRegina/ars-est-in-verbo`
@@ -151,26 +149,26 @@ Maybe check later if some of these packages are really needed...
 
 ---
 
-## Next steps / check in future / ToDos
+# Next steps / check in future / ToDos / Reminders
 - How to handle examples / spikes / testing / unit-test 
 - Pipeline architecture
-- Check ArjanCodes Channel videos and his [https://arjancodes.com/designguide]
+- Check ArjanCodes YT Channel videos
 
 ### Ideas
 - Palindrome --> see [Wikipedia](https://en.wikipedia.org/wiki/Palindrome)  
   Example: "SATOR AREPO TENET OPERA ROTAS"
 - Ambigram --> see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram)
 - Pictures of...  
-    Big Ben, Silhouette of town,
+    Big Ben, Silhouette of town, towers of town,
     Black/white of portraits, Banksy,
     Einstein, Mona Lisa, The Creation of Adam,
-    Nude front/back,
-    Dragonfly, Dear, Boar, Donkey half view
+    Nude front/back, Face(s)
+    Dragonfly, Dear, Boar, Donkey half view,
+    lucky pig, shamrock/four-leaf clover, heart, Yin and Yang, globe/world-maps
 
 ### Fonts
 - Variable Fonts
   - Grandstander --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
+  - Recursive --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
   - Roboto Flex --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
-
-
 
