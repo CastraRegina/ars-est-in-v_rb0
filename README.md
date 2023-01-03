@@ -10,15 +10,19 @@
   - Code style according to [PEP-0008 - Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/)  
   - See also [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
 - DocStrings  
-  - DocStrings according to [PEP 257 – Docstring Conventions](https://www.python.org/dev/peps/pep-0257/)  
+  - DocStrings according to [PEP-0257 – Docstring Conventions](https://www.python.org/dev/peps/pep-0257/)  
   - DocStrings in style of [pandas docstring guide](https://pandas.pydata.org/docs/development/contributing_docstring.html)
 - Typing  
   - Use type annotations to define static types and use checking tool(s)  
-  - Typing according to [PEP 484 – Type Hints](https://www.python.org/dev/peps/pep-0484/)
+  - Typing according to [PEP-0484 – Type Hints](https://www.python.org/dev/peps/pep-0484/)
   - See [https://docs.python.org/3/library/typing.html](https://docs.python.org/3/library/typing.html)  
   - Use [http://mypy-lang.org/](http://mypy-lang.org/) for checking
+- Linting
+  - See [Python Code Quality: Tools & Best Practices](https://realpython.com/python-code-quality/)
+  - User pylint and Pylama (= contains others)
 - Automated Testing  
-  - See [The Hitchhiker's Guide to Python](https://docs.python-guide.org/writing/tests/)  
+  - See [The Hitchhiker's Guide to Python](https://docs.python-guide.org/writing/tests/)
+  - See [4 Techniques for Testing Python Command-Line (CLI) Apps](https://realpython.com/python-cli-testing/)
   - Documentation of [unittest](https://docs.python.org/3/library/unittest.html)  
   - Documentation of [doctest](https://docs.python.org/3/library/doctest.html)
 - Logging  
@@ -29,18 +33,50 @@
   - Separate public and private data, e.g. credentials ...  
     See [How to hide sensitive credentials using Python](https://www.geeksforgeeks.org/how-to-hide-sensitive-credentials-using-python/)  
   - `.env`-file together with `python-dotenv`
-- Folder Structure  
+- Folder Structure
   - See [Sampleproject by the "Python Packaging Authority"](https://github.com/pypa/sampleproject)   
-  - folders: `bin`, `data`, `src`, `tests`, ... `build`, `dist`, ...   
+  - folders:   
+```
+        bin
+        [configs]
+        data
+        [dist]
+        docs
+        examples
+        [logs]
+        src
+        src/examples
+        tests
+        [tools]
+        (venv)
+```
+- Naming Conventions of file and folders
+  - Naming according to
+    [PEP-0008 - Style Guide for Python Code - Prescriptive: Naming Conventions](https://peps.python.org/pep-0008/#prescriptive-naming-conventions)
+    - module = `.py`-file
+    - package = folder with `__init__.py`-file
 - Parsing arguments from command line  
   - Maybe use [argparser](https://docs.python.org/3/library/argparse.html)
-  - See [PEP 389 – argparse - New Command Line Parsing](https://www.python.org/dev/peps/pep-0389/)
+  - See [PEP-0389 – argparse - New Command Line Parsing](https://www.python.org/dev/peps/pep-0389/)
 - Versioning
   - Use `MAJOR.MINOR.PATCH`, see [semver.org](https://semver.org)
   - See [Git-Basics-Tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging)
+- Good git commit message
+  - Questions
+    - Why have I made these changes? (Not what has been made)
+    - What effect have my changes made?
+    - Why was the change needed?
+    - What are the changes in reference to?
+  - Remarks
+    - First commit line is the most important
+    - Use present tense
+    - Be specific
+- Scripts should be...
+  - [idempotent](https://en.wikipedia.org/wiki/Idempotence):
+    Regardless of how many times the script is again executed with the same input, the output must always remain the same
+    
 
-
-## Git examples
+## Git
 - Repository --> local
   - Clone the repository (i.e. creates the repository-folder in your local folder):  
     `git clone https://<your-link-to-the-repository>`  
@@ -73,8 +109,25 @@
   - `git log`    Display the entire commit history using the default format
   - `git diff`   Show unstaged changes between your index and working directory
   - `gitk`       a git GUI
-
-
+  - `git log --all --graph --decorate --oneline`   Nice history view
+- Git without server
+  - See [Bare Repositories in Git](https://www.geeksforgeeks.org/bare-repositories-in-git/)
+  - See [Git workflow without a server](https://stackoverflow.com/questions/5947064/git-workflow-without-a-server) 
+  - Server-like repository:  
+    `mkdir foo.git ; cd foo.git`  
+    `git init --bare`
+  - Local repository:  
+    `mkdir foo ; cd foo`  
+    `git init`  
+    ... add your files ...  
+    `git add .`  
+    `git commit -m "Initial commit"`  
+    `git remote add origin /path/to/server/like/repository/foo.git`  
+    `git push origin main`
+  - Every further local repository like standard clone:  
+    `git clone /path/to/server/like/repository/foo.git`
+    
+    
 ---
 
 # Step-by-step process
@@ -116,15 +169,21 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install -r requirements.txt`  
   `python3 -m pip freeze > requirements.txt`
   
-## Install Visual Studio Code 
-- Download VS Code: [code.visualstudio.com/download](https://code.visualstudio.com/download)
-- Extract `.tar.gz`-file into folder `/opt/VSCode`
-- Start VS Code: `/opt/VSCode/code`
+## Install Visual Studio Code or VSCodium
+- Install [Visual Studio Code](https://code.visualstudio.com/) or [VSCodium](https://vscodium.com)
+  - Download: [code.visualstudio.com/download](https://code.visualstudio.com/download)
+    or [github.com/VSCodium](https://github.com/VSCodium/vscodium/releases)
+  - For VS Code...
+    - Extract `.tar.gz`-file into folder `/opt/VSCode`
+    - Start VS Code: `/opt/VSCode/code`
+  - VSCodium is available in [Snap Store](https://snapcraft.io/) as [Codium](https://snapcraft.io/codium) ...
+    - Install: `snap install codium --classic`
 - Install extensions:
   - Python extension for Visual Studio Code (ms-python.python)
   - Python indent (KevinRose.vsc-python-indent)
   - autoDocstring - Python Docstring Generator (njpwerner.autodocstring)
   - Pylance (ms-python.vscode-pylance) (seems to be already installed by ms-python.python)
+  - Pylint (ms-python.pylint)
   - GitLens - Git supercharged (eamodio.gitlens)
   - Markdown Preview Mermaid Support (bierner.markdown-mermaid) for diagrams and flowcharts
 - Extensions to check later:
@@ -140,6 +199,41 @@ Maybe check later if some of these packages are really needed...
   - Editor Format On Save
   - Python Formatting Provider
   - Python Linting Pylint Enabled
+- Setting for python `src`-folder
+  - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
+  - Modify `settings.json`
+  ```
+        {
+          "terminal.integrated.env.osx": {
+            "PYTHONPATH": "${workspaceFolder}/src",
+          },
+          "terminal.integrated.env.linux": {
+            "PYTHONPATH": "${workspaceFolder}/src",
+          },
+          "terminal.integrated.env.windows": {
+            "PYTHONPATH": "${workspaceFolder}/src",
+          },
+          "python.envFile": "${workspaceFolder}/.env"
+        }
+  ```
+  - Modify `.env` : `PYTHONPATH=./src`
+  - or:  
+  ```
+        {
+          "terminal.integrated.env.osx": {
+            "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
+          },
+          "terminal.integrated.env.linux": {
+           "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
+          },
+          "terminal.integrated.env.windows": {
+            "PYTHONPATH": "${env:PYTHONPATH};${workspaceFolder}/src",
+          }
+        }
+  ```
+  - ... and: `PYTHONPATH=${PYTHONPATH}:./src`
+- Helpful Shortcuts
+  - `Ctrl+Shift+P` to open the Command Palette
 
 ## Git setup
 - Clone github project `ars-est-in-verbo`:  
@@ -162,9 +256,11 @@ Maybe check later if some of these packages are really needed...
     Big Ben, Silhouette of town, towers of town,
     Black/white of portraits, Banksy,
     Einstein, Mona Lisa, The Creation of Adam,
-    Nude front/back, Face(s)
-    Dragonfly, Dear, Boar, Donkey half view,
-    lucky pig, shamrock/four-leaf clover, heart, Yin and Yang, globe/world-maps
+    Nude front/back, Face(s),
+    Dragonfly, Butterfly, Dear, Boar, Donkey half view,
+    lucky pig, unicorn, dragon,
+    shamrock/four-leaf clover, heart, globe/world-maps,
+    Yin and Yang, zodiac signs
 
 ### Fonts
 - Variable Fonts
