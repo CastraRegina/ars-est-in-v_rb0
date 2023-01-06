@@ -35,14 +35,14 @@
   - `.env`-file together with `python-dotenv`
 - Folder Structure
   - See [Sampleproject by the "Python Packaging Authority"](https://github.com/pypa/sampleproject)   
-  - folders:   
+  - folders `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`:   
 ```
         bin
         [configs]
         data
         [dist]
         docs
-        examples
+        [examples]
         [logs]
         src
         src/examples
@@ -235,12 +235,27 @@ Maybe check later if some of these packages are really needed...
 - Helpful Shortcuts
   - `Ctrl+Shift+P` to open the Command Palette
 
-## Git setup
+## Folder and Git setup
+- Git ssh setup
+  - Read [Connecting to GitHub with SSH](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
+  - Generate ssh-key on your local machine:  
+    `cd $HOME/.ssh`  
+    `ssh-keygen -o -t ed25519 -C "git@github.com" -f id_ed25519_github`  
+    `ssh-add id_ed2551_github`  
+    `ssh-add -L` to check if the key was added
+  - Copy public-key `cat id_rsa_github` to github->Settings->SSH and GPG keys->SSH keys->New SSH key...  
+  - Test ssh connection:  
+    `ssh -T git@github.com` should show: `Hi ...! You've successfully authenticated...`
 - Clone github project `ars-est-in-verbo`:  
   `cd $HOME`  
-  `git clone https://github.com/CastraRegina/ars-est-in-verbo`
-
-
+  ~~`git clone https://github.com/CastraRegina/ars-est-in-verbo`~~  
+  `git clone git@github.com:CastraRegina/ars-est-in-verbo.git`
+- Create folders:  
+  `cd ars-est-in-verbo`  
+  `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`
+- Set username for this repository:  
+  `git config user.name "Regina Castra"`  
+  `git config user.name` to check the settings
 ---
 
 # Next steps / check in future / ToDos / Reminders
