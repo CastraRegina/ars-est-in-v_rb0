@@ -243,7 +243,8 @@ Maybe check later if some of these packages are really needed...
     `ssh-keygen -o -t ed25519 -C "git@github.com" -f id_ed25519_github`  
     `ssh-add id_ed2551_github`  
     `ssh-add -L` to check if the key was added
-  - Copy public-key `cat id_rsa_github` to github->Settings->SSH and GPG keys->SSH keys->New SSH key...  
+  - Copy public-key `cat id_ed2551_github.pub` and add it to github  
+    *Settings->SSH and GPG keys->SSH keys->New SSH key*...  
   - Test ssh connection:  
     `ssh -T git@github.com` should show: `Hi ...! You've successfully authenticated...`
 - Clone github project `ars-est-in-verbo`:  
@@ -272,10 +273,15 @@ Maybe check later if some of these packages are really needed...
     Black/white of portraits, Banksy,
     Einstein, Mona Lisa, The Creation of Adam,
     Nude front/back, Face(s),
-    Dragonfly, Butterfly, Dear, Boar, Donkey half view,
     lucky pig, unicorn, dragon,
     shamrock/four-leaf clover, heart, globe/world-maps,
-    Yin and Yang, zodiac signs
+    Yin and Yang, zodiac signs,
+    dragonfly, butterfly, dear, boar, donkey half view,
+    tiger, elephant, rhinoceros, giraffe, camel, whale,
+    strawberry, banana, apple, pear, cherry
+    flower, blossom,
+- Texts like...  
+    smile, be happy, home, sweet home
 
 ### Fonts
 - Variable Fonts
