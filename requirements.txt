@@ -1,0 +1,10 @@
+cairocffi==1.4.0
+cffi==1.15.1
+gizeh==0.1.11
+lxml==4.9.2
+numpy==1.24.1
+pycparser==2.21
+scipy==1.10.0
+svgpathtools==1.5.1
+svgutils==0.3.4
+svgwrite==1.4.3

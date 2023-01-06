@@ -129,4 +129,6 @@ dmypy.json
 .pyre/
 
 # My own settings
-info/
+infos/
+
+

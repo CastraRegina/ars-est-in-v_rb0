@@ -10,11 +10,11 @@
   - Code style according to [PEP-0008 - Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/)  
   - See also [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
 - DocStrings  
-  - DocStrings according to [PEP-0257 – Docstring Conventions](https://www.python.org/dev/peps/pep-0257/)  
+  - DocStrings according to [PEP-0257 - Docstring Conventions](https://www.python.org/dev/peps/pep-0257/)  
   - DocStrings in style of [pandas docstring guide](https://pandas.pydata.org/docs/development/contributing_docstring.html)
 - Typing  
   - Use type annotations to define static types and use checking tool(s)  
-  - Typing according to [PEP-0484 – Type Hints](https://www.python.org/dev/peps/pep-0484/)
+  - Typing according to [PEP-0484 - Type Hints](https://www.python.org/dev/peps/pep-0484/)
   - See [https://docs.python.org/3/library/typing.html](https://docs.python.org/3/library/typing.html)  
   - Use [http://mypy-lang.org/](http://mypy-lang.org/) for checking
 - Linting
@@ -57,15 +57,15 @@
     - package = folder with `__init__.py`-file
 - Parsing arguments from command line  
   - Maybe use [argparser](https://docs.python.org/3/library/argparse.html)
-  - See [PEP-0389 – argparse - New Command Line Parsing](https://www.python.org/dev/peps/pep-0389/)
+  - See [PEP-0389 - argparse - New Command Line Parsing](https://www.python.org/dev/peps/pep-0389/)
 - Versioning
   - Use `MAJOR.MINOR.PATCH`, see [semver.org](https://semver.org)
   - See [Git-Basics-Tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging)
 - Good git commit message
   - Questions
     - Why have I made these changes? (Not what has been made)
-    - What effect have my changes made?
-    - Why was the change needed?
+    - What effects do my changes have?
+    - What is the reason for these changes?
     - What are the changes in reference to?
   - Remarks
     - First commit line is the most important
@@ -127,7 +127,10 @@
   - Every further local repository like standard clone:  
     `git clone /path/to/server/like/repository/foo.git`
     
-    
+## Scripts
+- Convert utf-8 file to ascii:  
+  `cat input.txt | iconv -f utf-8 -t ascii//TRANSLIT > output.txt`
+
 ---
 
 # Step-by-step process
@@ -152,10 +155,11 @@
   - Go to your home directory and create folder `cd $HOME ; mkdir ars-est-in-verbo`
   - Change into project folder `cd ars-est-in-verbo`
   - Setup the virtual environment `/opt/python/bin/python3 -m venv venv`
-- Switch on virtual environment: `. venv/bin/activate`
+- Activate virtual environment: `. venv/bin/activate`
 - Upgrade/update modules `pip`, `setuptools`, `wheels`:  
   `python3 -m pip install --upgrade pip setuptools wheel`
-  
+- Upgrade/update all already installed modules:  
+  `python3 -m pip freeze | cut -d'=' -f1 | xargs -n1 python3 -m pip install -U`  
 ## Specific project setup
 Maybe check later if some of these packages are really needed...
 - Install SW packages on operating system (don't know if they are really needed):  
@@ -163,7 +167,7 @@ Maybe check later if some of these packages are really needed...
   `sudo apt-get install libxml2-dev libxslt-dev`  
   `sudo apt-get install libcairo2`
 - Install python modules:  
-  `python3 -m pip install gizeh svgutils svgwrite`  
+  `python3 -m pip install gizeh svgutils svgwrite svgpathtools`  
   `python3 -m pip install pycairo` (does not install properly)
 - Remark: Later use `requirements.txt` to install needed PyPI packages:  
   `python3 -m pip install -r requirements.txt`  
@@ -289,3 +293,13 @@ Maybe check later if some of these packages are really needed...
   - Recursive --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
   - Roboto Flex --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
 
+### Sizes and Resolution
+- General  
+  300 DPI, sRGB-colors, .png or .jpg 
+- P.n.erest  
+  ratio 2:3, 1000x1500px, 600x1260px, 600x600px, 600x900px
+- P.i.tful  
+  - Poster(inch): 20.32x25.40cm - 60.96x91.44cm - deviation up to 0.51 cm  
+    **8x10**, **10x10**, 12x12, **11x14**, **12x16**, 12x18, 14x14, 16x16, **16x20**, 18x18, 18x24, **24x36** inch  
+  - Poster(cm): 21x30cm - 70x100cm - deviation up to 0.51 cm  
+    **21x30**, **30x40**, **50x70**, **61x91**, 70x100 cm
