@@ -6,6 +6,8 @@
 
 
 ## Rules / Guidelines / Best Practices
+- General
+  - See Pranav Kapur's [Structuring Python Code - Best practices from over 10 blogs](https://medium.com/analytics-vidhya/structuring-python-code-best-practices-from-over-10-blogs-2e33cbb83c49)
 - Code Style  
   - Code style according to [PEP-0008 - Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/)  
   - See also [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
@@ -34,6 +36,8 @@
     See [How to hide sensitive credentials using Python](https://www.geeksforgeeks.org/how-to-hide-sensitive-credentials-using-python/)  
   - `.env`-file together with `python-dotenv`
 - Folder Structure
+  - See [Python Packages - Package structure](https://py-pkgs.org/04-package-structure.html#package-structure)
+  - See Jason C. McDonald's [Dead Simple Python: Project Structure and Imports](https://dev.to/codemouse92/dead-simple-python-project-structure-and-imports-38c6)
   - See [Sampleproject by the "Python Packaging Authority"](https://github.com/pypa/sampleproject)   
   - folders `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`:   
 ```
@@ -46,6 +50,7 @@
         [logs]
         src
         src/examples
+        [src/subpackage]
         tests
         [tools]
         (venv)
@@ -60,7 +65,11 @@
   - See [PEP-0389 - argparse - New Command Line Parsing](https://www.python.org/dev/peps/pep-0389/)
 - Versioning
   - Use `MAJOR.MINOR.PATCH`, see [semver.org](https://semver.org)
-  - See [Git-Basics-Tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging)
+  - See [Git-Basics-Tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging) and
+    illustrated example: [medium.com: Major.Minor.Patch](https://medium.com/fiverr-engineering/major-minor-patch-a5298e2e1798)
+- Branches
+  - *Main branch* for latest stable (productive) version
+  - Use *feature branches* for developing and testing new features
 - Good git commit message
   - Questions
     - Why have I made these changes? (Not what has been made)
@@ -88,6 +97,13 @@
     `git checkout <branch>`
   - Checkout certain commitID:  
     `git checkout <commitID>`
+  - Replace local changes (in case of modified files)
+    - Either replace only the changes in your working tree with the last content in HEAD.  
+      Changes already added to the index (stage), as well as new files, will be kept:  
+        `git checkout -- <filename>`
+    - or drop all your local changes and commits, fetch the latest history from the server and point your local main branch at it:  
+        `git fetch origin`
+        `git reset --hard origin/main`
 - Local --> repository
   - Add file(s):  
     `git add <files>`
@@ -104,7 +120,10 @@
   - Tagging:  
     `git tag -a "v1.3.0-beta" -m "version v1.3.0-beta"`  
     `git push origin --tags`
-- Further examples:
+- Create an executeable (for Windows)
+  - Create folders `build` and `dist`
+  - `pyinstaller --distpath dist --workpath build --onefile --clean <aScript.py>`
+- Further examples
   - `git status` List which files are staged, unstaged, and untracked
   - `git log`    Display the entire commit history using the default format
   - `git diff`   Show unstaged changes between your index and working directory
@@ -126,6 +145,12 @@
     `git push origin main`
   - Every further local repository like standard clone:  
     `git clone /path/to/server/like/repository/foo.git`
+- Git submodules and subtrees
+  - See [Managing Git Projects: Git Subtree vs. Submodule](https://gitprotect.io/blog/managing-git-projects-git-subtree-vs-submodule/)
+  - From [Managing Git projects with submodules and subtrees](https://opensource.com/article/20/5/git-submodules-subtrees):  
+    If there is a *sub*-repository you want to push code back to, use Git *submodule* as it is easier to push.  
+    If you want to import code you are unlikely to push (e.g. third-party code), use Git *subtree* as it is easier to pull.
+  - Practical advice, see [How do I manage the file structure of GIT sub modules/trees?](https://stackoverflow.com/questions/68950221/how-do-i-manage-the-file-structure-of-git-sub-modules-trees)
     
 ## Scripts
 - Convert utf-8 file to ascii:  
@@ -245,6 +270,7 @@ Maybe check later if some of these packages are really needed...
   - Generate ssh-key on your local machine:  
     `cd $HOME/.ssh`  
     `ssh-keygen -o -t ed25519 -C "git@github.com" -f id_ed25519_github`  
+    `eval "$(ssh-agent)"`  (unsure if this command is really needed)  
     `ssh-add id_ed2551_github`  
     `ssh-add -L` to check if the key was added
   - Copy public-key `cat id_ed2551_github.pub` and add it to github  
@@ -263,29 +289,57 @@ Maybe check later if some of these packages are really needed...
   `git config user.name` to check the settings
 ---
 
-# Next steps / check in future / ToDos / Reminders
+## Next steps / check in future / ToDos / Reminders
 - How to handle examples / spikes / testing / unit-test 
-- Pipeline architecture
 - Check ArjanCodes YT Channel videos
 
 ### Ideas
 - Palindrome --> see [Wikipedia](https://en.wikipedia.org/wiki/Palindrome)  
   Example: "SATOR AREPO TENET OPERA ROTAS"
 - Ambigram --> see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram)
-- Pictures of...  
-    Big Ben, Silhouette of town, towers of town,
-    Black/white of portraits, Banksy,
-    Einstein, Mona Lisa, The Creation of Adam,
-    Nude front/back, Face(s),
-    lucky pig, unicorn, dragon,
-    shamrock/four-leaf clover, heart, globe/world-maps,
-    Yin and Yang, zodiac signs,
-    dragonfly, butterfly, dear, boar, donkey half view,
-    tiger, elephant, rhinoceros, giraffe, camel, whale,
-    strawberry, banana, apple, pear, cherry
-    flower, blossom,
+- Pictures of...
+  - Architecture
+    - Big Ben, Silhouette of town, towers of town, castle, palace,
+  - Flora
+    - fruits: strawberry, banana, apple, pear, cherry,  
+    - flower, blossom,
+    - fern, gingko leaf, tree,
+  - Fauna  
+    - dragonfly (half), butterfly (half), dear (partly), boar, donkey (partly),
+    - tiger, cat, lion, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
+    - owl, eagle, pigeon, pelican,
+    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel,
+  - Technology
+    - cars, trains/locomotive, airplane,
+    - musical instruments: violin, guitar, hunting horn,
+    - light bulb, candle,
+  - Hollow Ware
+    - vase, bottle, cup (of coffee), teapot, glass, beer mug 
+  - Art
+    - Banksy,
+    - The Creation of Adam,
+    - Nude front/back,
+    - Mona Lisa,
+  - Fantasy
+    - unicorn, dragon, angel,
+  - Portraits
+    - Einstein, Goethe, Mozart, 
+    - black/white of portraits / face(s): eye, mouth, lips,
+  - Signs / themes
+    - Luck: lucky pig, shamrock/four-leaf clover,
+    - Love: heart, cupid,
+    - teddy bear,
+    - globe/world-maps,
+    - yin and yang,
+    - zodiac signs,
+    - professional category: rod of asclepius (medical), Justitia, ...
+    - traffic signs: STOP, ...
+    - woman legs with seamed stockings in pumps,
+
 - Texts like...  
-    smile, be happy, home, sweet home
+  - luck and happiness: smile, be happy, home, sweet home, welcome,
+  - citations: errare humanum est, in dubio pro reo iudicandum est, panem et circenses, ora et labora, cave canem,
+
 
 ### Fonts
 - Variable Fonts
@@ -295,7 +349,8 @@ Maybe check later if some of these packages are really needed...
 
 ### Sizes and Resolution
 - General  
-  300 DPI, sRGB-colors, .png or .jpg 
+  300 DPI, sRGB-colors, .png or .jpg  
+  Example: 20x20cm : 1.5cm frame + 2cm margin (white space) --> picture < 16x16cm
 - P.n.erest  
   ratio 2:3, 1000x1500px, 600x1260px, 600x600px, 600x900px
 - P.i.tful  
@@ -303,3 +358,16 @@ Maybe check later if some of these packages are really needed...
     **8x10**, **10x10**, 12x12, **11x14**, **12x16**, 12x18, 14x14, 16x16, **16x20**, 18x18, 18x24, **24x36** inch  
   - Poster(cm): 21x30cm - 70x100cm - deviation up to 0.51 cm  
     **21x30**, **30x40**, **50x70**, **61x91**, 70x100 cm
+- I.EA
+  - picture frame: 10x15, 13x18, 20x25, 21x30, 23x23, 30x40, 32x32, 40x50, 50x70, 61x91cm
+  - see also other sizes, passepartout-sizes and more ...
+
+
+### Websites
+Interesting websites I stumbled upon: check in future:
+- https://www.jasper.ai/art AI created art
+- https://www.synthesia.io/ AI Text to video
+- https://repurpose.io/ Distribute your content to your social media channels
+- https://pictory.ai/ Video creation made easy
+- https://lumen5.com/ Create video from blog content
+
