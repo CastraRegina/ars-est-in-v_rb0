@@ -1,10 +1,17 @@
 cairocffi==1.4.0
+CairoSVG==2.5.2
 cffi==1.15.1
+cssselect2==0.7.0
+defusedxml==0.7.1
 gizeh==0.1.11
 lxml==4.9.2
 numpy==1.24.1
+opencv-python==4.7.0.68
+Pillow==9.4.0
 pycparser==2.21
 scipy==1.10.0
 svgpathtools==1.5.1
 svgutils==0.3.4
 svgwrite==1.4.3
+tinycss2==1.2.1
+webencodings==0.5.1

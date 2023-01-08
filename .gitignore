@@ -128,7 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# My own settings
+# my own settings
 infos/
+data/output/
 
 

@@ -58,8 +58,12 @@
 - Naming Conventions of file and folders
   - Naming according to
     [PEP-0008 - Style Guide for Python Code - Prescriptive: Naming Conventions](https://peps.python.org/pep-0008/#prescriptive-naming-conventions)
-    - module = `.py`-file
-    - package = folder with `__init__.py`-file
+    - **module = `.py`-file**:  
+      files should have short, all-lowercase names, underscores `_` are allowed
+    - **package = folder** with `__init__.py`-file:  
+      folders should have short, all-lowercase names, use of underscores `_` is discouraged
+    - Linters (install using `pip`): `pycodestyle`, `flake8`
+    - Autoformatters (install using `pip`): `black` -> usage: `black --line-length=79 code.py`
 - Parsing arguments from command line  
   - Maybe use [argparser](https://docs.python.org/3/library/argparse.html)
   - See [PEP-0389 - argparse - New Command Line Parsing](https://www.python.org/dev/peps/pep-0389/)
@@ -185,6 +189,7 @@
   `python3 -m pip install --upgrade pip setuptools wheel`
 - Upgrade/update all already installed modules:  
   `python3 -m pip freeze | cut -d'=' -f1 | xargs -n1 python3 -m pip install -U`  
+  after that update also the `requirements.txt` file by executing `python3 -m pip freeze > requirements.txt`
 ## Specific project setup
 Maybe check later if some of these packages are really needed...
 - Install SW packages on operating system (don't know if they are really needed):  
@@ -192,8 +197,8 @@ Maybe check later if some of these packages are really needed...
   `sudo apt-get install libxml2-dev libxslt-dev`  
   `sudo apt-get install libcairo2`
 - Install python modules:  
-  `python3 -m pip install gizeh svgutils svgwrite svgpathtools`  
-  `python3 -m pip install pycairo` (does not install properly)
+  `python3 -m pip install lxml gizeh svgutils svgwrite svgpathtools cairosvg pillow opencv-python pycodestyle flake8 black`  
+  `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)
 - Remark: Later use `requirements.txt` to install needed PyPI packages:  
   `python3 -m pip install -r requirements.txt`  
   `python3 -m pip freeze > requirements.txt`
@@ -224,10 +229,11 @@ Maybe check later if some of these packages are really needed...
   - AREPL for python (almenon.arepl)
   - Vim (vscodevim.vim)
 - Setup / modify settings:
-  - Python Analysis Type Checking Mode
-  - Editor Format On Save
-  - Python Formatting Provider
-  - Python Linting Pylint Enabled
+  - Python Analysis Type Checking Mode: on
+  - Editor Format On Save: on
+  - Python Formatting Provider: black
+  - Python Linting Enabled: check-on
+  - Python Linting Flake8 Enabled: check-on
 - Setting for python `src`-folder
   - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
   - Modify `settings.json`
