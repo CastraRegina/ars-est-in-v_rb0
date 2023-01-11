@@ -197,7 +197,10 @@ Maybe check later if some of these packages are really needed...
   `sudo apt-get install libxml2-dev libxslt-dev`  
   `sudo apt-get install libcairo2`
 - Install python modules:  
-  `python3 -m pip install lxml gizeh svgutils svgwrite svgpathtools cairosvg pillow opencv-python pycodestyle flake8 black`  
+  `python3 -m pip install pycodestyle flake8 black`  
+  `python3 -m pip install lxml gizeh svgutils svgwrite svgpathtools cairosvg`  
+  `python3 -m pip install pillow opencv-python`  
+  `python3 -m pip install pangocffi cairocffi pangocairocffi`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)
 - Remark: Later use `requirements.txt` to install needed PyPI packages:  
   `python3 -m pip install -r requirements.txt`  
@@ -293,6 +296,52 @@ Maybe check later if some of these packages are really needed...
 - Set username for this repository:  
   `git config user.name "Regina Castra"`  
   `git config user.name` to check the settings
+
+
+## Fonts
+- Install variable Fonts:  
+  Find a font, check its license (SIL Open Font License (OFL) recommended), download it,  
+  double-click on the `.ttf`-file and click *install*  in the opening *GNOME Font Viewer* window.
+  - Grandstander --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
+  - Recursive --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
+  - Roboto Flex --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
+  - Roboto Mono --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)
+- Check [freetype.org](https://freetype.org/) for information about fonts,
+  especially the [FreeType Glyph Conventions](https://freetype.org/freetype2/docs/glyphs/index.html).
+- Also check [wikipedia:Typeface](https://en.wikipedia.org/wiki/Typeface) and a lot more linked sites.
+- For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
+
+## Artist name
+Create an artist name and register/secure it at several online services:  
+- Googlemail (pwd+2factor)
+- Youtube (login using google account)
+- Pinterest (login using google account)
+- TikTok (login using google account)
+- Etsy (login using google account)  
+- reddit (login using google account)
+- patreon (login using google account)
+- Twitter (login using google account)
+- Instagram (pwd+2factor)
+- Xing (pwd+2factor)  
+- LinkedIn (pwd+2factor) 
+- GitHub (pwd+2factor+2ndSMS)
+- redbubble (pwd w/o 2factor authentication)
+- ... further ...
+- Dribbble
+- Behance
+- flickr
+- tumblr
+- deviantArt
+- theartling
+- saatchiart
+- artmajeur 
+- singulart
+- artgallery.co.uk 
+- ... and further more like...
+- a payment service
+- a file sharing service
+- ...
+
 ---
 
 ## Next steps / check in future / ToDos / Reminders
@@ -307,51 +356,54 @@ Maybe check later if some of these packages are really needed...
   - Architecture
     - Big Ben, Silhouette of town, towers of town, castle, palace,
   - Flora
-    - fruits: strawberry, banana, apple, pear, cherry,  
-    - flower, blossom,
-    - fern, gingko leaf, tree,
+    - fruits: strawberry, banana, apple, pear, cherry, kiwi,  
+    - flower, blossom, tomato, broccoli, 
+    - fern, gingko leaf, maple leaf, tree, grain ear, sunflower,
   - Fauna  
-    - dragonfly (half), butterfly (half), dear (partly), boar, donkey (partly),
+    - dragonfly (half), butterfly (half), dear (partly), boar, donkey (partly), horse,
     - tiger, cat, lion, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
-    - owl, eagle, pigeon, pelican,
-    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel,
+    - cat head with flashing eyes,
+    - owl, eagle, pigeon, pelican, swallow, black bird, robin, crow,
+    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, 
   - Technology
-    - cars, trains/locomotive, airplane,
+    - cars, trains/locomotive, airplane, lunar module, lunar roving vehicle, sailing ship,
     - musical instruments: violin, guitar, hunting horn,
-    - light bulb, candle,
+    - light bulb, candle, reading lamp,
   - Hollow Ware
-    - vase, bottle, cup (of coffee), teapot, glass, beer mug 
+    - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
     - Banksy,
     - The Creation of Adam,
-    - Nude front/back,
     - Mona Lisa,
+    - Praying Hands (Duerer),
   - Fantasy
     - unicorn, dragon, angel,
   - Portraits
-    - Einstein, Goethe, Mozart, 
+    - Einstein, Goethe, Mozart, roman emperors,
     - black/white of portraits / face(s): eye, mouth, lips,
   - Signs / themes
     - Luck: lucky pig, shamrock/four-leaf clover,
     - Love: heart, cupid,
     - teddy bear,
-    - globe/world-maps,
-    - yin and yang,
+    - globe/world-maps, european countries, states of Germany, islands like Sylt,
+    - yin and yang, buddha, peace sign,
     - zodiac signs,
     - professional category: rod of asclepius (medical), Justitia, ...
-    - traffic signs: STOP, ...
-    - woman legs with seamed stockings in pumps,
+    - traffic signs: STOP, traffic light man, cute couple as parking sign / parking garage...
+    - cloud, snowflake, 
+    - woman legs with seamed stockings in (red) pumps,
+    - red pumps,
+    - collection of icons,
+    - sunglasses,
+    - brezel,
+    - Nude front/back, chauvinistic slogans,
+    - bavarian laptop and leather pants and smartphone,
+    - pirate flag, country flags in general,
 
 - Texts like...  
   - luck and happiness: smile, be happy, home, sweet home, welcome,
+  - YES, NO, maybe, 
   - citations: errare humanum est, in dubio pro reo iudicandum est, panem et circenses, ora et labora, cave canem,
-
-
-### Fonts
-- Variable Fonts
-  - Grandstander --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
-  - Recursive --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
-  - Roboto Flex --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
 
 ### Sizes and Resolution
 - General  
