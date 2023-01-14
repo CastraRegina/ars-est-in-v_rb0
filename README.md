@@ -197,7 +197,7 @@ Maybe check later if some of these packages are really needed...
   `sudo apt-get install libxml2-dev libxslt-dev`  
   `sudo apt-get install libcairo2`
 - Install python modules:  
-  `python3 -m pip install pycodestyle flake8 black`  
+  `python3 -m pip install pycodestyle flake8 black autopep8`  
   `python3 -m pip install lxml gizeh svgutils svgwrite svgpathtools cairosvg`  
   `python3 -m pip install pillow opencv-python`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi`  
@@ -223,6 +223,7 @@ Maybe check later if some of these packages are really needed...
   - Pylint (ms-python.pylint)
   - GitLens - Git supercharged (eamodio.gitlens)
   - Markdown Preview Mermaid Support (bierner.markdown-mermaid) for diagrams and flowcharts
+  - XML (redhat.vscode-xml)
 - Extensions to check later:
   - Code Runner (formulahendry.code-runner)
   - Python Extension Pack (donjayamanne.python-extension-pack)
@@ -234,9 +235,12 @@ Maybe check later if some of these packages are really needed...
 - Setup / modify settings:
   - Python Analysis Type Checking Mode: on
   - Editor Format On Save: on
-  - Python Formatting Provider: black
+  - Editor Default Formatter: Python (ms-python.python)
+  - Python Formatting Provider: autopep8
   - Python Linting Enabled: check-on
   - Python Linting Flake8 Enabled: check-on
+  - Edit `$HOME/.config/Code/User/settings.json`:  
+    `"editor.rulers": [79]`
 - Setting for python `src`-folder
   - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
   - Modify `settings.json`
@@ -311,8 +315,9 @@ Maybe check later if some of these packages are really needed...
 - Also check [wikipedia:Typeface](https://en.wikipedia.org/wiki/Typeface) and a lot more linked sites.
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
 
+
 ## Artist name
-Create an artist name and register/secure it at several online services:  
+Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.com/) and register/secure it at several online services:  
 - Googlemail (pwd+2factor)
 - Youtube (login using google account)
 - Pinterest (login using google account)
@@ -329,9 +334,10 @@ Create an artist name and register/secure it at several online services:
 - ... further ...
 - Dribbble
 - Behance
-- flickr
-- tumblr
-- deviantArt
+-  flickr
+-  tumblr
+- ello
+-  deviantArt
 - theartling
 - saatchiart
 - artmajeur 
@@ -344,15 +350,11 @@ Create an artist name and register/secure it at several online services:
 
 ---
 
-## Next steps / check in future / ToDos / Reminders
-- How to handle examples / spikes / testing / unit-test 
-- Check ArjanCodes YT Channel videos
-
-### Ideas
+## Ideas
 - Palindrome --> see [Wikipedia](https://en.wikipedia.org/wiki/Palindrome)  
   Example: "SATOR AREPO TENET OPERA ROTAS"
 - Ambigram --> see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram)
-- Pictures of...
+- Pictures (black and white, silhouettes, ...) of...
   - Architecture
     - Big Ben, Silhouette of town, towers of town, castle, palace,
   - Flora
@@ -360,52 +362,53 @@ Create an artist name and register/secure it at several online services:
     - flower, blossom, tomato, broccoli, 
     - fern, gingko leaf, maple leaf, tree, grain ear, sunflower,
   - Fauna  
-    - dragonfly (half), butterfly (half), dear (partly), boar, donkey (partly), horse,
+    - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, 
+    - dear (partly), boar, donkey (partly), horse, zebra, gnu,
     - tiger, cat, lion, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
-    - cat head with flashing eyes,
-    - owl, eagle, pigeon, pelican, swallow, black bird, robin, crow,
-    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, 
+    - owl, eagle, pigeon, pelican, swallow, black bird, robin, crow, ostrich, seagull,
+    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, nautilus shell,
+    - salamander, lizard, iguana, 
+    - egg, egg-shape, 
+    - cat head with flashing eyes, 2 swans showing a heart,
   - Technology
-    - cars, trains/locomotive, airplane, lunar module, lunar roving vehicle, sailing ship,
+    - cars, trains/locomotive, airplane, lunar module, lunar roving vehicle, sailing ship, scooter,
     - musical instruments: violin, guitar, hunting horn,
     - light bulb, candle, reading lamp,
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy,
+    - Banksy, M. C. Escher,
     - The Creation of Adam,
     - Mona Lisa,
     - Praying Hands (Duerer),
+    - Golden ration - The Vitruvian Man (Leonardo da Vinci),
   - Fantasy
     - unicorn, dragon, angel,
-  - Portraits
-    - Einstein, Goethe, Mozart, roman emperors,
+  - PortraitsWeißwurst
+    - Einstein, Goethe, Mozart, Leonardo da Vinci, roman emperors,
     - black/white of portraits / face(s): eye, mouth, lips,
   - Signs / themes
     - Luck: lucky pig, shamrock/four-leaf clover,
     - Love: heart, cupid,
+    - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock, chess, checkerboard, chessmen,
     - teddy bear,
     - globe/world-maps, european countries, states of Germany, islands like Sylt,
-    - yin and yang, buddha, peace sign,
-    - zodiac signs,
-    - professional category: rod of asclepius (medical), Justitia, ...
-    - traffic signs: STOP, traffic light man, cute couple as parking sign / parking garage...
-    - cloud, snowflake, 
-    - woman legs with seamed stockings in (red) pumps,
-    - red pumps,
-    - collection of icons,
-    - sunglasses,
-    - brezel,
-    - Nude front/back, chauvinistic slogans,
-    - bavarian laptop and leather pants and smartphone,
+    - yin and yang, buddha, peace sign, zodiac signs,
+    - collection of icons, money-signs (dollar, euro, Yen, ...), professional category: rod of asclepius (medical), Justitia, ...
+    - traffic signs: STOP, traffic light man, cute couple as parking sign / parking garage, home of a single, ...
+    - cloud, snowflake, crescent moon, sunglasses, coins (maple leaf, krugerrand, ...),
+    - nude front/back, chauvinistic slogans, woman legs with seamed stockings in (red) pumps, red pumps,
+    - brezel, Bavarian veal sausage, 
+    - Bavarian laptop and leather pants and smartphone,
     - pirate flag, country flags in general,
 
 - Texts like...  
-  - luck and happiness: smile, be happy, home, sweet home, welcome,
+  - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, welcome, good vibes only, do more what makes you happy,
   - YES, NO, maybe, 
-  - citations: errare humanum est, in dubio pro reo iudicandum est, panem et circenses, ora et labora, cave canem,
+  - don't marry be happy,
+  - citations: errare humanum est, in dubio pro reo iudicandum est, panem et circenses, ora et labora, cave canem, nomen est omen,
 
-### Sizes and Resolution
+## Sizes and Resolution
 - General  
   300 DPI, sRGB-colors, .png or .jpg  
   Example: 20x20cm : 1.5cm frame + 2cm margin (white space) --> picture < 16x16cm
@@ -420,9 +423,14 @@ Create an artist name and register/secure it at several online services:
   - picture frame: 10x15, 13x18, 20x25, 21x30, 23x23, 30x40, 32x32, 40x50, 50x70, 61x91cm
   - see also other sizes, passepartout-sizes and more ...
 
+## Next steps / check in future / ToDos / Reminders
+- How to handle examples / spikes / testing / unit-test 
+- Check ArjanCodes YT Channel videos
+
 
 ### Websites
 Interesting websites I stumbled upon: check in future:
+- https://openai.com/dall-e-2/ AI created images and art 
 - https://www.jasper.ai/art AI created art
 - https://www.synthesia.io/ AI Text to video
 - https://repurpose.io/ Distribute your content to your social media channels
