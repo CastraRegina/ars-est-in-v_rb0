@@ -241,6 +241,7 @@ Maybe check later if some of these packages are really needed...
   - Python Linting Flake8 Enabled: check-on
   - Edit `$HOME/.config/Code/User/settings.json`:  
     `"editor.rulers": [79]`
+  - Python Select Interpreter: `./venv/bin/python`
 - Setting for python `src`-folder
   - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
   - Modify `settings.json`
@@ -348,12 +349,19 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - a file sharing service
 - ...
 
----
-
 ## Ideas
 - Palindrome --> see [Wikipedia](https://en.wikipedia.org/wiki/Palindrome)  
-  Example: "SATOR AREPO TENET OPERA ROTAS"
-- Ambigram --> see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram)
+  Example of an ambigram and palindrome:  
+  "SATOR AREPO TENET OPERA ROTAS",
+  see [Wikipedia - Sator Square](https://en.wikipedia.org/wiki/Sator_Square)
+  (N and S reversed)  
+  See also [Wikipedia: List of English palindromic phrases](https://en.wikipedia.org/wiki/List_of_English_palindromic_phrases)
+
+- Word square --> see [Wikipedia](https://en.wikipedia.org/wiki/Word_square)
+
+- Ambigram --> see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram)  
+  Example painting: *ME -> WE*, see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram#/media/File:Me_we_co.jpg)
+
 - Pictures (black and white, silhouettes, ...) of...
   - Architecture
     - Big Ben, Silhouette of town, towers of town, castle, palace,
@@ -366,7 +374,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - dear (partly), boar, donkey (partly), horse, zebra, gnu,
     - tiger, cat, lion, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, pelican, swallow, black bird, robin, crow, ostrich, seagull,
-    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, nautilus shell,
+    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell,
+      [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, 
     - egg, egg-shape, 
     - cat head with flashing eyes, 2 swans showing a heart,
@@ -377,7 +386,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, M. C. Escher,
+    - Banksy, M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, 
     - The Creation of Adam,
     - Mona Lisa,
     - Praying Hands (Duerer),
@@ -390,23 +399,50 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Signs / themes
     - Luck: lucky pig, shamrock/four-leaf clover,
     - Love: heart, cupid,
-    - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock, chess, checkerboard, chessmen,
-    - teddy bear,
+    - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock,
+    - chess, checkerboard, chessmen, teddy bear, feather, 
     - globe/world-maps, european countries, states of Germany, islands like Sylt,
     - yin and yang, buddha, peace sign, zodiac signs,
-    - collection of icons, money-signs (dollar, euro, Yen, ...), professional category: rod of asclepius (medical), Justitia, ...
-    - traffic signs: STOP, traffic light man, cute couple as parking sign / parking garage, home of a single, ...
-    - cloud, snowflake, crescent moon, sunglasses, coins (maple leaf, krugerrand, ...),
+    - collection of icons, money-signs (dollar, euro, Yen, ...), clef / music sign,
+    - professional category: rod of asclepius (medical), Justitia, ...
+    - traffic signs: STOP, traffic light man, video surveillance, 
+    - cute couple as parking sign / parking garage, home of a single, ...
+    - cloud, snowflake, crescent moon, sunglasses, coins (maple leaf, krugerrand, old roman coins, ...),
     - nude front/back, chauvinistic slogans, woman legs with seamed stockings in (red) pumps, red pumps,
-    - brezel, Bavarian veal sausage, 
+    - brezel, Bavarian veal sausage,
+    - knife, fork, spoon, garden gnome, 
     - Bavarian laptop and leather pants and smartphone,
     - pirate flag, country flags in general,
 
 - Texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, welcome, good vibes only, do more what makes you happy,
   - YES, NO, maybe, 
+  - big brother is watching you, adjust your crown and keep going,
   - don't marry be happy,
-  - citations: errare humanum est, in dubio pro reo iudicandum est, panem et circenses, ora et labora, cave canem, nomen est omen,
+  - latin citations: errare humanum est, in dubio pro reo iudicandum est, 
+    panem et circenses, ora et labora, cave canem, nomen est omen,
+    veni vidi vici, alea jacta est,
+
+- Further ideas and variations
+  - slightly skewed text
+  - descriptive text (e.g. bridge, tower, window, church, river, ...)
+
+## Copyright topics
+- Reuse of Wikipedia texts:
+  - See [Wikipedia: Reusing Wikipedia content](https://en.wikipedia.org/wiki/Wikipedia:Reusing_Wikipedia_content), especially:
+    - [Wikipedia: Example notice](https://en.wikipedia.org/wiki/Wikipedia:Reusing_Wikipedia_content#Example_notice)
+- Reuse of Wikipedia / Wikimedia images:
+  - See [Wikimedia: Reusing content outside Wikimedia](https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia),
+    especially:
+    - [Wikipedia: Ten things you may not know about images on Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:Ten_things_you_may_not_know_about_images_on_Wikipedia)
+    - [Wikipedia: File copyright tags](https://en.wikipedia.org/wiki/Wikipedia:File_copyright_tags)
+- Reuse assistance tools
+  - [Attribution Generator - lizenzhinweisgenerator.de](https://www.lizenzhinweisgenerator.de/?lang=en)
+- Further Wikipedia / Wikimedia infos:
+  - https://en.wikipedia.org/wiki/Public_domain
+  - https://commons.wikimedia.org/wiki/Commons:Reuse_of_PD-Art_photographs
+  - https://en.wikipedia.org/wiki/List_of_countries%27_copyright_lengths
+
 
 ## Sizes and Resolution
 - General  
@@ -422,6 +458,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - I.EA
   - picture frame: 10x15, 13x18, 20x25, 21x30, 23x23, 30x40, 32x32, 40x50, 50x70, 61x91cm
   - see also other sizes, passepartout-sizes and more ...
+
+
+---
 
 ## Next steps / check in future / ToDos / Reminders
 - How to handle examples / spikes / testing / unit-test 
