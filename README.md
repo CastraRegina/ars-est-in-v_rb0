@@ -200,7 +200,7 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install pycodestyle flake8 black autopep8`  
   `python3 -m pip install lxml gizeh svgutils svgwrite svgpathtools cairosvg`  
   `python3 -m pip install pillow opencv-python`  
-  `python3 -m pip install pangocffi cairocffi pangocairocffi`  
+  `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)
 - Remark: Later use `requirements.txt` to install needed PyPI packages:  
   `python3 -m pip install -r requirements.txt`  
@@ -224,6 +224,7 @@ Maybe check later if some of these packages are really needed...
   - GitLens - Git supercharged (eamodio.gitlens)
   - Markdown Preview Mermaid Support (bierner.markdown-mermaid) for diagrams and flowcharts
   - XML (redhat.vscode-xml)
+  - Code Spell Checker (streetsidesoftware.code-spell-checker)
 - Extensions to check later:
   - Code Runner (formulahendry.code-runner)
   - Python Extension Pack (donjayamanne.python-extension-pack)
@@ -312,7 +313,9 @@ Maybe check later if some of these packages are really needed...
   - Roboto Flex --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
   - Roboto Mono --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)
 - Check [freetype.org](https://freetype.org/) for information about fonts,
-  especially the [FreeType Glyph Conventions](https://freetype.org/freetype2/docs/glyphs/index.html).
+  especially the [FreeType Glyph Conventions](https://freetype.org/freetype2/docs/glyphs/index.html).  
+  See also [freetype-py](https://github.com/rougier/freetype-py) and 
+  [w3.org:SVG/text](https://www.w3.org/TR/SVG/text.html).
 - Also check [wikipedia:Typeface](https://en.wikipedia.org/wiki/Typeface) and a lot more linked sites.
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
 
@@ -366,23 +369,23 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Architecture
     - Big Ben, Silhouette of town, towers of town, castle, palace,
   - Flora
-    - fruits: strawberry, banana, apple, pear, cherry, kiwi,  
-    - flower, blossom, tomato, broccoli, 
+    - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
+    - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
     - fern, gingko leaf, maple leaf, tree, grain ear, sunflower,
   - Fauna  
-    - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, 
-    - dear (partly), boar, donkey (partly), horse, zebra, gnu,
-    - tiger, cat, lion, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
+    - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, raccoon,
+    - dear (partly), boar, donkey (partly), horse, zebra, gnu, dog, dalmatian dog,
+    - tiger, cat, lion, cheetah, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, pelican, swallow, black bird, robin, crow, ostrich, seagull,
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
-    - salamander, lizard, iguana, 
-    - egg, egg-shape, 
+    - salamander, lizard, iguana, camelion, 
+    - egg, egg-shape, dinosaur, frog,
     - cat head with flashing eyes, 2 swans showing a heart,
   - Technology
-    - cars, trains/locomotive, airplane, lunar module, lunar roving vehicle, sailing ship, scooter,
-    - musical instruments: violin, guitar, hunting horn,
-    - light bulb, candle, reading lamp,
+    - cars, trains/locomotive, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
+    - musical instruments: violin, guitar, hunting horn, trumpet, harp, 
+    - light bulb, candle, reading lamp, clock, clock face,
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
@@ -392,27 +395,29 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Praying Hands (Duerer),
     - Golden ration - The Vitruvian Man (Leonardo da Vinci),
   - Fantasy
-    - unicorn, dragon, angel,
+    - unicorn, dragon, angel, mermaid, 
   - PortraitsWeißwurst
-    - Einstein, Goethe, Mozart, Leonardo da Vinci, roman emperors,
-    - black/white of portraits / face(s): eye, mouth, lips,
+    - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors,
+    - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
   - Signs / themes
     - Luck: lucky pig, shamrock/four-leaf clover,
-    - Love: heart, cupid,
+    - Love: heart, cupid, kiss mouth, 
     - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock,
     - chess, checkerboard, chessmen, teddy bear, feather, 
     - globe/world-maps, european countries, states of Germany, islands like Sylt,
-    - yin and yang, buddha, peace sign, zodiac signs,
+    - yin and yang, buddha, peace sign, zodiac signs, zodiac wheel,
     - collection of icons, money-signs (dollar, euro, Yen, ...), clef / music sign,
     - professional category: rod of asclepius (medical), Justitia, ...
     - traffic signs: STOP, traffic light man, video surveillance, 
     - cute couple as parking sign / parking garage, home of a single, ...
-    - cloud, snowflake, crescent moon, sunglasses, coins (maple leaf, krugerrand, old roman coins, ...),
+    - cloud, snowflake, crescent moon, sunglasses, footprint,
+    - coins (maple leaf, krugerrand, old roman coins, chinese coins with holes, bitcoins, ...),
     - nude front/back, chauvinistic slogans, woman legs with seamed stockings in (red) pumps, red pumps,
-    - brezel, Bavarian veal sausage,
-    - knife, fork, spoon, garden gnome, 
+    - brezel, Bavarian veal sausage, ass with ears, cigarette with smoke, no smoking,
+    - knife, fork, spoon, garden gnome, hat, cap, baseball bat, condoms save...,
     - Bavarian laptop and leather pants and smartphone,
     - pirate flag, country flags in general,
+    - drop into water with round waves, surfer wave,
 
 - Texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, welcome, good vibes only, do more what makes you happy,
@@ -421,7 +426,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - don't marry be happy,
   - latin citations: errare humanum est, in dubio pro reo iudicandum est, 
     panem et circenses, ora et labora, cave canem, nomen est omen,
-    veni vidi vici, alea jacta est,
+    veni vidi vici, alea jacta est, pecunia non olet,
 
 - Further ideas and variations
   - slightly skewed text
@@ -469,7 +474,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 
 ### Websites
 Interesting websites I stumbled upon: check in future:
-- https://openai.com/dall-e-2/ AI created images and art 
+- https://openai.com/dall-e-2/ AI created images and art  
+  or try: https://www.craiyon.com/  
+  see also: [Dall-E Alternatives](https://alternativeto.net/software/dall-e/)
 - https://www.jasper.ai/art AI created art
 - https://www.synthesia.io/ AI Text to video
 - https://repurpose.io/ Distribute your content to your social media channels
