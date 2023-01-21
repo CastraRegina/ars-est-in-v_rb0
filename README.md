@@ -124,7 +124,7 @@
   - Tagging:  
     `git tag -a "v1.3.0-beta" -m "version v1.3.0-beta"`  
     `git push origin --tags`
-- Create an executeable (for Windows)
+- Create an executable (for Windows)
   - Create folders `build` and `dist`
   - `pyinstaller --distpath dist --workpath build --onefile --clean <aScript.py>`
 - Further examples
@@ -189,7 +189,8 @@
   `python3 -m pip install --upgrade pip setuptools wheel`
 - Upgrade/update all already installed modules:  
   `python3 -m pip freeze | cut -d'=' -f1 | xargs -n1 python3 -m pip install -U`  
-  after that update also the `requirements.txt` file by executing `python3 -m pip freeze > requirements.txt`
+  after that update also the `requirements.txt` file by executing  
+  `python3 -m pip freeze > requirements.txt`
 ## Specific project setup
 Maybe check later if some of these packages are really needed...
 - Install SW packages on operating system (don't know if they are really needed):  
@@ -198,7 +199,9 @@ Maybe check later if some of these packages are really needed...
   `sudo apt-get install libcairo2`
 - Install python modules:  
   `python3 -m pip install pycodestyle flake8 black autopep8`  
-  `python3 -m pip install lxml gizeh svgutils svgwrite svgpathtools cairosvg`  
+  `python3 -m pip install lxml unicode scipy numpy`  
+  `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
+  `python3 -m pip install fonttools[ufo,lxml,woff,unicode]`  
   `python3 -m pip install pillow opencv-python`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)
@@ -225,6 +228,7 @@ Maybe check later if some of these packages are really needed...
   - Markdown Preview Mermaid Support (bierner.markdown-mermaid) for diagrams and flowcharts
   - XML (redhat.vscode-xml)
   - Code Spell Checker (streetsidesoftware.code-spell-checker)
+  - Todo Tree (Gruntfuggly.todo-tree)
 - Extensions to check later:
   - Code Runner (formulahendry.code-runner)
   - Python Extension Pack (donjayamanne.python-extension-pack)
@@ -318,6 +322,8 @@ Maybe check later if some of these packages are really needed...
   [w3.org:SVG/text](https://www.w3.org/TR/SVG/text.html).
 - Also check [wikipedia:Typeface](https://en.wikipedia.org/wiki/Typeface) and a lot more linked sites.
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
+- For font manipulation see [fonttools](https://github.com/fonttools/fonttools)
+  and the [fonttools-documentation](https://fonttools.readthedocs.io/en/latest/)
 
 
 ## Artist name
@@ -336,6 +342,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - GitHub (pwd+2factor+2ndSMS)
 - redbubble (pwd w/o 2factor authentication)
 - ... further ...
+- Amazon
+- Ebay
 - Dribbble
 - Behance
 -  flickr
@@ -371,12 +379,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Flora
     - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
     - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
-    - fern, gingko leaf, maple leaf, tree, grain ear, sunflower,
+    - fern, gingko leaf, maple leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
     - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, raccoon,
     - dear (partly), boar, donkey (partly), horse, zebra, gnu, dog, dalmatian dog,
     - tiger, cat, lion, cheetah, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
-    - owl, eagle, pigeon, pelican, swallow, black bird, robin, crow, ostrich, seagull,
+    - owl, eagle, pigeon, pelican, cockatoo, swallow, black bird, robin, crow, ostrich, seagull, fish, seahorse,
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, camelion, 
@@ -394,9 +402,10 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Mona Lisa,
     - Praying Hands (Duerer),
     - Golden ration - The Vitruvian Man (Leonardo da Vinci),
+    - Manneken Pis,
   - Fantasy
     - unicorn, dragon, angel, mermaid, 
-  - PortraitsWeißwurst
+  - Portraits
     - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors,
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
   - Signs / themes
@@ -406,15 +415,16 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - chess, checkerboard, chessmen, teddy bear, feather, 
     - globe/world-maps, european countries, states of Germany, islands like Sylt,
     - yin and yang, buddha, peace sign, zodiac signs, zodiac wheel,
-    - collection of icons, money-signs (dollar, euro, Yen, ...), clef / music sign,
+    - collection of icons, money-signs (dollar, euro, Yen, ... money-reflection), clef / music sign,
     - professional category: rod of asclepius (medical), Justitia, ...
-    - traffic signs: STOP, traffic light man, video surveillance, 
+    - traffic signs: STOP, Autobahn, traffic light man, video surveillance, 
     - cute couple as parking sign / parking garage, home of a single, ...
     - cloud, snowflake, crescent moon, sunglasses, footprint,
     - coins (maple leaf, krugerrand, old roman coins, chinese coins with holes, bitcoins, ...),
     - nude front/back, chauvinistic slogans, woman legs with seamed stockings in (red) pumps, red pumps,
     - brezel, Bavarian veal sausage, ass with ears, cigarette with smoke, no smoking,
     - knife, fork, spoon, garden gnome, hat, cap, baseball bat, condoms save...,
+    - anchor, ship's propeller, aircraft's propeller,
     - Bavarian laptop and leather pants and smartphone,
     - pirate flag, country flags in general,
     - drop into water with round waves, surfer wave,
@@ -464,6 +474,22 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - picture frame: 10x15, 13x18, 20x25, 21x30, 23x23, 30x40, 32x32, 40x50, 50x70, 61x91cm
   - see also other sizes, passepartout-sizes and more ...
 
+## Business setup
+What to consider if you want to start an online business in Germany...  
+see also internet recommendations, e.g. aufbauen-online-business.de
+- business bank account ($?)  
+  -> maybe additionally PayPal? (for Etsy not needed)
+- address-service, e.g. anschrift.net ($)
+- determine a business-name and ...
+  - register e-mail-address
+  - register shop-name, e.g. at Etsy
+  - register website / domain name ($)
+- register a business (Gewerbe-Anmeldung)
+- register at your professional association (Handwerkskammer, IHK, ...) ($?)
+- obtain a UStID (Umsatzsteuer-ID) at your tax office
+- legal texts-service, e.g. it-recht-kanzlei.de ($)
+- packaging license, registration at the Central Packaging Register LUCID ($)
+- inform your employer about your sideline business
 
 ---
 
