@@ -204,7 +204,25 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install fonttools[ufo,lxml,woff,unicode]`  
   `python3 -m pip install pillow opencv-python`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
-  `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)
+  `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
+  [OpenAI's ChatGPT](https://chat.openai.com) summarizes the function of the Python libraries as following:
+  - Gizeh is a Python library for creating vector graphics using the Cairo library.
+      It is designed for creating simple shapes and complex shapes with a minimum of code.
+  - svgutils is a library for working with SVG files,
+      it allows you to easily combine multiple SVG files into a single document,
+      manipulate individual SVG elements, and extract information from SVG files.
+  - svgwrite is a library for creating new SVG files, 
+      it provides a simple and easy to use interface for creating and manipulating SVG elements.
+  - svgpathtools is a library for manipulating and analyzing SVG path elements,
+      it provides tools for parsing, transforming, and simplifying SVG paths.
+  - svgelements is a library for working with individual SVG elements,
+      it provides a simple and easy to use interface for creating, manipulating, and analyzing SVG elements.
+  - cairosvg is a library for converting SVG files to other formats such as PNG and PDF using the Cairo library.
+  - cairocffi is a CFFI-based Python binding to the Cairo graphics library.
+  - pangocffi is a Python library for creating and manipulating text layout using the Pango library
+  - pangocairocffi is a library for creating and manipulating text layout using the Pango and Cairo libraries.
+  - freetype-py is a Python wrapper for the FreeType library, which is used for rendering text.
+  - fonttools is a library for manipulating font files, it provides tools for parsing, editing, and converting fonts between different formats.
 - Remark: Later use `requirements.txt` to install needed PyPI packages:  
   `python3 -m pip install -r requirements.txt`  
   `python3 -m pip freeze > requirements.txt`
@@ -312,15 +330,22 @@ Maybe check later if some of these packages are really needed...
 - Install variable Fonts:  
   Find a font, check its license (SIL Open Font License (OFL) recommended), download it,  
   double-click on the `.ttf`-file and click *install*  in the opening *GNOME Font Viewer* window.
-  - Grandstander --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
-  - Recursive --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
-  - Roboto Flex --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
-  - Roboto Mono --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)
+  - Noto Sans Mono ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)) 
+      --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)
+  - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+      --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
+  - Recursive ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+      --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
+  - Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+      --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
+  - Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
+      --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)
 - Check [freetype.org](https://freetype.org/) for information about fonts,
   especially the [FreeType Glyph Conventions](https://freetype.org/freetype2/docs/glyphs/index.html).  
   See also [freetype-py](https://github.com/rougier/freetype-py) and 
   [w3.org:SVG/text](https://www.w3.org/TR/SVG/text.html).
 - Also check [wikipedia:Typeface](https://en.wikipedia.org/wiki/Typeface) and a lot more linked sites.
+- Also see [Awesome Typography](https://github.com/Jolg42/awesome-typography), a curated list about digital typography
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
 - For font manipulation see [fonttools](https://github.com/fonttools/fonttools)
   and the [fonttools-documentation](https://fonttools.readthedocs.io/en/latest/)
@@ -379,19 +404,19 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Flora
     - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
     - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
-    - fern, gingko leaf, maple leaf, tree, grain ear, sunflower, artichoke,
+    - fern, gingko leaf, maple leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
-    - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, raccoon,
-    - dear (partly), boar, donkey (partly), horse, zebra, gnu, dog, dalmatian dog,
-    - tiger, cat, lion, cheetah, panther, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
-    - owl, eagle, pigeon, pelican, cockatoo, swallow, black bird, robin, crow, ostrich, seagull, fish, seahorse,
-    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell,
+    - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, raccoon, sloth, koala, squirrel, 
+    - dear (partly), boar, donkey (partly), cow, horse, zebra, gnu, dog, dalmatian dog, 
+    - tiger, cat, lion, cheetah, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
+    - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird,  
+    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, seahorse,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, camelion, 
-    - egg, egg-shape, dinosaur, frog,
+    - egg, egg-shape, dinosaur, frog, 
     - cat head with flashing eyes, 2 swans showing a heart,
   - Technology
-    - cars, trains/locomotive, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
+    - car, train/locomotive, tractor, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
     - musical instruments: violin, guitar, hunting horn, trumpet, harp, 
     - light bulb, candle, reading lamp, clock, clock face,
   - Hollow Ware
@@ -404,20 +429,26 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Golden ration - The Vitruvian Man (Leonardo da Vinci),
     - Manneken Pis,
   - Fantasy
-    - unicorn, dragon, angel, mermaid, 
+    - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, Greek mythology,
+      ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf,
   - Portraits
-    - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors,
+    - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors, Yoda, 
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
   - Signs / themes
     - Luck: lucky pig, shamrock/four-leaf clover,
     - Love: heart, cupid, kiss mouth, 
     - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock,
-    - chess, checkerboard, chessmen, teddy bear, feather, 
+    - Peace: peace dove + human rights,
+    - Mathematics: pi, infinity, delta, gradient, phi, sum, product, 
+    - False Friends: freedom, this is not without,
+    - Professional Category: rod of asclepius (medical), Justitia, ...
+    - Food: pizza, doner, burger, hotdog, curry sausage, gummy bears, 
+    - Drink: coffee, tea, water, whisky, scotch, beer,
+    - chess, checkerboard, chessmen, teddy bear, feather, viking helmet, 
     - globe/world-maps, european countries, states of Germany, islands like Sylt,
     - yin and yang, buddha, peace sign, zodiac signs, zodiac wheel,
     - collection of icons, money-signs (dollar, euro, Yen, ... money-reflection), clef / music sign,
-    - professional category: rod of asclepius (medical), Justitia, ...
-    - traffic signs: STOP, Autobahn, traffic light man, video surveillance, 
+    - traffic signs: STOP, Autobahn, traffic light man, video surveillance,
     - cute couple as parking sign / parking garage, home of a single, ...
     - cloud, snowflake, crescent moon, sunglasses, footprint,
     - coins (maple leaf, krugerrand, old roman coins, chinese coins with holes, bitcoins, ...),
@@ -425,22 +456,37 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - brezel, Bavarian veal sausage, ass with ears, cigarette with smoke, no smoking,
     - knife, fork, spoon, garden gnome, hat, cap, baseball bat, condoms save...,
     - anchor, ship's propeller, aircraft's propeller,
-    - Bavarian laptop and leather pants and smartphone,
+    - Bavarian laptop and leather pants and smartphone, bavarian lion, 
     - pirate flag, country flags in general,
     - drop into water with round waves, surfer wave,
+    - "folder"-drawing (=Nude drawing), toilet paper, 
+    - silhouettes of various flying insects in a glass case
 
-- Texts like...  
-  - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, welcome, good vibes only, do more what makes you happy,
+- Themes and texts like...  
+  - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
+      welcome, good vibes only, do more what makes you happy,
+      smiling can make you happy - just try it, 
+      enjoy every moment,
   - YES, NO, maybe, 
-  - big brother is watching you, adjust your crown and keep going,
-  - don't marry be happy,
+  - big brother is watching you, adjust your crown and keep going, follow the money, 
+  - don't marry be happy, body mind soul, emotional damage,
   - latin citations: errare humanum est, in dubio pro reo iudicandum est, 
     panem et circenses, ora et labora, cave canem, nomen est omen,
-    veni vidi vici, alea jacta est, pecunia non olet,
+    veni vidi vici, alea jacta est, pecunia non olet, cui bono, 
+    carpe diem et noctem, 
 
 - Further ideas and variations
-  - slightly skewed text
-  - descriptive text (e.g. bridge, tower, window, church, river, ...)
+  - Text
+    - slightly skewed text
+    - descriptive text (e.g. bridge, tower, window, church, river, ...)
+    - black/white as filled/stroke-only text
+    - black/white using only two fonts of different thickness
+  - Dots
+    - gray-scale as single dots in different sizes (diameters)
+    - gray-scale as tiny dots of constant size (diameter), but with different density 
+  - Lines
+    - gray-scale as lines with different thickness
+    - gray-scale as lines with different density
 
 ## Copyright topics
 - Reuse of Wikipedia texts:
