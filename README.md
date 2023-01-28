@@ -206,23 +206,35 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
   [OpenAI's ChatGPT](https://chat.openai.com) summarizes the function of the Python libraries as following:
-  - Gizeh is a Python library for creating vector graphics using the Cairo library.
+  - gizeh
+      is a Python library for creating vector graphics using the Cairo library.
       It is designed for creating simple shapes and complex shapes with a minimum of code.
-  - svgutils is a library for working with SVG files,
+  - svgutils
+      is a library for working with SVG files,
       it allows you to easily combine multiple SVG files into a single document,
       manipulate individual SVG elements, and extract information from SVG files.
-  - svgwrite is a library for creating new SVG files, 
+  - svgwrite
+      is a library for creating new SVG files, 
       it provides a simple and easy to use interface for creating and manipulating SVG elements.
-  - svgpathtools is a library for manipulating and analyzing SVG path elements,
+  - svgpathtools
+      is a library for manipulating and analyzing SVG path elements,
       it provides tools for parsing, transforming, and simplifying SVG paths.
-  - svgelements is a library for working with individual SVG elements,
+  - svgelements
+      is a library for working with individual SVG elements,
       it provides a simple and easy to use interface for creating, manipulating, and analyzing SVG elements.
-  - cairosvg is a library for converting SVG files to other formats such as PNG and PDF using the Cairo library.
-  - cairocffi is a CFFI-based Python binding to the Cairo graphics library.
-  - pangocffi is a Python library for creating and manipulating text layout using the Pango library
-  - pangocairocffi is a library for creating and manipulating text layout using the Pango and Cairo libraries.
-  - freetype-py is a Python wrapper for the FreeType library, which is used for rendering text.
-  - fonttools is a library for manipulating font files, it provides tools for parsing, editing, and converting fonts between different formats.
+  - cairosvg
+      is a library for converting SVG files to other formats such as PNG and PDF using the Cairo library.
+  - cairocffi
+      is a CFFI-based Python binding to the Cairo graphics library.
+  - pangocffi
+      is a Python library for creating and manipulating text layout using the Pango library
+  - pangocairocffi
+      is a library for creating and manipulating text layout using the Pango and Cairo libraries.
+  - freetype-py
+      is a Python wrapper for the FreeType library, which is used for rendering text.
+  - fonttools
+      is a library for manipulating font files, it provides tools for parsing, editing
+      and converting fonts between different formats.
 - Remark: Later use `requirements.txt` to install needed PyPI packages:  
   `python3 -m pip install -r requirements.txt`  
   `python3 -m pip freeze > requirements.txt`
@@ -340,11 +352,15 @@ Maybe check later if some of these packages are really needed...
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
   - Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)
+- Alternative installation method:  
+  Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
 - Check [freetype.org](https://freetype.org/) for information about fonts,
   especially the [FreeType Glyph Conventions](https://freetype.org/freetype2/docs/glyphs/index.html).  
   See also [freetype-py](https://github.com/rougier/freetype-py) and 
   [w3.org:SVG/text](https://www.w3.org/TR/SVG/text.html).
 - Also check [wikipedia:Typeface](https://en.wikipedia.org/wiki/Typeface) and a lot more linked sites.
+- For knowledge a good starting point is [fonts.google.com](https://fonts.google.com/knowledge), 
+  especially check [Using type](https://fonts.google.com/knowledge/using_type)
 - Also see [Awesome Typography](https://github.com/Jolg42/awesome-typography), a curated list about digital typography
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
 - For font manipulation see [fonttools](https://github.com/fonttools/fonttools)
@@ -407,7 +423,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - fern, gingko leaf, maple leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
     - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, raccoon, sloth, koala, squirrel, 
-    - dear (partly), boar, donkey (partly), cow, horse, zebra, gnu, dog, dalmatian dog, 
+    - dear (partly), boar, donkey (partly), cow, horse, zebra, gnu, dog, dalmatian dog, greyhound, 
     - tiger, cat, lion, cheetah, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird,  
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, seahorse,
@@ -415,10 +431,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - salamander, lizard, iguana, camelion, 
     - egg, egg-shape, dinosaur, frog, 
     - cat head with flashing eyes, 2 swans showing a heart,
+    - goldfish in spherical glass, 
   - Technology
     - car, train/locomotive, tractor, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
     - musical instruments: violin, guitar, hunting horn, trumpet, harp, 
-    - light bulb, candle, reading lamp, clock, clock face,
+    - light bulb, candle, reading lamp, clock, clock face, 
+    - gun, pistol, revolver, colt, rifle,
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
@@ -439,17 +457,18 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Love: heart, cupid, kiss mouth, 
     - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock,
     - Peace: peace dove + human rights,
-    - Mathematics: pi, infinity, delta, gradient, phi, sum, product, 
+    - Mathematics: pi, infinity, delta, gradient, phi, sum, product, sine, cosine, tangent, 
+      pythagorean theorem / triangles, circle+pi,
     - False Friends: freedom, this is not without,
     - Professional Category: rod of asclepius (medical), Justitia, ...
-    - Food: pizza, doner, burger, hotdog, curry sausage, gummy bears, 
-    - Drink: coffee, tea, water, whisky, scotch, beer,
+    - Food: pizza, doner, burger, hotdog, curry sausage, french fries, gummy bears, 
+    - Drink: coffee, tea, water, whisky, scotch, beer, 
     - chess, checkerboard, chessmen, teddy bear, feather, viking helmet, 
     - globe/world-maps, european countries, states of Germany, islands like Sylt,
     - yin and yang, buddha, peace sign, zodiac signs, zodiac wheel,
     - collection of icons, money-signs (dollar, euro, Yen, ... money-reflection), clef / music sign,
     - traffic signs: STOP, Autobahn, traffic light man, video surveillance,
-    - cute couple as parking sign / parking garage, home of a single, ...
+    - gender signs, cute couple as parking sign / parking garage, home of a single, ...
     - cloud, snowflake, crescent moon, sunglasses, footprint,
     - coins (maple leaf, krugerrand, old roman coins, chinese coins with holes, bitcoins, ...),
     - nude front/back, chauvinistic slogans, woman legs with seamed stockings in (red) pumps, red pumps,
@@ -459,8 +478,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Bavarian laptop and leather pants and smartphone, bavarian lion, 
     - pirate flag, country flags in general,
     - drop into water with round waves, surfer wave,
-    - "folder"-drawing (=Nude drawing), toilet paper, 
-    - silhouettes of various flying insects in a glass case
+    - "folder"-drawing (=Nude drawing), toilet paper, pepper mill, 
+    - silhouettes of various flying insects in a glass case,
+    - masks: venetian masks, scream ghostface, Guy Fawkes mask, 
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
@@ -474,6 +494,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     panem et circenses, ora et labora, cave canem, nomen est omen,
     veni vidi vici, alea jacta est, pecunia non olet, cui bono, 
     carpe diem et noctem, 
+  - Jack Nicholson as Edward Cole - The Bucket List (2007):  
+    "Three things to remember when you get older:
+     never pass up a bathroom, never waste a hard-on, and never trust a fart."
 
 - Further ideas and variations
   - Text
@@ -525,8 +548,11 @@ What to consider if you want to start an online business in Germany...
 see also internet recommendations, e.g. aufbauen-online-business.de
 - business bank account ($?)  
   -> maybe additionally PayPal? (for Etsy not needed)
-- address-service, e.g. anschrift.net ($)
-- determine a business-name and ...
+- address-service, e.g. anschrift.net ($) - 
+  read also: [ah's experience with an "Impressum-Service"](https://www.andreashagemann.com/impressum-service#viewer-6camm).  
+  It is unsure whether an address-service really complies with the regulations.  
+  Think about using your middle name...
+- determine a artist- / business-name and ...
   - register e-mail-address
   - register shop-name, e.g. at Etsy
   - register website / domain name ($)
