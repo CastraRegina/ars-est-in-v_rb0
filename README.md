@@ -339,13 +339,14 @@ Maybe check later if some of these packages are really needed...
 
 
 ## Fonts
+### Installation
 - Install variable Fonts:  
   Find a font, check its license (SIL Open Font License (OFL) recommended), download it,  
   double-click on the `.ttf`-file and click *install*  in the opening *GNOME Font Viewer* window.
-  - Noto Sans Mono ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)) 
-      --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)
   - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
+  - Noto Sans Mono ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)) 
+      --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)
   - Recursive ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
   - Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
@@ -354,6 +355,7 @@ Maybe check later if some of these packages are really needed...
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)
 - Alternative installation method:  
   Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
+### Links to information
 - Check [freetype.org](https://freetype.org/) for information about fonts,
   especially the [FreeType Glyph Conventions](https://freetype.org/freetype2/docs/glyphs/index.html).  
   See also [freetype-py](https://github.com/rougier/freetype-py) and 
@@ -365,6 +367,14 @@ Maybe check later if some of these packages are really needed...
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
 - For font manipulation see [fonttools](https://github.com/fonttools/fonttools)
   and the [fonttools-documentation](https://fonttools.readthedocs.io/en/latest/)
+###  Summary of information
+- If `font-size=16px` then `1em=16px` and `1en=8px`
+- Unit conversion: `16px = 12pt = 1Pica` (Pixel->Point->Pica)
+- [Classic Typographic Scale](https://retinart.net/typography/typographicscale/): 
+  6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 21, 24, 36, 48, 60, 72
+- Weight: `font-weight`, `wght` in CSS
+- x-height: measured from the type’s baseline to the top of lowercase flat glyphs such as x.
+- Cap height: height of typeface’s uppercase letters, measured from baseline to the top of flat-topped glyphs
 
 
 ## Artist name
