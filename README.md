@@ -1,4 +1,13 @@
 # ars-est-in-verbo
+
+## Content
+[Rules / Guidelines / Best Practices](#rules--guidelines--best-practices)  
+[Git](#git)  
+[Fonts](#fonts)  
+[Ideas](#ideas)  
+[Know How](#know-how)
+
+
 ## Purpose
 - Scientific research journey into the art of words by means of coding
 - Making notes of the step-by-step process
@@ -162,7 +171,6 @@
 
 ---
 
-# Step-by-step process
 ## General installation of Python
 - Install latest Python version: 
   - Create folder /opt/python
@@ -280,35 +288,35 @@ Maybe check later if some of these packages are really needed...
 - Setting for python `src`-folder
   - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
   - Modify `settings.json`
-  ```
-        {
-          "terminal.integrated.env.osx": {
-            "PYTHONPATH": "${workspaceFolder}/src",
-          },
-          "terminal.integrated.env.linux": {
-            "PYTHONPATH": "${workspaceFolder}/src",
-          },
-          "terminal.integrated.env.windows": {
-            "PYTHONPATH": "${workspaceFolder}/src",
-          },
-          "python.envFile": "${workspaceFolder}/.env"
-        }
-  ```
+    ```
+    {
+      "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+      },
+      "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+      },
+      "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+      },
+      "python.envFile": "${workspaceFolder}/.env"
+    }
+    ```
   - Modify `.env` : `PYTHONPATH=./src`
   - or:  
-  ```
-        {
-          "terminal.integrated.env.osx": {
-            "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
-          },
-          "terminal.integrated.env.linux": {
-           "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
-          },
-          "terminal.integrated.env.windows": {
-            "PYTHONPATH": "${env:PYTHONPATH};${workspaceFolder}/src",
-          }
-        }
-  ```
+    ```
+    {
+      "terminal.integrated.env.osx": {
+        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
+      },
+      "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
+      },
+      "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${env:PYTHONPATH};${workspaceFolder}/src",
+      }
+    }
+    ```
   - ... and: `PYTHONPATH=${PYTHONPATH}:./src`
 - Helpful Shortcuts
   - `Ctrl+Shift+P` to open the Command Palette
@@ -367,15 +375,6 @@ Maybe check later if some of these packages are really needed...
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
 - For font manipulation see [fonttools](https://github.com/fonttools/fonttools)
   and the [fonttools-documentation](https://fonttools.readthedocs.io/en/latest/)
-###  Summary of information
-- If `font-size=16px` then `1em=16px` and `1en=8px`
-- Unit conversion: `16px = 12pt = 1Pica` (Pixel->Point->Pica)
-- [Classic Typographic Scale](https://retinart.net/typography/typographicscale/): 
-  6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 21, 24, 36, 48, 60, 72
-- Weight: `font-weight`, `wght` in CSS
-- x-height: measured from the type’s baseline to the top of lowercase flat glyphs such as x.
-- Cap height: height of typeface’s uppercase letters, measured from baseline to the top of flat-topped glyphs
-
 
 ## Artist name
 Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.com/) and register/secure it at several online services:  
@@ -432,10 +431,11 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
     - fern, gingko leaf, maple leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
-    - dragonfly (half), butterfly (half), ladybird, rabbit, hedgehog, raccoon, sloth, koala, squirrel, 
-    - dear (partly), boar, donkey (partly), cow, horse, zebra, gnu, dog, dalmatian dog, greyhound, 
+    - dragonfly (half), butterfly (half), ladybird, bee, bumblebee,  
+    - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
+    - dear (partly), boar, donkey (partly), cow, horse, zebra, gnu, dog, dalmatian dog, greyhound,
     - tiger, cat, lion, cheetah, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
-    - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird,  
+    - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird, kiwi-bird,  
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, seahorse,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, camelion, 
@@ -444,6 +444,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - goldfish in spherical glass, 
   - Technology
     - car, train/locomotive, tractor, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
+    - zeppelin, hot-air balloon,
     - musical instruments: violin, guitar, hunting horn, trumpet, harp, 
     - light bulb, candle, reading lamp, clock, clock face, 
     - gun, pistol, revolver, colt, rifle,
@@ -491,6 +492,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - "folder"-drawing (=Nude drawing), toilet paper, pepper mill, 
     - silhouettes of various flying insects in a glass case,
     - masks: venetian masks, scream ghostface, Guy Fawkes mask, 
+    - a bunch of child's balloons, three wise monkeys (variations: see, hear, speak good), 
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
@@ -538,7 +540,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - https://en.wikipedia.org/wiki/List_of_countries%27_copyright_lengths
 
 
-## Sizes and Resolution
+## Know-How
+### Images / Paintings - Sizes and Resolution
 - General  
   300 DPI, sRGB-colors, .png or .jpg  
   Example: 20x20cm : 1.5cm frame + 2cm margin (white space) --> picture < 16x16cm
@@ -552,6 +555,81 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - I.EA
   - picture frame: 10x15, 13x18, 20x25, 21x30, 23x23, 30x40, 32x32, 40x50, 50x70, 61x91cm
   - see also other sizes, passepartout-sizes and more ...
+
+### SVG
+- To be compatible with inkscape, define/use units `[mm]` only once for `width` and `height`.
+- Use `viewBox` to define the drawing canvas width `RECT_WIDTH` to be of size `1` (my own definition).  
+  Therefore all other sizes need to be scaled by `VB_RATIO = 1 / RECT_WIDTH`.
+- Coordinates
+  - (0,0) at bottom left corner
+  - x-direction: positive from left to right (width)
+  - y-directon: positive from bottom to top (height)
+- Example of a `140x100mm` rectangle in the middle of a DIN A4 page (`210x297mm`),
+  drawn with `strokewidth = 0.1mm`.
+  - Python code:
+    ```
+    import svgwrite
+
+    OUTPUT_FILE = "data/output/example/svg/din_a4_page_rectangle.svg"
+
+    CANVAS_UNIT   = "mm"  # Units for CANVAS dimensions
+    CANVAS_WIDTH  = 210   # DIN A4 page width in mm
+    CANVAS_HEIGHT = 297   # DIN A4 page height in mm
+
+    RECT_WIDTH  = 140  # rectangle width in mm
+    RECT_HEIGHT = 100  # rectangle height in mm
+
+    VB_RATIO = 1 / RECT_WIDTH  # multiply each dimension with this ratio
+
+    # Center the rectangle horizontally and vertically on the page
+    vb_w =  VB_RATIO * CANVAS_WIDTH
+    vb_h =  VB_RATIO * CANVAS_HEIGHT
+    vb_x = -VB_RATIO * (CANVAS_WIDTH - RECT_WIDTH) / 2
+    vb_y = -VB_RATIO * (CANVAS_HEIGHT - RECT_HEIGHT) / 2
+
+    # Set up the SVG canvas
+    dwg = svgwrite.Drawing(OUTPUT_FILE,
+                          size=(f"{CANVAS_WIDTH}mm", f"{CANVAS_HEIGHT}mm"),
+                          viewBox=(f"{vb_x} {vb_y} {vb_w} {vb_h}")
+                          )
+
+    # Draw the rectangle
+    dwg.add(
+        dwg.rect(
+            insert=(0, 0),
+            size=(VB_RATIO*RECT_WIDTH, VB_RATIO*RECT_HEIGHT),  # = (1.0, xxxx)
+            stroke="black",
+            stroke_width=0.1*VB_RATIO,
+            fill="none",
+        )
+    )
+
+    # Save the SVG file
+    dwg.save()
+    ```
+
+  - SVG-output:
+    ```
+    <?xml version="1.0" encoding="utf-8"?>
+    <svg baseProfile="full" version="1.1"
+        width="210mm" height="297mm"
+        viewBox="-0.25 -0.7035714285714285 1.5 2.1214285714285714"
+        xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events"
+        xmlns:xlink="http://www.w3.org/1999/xlink">
+        <defs />
+        <rect width="1.0" height="0.7142857142857143" x="0" y="0"
+              stroke="black" stroke-width="0.0007142857142857143"
+              fill="none"/>
+    </svg>
+    ``` 
+### Fonts
+- If `font-size=16px` then `1em=16px` and `1en=8px`
+- Unit conversion: `16px = 12pt = 1Pica` (Pixel->Point->Pica)
+- [Classic Typographic Scale](https://retinart.net/typography/typographicscale/): 
+  6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 21, 24, 36, 48, 60, 72
+- Weight: `font-weight`, `wght` in CSS
+- x-height: measured from the type’s baseline to the top of lowercase flat glyphs such as x.
+- Cap height: height of typeface’s uppercase letters, measured from baseline to the top of flat-topped glyphs
 
 ## Business setup
 What to consider if you want to start an online business in Germany...  
