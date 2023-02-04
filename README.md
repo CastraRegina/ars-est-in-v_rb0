@@ -562,13 +562,54 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - see also other sizes, passepartout-sizes and more ...
 
 ### SVG
-- To be compatible with inkscape, define/use units `[mm]` only once for `width` and `height`.
-- Use `viewBox` to define the drawing canvas width `RECT_WIDTH` to be of size `1` (my own definition).  
+- To be compatible with inkscape, use the units `[mm]` only once for `width` and `height`.  
+  All other dimension are given in user units, which are independent of the physical units of length.
+- Use `viewBox` to define the drawing canvas width in such a way that
+  `RECT_WIDTH` correspond to size `1` in user units (my own definition).  
   Therefore all other sizes need to be scaled by `VB_RATIO = 1 / RECT_WIDTH`.
 - Coordinates
   - (0,0) at bottom left corner
   - x-direction: positive from left to right (width)
   - y-directon: positive from bottom to top (height)
+- SVG font attributes
+  - [`baseline-shift`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/baseline-shift):
+            Specifies the distance from the dominant baseline of the parent text content element
+            to the dominant baseline of this text content element.
+            A shifted object might be a sub- or superscript.
+  - [`dominant-baseline`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline):
+            Specifies the baseline used to align text.
+  - [`font-family`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-family):
+            Specifies the font family.
+  - [`font-size`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size):
+            Specifies the size of the font, measured from 
+            [baseline](https://en.wikipedia.org/wiki/Baseline_(typography))
+            to baseline in y-direction
+  - [`font-size-adjust`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size-adjust):
+            Specifies the aspect value of the font.
+            It helps preserve the font's x-height when the font-size is scaled.
+  - [`font-stretch`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-stretch):
+            Specifies the horizontal scaling of the font.
+  - [`font-style`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-style):
+            Specifies the style of the font (normal, italic, or oblique).
+  - [`font-variant`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-variant):
+            Specifies the variant of the font (normal or small-caps).
+  - [`font-weight`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-weight):
+            Specifies the weight of the font (normal or bold).
+  - [`letter-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/letter-spacing):
+            Specifies the space between characters.
+  - [`text-anchor`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor):
+            Specifies the position relative to a given point.
+  - [`text-decoration`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-decoration):
+            Specifies the decoration applied (underline, overline, line-through, or blink).
+  - [`word-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/word-spacing):
+            Specifies the space between words.
+  - [`glyph-orientation-horizontal`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-horizontal) - deprecated:
+            Specifies the orientation of the glyphs used to render.
+  - [`glyph-orientation-vertical`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-vertical) - deprecated:
+            Specifies the orientation of the glyphs used to render.
+  - [`kerning`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/kerning) - deprecated:
+            Specifies the amount of space between two characters.
+  
 - Example of a `140x100mm` rectangle in the middle of a DIN A4 page (`210x297mm`),  
   drawn with `strokewidth = 0.1mm`.
   - Python code:
