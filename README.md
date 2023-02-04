@@ -429,7 +429,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Flora
     - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
     - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
-    - fern, gingko leaf, maple leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
+    - fern, gingko leaf, maple leaf, oak leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
     - dragonfly (half), butterfly (half), ladybird, bee, bumblebee,  
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
@@ -451,23 +451,23 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, 
+    - Banksy, M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
     - The Creation of Adam,
     - Mona Lisa,
     - Praying Hands (Duerer),
     - Golden ration - The Vitruvian Man (Leonardo da Vinci),
     - Manneken Pis,
   - Fantasy
-    - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, Greek mythology,
-      ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf,
+    - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, Greek mythology, devil,
+      ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf, fairy
   - Portraits
     - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors, Yoda, 
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
   - Signs / themes
-    - Luck: lucky pig, shamrock/four-leaf clover,
+    - Luck: lucky pig, shamrock/four-leaf clover, Hans-in-luck = boy-with-goose,
     - Love: heart, cupid, kiss mouth, 
     - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock,
-    - Peace: peace dove + human rights,
+    - Peace-health-freedom: peace dove + human rights, tree-of-life,
     - Mathematics: pi, infinity, delta, gradient, phi, sum, product, sine, cosine, tangent, 
       pythagorean theorem / triangles, circle+pi,
     - False Friends: freedom, this is not without,
@@ -509,8 +509,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Jack Nicholson as Edward Cole - The Bucket List (2007):  
     "Three things to remember when you get older:
      never pass up a bathroom, never waste a hard-on, and never trust a fart."
+  - It takes nine months to have a baby, no matter how many men are working on it
 
 - Further ideas and variations
+  - Shape
+    - outer contour in any shape - not only rectangle,
+      e.g. heart, hole like broken, parts showing out of the hole ...
   - Text
     - slightly skewed text
     - descriptive text (e.g. bridge, tower, window, church, river, ...)
@@ -522,6 +526,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Lines
     - gray-scale as lines with different thickness
     - gray-scale as lines with different density
+  - Op art, optical art
 
 ## Copyright topics
 - Reuse of Wikipedia texts:
@@ -564,7 +569,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - (0,0) at bottom left corner
   - x-direction: positive from left to right (width)
   - y-directon: positive from bottom to top (height)
-- Example of a `140x100mm` rectangle in the middle of a DIN A4 page (`210x297mm`),
+- Example of a `140x100mm` rectangle in the middle of a DIN A4 page (`210x297mm`),  
   drawn with `strokewidth = 0.1mm`.
   - Python code:
     ```
@@ -628,10 +633,11 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - [Classic Typographic Scale](https://retinart.net/typography/typographicscale/): 
   6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 21, 24, 36, 48, 60, 72
 - Weight: `font-weight`, `wght` in CSS
-- x-height: measured from the type’s baseline to the top of lowercase flat glyphs such as x.
-- Cap height: height of typeface’s uppercase letters, measured from baseline to the top of flat-topped glyphs
+- x-height: measured from the type's baseline to the top of lowercase flat glyphs such as x.
+- Cap height: height of typeface's uppercase letters, measured from baseline to the top of flat-topped glyphs
 
-## Business setup
+## Business
+### Setup
 What to consider if you want to start an online business in Germany...  
 see also internet recommendations, e.g. aufbauen-online-business.de
 - business bank account ($?)  
@@ -651,6 +657,26 @@ see also internet recommendations, e.g. aufbauen-online-business.de
 - packaging license, registration at the Central Packaging Register LUCID ($)
 - inform your employer about your sideline business
 
+### Exhibitions
+- Opportunities to show your art
+  - Hotels
+  - Banks
+  - Hospitals
+  - Restaurants
+  - Bars
+  - Office buildings, big companies
+  - Galleries
+  - Museum of Arts
+  - Jewelry stores
+  - Gift stores
+  - Picture frame stores
+- Some locations
+  - [Berufsverband Bildender Kuenstler - Niederbayern/Oberpfalz e.V.](www.kunst-in-ostbayern.de)
+  - [Kuenstlerhaus Andreasstadel](www.kuenstlerhaus-andreasstadel.de)
+  - [Degginger](www.degginger.de)
+  - [Neunkubikmeter](www.regensburg.de/kultur/veranstaltungen-des-kulturreferats/neunkubikmeter)
+  - [Kunstschaufenster](www.12achtzig.de)
+  - [M26 - Maximilianstrasse 26](www.regensburg.de/m26)
 ---
 
 ## Next steps / check in future / ToDos / Reminders
