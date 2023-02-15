@@ -267,6 +267,7 @@ Maybe check later if some of these packages are really needed...
   - XML (redhat.vscode-xml)
   - Code Spell Checker (streetsidesoftware.code-spell-checker)
   - Todo Tree (Gruntfuggly.todo-tree)
+  - Flake8 (ms-python.flake8)
 - Extensions to check later:
   - Code Runner (formulahendry.code-runner)
   - Python Extension Pack (donjayamanne.python-extension-pack)
@@ -404,7 +405,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - saatchiart
 - artmajeur 
 - singulart
-- artgallery.co.uk 
+- artgallery.co.uk
+-   Shutterstock
+-   iStock
+-   Adobe Stock
+-   Getty Images
+-   alamy.de
 - ... and further more like...
 - a payment service
 - a file sharing service
@@ -431,12 +437,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
     - fern, gingko leaf, maple leaf, oak leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
-    - dragonfly (half), butterfly (half), ladybird, bee, bumblebee,  
+    - dragonfly (half), butterfly (half), ladybird, bee, bumblebee, spider,
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
     - dear (partly), boar, donkey (partly), cow, horse, zebra, gnu, dog, dalmatian dog, greyhound,
-    - tiger, cat, lion, cheetah, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
+    - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird, kiwi-bird,  
-    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, seahorse,
+    - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, thunnus, seahorse,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, camelion, 
     - egg, egg-shape, dinosaur, frog, 
@@ -451,12 +457,15 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
+    - Banksy,
+    - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
+    - Optical illusion (e.g. moving points),
     - The Creation of Adam,
     - Mona Lisa,
     - Praying Hands (Duerer),
     - Golden ration - The Vitruvian Man (Leonardo da Vinci),
     - Manneken Pis,
+    - The Great Wave off Kanagawa (Katsushika Hokusai), 
   - Fantasy
     - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, Greek mythology, devil,
       ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf, fairy
@@ -472,12 +481,13 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
       pythagorean theorem / triangles, circle+pi,
     - False Friends: freedom, this is not without,
     - Professional Category: rod of asclepius (medical), Justitia, ...
-    - Food: pizza, doner, burger, hotdog, curry sausage, french fries, gummy bears, 
+    - Food: pizza, doner, burger, hotdog, curry sausage, french fries, gummy bears, abstract fish sign, 
     - Drink: coffee, tea, water, whisky, scotch, beer, 
     - chess, checkerboard, chessmen, teddy bear, feather, viking helmet, 
     - globe/world-maps, european countries, states of Germany, islands like Sylt,
-    - yin and yang, buddha, peace sign, zodiac signs, zodiac wheel,
-    - collection of icons, money-signs (dollar, euro, Yen, ... money-reflection), clef / music sign,
+    - yin and yang, buddha, peace sign, zodiac signs, zodiac wheel, maltese cross,
+    - collection of icons, money-signs (dollar, euro, Yen, bitcoin and other crypto-coins, ... money-reflection),
+    - clef / music sign, QR-code, dice, atom bomb mushroom cloud,
     - traffic signs: STOP, Autobahn, traffic light man, video surveillance,
     - gender signs, cute couple as parking sign / parking garage, home of a single, ...
     - cloud, snowflake, crescent moon, sunglasses, footprint,
@@ -500,6 +510,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
       smiling can make you happy - just try it, 
       enjoy every moment,
   - YES, NO, maybe, 
+  - automatized generation using popular first names,
   - big brother is watching you, adjust your crown and keep going, follow the money, 
   - don't marry be happy, body mind soul, emotional damage,
   - latin citations: errare humanum est, in dubio pro reo iudicandum est, 
@@ -510,6 +521,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     "Three things to remember when you get older:
      never pass up a bathroom, never waste a hard-on, and never trust a fart."
   - It takes nine months to have a baby, no matter how many men are working on it
+  - It is not rocket science, too good to be true, it is a no-brainer, easygoing
+  - Don't judge a book by its cover
+  - Pure energy
 
 - Further ideas and variations
   - Shape
@@ -565,7 +579,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - To be compatible with inkscape, use the units `[mm]` only once for `width` and `height`.  
   All other dimension are given in user units, which are independent of the physical units of length.
 - Use `viewBox` to define the drawing canvas width in such a way that
-  `RECT_WIDTH` correspond to size `1` in user units (my own definition).  
+  `RECT_WIDTH` corresponds to size `1` in user units (my own definition).  
   Therefore all other sizes need to be scaled by `VB_RATIO = 1 / RECT_WIDTH`.
 - Coordinates
   - (0,0) at bottom left corner
@@ -730,6 +744,7 @@ Interesting websites I stumbled upon: check in future:
 - https://openai.com/dall-e-2/ AI created images and art  
   or try: https://www.craiyon.com/  
   see also: [Dall-E Alternatives](https://alternativeto.net/software/dall-e/)
+- https://midjourney.com AI created art
 - https://www.jasper.ai/art AI created art
 - https://www.synthesia.io/ AI Text to video
 - https://repurpose.io/ Distribute your content to your social media channels
