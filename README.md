@@ -3,6 +3,7 @@
 ## Content
 [Rules / Guidelines / Best Practices](#rules--guidelines--best-practices)  
 [Git](#git)  
+[Scripts](#scripts)  
 [Fonts](#fonts)  
 [Ideas](#ideas)  
 [Know How](#know-how)
@@ -166,8 +167,8 @@
   - Practical advice, see [How do I manage the file structure of GIT sub modules/trees?](https://stackoverflow.com/questions/68950221/how-do-i-manage-the-file-structure-of-git-sub-modules-trees)
     
 ## Scripts
-- Convert utf-8 file to ascii:  
-  `cat input.txt | iconv -f utf-8 -t ascii//TRANSLIT > output.txt`
+- Convert utf-8 file (`README.md`) to ascii:  
+  `cat README.md | iconv -f utf-8 -t ascii//TRANSLIT > output.txt`
 
 ---
 
@@ -411,6 +412,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 -   Adobe Stock
 -   Getty Images
 -   alamy.de
+-   YellowKorner
 - ... and further more like...
 - a payment service
 - a file sharing service
@@ -437,17 +439,18 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
     - fern, gingko leaf, maple leaf, oak leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
-    - dragonfly (half), butterfly (half), ladybird, bee, bumblebee, spider,
+    - dragonfly (half), butterfly (half), bat, ladybird, bee, bumblebee, spider, turtle,
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
-    - dear (partly), boar, donkey (partly), cow, horse, zebra, gnu, dog, dalmatian dog, greyhound,
+    - horse (in various gaits like walk, trot, canter, gallop, pace and also pesade), 
+    - dear (partly), boar, donkey (partly), cow, zebra, gnu, dog, dalmatian dog, greyhound,
     - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird, kiwi-bird,  
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, thunnus, seahorse,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, camelion, 
     - egg, egg-shape, dinosaur, frog, 
-    - cat head with flashing eyes, 2 swans showing a heart,
-    - goldfish in spherical glass, 
+    - cat head with flashing eyes, cat looking up at a balloon from below, 2 swans showing a heart,
+    - goldfish in spherical glass, animals that look into the picture from the side,
   - Technology
     - car, train/locomotive, tractor, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
     - zeppelin, hot-air balloon,
@@ -457,7 +460,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy,
+    - Banksy, Vermeer,
     - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
     - Optical illusion (e.g. moving points),
     - The Creation of Adam,
@@ -503,6 +506,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - silhouettes of various flying insects in a glass case,
     - masks: venetian masks, scream ghostface, Guy Fawkes mask, 
     - a bunch of child's balloons, three wise monkeys (variations: see, hear, speak good), 
+    - stylized cartoon eyes, Heart with a bite, fruit with a bite,
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
@@ -523,7 +527,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - It takes nine months to have a baby, no matter how many men are working on it
   - It is not rocket science, too good to be true, it is a no-brainer, easygoing
   - Don't judge a book by its cover
-  - Pure energy
+  - Pure energy, Heureka,
+  - give us today our daily bread, those who die sooner are dead longer,
 
 - Further ideas and variations
   - Shape
@@ -571,6 +576,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     **8x10**, **10x10**, 12x12, **11x14**, **12x16**, 12x18, 14x14, 16x16, **16x20**, 18x18, 18x24, **24x36** inch  
   - Poster(cm): 21x30cm - 70x100cm - deviation up to 0.51 cm  
     **21x30**, **30x40**, **50x70**, **61x91**, 70x100 cm
+- R.db.bble
+  - see webpage "Dimensions & Format" --> "Wall Art"
 - I.EA
   - picture frame: 10x15, 13x18, 20x25, 21x30, 23x23, 30x40, 32x32, 40x50, 50x70, 61x91cm
   - see also other sizes, passepartout-sizes and more ...
@@ -582,9 +589,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   `RECT_WIDTH` corresponds to size `1` in user units (my own definition).  
   Therefore all other sizes need to be scaled by `VB_RATIO = 1 / RECT_WIDTH`.
 - Coordinates
-  - (0,0) at bottom left corner
+  - (0,0) at top left corner
   - x-direction: positive from left to right (width)
-  - y-directon: positive from bottom to top (height)
+  - y-directon: positive from top to bottom (height)
 - SVG font attributes
   - [`baseline-shift`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/baseline-shift):
             Specifies the distance from the dominant baseline of the parent text content element
@@ -690,6 +697,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - Weight: `font-weight`, `wght` in CSS
 - x-height: measured from the type's baseline to the top of lowercase flat glyphs such as x.
 - Cap height: height of typeface's uppercase letters, measured from baseline to the top of flat-topped glyphs
+- Documentation about nameIDs: 
+  https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-ids
 
 ## Business
 ### Setup
