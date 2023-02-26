@@ -1,6 +1,6 @@
 """Creates a SVG file of a DIN A4 page (portrait format)
 with a 140x100mm outline of a rectangle in the middle of the page.
-The strokewidth should be 0.1mm thick.
+The stroke width should be 0.1mm thick.
 """
 import svgwrite
 
@@ -44,7 +44,7 @@ def main():
             size=(VB_RATIO*RECT_WIDTH, VB_RATIO*RECT_HEIGHT),  # = (1.0, xxxx)
             stroke="black",
             stroke_width=0.1*VB_RATIO,
-            fill="none",
+            fill="none"
         )
     )
 
