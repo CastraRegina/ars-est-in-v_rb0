@@ -45,18 +45,28 @@
   - Separate public and private data, e.g. credentials ...  
     See [How to hide sensitive credentials using Python](https://www.geeksforgeeks.org/how-to-hide-sensitive-credentials-using-python/)  
   - `.env`-file together with `python-dotenv`
+- Use [Context manager](https://book.pythontips.com/en/latest/context_managers.html)
+  for handling file access:
+  ```
+    with open('filename.txt', 'w') as file:
+        file.write('Hello World!')
+  ```
 - Folder Structure
   - See [Python Packages - Package structure](https://py-pkgs.org/04-package-structure.html#package-structure)
   - See Jason C. McDonald's [Dead Simple Python: Project Structure and Imports](https://dev.to/codemouse92/dead-simple-python-project-structure-and-imports-38c6)
   - See [Sampleproject by the "Python Packaging Authority"](https://github.com/pypa/sampleproject)   
   - folders `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`:   
-```
+    ```
         bin
         [configs]
         data
+        [data/input]
+        [data/output]
         [dist]
         docs
         [examples]
+        [fonts]
+        [fonts/zips]
         [logs]
         src
         src/examples
@@ -64,7 +74,7 @@
         tests
         [tools]
         (venv)
-```
+    ```
 - Naming Conventions of file and folders
   - Naming according to
     [PEP-0008 - Style Guide for Python Code - Prescriptive: Naming Conventions](https://peps.python.org/pep-0008/#prescriptive-naming-conventions)
@@ -594,10 +604,10 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - see also other sizes, passepartout-sizes and more ...
 
 ### SVG
-- Coordinates
+- SVG-Coordinates
   - (0,0) at top left corner
-  - x-direction: positive from left to right (width)
-  - y-directon: positive from top to bottom (height)
+  - x-direction: positive from left to right ("width")
+  - y-direction: positive from top to bottom ("height")
 - To be compatible with inkscape, 
   - use the units `[mm]` only once for `width` and `height`.
   - All other dimension are given in user units, which are independent of the physical units of length.  
@@ -701,6 +711,10 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
             Specifies the amount of space between two characters.
   
 ### Fonts
+- Font-Coordinates
+  - (0,0) at left side (of *EM box*) on baseline (y-direction)
+  - x-direction: positive from left to right ("width")
+  - y-direction: positive from bottom to top ("height")
 - Unit conversion: `16px = 12pt = 1Pica` (Pixel->Point->Pica)  
   According to
   [wikipedia.org](https://en.wikipedia.org/wiki/Point_(typography))
