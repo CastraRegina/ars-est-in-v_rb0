@@ -320,8 +320,11 @@ Maybe check later if some of these packages are really needed...
     }
     ```
   - ... and: `PYTHONPATH=${PYTHONPATH}:./src`
-- Helpful Shortcuts
+- Helpful Keyboard Shortcuts (`keybindings.json`)
   - `Ctrl+Shift+P` to open the Command Palette
+  - `Crtl+Shift+7` Fold All Block Comments
+  - `Crtl+x`       Remove whole line (if nothing is selected)
+  - `Crtl+RETURN`  Python: Run Python File in Terminal (assigned by using `Ctrl+Shift+P`)
 
 ## Folder and Git setup
 - Git ssh setup
@@ -471,10 +474,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - The Great Wave off Kanagawa (Katsushika Hokusai), 
   - Fantasy
     - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, Greek mythology, devil,
-      ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf, fairy
+      ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf, fairy,
+      Rudolph the Red-Nosed Reindeer,
   - Portraits
     - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors, Yoda, 
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
+    - black/white portraits of animal faces like tiger, lion, 
   - Signs / themes
     - Luck: lucky pig, shamrock/four-leaf clover, Hans-in-luck = boy-with-goose,
     - Love: heart, cupid, kiss mouth, 
@@ -498,15 +503,20 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - nude front/back, chauvinistic slogans, woman legs with seamed stockings in (red) pumps, red pumps,
     - brezel, Bavarian veal sausage, ass with ears, cigarette with smoke, no smoking,
     - knife, fork, spoon, garden gnome, hat, cap, baseball bat, condoms save...,
-    - anchor, ship's propeller, aircraft's propeller,
+    - anchor, ship's propeller, aircraft's propeller, yellow submarine,
     - Bavarian laptop and leather pants and smartphone, bavarian lion, 
     - pirate flag, country flags in general,
     - drop into water with round waves, surfer wave,
     - "folder"-drawing (=Nude drawing), toilet paper, pepper mill, 
     - silhouettes of various flying insects in a glass case,
+    - silhouette of sexy girl bending down for a colorful flower,
+    - silhouette of sexy girl bending down to a dwarf, "Bend over fairy, wish is wish", 
+    - silhouette of a butler offering something on a tray,
     - masks: venetian masks, scream ghostface, Guy Fawkes mask, 
     - a bunch of child's balloons, three wise monkeys (variations: see, hear, speak good), 
     - stylized cartoon eyes, Heart with a bite, fruit with a bite,
+    - two puzzle parts fitting together like a couple,
+    - statue, greek torso,
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
@@ -527,7 +537,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - It takes nine months to have a baby, no matter how many men are working on it
   - It is not rocket science, too good to be true, it is a no-brainer, easygoing
   - Don't judge a book by its cover
-  - Pure energy, Heureka,
+  - Just because I am not talking doesn't mean I'm in a bad mood - sometimes I just like being quiet.
+  - Pure energy, Heureka, be inspired, high life (cannabis leaf),
   - give us today our daily bread, those who die sooner are dead longer,
 
 - Further ideas and variations
@@ -583,57 +594,19 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - see also other sizes, passepartout-sizes and more ...
 
 ### SVG
-- To be compatible with inkscape, use the units `[mm]` only once for `width` and `height`.  
-  All other dimension are given in user units, which are independent of the physical units of length.
-- Use `viewBox` to define the drawing canvas width in such a way that
-  `RECT_WIDTH` corresponds to size `1` in user units (my own definition).  
-  Therefore all other sizes need to be scaled by `VB_RATIO = 1 / RECT_WIDTH`.
 - Coordinates
   - (0,0) at top left corner
   - x-direction: positive from left to right (width)
   - y-directon: positive from top to bottom (height)
-- SVG font attributes
-  - [`baseline-shift`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/baseline-shift):
-            Specifies the distance from the dominant baseline of the parent text content element
-            to the dominant baseline of this text content element.
-            A shifted object might be a sub- or superscript.
-  - [`dominant-baseline`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline):
-            Specifies the baseline used to align text.
-  - [`font-family`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-family):
-            Specifies the font family.
-  - [`font-size`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size):
-            Specifies the size of the font, measured from 
-            [baseline](https://en.wikipedia.org/wiki/Baseline_(typography))
-            to baseline in y-direction
-  - [`font-size-adjust`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size-adjust):
-            Specifies the aspect value of the font.
-            It helps preserve the font's x-height when the font-size is scaled.
-  - [`font-stretch`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-stretch):
-            Specifies the horizontal scaling of the font.
-  - [`font-style`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-style):
-            Specifies the style of the font (normal, italic, or oblique).
-  - [`font-variant`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-variant):
-            Specifies the variant of the font (normal or small-caps).
-  - [`font-weight`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-weight):
-            Specifies the weight of the font (normal or bold).
-  - [`letter-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/letter-spacing):
-            Specifies the space between characters.
-  - [`text-anchor`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor):
-            Specifies the position relative to a given point.
-  - [`text-decoration`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-decoration):
-            Specifies the decoration applied (underline, overline, line-through, or blink).
-  - [`word-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/word-spacing):
-            Specifies the space between words.
-  - [`glyph-orientation-horizontal`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-horizontal) - deprecated:
-            Specifies the orientation of the glyphs used to render.
-  - [`glyph-orientation-vertical`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-vertical) - deprecated:
-            Specifies the orientation of the glyphs used to render.
-  - [`kerning`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/kerning) - deprecated:
-            Specifies the amount of space between two characters.
-  
-- Example of a `140x100mm` rectangle in the middle of a DIN A4 page (`210x297mm`),  
-  drawn with `strokewidth = 0.1mm`.
-  - Python code:
+- To be compatible with inkscape, 
+  - use the units `[mm]` only once for `width` and `height`.
+  - All other dimension are given in user units, which are independent of the physical units of length.  
+  - Use `viewBox` to define the drawing canvas width in such a way that
+    `RECT_WIDTH` corresponds to size `1` in user units (my own definition).  
+  - Therefore all other sizes need to be scaled by `VB_RATIO = 1 / RECT_WIDTH`.
+  - Example of a `140x100mm` rectangle in the middle of a DIN A4 page (`210x297mm`),
+    drawn with `strokewidth = 0.1mm`.  
+    Python code:
     ```
     import svgwrite
 
@@ -673,9 +646,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 
     # Save the SVG file
     dwg.save()
-    ```
-
-  - SVG-output:
+    ```  
+    SVG-output:
     ```
     <?xml version="1.0" encoding="utf-8"?>
     <svg baseProfile="full" version="1.1"
@@ -689,16 +661,93 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
               fill="none"/>
     </svg>
     ``` 
+- SVG font attributes
+  - [`baseline-shift`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/baseline-shift):
+            Specifies the distance from the dominant baseline of the parent text content element
+            to the dominant baseline of this text content element.
+            A shifted object might be a sub- or superscript.
+  - [`dominant-baseline`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline):
+            Specifies the baseline used to align text.
+  - [`font-family`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-family):
+            Specifies the font family.
+  - [`font-size`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size):
+            Specifies the size of the font, measured from 
+            [baseline](https://en.wikipedia.org/wiki/Baseline_(typography))
+            to baseline in y-direction
+  - [`font-size-adjust`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size-adjust):
+            Specifies the aspect value of the font.
+            It helps preserve the font's x-height when the font-size is scaled.
+  - [`font-stretch`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-stretch):
+            Specifies the horizontal scaling of the font.
+  - [`font-style`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-style):
+            Specifies the style of the font (normal, italic, or oblique).
+  - [`font-variant`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-variant):
+            Specifies the variant of the font (normal or small-caps).
+  - [`font-weight`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-weight):
+            Specifies the weight of the font (normal or bold).
+  - [`letter-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/letter-spacing):
+            Specifies the space between characters.
+  - [`text-anchor`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor):
+            Specifies the position relative to a given point.
+  - [`text-decoration`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-decoration):
+            Specifies the decoration applied (underline, overline, line-through, or blink).
+  - [`word-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/word-spacing):
+            Specifies the space between words.
+  - [`glyph-orientation-horizontal`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-horizontal) - deprecated:
+            Specifies the orientation of the glyphs used to render.
+  - [`glyph-orientation-vertical`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-vertical) - deprecated:
+            Specifies the orientation of the glyphs used to render.
+  - [`kerning`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/kerning) - deprecated:
+            Specifies the amount of space between two characters.
+  
 ### Fonts
-- If `font-size=16px` then `1em=16px` and `1en=8px`
-- Unit conversion: `16px = 12pt = 1Pica` (Pixel->Point->Pica)
+- Unit conversion: `16px = 12pt = 1Pica` (Pixel->Point->Pica)  
+  According to
+  [wikipedia.org](https://en.wikipedia.org/wiki/Point_(typography))
+  `1point = 1pt` is defined as  
+  ```
+  typographic units  -->  1/12 picas
+  imperial/US units  -->  1/72 in
+  metric (SI) units  -->  0.3528 mm
+  ```
 - [Classic Typographic Scale](https://retinart.net/typography/typographicscale/): 
   6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 21, 24, 36, 48, 60, 72
-- Weight: `font-weight`, `wght` in CSS
-- x-height: measured from the type's baseline to the top of lowercase flat glyphs such as x.
-- Cap height: height of typeface's uppercase letters, measured from baseline to the top of flat-topped glyphs
-- Documentation about nameIDs: 
-  https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-ids
+- Weight: `font-weight`, `wght` in CSS determines e.g.: 
+  Normal (Regular), Medium, Bold, ...
+- According to the
+  [OpenType specification](https://docs.microsoft.com/en-us/typography/opentype/spec/name#name-ids)
+  following `nameIDs` are defined for example for
+  `NotoSansMono-VariableFont_wdth,wght.ttf`:
+  ```
+     1 : font family name         --- Noto Sans Mono
+     2 : font subfamily name      --- Regular
+     4 : font full name           --- Noto Sans Mono Regular
+    13 : font license description --- ... SIL Open Font License ... 
+  ```
+- According to 
+  [w3.org](https://www.w3.org/TR/SVG11/text.html#FontsTablesBaselines)
+  the geometry of a font is based on a coordinate system defined by the *EM box* or *em square*.  
+  The box of `1EM` high and `1EM` wide specifies the *design space*.
+  Each glyph is sized relative to that *EM box*.  
+  The SVG `font-size` defines the `1em` value of a typeface set, e.g.:  
+  `font-size = 12px --> 1em = 12px --> 1en=6px`  
+  The geometric coordinates are given in certain units,
+  i.e. `EM` is devided into a number of units per `EM`.  
+  According to 
+  [w3.org](http://www.w3.org/TR/2008/REC-CSS2-20080411/fonts.html#emsq)
+  common `unitsPerEm (head)` values are
+  - 250 (Intellifont),
+  - 1000 (Type 1) and
+  - 2048 (TrueType, TrueType GX and OpenType). 
+- Vertical / height definitions
+  - `font ascent (hhea)`: distance from baseline (0,0) to the top of the EM box.
+  - `font descent (hhea)`: distance from baseline (0,0) to the bottom of the EM box.
+  - `line gap (hhea)`: (usually 0) determines the default line spacing combined with `ascent` and `descent` values.
+  - `x-height`: measured from the baseline to the top of lowercase flat glyphs such as x.
+  - `cap height`: height of uppercase letters, measured from baseline to the top of flat-topped glyphs like X.
+- TODO: alignment-point #############################################################
+- TODO: advancement (x-distance to next character) ##########################################
+
 
 ## Business
 ### Setup
@@ -759,4 +808,5 @@ Interesting websites I stumbled upon: check in future:
 - https://repurpose.io/ Distribute your content to your social media channels
 - https://pictory.ai/ Video creation made easy
 - https://lumen5.com/ Create video from blog content
+- https://discoveryartfair.com/how-to-sell-art/ Some infos for artists
 
