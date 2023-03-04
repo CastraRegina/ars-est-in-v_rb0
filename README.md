@@ -405,8 +405,15 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - Xing (pwd+2factor)  
 - LinkedIn (pwd+2factor) 
 - GitHub (pwd+2factor+2ndSMS)
-- redbubble (pwd w/o 2factor authentication)
+-    redbubble (pwd w/o 2factor authentication)
 - ... further ...
+-    artmajeur.com
+-    inprnt.com
+-   society6
+-   Kunstkopie.de
+-   Europosters.de
+-   Juniqe.de
+-   Meisterdrucke.com
 - Amazon
 - Ebay
 - Dribbble
@@ -417,7 +424,6 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 -  deviantArt
 - theartling
 - saatchiart
-- artmajeur 
 - singulart
 - artgallery.co.uk
 -   Shutterstock
@@ -455,7 +461,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - dragonfly (half), butterfly (half), bat, ladybird, bee, bumblebee, spider, turtle,
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
     - horse (in various gaits like walk, trot, canter, gallop, pace and also pesade), 
-    - dear (partly), boar, donkey (partly), cow, zebra, gnu, dog, dalmatian dog, greyhound,
+    - dear (partly), boar, donkey (partly), cow, zebra, gnu, dog, dalmatian dog, greyhound, wolf+moon,
     - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird, kiwi-bird,  
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, thunnus, seahorse,
@@ -482,9 +488,11 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Golden ration - The Vitruvian Man (Leonardo da Vinci),
     - Manneken Pis,
     - The Great Wave off Kanagawa (Katsushika Hokusai), 
+    - Andy Warhol - "Shot Marilyns" paintings (1964),
   - Fantasy
     - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, Greek mythology, devil,
       ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf, fairy,
+      dracula, nosferatu, 
       Rudolph the Red-Nosed Reindeer,
   - Portraits
     - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors, Yoda, 
@@ -498,7 +506,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Mathematics: pi, infinity, delta, gradient, phi, sum, product, sine, cosine, tangent, 
       pythagorean theorem / triangles, circle+pi,
     - False Friends: freedom, this is not without,
-    - Professional Category: rod of asclepius (medical), Justitia, ...
+    - Professional Category: rod of asclepius (medical), Justitia, toque blanche, ...
     - Food: pizza, doner, burger, hotdog, curry sausage, french fries, gummy bears, abstract fish sign, 
     - Drink: coffee, tea, water, whisky, scotch, beer, 
     - chess, checkerboard, chessmen, teddy bear, feather, viking helmet, 
@@ -532,7 +540,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
       welcome, good vibes only, do more what makes you happy,
       smiling can make you happy - just try it, 
-      enjoy every moment,
+      enjoy every moment, happy mind, live more - worry less,
   - YES, NO, maybe, 
   - automatized generation using popular first names,
   - big brother is watching you, adjust your crown and keep going, follow the money, 
@@ -540,7 +548,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - latin citations: errare humanum est, in dubio pro reo iudicandum est, 
     panem et circenses, ora et labora, cave canem, nomen est omen,
     veni vidi vici, alea jacta est, pecunia non olet, cui bono, 
-    carpe diem et noctem, 
+    carpe diem et noctem, odi et amo,
   - Jack Nicholson as Edward Cole - The Bucket List (2007):  
     "Three things to remember when you get older:
      never pass up a bathroom, never waste a hard-on, and never trust a fart."
