@@ -220,7 +220,7 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install pycodestyle flake8 black autopep8`  
   `python3 -m pip install lxml unicode scipy numpy`  
   `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
-  `python3 -m pip install fonttools[ufo,lxml,woff,unicode]`  
+  `python3 -m pip install fonttools[ufo,lxml,woff,unicode,interpolatable,symfont,type1,pathops,plot]`
   `python3 -m pip install pillow opencv-python`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
