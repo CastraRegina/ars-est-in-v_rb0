@@ -220,7 +220,8 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install pycodestyle flake8 black autopep8`  
   `python3 -m pip install lxml unicode scipy numpy`  
   `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
-  `python3 -m pip install fonttools[ufo,lxml,woff,unicode,interpolatable,symfont,type1,pathops,plot]`  
+  `python3 -m pip install fonttools[ufo,lxml,woff,unicode,type1]`  
+  `python3 -m pip install fonttools[interpolatable,symfont,pathops,plot]`  
   `python3 -m pip install pillow opencv-python`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
@@ -463,7 +464,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - horse (in various gaits like walk, trot, canter, gallop, pace and also pesade), 
     - dear (partly), boar, donkey (partly), cow, zebra, gnu, dog, dalmatian dog, greyhound, wolf+moon,
     - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
-    - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird, kiwi-bird,  
+    - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird, kiwi-bird, 
+    - cock, weathercock, meerkat/suricate, 
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, thunnus, seahorse,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, camelion, 
@@ -514,7 +516,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - yin and yang, buddha, peace sign, zodiac signs, zodiac wheel, maltese cross,
     - collection of icons, money-signs (dollar, euro, Yen, bitcoin and other crypto-coins, ... money-reflection),
     - clef / music sign, QR-code, dice, atom bomb mushroom cloud,
-    - traffic signs: STOP, Autobahn, traffic light man, video surveillance,
+    - traffic signs: STOP, Autobahn, blue bicycle, traffic light man, video surveillance,
     - gender signs, cute couple as parking sign / parking garage, home of a single, ...
     - cloud, snowflake, crescent moon, sunglasses, footprint,
     - coins (maple leaf, krugerrand, old roman coins, chinese coins with holes, bitcoins, ...),
@@ -535,6 +537,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - stylized cartoon eyes, Heart with a bite, fruit with a bite,
     - two puzzle parts fitting together like a couple,
     - statue, greek torso,
+    - Eye of Providence - All-Seeing Eye of God, the good God knows everything the neighborhood even more, 
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
@@ -558,6 +561,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Just because I am not talking doesn't mean I'm in a bad mood - sometimes I just like being quiet.
   - Pure energy, Heureka, be inspired, high life (cannabis leaf),
   - give us today our daily bread, those who die sooner are dead longer,
+  - if looks could kill, 
 
 - Further ideas and variations
   - Shape
@@ -805,13 +809,14 @@ see also internet recommendations, e.g. aufbauen-online-business.de
   - Jewelry stores
   - Gift stores
   - Picture frame stores
+  - Furniture store like IK.A
 - Some locations
-  - [Berufsverband Bildender Kuenstler - Niederbayern/Oberpfalz e.V.](www.kunst-in-ostbayern.de)
-  - [Kuenstlerhaus Andreasstadel](www.kuenstlerhaus-andreasstadel.de)
-  - [Degginger](www.degginger.de)
-  - [Neunkubikmeter](www.regensburg.de/kultur/veranstaltungen-des-kulturreferats/neunkubikmeter)
-  - [Kunstschaufenster](www.12achtzig.de)
-  - [M26 - Maximilianstrasse 26](www.regensburg.de/m26)
+  - [Berufsverband Bildender Kuenstler - Niederbayern/Oberpfalz e.V.](https://www.kunst-in-ostbayern.de)
+  - [Kuenstlerhaus Andreasstadel](https://www.kuenstlerhaus-andreasstadel.de)
+  - [Degginger](https://www.degginger.de)
+  - [Neunkubikmeter](https://www.regensburg.de/kultur/veranstaltungen-des-kulturreferats/neunkubikmeter)
+  - [Kunstschaufenster](https://www.12achtzig.de)
+  - [M26 - Maximilianstrasse 26](https://www.regensburg.de/m26)
 ---
 
 ## Next steps / check in future / ToDos / Reminders
