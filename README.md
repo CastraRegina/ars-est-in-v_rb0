@@ -367,31 +367,67 @@ Maybe check later if some of these packages are really needed...
 - Install variable Fonts:  
   Find a font, check its license (SIL Open Font License (OFL) recommended), download it,  
   double-click on the `.ttf`-file and click *install*  in the opening *GNOME Font Viewer* window.
+- Alternative installation method (quick and easy):  
+  Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
+- Font selection
   - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)  
       Only axis *weight* (wght) and *italic*.  
       Range of *weight*: 100-[400]-900.  
       The width of a single character does not seem to change when the *weight* changes.
+      ```
+      Available axes of Grandstander Thin:
+        - wght:   100.0 to   900.0, default:   100.0 
+      ```
   - Noto Sans Mono ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)) 
       --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)  
       Only two axes *weight* (wght) and *width* (wdth):  
-      Range of *weight*: 100-[400]-900.  
-      Range of *width*: 62.5-[100]-100.  
       The width of a single character does not seem to change when the *weight* changes.  
       As it is a *mono* font all characters have the same *width*.
+      ```
+      Available axes of Noto Sans Mono:
+        - wght:   100.0 to   900.0, default:   400.0 
+        - wdth:    62.5 to   100.0, default:   100.0 
+      ```
   - Recursive ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
+      ```
+      Available axes of Recursive Sans Linear Light:
+        - MONO:     0.0 to     1.0, default:     0.0 
+        - CASL:     0.0 to     1.0, default:     0.0 
+        - wght:   300.0 to  1000.0, default:   300.0 
+        - slnt:   -15.0 to     0.0, default:     0.0 
+        - CRSV:     0.0 to     1.0, default:     0.5 
+      ```
   - Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
+      ```
+      Available axes of Roboto Flex:
+        - wght:   100.0 to  1000.0, default:   400.0 
+        - wdth:    25.0 to   151.0, default:   100.0 
+        - opsz:     8.0 to   144.0, default:    14.0 
+        - GRAD:  -200.0 to   150.0, default:     0.0 
+        - slnt:   -10.0 to     0.0, default:     0.0 
+        - XTRA:   323.0 to   603.0, default:   468.0 
+        - XOPQ:    27.0 to   175.0, default:    96.0 
+        - YOPQ:    25.0 to   135.0, default:    79.0 
+        - YTLC:   416.0 to   570.0, default:   514.0 
+        - YTUC:   528.0 to   760.0, default:   712.0 
+        - YTAS:   649.0 to   854.0, default:   750.0 
+        - YTDE:  -305.0 to   -98.0, default:  -203.0 
+        - YTFI:   560.0 to   788.0, default:   738.0 
+      ```
   - Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)  
       Only axis *weight* (wght) and *italic*.  
-      Range of *weight*: 100-[400]-700.  
       The width of a single character does not seem to change when the *weight* changes, 
       but the dots of e.g. 'ä' and 'i' are "jumping" when *weight* is changed.  
       As it is a *mono* font all characters have the same *width*.
-- Alternative installation method:  
-  Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
+      ```
+      Available axes of Roboto Mono:
+        - wght:   100.0 to   700.0, default:   400.0 
+      ```
+
 ### Links to information
 - Check [freetype.org](https://freetype.org/) for information about fonts,
   especially the [FreeType Glyph Conventions](https://freetype.org/freetype2/docs/glyphs/index.html).  
