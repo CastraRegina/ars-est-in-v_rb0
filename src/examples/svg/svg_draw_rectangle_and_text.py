@@ -15,6 +15,9 @@ RECT_HEIGHT = 100  # rectangle height in mm
 VB_RATIO = 1 / RECT_WIDTH  # multiply each dimension with this ratio
 
 FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
+FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
+FONT_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+
 FONT_SIZE = VB_RATIO * 5  # in mm
 
 
