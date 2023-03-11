@@ -368,15 +368,28 @@ Maybe check later if some of these packages are really needed...
   Find a font, check its license (SIL Open Font License (OFL) recommended), download it,  
   double-click on the `.ttf`-file and click *install*  in the opening *GNOME Font Viewer* window.
   - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
-      --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)
+      --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)  
+      Only axis *weight* (wght) and *italic*.  
+      Range of *weight*: 100-[400]-900.  
+      The width of a single character does not seem to change when the *weight* changes.
   - Noto Sans Mono ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)) 
-      --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)
+      --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)  
+      Only two axes *weight* (wght) and *width* (wdth):  
+      Range of *weight*: 100-[400]-900.  
+      Range of *width*: 62.5-[100]-100.  
+      The width of a single character does not seem to change when the *weight* changes.  
+      As it is a *mono* font all characters have the same *width*.
   - Recursive ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
   - Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
   - Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
-      --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)
+      --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)  
+      Only axis *weight* (wght) and *italic*.  
+      Range of *weight*: 100-[400]-700.  
+      The width of a single character does not seem to change when the *weight* changes, 
+      but the dots of e.g. 'ä' and 'i' are "jumping" when *weight* is changed.  
+      As it is a *mono* font all characters have the same *width*.
 - Alternative installation method:  
   Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
 ### Links to information
@@ -464,13 +477,15 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - horse (in various gaits like walk, trot, canter, gallop, pace and also pesade), 
     - dear (partly), boar, donkey (partly), cow, zebra, gnu, dog, dalmatian dog, greyhound, wolf+moon,
     - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
-    - owl, eagle, pigeon, sparrow, pelican, cockatoo, swallow, black bird, robin, crow, peacock, ostrich, hummingbird, kiwi-bird, 
+    - owl, eagle, pigeon, sparrow, pelican, flamingo, cockatoo, swallow, black bird, 
+      robin, crow, peacock, ostrich, hummingbird, kiwi-bird, 
     - cock, weathercock, meerkat/suricate, 
     - crocodile, whale, snail shell, jakobs shell, ammonite, mussel, scallop/jacobs shell, octopus, seagull, fish, thunnus, seahorse,
       [nautilus shell](https://upload.wikimedia.org/wikipedia/commons/0/08/NautilusCutawayLogarithmicSpiral.jpg),
     - salamander, lizard, iguana, camelion, 
     - egg, egg-shape, dinosaur, frog, 
     - cat head with flashing eyes, cat looking up at a balloon from below, 2 swans showing a heart,
+    - cat's paw, dog's paw, wolf's paw,
     - goldfish in spherical glass, animals that look into the picture from the side,
   - Technology
     - car, train/locomotive, tractor, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
@@ -492,23 +507,25 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - The Great Wave off Kanagawa (Katsushika Hokusai), 
     - Andy Warhol - "Shot Marilyns" paintings (1964),
   - Fantasy
-    - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, Greek mythology, devil,
+    - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, devil,
       ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf, fairy,
-      dracula, nosferatu, 
+      dracula, nosferatu, Grim Reaper - Death in cowl, nun,
       Rudolph the Red-Nosed Reindeer,
+    - Greek mythology like Icarus, Daedalus, Achilles, Sisyphus, Heracles, Prometheus, ...
   - Portraits
-    - Einstein, Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors, Yoda, 
+    - Einstein: I am convinced that He (God) does not play dice,
+    - Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors, Yoda, 
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
     - black/white portraits of animal faces like tiger, lion, 
   - Signs / themes
-    - Luck: lucky pig, shamrock/four-leaf clover, Hans-in-luck = boy-with-goose,
+    - Luck: lucky pig, shamrock/four-leaf clover, Hans-in-luck = boy-with-goose, rich pig - poor pig,
     - Love: heart, cupid, kiss mouth, 
     - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock,
     - Peace-health-freedom: peace dove + human rights, tree-of-life,
     - Mathematics: pi, infinity, delta, gradient, phi, sum, product, sine, cosine, tangent, 
       pythagorean theorem / triangles, circle+pi,
     - False Friends: freedom, this is not without,
-    - Professional Category: rod of asclepius (medical), Justitia, toque blanche, ...
+    - Professional Category: rod of asclepius (medical) + Hippocratic Oath, Justitia, toque blanche, ...
     - Food: pizza, doner, burger, hotdog, curry sausage, french fries, gummy bears, abstract fish sign, 
     - Drink: coffee, tea, water, whisky, scotch, beer, 
     - chess, checkerboard, chessmen, teddy bear, feather, viking helmet, 
@@ -572,6 +589,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - descriptive text (e.g. bridge, tower, window, church, river, ...)
     - black/white as filled/stroke-only text
     - black/white using only two fonts of different thickness
+    - use of different text heights on/over the page
   - Dots
     - gray-scale as single dots in different sizes (diameters)
     - gray-scale as tiny dots of constant size (diameter), but with different density 
