@@ -401,6 +401,12 @@ Maybe check later if some of these packages are really needed...
         - slnt:   -15.0 to     0.0, default:     0.0 
         - CRSV:     0.0 to     1.0, default:     0.5 
       ```
+      My selection of main axes for my purpose:
+      - `wght` - Weight: 300 - [400] - 1000
+      - `slnt` - Slant: 0
+      - `CASL` - Casual: 1
+      - `MONO` - Monospace: 0
+      - `CRSV` - Cursive: 1
   - Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
       ```
@@ -419,6 +425,15 @@ Maybe check later if some of these packages are really needed...
         - YTDE:  -305.0 to   -98.0, default:  -203.0 
         - YTFI:   560.0 to   788.0, default:   738.0 
       ```
+      My selection of main axes for my purpose:  
+      - `opsz` - (Optical Size: default)
+      - `wght` - Weight 100-400-1000
+      - `wdth` - Width 25-100-151
+      - `YTAS` - (Ascender Height) (so that it looks good for f,i,j,ä,ö,ü)
+      - `YTDE` - Descender Depth (so that it looks good for g,j,p,q,y)
+      - `GRAD` - Grade (so that it looks good)
+      - `YTLC` - Lowercase Height (so that it looks good for i,j,ä,ö,ü,a,c,e,g,s)
+      - `YOPQ` - (Thin Stroke) (so that it looks good for a,e,f,g,s)
   - Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)  
       Only axis *weight* (wght) and *italic*.  
