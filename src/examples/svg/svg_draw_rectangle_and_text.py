@@ -14,9 +14,10 @@ RECT_HEIGHT = 100  # rectangle height in mm
 
 VB_RATIO = 1 / RECT_WIDTH  # multiply each dimension with this ratio
 
-FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
+FONT_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA," + \
+                "YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
 FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
-FONT_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+# FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
 
 FONT_SIZE = VB_RATIO * 5  # in mm
 
@@ -27,8 +28,6 @@ class AVGlyph:
         self.character = character
         self.width = 0  # value set later
         self.bounding_box = (0, 0, 0, 0)  # value set later
-        self._glyph_set = None  # value set later
-
         glyph_name = self._font.getBestCmap()[ord(character)]
         self._glyph_set = font.getGlyphSet()[glyph_name]
         bounds_pen = BoundsPen(font.getGlyphSet())
@@ -57,14 +56,13 @@ class AVGlyph:
 
 
 class AVFont:
-    def __init__(self, font_filename: str):
-        self._font_filename = font_filename
-        self.font = TTFont(self._font_filename)
+    def __init__(self, ttfont: TTFont):
+        self.font = ttfont
         self.ascent = self.font['hhea'].ascent
         self.descent = self.font['hhea'].descent
         self.line_gap = self.font['hhea'].lineGap
         self.units_per_em = self.font['head'].unitsPerEm
-        self._glyph_cache: typing.Dict[str, AVGlyph] = {}
+        self._glyph_cache: typing.Dict[str, AVGlyph] = {}  # character->AVGlyph
         self.family_name = self.font['name'].getDebugName(1)
         self.subfamily_name = self.font['name'].getDebugName(2)
         self.full_name = self.font['name'].getDebugName(4)
@@ -104,7 +102,7 @@ def main():
         )
     )
 
-    font = AVFont(FONT_FILENAME)
+    font = AVFont(TTFont(FONT_FILENAME))
 
     x_pos = VB_RATIO * 10  # in mm
     y_pos = VB_RATIO * 15  # in mm
