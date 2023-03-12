@@ -45,10 +45,11 @@ def print_glyph_metrics(font: TTFont, char: str) -> None:
 
 if __name__ == '__main__':
 
-    # FONT_FILENAME = "fonts/Grandstander-VariableFont_wght.ttf"
-    # FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
-    # FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
-    FONT_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    FONT_FILENAME = "fonts/Grandstander-VariableFont_wght.ttf"
+    FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
+    FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
+    FONT_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA," + \
+                    "YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
     # FONT_FILENAME = "fonts/RobotoMono-VariableFont_wght.ttf"
 
     # Load the font file
