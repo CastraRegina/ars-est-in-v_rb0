@@ -369,11 +369,11 @@ Maybe check later if some of these packages are really needed...
   double-click on the `.ttf`-file and click *install*  in the opening *GNOME Font Viewer* window.
 - Alternative installation method (quick and easy):  
   Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
-- Font selection
+### Font selection
   - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)  
       Only axis *weight* (wght) and *italic*.  
-      Range of *weight*: 100-[400]-900.  
+      Range of standard Grandstander *weight*: 100-[400]-900.  
       The width of a single character does not seem to change when the *weight* changes.
       ```
       Available axes of Grandstander Thin:
@@ -390,7 +390,9 @@ Maybe check later if some of these packages are really needed...
         - wdth:    62.5 to   100.0, default:   100.0 
       ```
   - Recursive ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
-      --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)
+      --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)  
+      Range of standard Recursive *weight*: 300-[400]-1000.  
+      The height of some capital letters is "jumping" when *weight* is changed.  
       ```
       Available axes of Recursive Sans Linear Light:
         - MONO:     0.0 to     1.0, default:     0.0 
@@ -532,7 +534,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, Vermeer,
+    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, 
     - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
     - Optical illusion (e.g. moving points),
     - The Creation of Adam,
