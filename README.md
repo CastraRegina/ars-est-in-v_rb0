@@ -233,7 +233,7 @@ Maybe check later if some of these packages are really needed...
       is a library for working with SVG files,
       it allows you to easily combine multiple SVG files into a single document,
       manipulate individual SVG elements, and extract information from SVG files.
-  - svgwrite
+  - [svgwrite](https://svgwrite.readthedocs.io/en/latest/)
       is a library for creating new SVG files, 
       it provides a simple and easy to use interface for creating and manipulating SVG elements.
   - svgpathtools
@@ -370,6 +370,8 @@ Maybe check later if some of these packages are really needed...
 - Alternative installation method (quick and easy):  
   Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
 ### Font selection
+  - Check the overview and axes of the 
+    [Google variable fonts](https://fonts.google.com/variablefonts#font-families).
   - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
       --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)  
       Only axis *weight* (wght) and *italic*.  
