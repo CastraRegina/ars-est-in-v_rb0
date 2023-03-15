@@ -800,6 +800,14 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
             Specifies the orientation of the glyphs used to render.
   - [`kerning`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/kerning) - deprecated:
             Specifies the amount of space between two characters.
+  - Font axis & abbreviations
+    | Axis & Abbreviation | CSS attribute              | font-variation-settings syntax        |
+    |---------------------|----------------------------|---------------------------------------|
+    | Italic (ital)       | font-style: italic;        | font-variation-settings: 'ital' 1;    |
+    | Optical size (opsz) | font-optical-sizing auto;  | font-variation-settings: 'opsz' 16;   |
+    | Slant (slnt)        | font-style: oblique 14deg; | font-variation-settings: 'slnt' 14;   |
+    | Weight (wght)       | font-weight: 375;          | font-variation-settings: 'wght' 375;  |
+    | Width (wdth)        | font-stretch: 115%;        | font-variation-settings: 'wdth' 115;  |
   
 ### Fonts
 - Font-Coordinates
