@@ -483,6 +483,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 -   Europosters.de
 -   Juniqe.de
 -   Meisterdrucke.com
+-   arsmundi.de
+-   ARTGalerie.de, artlandgmbh.de
+-   sell.wayfair.com
 - Amazon
 - Ebay
 - Dribbble
@@ -524,7 +527,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Big Ben, Silhouette of town, towers of town, castle, palace,
   - Flora
     - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
-    - flower, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
+    - flower, Nelumbo - lotus effect, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
     - fern, gingko leaf, maple leaf, oak leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
   - Fauna  
     - dragonfly (half), butterfly (half), bat, ladybird, bee, bumblebee, spider, turtle,
@@ -565,11 +568,13 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - unicorn, dragon, Chinese dragon, angel, monk, mermaid, medusa, devil,
       ghost, skeleton, magician, wizard, sorcerer, witch, leprechaun, troll, dwarf, fairy,
       dracula, nosferatu, Grim Reaper - Death in cowl, nun,
-      Rudolph the Red-Nosed Reindeer,
+      Rudolph the Red-Nosed Reindeer, Easter Bunny, garden gnome,
     - Greek mythology like Icarus, Daedalus, Achilles, Sisyphus, Heracles, Prometheus, ...
   - Portraits
     - Einstein: I am convinced that He (God) does not play dice,
-    - Goethe, Mozart, Leonardo da Vinci, Tesla, roman emperors, Yoda, 
+    - Goethe, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, roman emperors,
+    - Karl Valentin, Charlie Chaplin, Yoda,
+    - Mozart, Ludwig van Beethoven, Bach, 
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
     - black/white portraits of animal faces like tiger, lion, 
   - Signs / themes
@@ -610,6 +615,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - two puzzle parts fitting together like a couple,
     - statue, greek torso,
     - Eye of Providence - All-Seeing Eye of God, the good God knows everything the neighborhood even more, 
+    - Don Quixote, Tutankhamun, Cleopatra, Pl.yb.y bunny, 
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
