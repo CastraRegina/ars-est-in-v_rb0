@@ -523,8 +523,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   Example painting: *ME -> WE*, see [Wikipedia](https://en.wikipedia.org/wiki/Ambigram#/media/File:Me_we_co.jpg)
 
 - Pictures (black and white, silhouettes, ...) of...
-  - Architecture
+  - Architecture and monuments
     - Big Ben, Silhouette of town, towers of town, castle, palace,
+    - Mount Everest, Mont Blanc, Matterhorn, Uluru - Ayers Rock,
   - Flora
     - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
     - flower, Nelumbo - lotus effect, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
@@ -581,6 +582,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Luck: lucky pig, shamrock/four-leaf clover, Hans-in-luck = boy-with-goose, rich pig - poor pig,
     - Love: heart, cupid, kiss mouth, 
     - Sports: baseball, football, soccer-ball, tennis ball, basketball, badminton, shuttlecock,
+    - Yoga - positons,
     - Peace-health-freedom: peace dove + human rights, tree-of-life,
     - Mathematics: pi, infinity, delta, gradient, phi, sum, product, sine, cosine, tangent, 
       pythagorean theorem / triangles, circle+pi,
@@ -762,52 +764,53 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
               fill="none"/>
     </svg>
     ``` 
-- SVG font attributes
-  - [`baseline-shift`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/baseline-shift):
-            Specifies the distance from the dominant baseline of the parent text content element
-            to the dominant baseline of this text content element.
-            A shifted object might be a sub- or superscript.
-  - [`dominant-baseline`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline):
-            Specifies the baseline used to align text.
-  - [`font-family`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-family):
-            Specifies the font family.
-  - [`font-size`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size):
-            Specifies the size of the font, measured from 
-            [baseline](https://en.wikipedia.org/wiki/Baseline_(typography))
-            to baseline in y-direction
-  - [`font-size-adjust`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size-adjust):
-            Specifies the aspect value of the font.
-            It helps preserve the font's x-height when the font-size is scaled.
-  - [`font-stretch`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-stretch):
-            Specifies the horizontal scaling of the font.
-  - [`font-style`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-style):
-            Specifies the style of the font (normal, italic, or oblique).
-  - [`font-variant`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-variant):
-            Specifies the variant of the font (normal or small-caps).
-  - [`font-weight`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-weight):
-            Specifies the weight of the font (normal or bold).
-  - [`letter-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/letter-spacing):
-            Specifies the space between characters.
-  - [`text-anchor`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor):
-            Specifies the position relative to a given point.
-  - [`text-decoration`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-decoration):
-            Specifies the decoration applied (underline, overline, line-through, or blink).
-  - [`word-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/word-spacing):
-            Specifies the space between words.
-  - [`glyph-orientation-horizontal`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-horizontal) - deprecated:
-            Specifies the orientation of the glyphs used to render.
-  - [`glyph-orientation-vertical`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-vertical) - deprecated:
-            Specifies the orientation of the glyphs used to render.
-  - [`kerning`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/kerning) - deprecated:
-            Specifies the amount of space between two characters.
-  - Font axis & abbreviations
-    | Axis & Abbreviation | CSS attribute              | font-variation-settings syntax        |
-    |---------------------|----------------------------|---------------------------------------|
-    | Italic (ital)       | font-style: italic;        | font-variation-settings: 'ital' 1;    |
-    | Optical size (opsz) | font-optical-sizing auto;  | font-variation-settings: 'opsz' 16;   |
-    | Slant (slnt)        | font-style: oblique 14deg; | font-variation-settings: 'slnt' 14;   |
-    | Weight (wght)       | font-weight: 375;          | font-variation-settings: 'wght' 375;  |
-    | Width (wdth)        | font-stretch: 115%;        | font-variation-settings: 'wdth' 115;  |
+- SVG font 
+  - Attributes
+    - [`baseline-shift`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/baseline-shift):
+              Specifies the distance from the dominant baseline of the parent text content element
+              to the dominant baseline of this text content element.
+              A shifted object might be a sub- or superscript.
+    - [`dominant-baseline`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/dominant-baseline):
+              Specifies the baseline used to align text.
+    - [`font-family`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-family):
+              Specifies the font family.
+    - [`font-size`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size):
+              Specifies the size of the font, measured from 
+              [baseline](https://en.wikipedia.org/wiki/Baseline_(typography))
+              to baseline in y-direction
+    - [`font-size-adjust`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-size-adjust):
+              Specifies the aspect value of the font.
+              It helps preserve the font's x-height when the font-size is scaled.
+    - [`font-stretch`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-stretch):
+              Specifies the horizontal scaling of the font.
+    - [`font-style`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-style):
+              Specifies the style of the font (normal, italic, or oblique).
+    - [`font-variant`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-variant):
+              Specifies the variant of the font (normal or small-caps).
+    - [`font-weight`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/font-weight):
+              Specifies the weight of the font (normal or bold).
+    - [`letter-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/letter-spacing):
+              Specifies the space between characters.
+    - [`text-anchor`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-anchor):
+              Specifies the position relative to a given point.
+    - [`text-decoration`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/text-decoration):
+              Specifies the decoration applied (underline, overline, line-through, or blink).
+    - [`word-spacing`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/word-spacing):
+              Specifies the space between words.
+    - [`glyph-orientation-horizontal`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-horizontal) - deprecated:
+              Specifies the orientation of the glyphs used to render.
+    - [`glyph-orientation-vertical`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/glyph-orientation-vertical) - deprecated:
+              Specifies the orientation of the glyphs used to render.
+    - [`kerning`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/kerning) - deprecated:
+              Specifies the amount of space between two characters.
+  - Font axis & abbreviations  
+      | Axis & Abbreviation | CSS attribute              | font-variation-settings syntax        |
+      |---------------------|----------------------------|---------------------------------------|
+      | Italic (ital)       | font-style: italic;        | font-variation-settings: 'ital' 1;    |
+      | Optical size (opsz) | font-optical-sizing auto;  | font-variation-settings: 'opsz' 16;   |
+      | Slant (slnt)        | font-style: oblique 14deg; | font-variation-settings: 'slnt' 14;   |
+      | Weight (wght)       | font-weight: 375;          | font-variation-settings: 'wght' 375;  |
+      | Width (wdth)        | font-stretch: 115%;        | font-variation-settings: 'wdth' 115;  |
   
 ### Fonts
 - Font-Coordinates
