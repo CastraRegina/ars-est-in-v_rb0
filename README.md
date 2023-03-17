@@ -682,7 +682,10 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 ### Images / Paintings - Sizes and Resolution
 - General  
   300 DPI, sRGB-colors, .png or .jpg  
-  Example: 20x20cm : 1.5cm frame + 2cm margin (white space) --> picture < 16x16cm
+  Example: 20x20cm : 
+  1.5cm frame + 2cm margin (white space) --> picture ca. 15x15cm  
+  ... on these 14 to 16cm are approximately 50 rows of text  --> ca. 3mm text-height.  
+  Further examples: 60x60cm --> 47x47cm and 40x40cm --> 32x32cm.
 - P.n.erest  
   ratio 2:3, 1000x1500px, 600x1260px, 600x600px, 600x900px
 - P.i.tful  
