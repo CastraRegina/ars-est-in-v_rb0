@@ -618,7 +618,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - a bunch of child's balloons, three wise monkeys (variations: see, hear, speak good), 
     - stylized cartoon eyes, Heart with a bite, fruit with a bite,
     - two puzzle parts fitting together like a couple,
-    - statue, greek torso,
+    - statue, greek torso, diamonds and the cut of gems, 
     - Eye of Providence - All-Seeing Eye of God, the good God knows everything the neighborhood even more, 
     - Don Quixote, Tutankhamun, Cleopatra, Pl.yb.y bunny, 
 
@@ -819,6 +819,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
       | Slant (slnt)        | font-style: oblique 14deg; | font-variation-settings: 'slnt' 14;   |
       | Weight (wght)       | font-weight: 375;          | font-variation-settings: 'wght' 375;  |
       | Width (wdth)        | font-stretch: 115%;        | font-variation-settings: 'wdth' 115;  |
+  - How to embed the font directly into a SVG file by converting the ttf file using base64...   
+    see [stackoverflow.com -> how-to-specify-font-family-in-svg](https://stackoverflow.com/questions/30024943/how-to-specify-font-family-in-svg)
   
 ### Fonts
 - Font-Coordinates
@@ -884,6 +886,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 
 
 ## Business
+Some remarks for starting a business -
+just a view ideas and hints found in the internet...
 ### Setup
 What to consider if you want to start an online business in Germany...  
 see also internet recommendations, e.g. aufbauen-online-business.de
@@ -903,6 +907,7 @@ see also internet recommendations, e.g. aufbauen-online-business.de
 - legal texts-service, e.g. it-recht-kanzlei.de ($)
 - packaging license, registration at the Central Packaging Register LUCID ($)
 - inform your employer about your sideline business
+- read also [some first hints regarding tax topics](https://www.alltageinesfotoproduzenten.de/2011/11/23/die-steuerlichen-aspekte-der-stockfotografie/)
 
 ### Exhibitions
 - Opportunities to show your art
