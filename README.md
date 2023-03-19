@@ -372,7 +372,7 @@ Maybe check later if some of these packages are really needed...
 ### Font selection
 - Resources / Overview
   - [fonts.google.com](https://fonts.google.com/)
-  - [v-fonts.com](https://v-fonts.com/)
+  - [v-fonts.com](https://v-fonts.com/), e.g. a [funny "variable" cat font](https://v-fonts.com/fonts/zycon)
 - Check the overview and axes of the 
   [Google variable fonts](https://fonts.google.com/variablefonts#font-families).
 - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
@@ -716,7 +716,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Example of a `140x100mm` rectangle in the middle of a DIN A4 page (`210x297mm`),
     drawn with `strokewidth = 0.1mm`.  
     Python code:
-    ```
+    ```python
     import svgwrite
 
     OUTPUT_FILE = "data/output/example/svg/din_a4_page_rectangle.svg"
@@ -757,7 +757,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     dwg.save()
     ```  
     SVG-output:
-    ```
+    ```svg
     <?xml version="1.0" encoding="utf-8"?>
     <svg baseProfile="full" version="1.1"
         width="210mm" height="297mm"
@@ -809,6 +809,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
               Specifies the orientation of the glyphs used to render.
     - [`kerning`](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/kerning) - deprecated:
               Specifies the amount of space between two characters.
+    - [`font-variation-settings`](https://developer.mozilla.org/en-US/docs/Web/CSS/font-variation-settings) - CSS:
+              Specifies the values for the axes.
   - Font axis & abbreviations  
       | Axis & Abbreviation | CSS attribute              | font-variation-settings syntax        |
       |---------------------|----------------------------|---------------------------------------|
@@ -861,12 +863,22 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - 250 (Intellifont),
   - 1000 (Type 1) and
   - 2048 (TrueType, TrueType GX and OpenType). 
-- Vertical / height definitions
-  - `font ascent (hhea)`: distance from baseline (0,0) to the top of the EM box.
-  - `font descent (hhea)`: distance from baseline (0,0) to the bottom of the EM box.
-  - `line gap (hhea)`: (usually 0) determines the default line spacing combined with `ascent` and `descent` values.
-  - `x-height`: measured from the baseline to the top of lowercase flat glyphs such as x.
-  - `cap height`: height of uppercase letters, measured from baseline to the top of flat-topped glyphs like X.
+- Information stored in a font
+  - [head](https://learn.microsoft.com/en-us/typography/opentype/spec/head) -
+    Font Header Table
+    - `unitsPerEm`: 1 `EM` is devided into a number of units per `EM`.
+  - [hhea](https://learn.microsoft.com/en-us/typography/opentype/spec/hhea) -
+    Horizontal Header Table
+    - `ascender`: font ascent: distance from baseline (0,0) to the top of the EM box.
+    - `descender`: font descent: (negative) distance from baseline (0,0) to the bottom of the EM box.
+    - `lineGap`: (usually 0) determines the default line spacing combined with `ascender` and `descender` values.
+  - [OS/2](https://learn.microsoft.com/en-us/typography/opentype/spec/os2) -
+    OS/2 and Windows Metrics Table
+    - `sTypoAscender`
+    - `sTypoDescender`
+    - `sTypoLineGap`
+    - `sxHeight`: measured from the baseline to the top of lowercase flat glyphs such as x.
+    - `sCapHeight`: height of uppercase letters, measured from baseline to the top of flat-topped glyphs like X.
 - TODO: alignment-point #############################################################
 - TODO: advancement (x-distance to next character) ##########################################
 
