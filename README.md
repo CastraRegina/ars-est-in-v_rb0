@@ -370,82 +370,85 @@ Maybe check later if some of these packages are really needed...
 - Alternative installation method (quick and easy):  
   Create folder `$HOME/.fonts` and copy the `.ttf`-files into the folder.
 ### Font selection
-  - Check the overview and axes of the 
-    [Google variable fonts](https://fonts.google.com/variablefonts#font-families).
-  - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
-      --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)  
-      Only axis *weight* (wght) and *italic*.  
-      Range of standard Grandstander *weight*: 100-[400]-900.  
-      The width of a single character does not seem to change when the *weight* changes.
-      ```
-      Available axes of Grandstander Thin:
-        - wght:   100.0 to   900.0, default:   100.0 
-      ```
-  - Noto Sans Mono ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)) 
-      --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)  
-      Only two axes *weight* (wght) and *width* (wdth):  
-      The width of a single character does not seem to change when the *weight* changes.  
-      As it is a *mono* font all characters have the same *width*.
-      ```
-      Available axes of Noto Sans Mono:
-        - wght:   100.0 to   900.0, default:   400.0 
-        - wdth:    62.5 to   100.0, default:   100.0 
-      ```
-  - Recursive ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
-      --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)  
-      Range of standard Recursive *weight*: 300-[400]-1000.  
-      The height of some capital letters is "jumping" when *weight* is changed.  
-      ```
-      Available axes of Recursive Sans Linear Light:
-        - MONO:     0.0 to     1.0, default:     0.0 
-        - CASL:     0.0 to     1.0, default:     0.0 
-        - wght:   300.0 to  1000.0, default:   300.0 
-        - slnt:   -15.0 to     0.0, default:     0.0 
-        - CRSV:     0.0 to     1.0, default:     0.5 
-      ```
-      My selection of main axes for my purpose:
-      - `wght` - Weight: 300 - [400] - 1000
-      - `slnt` - Slant: 0
-      - `CASL` - Casual: 1
-      - `MONO` - Monospace: 0
-      - `CRSV` - Cursive: 1
-  - Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
-      --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
-      ```
-      Available axes of Roboto Flex:
-        - wght:   100.0 to  1000.0, default:   400.0 
-        - wdth:    25.0 to   151.0, default:   100.0 
-        - opsz:     8.0 to   144.0, default:    14.0 
-        - GRAD:  -200.0 to   150.0, default:     0.0 
-        - slnt:   -10.0 to     0.0, default:     0.0 
-        - XTRA:   323.0 to   603.0, default:   468.0 
-        - XOPQ:    27.0 to   175.0, default:    96.0 
-        - YOPQ:    25.0 to   135.0, default:    79.0 
-        - YTLC:   416.0 to   570.0, default:   514.0 
-        - YTUC:   528.0 to   760.0, default:   712.0 
-        - YTAS:   649.0 to   854.0, default:   750.0 
-        - YTDE:  -305.0 to   -98.0, default:  -203.0 
-        - YTFI:   560.0 to   788.0, default:   738.0 
-      ```
-      My selection of main axes for my purpose:  
-      - `opsz` - (Optical Size: default)
-      - `wght` - Weight 100-400-1000
-      - `wdth` - Width 25-100-151
-      - `YTAS` - (Ascender Height) (so that it looks good for f,i,j,ä,ö,ü)
-      - `YTDE` - Descender Depth (so that it looks good for g,j,p,q,y)
-      - `GRAD` - Grade (so that it looks good)
-      - `YTLC` - Lowercase Height (so that it looks good for i,j,ä,ö,ü,a,c,e,g,s)
-      - `YOPQ` - (Thin Stroke) (so that it looks good for a,e,f,g,s)
-  - Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
-      --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)  
-      Only axis *weight* (wght) and *italic*.  
-      The width of a single character does not seem to change when the *weight* changes, 
-      but the dots of e.g. 'ä' and 'i' are "jumping" when *weight* is changed.  
-      As it is a *mono* font all characters have the same *width*.
-      ```
-      Available axes of Roboto Mono:
-        - wght:   100.0 to   700.0, default:   400.0 
-      ```
+- Resources / Overview
+  - [fonts.google.com](https://fonts.google.com/)
+  - [v-fonts.com](https://v-fonts.com/)
+- Check the overview and axes of the 
+  [Google variable fonts](https://fonts.google.com/variablefonts#font-families).
+- Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Grandstander)  
+    Only axis *weight* (wght) and *italic*.  
+    Range of standard Grandstander *weight*: 100-[400]-900.  
+    The width of a single character does not seem to change when the *weight* changes.
+    ```
+    Available axes of Grandstander Thin:
+      - wght:   100.0 to   900.0, default:   100.0 
+    ```
+- Noto Sans Mono ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)) 
+    --> see [fonts.google.com](https://fonts.google.com/noto/specimen/Noto+Sans+Mono)  
+    Only two axes *weight* (wght) and *width* (wdth):  
+    The width of a single character does not seem to change when the *weight* changes.  
+    As it is a *mono* font all characters have the same *width*.
+    ```
+    Available axes of Noto Sans Mono:
+      - wght:   100.0 to   900.0, default:   400.0 
+      - wdth:    62.5 to   100.0, default:   100.0 
+    ```
+- Recursive ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Recursive)  
+    Range of standard Recursive *weight*: 300-[400]-1000.  
+    The height of some capital letters is "jumping" when *weight* is changed.  
+    ```
+    Available axes of Recursive Sans Linear Light:
+      - MONO:     0.0 to     1.0, default:     0.0 
+      - CASL:     0.0 to     1.0, default:     0.0 
+      - wght:   300.0 to  1000.0, default:   300.0 
+      - slnt:   -15.0 to     0.0, default:     0.0 
+      - CRSV:     0.0 to     1.0, default:     0.5 
+    ```
+    My selection of main axes for my purpose:
+    - `wght` - Weight: 300 - [400] - 1000
+    - `slnt` - Slant: 0
+    - `CASL` - Casual: 1
+    - `MONO` - Monospace: 0
+    - `CRSV` - Cursive: 1
+- Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
+    ```
+    Available axes of Roboto Flex:
+      - wght:   100.0 to  1000.0, default:   400.0 
+      - wdth:    25.0 to   151.0, default:   100.0 
+      - opsz:     8.0 to   144.0, default:    14.0 
+      - GRAD:  -200.0 to   150.0, default:     0.0 
+      - slnt:   -10.0 to     0.0, default:     0.0 
+      - XTRA:   323.0 to   603.0, default:   468.0 
+      - XOPQ:    27.0 to   175.0, default:    96.0 
+      - YOPQ:    25.0 to   135.0, default:    79.0 
+      - YTLC:   416.0 to   570.0, default:   514.0 
+      - YTUC:   528.0 to   760.0, default:   712.0 
+      - YTAS:   649.0 to   854.0, default:   750.0 
+      - YTDE:  -305.0 to   -98.0, default:  -203.0 
+      - YTFI:   560.0 to   788.0, default:   738.0 
+    ```
+    My selection of main axes for my purpose:  
+    - `opsz` - (Optical Size: default)
+    - `wght` - Weight 100-400-1000
+    - `wdth` - Width 25-100-151
+    - `YTAS` - (Ascender Height) (so that it looks good for f,i,j,ä,ö,ü)
+    - `YTDE` - Descender Depth (so that it looks good for g,j,p,q,y)
+    - `GRAD` - Grade (so that it looks good)
+    - `YTLC` - Lowercase Height (so that it looks good for i,j,ä,ö,ü,a,c,e,g,s)
+    - `YOPQ` - (Thin Stroke) (so that it looks good for a,e,f,g,s)
+- Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)  
+    Only axis *weight* (wght) and *italic*.  
+    The width of a single character does not seem to change when the *weight* changes, 
+    but the dots of e.g. 'ä' and 'i' are "jumping" when *weight* is changed.  
+    As it is a *mono* font all characters have the same *width*.
+    ```
+    Available axes of Roboto Mono:
+      - wght:   100.0 to   700.0, default:   400.0 
+    ```
 
 ### Links to information
 - Check [freetype.org](https://freetype.org/) for information about fonts,
@@ -878,7 +881,7 @@ see also internet recommendations, e.g. aufbauen-online-business.de
   read also: [ah's experience with an "Impressum-Service"](https://www.andreashagemann.com/impressum-service#viewer-6camm).  
   It is unsure whether an address-service really complies with the regulations.  
   Think about using your middle name...
-- determine a artist- / business-name and ...
+- determine an artist- / business-name and ...
   - register e-mail-address
   - register shop-name, e.g. at Etsy
   - register website / domain name ($)
