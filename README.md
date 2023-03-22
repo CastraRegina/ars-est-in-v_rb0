@@ -373,6 +373,7 @@ Maybe check later if some of these packages are really needed...
 - Resources / Overview
   - [fonts.google.com](https://fonts.google.com/)
   - [v-fonts.com](https://v-fonts.com/), e.g. a [funny "variable" cat font](https://v-fonts.com/fonts/zycon)
+  - [axis-praxis.org](https://www.axis-praxis.org)
 - Check the overview and axes of the 
   [Google variable fonts](https://fonts.google.com/variablefonts#font-families).
 - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
@@ -532,7 +533,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Flora
     - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
     - flower, Nelumbo - lotus effect, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
-    - fern, gingko leaf, maple leaf, oak leaf, cannabis leaf, tree, grain ear, sunflower, artichoke,
+    - fern, gingko leaf, maple leaf, chestnut leaf, cannabis leaf, oak leaf, acorn, tree, grain ear, sunflower, artichoke,
   - Fauna  
     - dragonfly (half), butterfly (half), bat, ladybird, bee, bumblebee, spider, turtle,
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
@@ -576,9 +577,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Greek mythology like Icarus, Daedalus, Achilles, Sisyphus, Heracles, Prometheus, ...
   - Portraits
     - Einstein: I am convinced that He (God) does not play dice,
-    - Goethe, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, roman emperors,
+    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, roman emperors,
     - Karl Valentin, Charlie Chaplin, Yoda,
-    - Mozart, Ludwig van Beethoven, Bach, 
+    - Mozart, Ludwig van Beethoven, Bach, Chopin,  
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
     - black/white portraits of animal faces like tiger, lion, 
   - Signs / themes

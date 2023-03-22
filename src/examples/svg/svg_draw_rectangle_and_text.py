@@ -97,7 +97,7 @@ class AVFont:
         return value * font_size / units_per_em
 
 
-class AVGlyph:
+class AVGlyph:  # pylint: disable=function-redefined
     def __init__(self, avfont: AVFont, character: str):
         self._avfont: AVFont = avfont
         self.character: str = character
