@@ -1,11 +1,10 @@
-# import typing
 from typing import Dict, Tuple
-# from dataclasses import dataclass
 import svgwrite
-# from svgwrite.elementfactory import ElementBuilder
 from fontTools.ttLib import TTFont
-# from fontTools.ufoLib.glifLib import GlyphSet
+from fontTools.varLib import instancer
 from fontTools.pens.boundsPen import BoundsPen
+from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.pens.transformPen import TransformPen
 
 OUTPUT_FILE = "data/output/example/svg/din_a4_page_rectangle_and_text.svg"
 
@@ -31,11 +30,9 @@ class AVGlyph:
 
 
 class AVFont:
-    def __init__(self, ttfont: TTFont,
-                 axes_values: Dict[str, float] = None):
+    def __init__(self, ttfont: TTFont):
         # ttfont is already configured with the given axes_values
         self.ttfont = ttfont
-        self.axes_values = axes_values if axes_values else {}
         self.ascender = self.ttfont['hhea'].ascender  # in unitsPerEm
         self.descender = self.ttfont['hhea'].descender  # in unitsPerEm
         self.line_gap = self.ttfont['hhea'].lineGap  # in unitsPerEm
@@ -101,15 +98,29 @@ class AVGlyph:  # pylint: disable=function-redefined
     def __init__(self, avfont: AVFont, character: str):
         self._avfont: AVFont = avfont
         self.character: str = character
+        bounds_pen = BoundsPen(self._avfont.ttfont.getGlyphSet())
         glyph_name = self._avfont.ttfont.getBestCmap()[ord(character)]
         self._glyph_set = self._avfont.ttfont.getGlyphSet()[glyph_name]
-        bounds_pen = BoundsPen(self._avfont.ttfont.getGlyphSet())
         self._glyph_set.draw(bounds_pen)
         self.bounding_box = bounds_pen.bounds  # (x_min, y_min, x_max, y_max)
         self.width = self._glyph_set.width
 
     def real_width(self, font_size: float) -> float:
         return self.width * font_size / self._avfont.units_per_em
+
+    def svg_path(self, dwg: svgwrite.Drawing,
+                 x_pos: float, y_pos: float,
+                 font_size: float, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        svg_pen = SVGPathPen(self._avfont.ttfont.getGlyphSet())
+        scale = font_size / self._avfont.units_per_em
+        trafo_pen = TransformPen(svg_pen, (scale, 0, 0, -scale, x_pos, y_pos))
+        self._glyph_set.draw(trafo_pen)
+        path = svg_pen.getCommands()
+        if not path:
+            path = f"m{x_pos} {y_pos}"
+        svg_path = dwg.path(path, **svg_properties)
+        return svg_path
 
     def svg_text(self, dwg: svgwrite.Drawing,
                  x_pos: float, y_pos: float,
@@ -119,8 +130,6 @@ class AVGlyph:  # pylint: disable=function-redefined
                            "font_family": self._avfont.family_name,
                            "font_size": font_size}
         text_properties.update(svg_properties)
-        # for (a, v) in text_properties.items():
-        #     print(a, v)
         ret_text = dwg.text(self.character, **text_properties)
         return ret_text
 
@@ -214,8 +223,7 @@ def main():
     )
 
     ttfont = TTFont(FONT_FILENAME)
-    axes_values = AVFont.default_axes_values(ttfont)
-    font = AVFont(ttfont, axes_values)
+    font = AVFont(ttfont)
 
     x_pos = VB_RATIO * 10  # in mm
     y_pos = VB_RATIO * 10  # in mm
@@ -245,6 +253,7 @@ def main():
         dwg.add(glyph.svg_rect(dwg, rect, "red", 0.025*VB_RATIO))
 
         dwg.add(glyph.svg_text(dwg, c_x_pos, c_y_pos, FONT_SIZE))
+        # dwg.add(glyph.svg_path(dwg, c_x_pos, c_y_pos, FONT_SIZE))
 
         c_x_pos += glyph.real_width(FONT_SIZE)
 
@@ -301,6 +310,30 @@ def main():
     # print(font.glyph_ascent_descent_of(' '))
     # print(font.glyph_ascent_descent_of('  '))
     # print(font.glyph_ascent_descent_of('Ä'))
+
+    axes_values = AVFont.default_axes_values(ttfont)
+    axes_values.update({"wght": 700, "wdth": 25, "GRAD": 100})
+    ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
+    font = AVFont(ttfont)
+
+    c_x_pos = x_pos
+    c_y_pos = y_pos
+    for character in text:
+        glyph: AVGlyph = font.glyph(character)
+
+        rect = glyph.rect_font_ascent_descent(c_x_pos, c_y_pos, FONT_SIZE)
+        dwg.add(glyph.svg_rect(dwg, rect, "green", 0.05*VB_RATIO))
+
+        rect = glyph.rect_em_width(
+            c_x_pos, c_y_pos, ascent, descent, FONT_SIZE)
+        dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
+
+        rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
+        dwg.add(glyph.svg_rect(dwg, rect, "red", 0.025*VB_RATIO))
+
+        dwg.add(glyph.svg_path(dwg, c_x_pos, c_y_pos, FONT_SIZE))
+
+        c_x_pos += glyph.real_width(FONT_SIZE)
 
     # Save the SVG file
     dwg.save()
