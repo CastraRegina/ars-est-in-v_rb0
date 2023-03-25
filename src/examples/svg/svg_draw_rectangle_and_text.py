@@ -118,7 +118,7 @@ class AVGlyph:  # pylint: disable=function-redefined
         self._glyph_set.draw(trafo_pen)
         path = svg_pen.getCommands()
         if not path:
-            path = f"m{x_pos} {y_pos}"
+            path = f"M{x_pos} {y_pos}"
         svg_path = dwg.path(path, **svg_properties)
         return svg_path
 
@@ -336,7 +336,16 @@ def main():
         c_x_pos += glyph.real_width(FONT_SIZE)
 
     # Save the SVG file
-    dwg.save()
+    dwg.saveas(OUTPUT_FILE, pretty=True, indent=2)
+
+    # glyph: AVGlyph = font.glyph("Ä")
+    # print(type(glyph._avfont.ttfont.getGlyphSet()))
+    # print(dir(glyph._avfont.ttfont.getGlyphSet()))
+    # print(vars(glyph._avfont.ttfont.getGlyphSet()))
+    # print("--------------------------------------------------------")
+    # glyph_name = glyph._avfont.ttfont.getBestCmap()[ord(character)]
+    # glyph_set = glyph._avfont.ttfont.getGlyphSet()[glyph_name]
+    # print(vars(glyph_set))
 
 
 if __name__ == "__main__":

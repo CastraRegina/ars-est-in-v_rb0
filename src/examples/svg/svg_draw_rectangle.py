@@ -49,7 +49,7 @@ def main():
     )
 
     # Save the SVG file
-    dwg.save()
+    dwg.saveas(OUTPUT_FILE, pretty=True, indent=2)
 
 
 if __name__ == "__main__":

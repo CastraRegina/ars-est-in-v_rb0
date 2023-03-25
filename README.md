@@ -373,7 +373,9 @@ Maybe check later if some of these packages are really needed...
 - Resources / Overview
   - [fonts.google.com](https://fonts.google.com/)
   - [v-fonts.com](https://v-fonts.com/), e.g. a [funny "variable" cat font](https://v-fonts.com/fonts/zycon)
-  - [axis-praxis.org](https://www.axis-praxis.org)
+  - [axis-praxis.org](https://www.axis-praxis.org), see also the tool
+      [samsa](https://www.axis-praxis.org/samsa)
+  - [Building variable fonts with Feature Variations](https://github.com/irenevl/variable-fonts-with-feature-variations)
 - Check the overview and axes of the 
   [Google variable fonts](https://fonts.google.com/variablefonts#font-families).
 - Grandstander ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
