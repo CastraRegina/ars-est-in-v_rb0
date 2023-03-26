@@ -181,10 +181,14 @@
   `cat README.md | iconv -f utf-8 -t ascii//TRANSLIT > output.txt`
 - Remove empty / blank lines from text file `file.txt`:  
   `sed -i '/^\s*$/d' file.txt`
-- Replace all multiple spaces and tabs by one single space:  
-  `sed -i 's/\s\+/ /g' file.txt`
 - Remove `\r` at end of each line:  
   `sed -i 's/\r$//g' file.txt`
+- Replace each newline by a space:  
+  `sed -i ':a;N;$!ba;s/\n/ /g' file.txt`
+- Replace all multiple spaces and tabs by one single space:  
+  `sed -i 's/\s\+/ /g' file.txt`  
+  or replace all kind of "spaces" by one single space:  
+  `sed -i 's/[ \t\r\n\v\f]\+/ /g' file.txt`
 ---
 
 ## General installation of Python
