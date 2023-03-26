@@ -179,7 +179,12 @@
 ## Scripts
 - Convert utf-8 file (`README.md`) to ascii:  
   `cat README.md | iconv -f utf-8 -t ascii//TRANSLIT > output.txt`
-
+- Remove empty / blank lines from text file `file.txt`:  
+  `sed -i '/^\s*$/d' file.txt`
+- Replace all multiple spaces and tabs by one single space:  
+  `sed -i 's/\s\+/ /g' file.txt`
+- Remove `\r` at end of each line:  
+  `sed -i 's/\r$//g' file.txt`
 ---
 
 ## General installation of Python
@@ -579,8 +584,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Greek mythology like Icarus, Daedalus, Achilles, Sisyphus, Heracles, Prometheus, ...
   - Portraits
     - Einstein: I am convinced that He (God) does not play dice,
-    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, roman emperors,
-    - Karl Valentin, Charlie Chaplin, Yoda,
+    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, Albert Schweitzer,
+    - Karl Valentin, Charlie Chaplin, Yoda, roman emperors,
     - Mozart, Ludwig van Beethoven, Bach, Chopin,  
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
     - black/white portraits of animal faces like tiger, lion, 
@@ -887,6 +892,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - TODO: alignment-point #############################################################
 - TODO: advancement (x-distance to next character) ##########################################
 
+### Further Resources
+- Lorem Ipsum generator: [loremipsum.de](https://www.loremipsum.de/)
 
 ## Business
 Some remarks for starting a business -
