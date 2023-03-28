@@ -589,7 +589,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Portraits
     - Einstein: I am convinced that He (God) does not play dice,
     - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, Albert Schweitzer,
-    - Karl Valentin, Charlie Chaplin, Yoda, roman emperors,
+    - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, roman emperors,
     - Mozart, Ludwig van Beethoven, Bach, Chopin,  
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
     - black/white portraits of animal faces like tiger, lion, 
