@@ -544,7 +544,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Flora
     - fruits: strawberry, banana, apple, pear, cherry, kiwi, pineapple, paprika/pepper, 
     - flower, Nelumbo - lotus effect, daisy chain, blossom, tomato, broccoli, cabbage, pickle, pumpkin, 
-    - fern, gingko leaf, maple leaf, chestnut leaf, cannabis leaf, oak leaf, acorn, tree, grain ear, sunflower, artichoke,
+    - fern, gingko leaf, maple leaf, chestnut leaf, cannabis leaf, oak leaf, peppermint, acorn, tree, grain ear, sunflower, artichoke,
   - Fauna  
     - dragonfly (half), butterfly (half), bat, ladybird, bee, bumblebee, spider, turtle,
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
@@ -570,7 +570,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, 
+    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, Pablo Picasso, 
     - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
     - Optical illusion (e.g. moving points),
     - The Creation of Adam,
@@ -619,9 +619,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - knife, fork, spoon, garden gnome, hat, cap, baseball bat, condoms save...,
     - anchor, ship's propeller, aircraft's propeller, yellow submarine,
     - Bavarian laptop and leather pants and smartphone, bavarian lion, 
-    - pirate flag, country flags in general,
+    - pirate flag, country flags in general, ratisbona's crossed keys,
     - drop into water with round waves, surfer wave,
-    - "folder"-drawing (=Nude drawing), toilet paper, pepper mill, 
+    - "folder"-drawing (=Nude drawing), toilet paper, pepper mill, fire hydrant,
     - silhouettes of various flying insects in a glass case,
     - silhouette of sexy girl bending down for a colorful flower,
     - silhouette of sexy girl bending down to a dwarf, "Bend over fairy, wish is wish", 
@@ -657,6 +657,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Pure energy, Heureka, be inspired, high life (cannabis leaf),
   - give us today our daily bread, those who die sooner are dead longer,
   - if looks could kill, 
+  - crumpy cat - crumpy by nature
+  - Do not get too excited, it's just a card with Easter greetings
 
 - Further ideas and variations
   - Shape

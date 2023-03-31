@@ -1,6 +1,6 @@
 appdirs==1.4.4
 autopep8==2.0.2
-black==23.1.0
+black==23.3.0
 Brotli==1.0.9
 cairocffi==1.5.0
 CairoSVG==2.7.0
@@ -11,7 +11,7 @@ cssselect2==0.7.0
 cycler==0.11.0
 defusedxml==0.7.1
 flake8==6.0.0
-fonttools==4.39.2
+fonttools==4.39.3
 freetype-py==2.3.0
 fs==2.4.16
 gizeh==0.1.11
