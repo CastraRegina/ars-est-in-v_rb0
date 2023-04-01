@@ -26,7 +26,64 @@ FONT_SIZE = VB_RATIO * 3  # in mm
 
 
 class AVGlyph:
-    pass
+    def real_width(self, font_size: float) -> float:
+        pass
+
+    def real_sidebearing_left(self, font_size: float) -> float:
+        pass
+
+    def real_sidebearing_right(self, font_size: float) -> float:
+        pass
+
+    def svg_path(self, dwg: svgwrite.Drawing,
+                 x_pos: float, y_pos: float,
+                 font_size: float, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        pass
+
+    def svg_text(self, dwg: svgwrite.Drawing,
+                 x_pos: float, y_pos: float,
+                 font_size: float, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        pass
+
+    def rect_em(self, x_pos: float, y_pos: float,
+                ascent: float, descent: float,
+                real_width: float, font_size: float) \
+            -> Tuple[float, float, float, float]:
+        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        pass
+
+    def rect_em_width(self, x_pos: float, y_pos: float,
+                      ascent: float, descent: float,
+                      font_size: float) \
+            -> Tuple[float, float, float, float]:
+        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        pass
+
+    def rect_given_ascent_descent(self, x_pos: float, y_pos: float,
+                                  ascent: float, descent: float,
+                                  font_size: float) \
+            -> Tuple[float, float, float, float]:
+        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        pass
+
+    def rect_font_ascent_descent(self, x_pos: float, y_pos: float,
+                                 font_size: float) \
+            -> Tuple[float, float, float, float]:
+        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        pass
+
+    def rect_bounding_box(self, x_pos: float, y_pos: float, font_size: float) \
+            -> Tuple[float, float, float, float]:
+        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        pass
+
+    def svg_rect(self, dwg: svgwrite.Drawing,
+                 rect: Tuple[float, float, float, float],
+                 stroke: str, stroke_width: float, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        pass
 
 
 class AVFont:
@@ -108,6 +165,17 @@ class AVGlyph:  # pylint: disable=function-redefined
     def real_width(self, font_size: float) -> float:
         return self.width * font_size / self._avfont.units_per_em
 
+    def real_sidebearing_left(self, font_size: float) -> float:
+        if self.bounding_box:
+            return self.bounding_box[0] * font_size / self._avfont.units_per_em
+        return 0.0
+
+    def real_sidebearing_right(self, font_size: float) -> float:
+        if self.bounding_box:
+            sidebearing_right = self.width - self.bounding_box[2]
+            return sidebearing_right * font_size / self._avfont.units_per_em
+        return 0.0
+
     def svg_path(self, dwg: svgwrite.Drawing,
                  x_pos: float, y_pos: float,
                  font_size: float, **svg_properties) \
@@ -133,9 +201,9 @@ class AVGlyph:  # pylint: disable=function-redefined
         ret_text = dwg.text(self.character, **text_properties)
         return ret_text
 
-    def rect_em_width(self, x_pos: float, y_pos: float,
-                      ascent: float, descent: float,
-                      font_size: float) \
+    def rect_em(self, x_pos: float, y_pos: float,
+                ascent: float, descent: float,
+                real_width: float, font_size: float) \
             -> Tuple[float, float, float, float]:
         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
         units_per_em = self._avfont.units_per_em
@@ -143,9 +211,17 @@ class AVGlyph:  # pylint: disable=function-redefined
 
         rect = (x_pos,
                 y_pos - middle_of_em - 0.5 * font_size,
-                self.real_width(font_size),
+                real_width,
                 font_size)
         return rect
+
+    def rect_em_width(self, x_pos: float, y_pos: float,
+                      ascent: float, descent: float,
+                      font_size: float) \
+            -> Tuple[float, float, float, float]:
+        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        return self.rect_em(x_pos, y_pos, ascent, descent,
+                            self.real_width(font_size), font_size)
 
     def rect_given_ascent_descent(self, x_pos: float, y_pos: float,
                                   ascent: float, descent: float,
@@ -242,18 +318,28 @@ def main():
     for character in text:
         glyph: AVGlyph = font.glyph(character)
 
+        sb_left = glyph.real_sidebearing_left(FONT_SIZE)
+        sb_right = glyph.real_sidebearing_right(FONT_SIZE)
+        print(f"{character} : {sb_left:8.5f} {sb_right:8.5f}")
+        rect = glyph.rect_em(c_x_pos, c_y_pos, ascent, descent,
+                             sb_left, FONT_SIZE)
+        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="yellow"))
+        rect = glyph.rect_em(c_x_pos + glyph.real_width(FONT_SIZE) - sb_right,
+                             c_y_pos, ascent, descent, sb_right, FONT_SIZE)
+        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="orange"))
+
         rect = glyph.rect_font_ascent_descent(c_x_pos, c_y_pos, FONT_SIZE)
         dwg.add(glyph.svg_rect(dwg, rect, "green", 0.05*VB_RATIO))
 
-        rect = glyph.rect_em_width(
-            c_x_pos, c_y_pos, ascent, descent, FONT_SIZE)
+        rect = glyph.rect_em_width(c_x_pos, c_y_pos,
+                                   ascent, descent, FONT_SIZE)
         dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
 
         rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
         dwg.add(glyph.svg_rect(dwg, rect, "red", 0.025*VB_RATIO))
 
-        dwg.add(glyph.svg_text(dwg, c_x_pos, c_y_pos, FONT_SIZE))
-        # dwg.add(glyph.svg_path(dwg, c_x_pos, c_y_pos, FONT_SIZE))
+        # dwg.add(glyph.svg_text(dwg, c_x_pos, c_y_pos, FONT_SIZE))
+        dwg.add(glyph.svg_path(dwg, c_x_pos, c_y_pos, FONT_SIZE))
 
         c_x_pos += glyph.real_width(FONT_SIZE)
 
@@ -261,12 +347,8 @@ def main():
     c_y_pos = y_pos - FONT_SIZE
     for character in text:
         glyph: AVGlyph = font.glyph(character)
-
-        # rect = glyph.rect_font_ascent_descent(c_x_pos, c_y_pos, FONT_SIZE)
-        # dwg.add(glyph.svg_rect(dwg, rect, "green", 0.05*VB_RATIO))
-
-        rect = glyph.rect_em_width(
-            c_x_pos, c_y_pos, ascent, descent, FONT_SIZE)
+        rect = glyph.rect_em_width(c_x_pos, c_y_pos,
+                                   ascent, descent, FONT_SIZE)
         dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
 
         rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
@@ -280,12 +362,8 @@ def main():
     c_y_pos = y_pos + FONT_SIZE
     for character in text:
         glyph: AVGlyph = font.glyph(character)
-
-        # rect = glyph.rect_font_ascent_descent(c_x_pos, c_y_pos, FONT_SIZE)
-        # dwg.add(glyph.svg_rect(dwg, rect, "green", 0.05*VB_RATIO))
-
-        rect = glyph.rect_em_width(
-            c_x_pos, c_y_pos, ascent, descent, FONT_SIZE)
+        rect = glyph.rect_em_width(c_x_pos, c_y_pos,
+                                   ascent, descent, FONT_SIZE)
         dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
 
         rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
@@ -295,31 +373,26 @@ def main():
 
         c_x_pos += glyph.real_width(FONT_SIZE)
 
-    # print(font.glyph_ascent_descent_of('"'))
-    # print(font.glyph_ascent_descent_of(' "'))
-    # print(font.glyph_ascent_descent_of(' " '))
-    # print(font.glyph_ascent_descent_of('_'))
-    # print(font.glyph_ascent_descent_of(' _'))
-    # print(font.glyph_ascent_descent_of(' _ '))
-    # print(font.glyph_ascent_descent_of('a'))
-    # print(font.glyph_ascent_descent_of(' a'))
-    # print(font.glyph_ascent_descent_of('  a'))
-    # print(font.glyph_ascent_descent_of(' a '))
-    # print(font.glyph_ascent_descent_of('  a '))
-    # print(font.glyph_ascent_descent_of(''))
-    # print(font.glyph_ascent_descent_of(' '))
-    # print(font.glyph_ascent_descent_of('  '))
-    # print(font.glyph_ascent_descent_of('Ä'))
-
+    # check an instantiated font:
     axes_values = AVFont.default_axes_values(ttfont)
     axes_values.update({"wght": 700, "wdth": 25, "GRAD": 100})
     ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
     font = AVFont(ttfont)
 
     c_x_pos = x_pos
-    c_y_pos = y_pos
+    c_y_pos = y_pos + 3 * FONT_SIZE
     for character in text:
         glyph: AVGlyph = font.glyph(character)
+
+        sb_left = glyph.real_sidebearing_left(FONT_SIZE)
+        sb_right = glyph.real_sidebearing_right(FONT_SIZE)
+        print(f"{character} : {sb_left:8.5f} {sb_right:8.5f}")
+        rect = glyph.rect_em(c_x_pos, c_y_pos, ascent, descent,
+                             sb_left, FONT_SIZE)
+        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="yellow"))
+        rect = glyph.rect_em(c_x_pos + glyph.real_width(FONT_SIZE) - sb_right,
+                             c_y_pos, ascent, descent, sb_right, FONT_SIZE)
+        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="orange"))
 
         rect = glyph.rect_font_ascent_descent(c_x_pos, c_y_pos, FONT_SIZE)
         dwg.add(glyph.svg_rect(dwg, rect, "green", 0.05*VB_RATIO))
