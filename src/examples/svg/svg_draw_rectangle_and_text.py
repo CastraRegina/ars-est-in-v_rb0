@@ -1,4 +1,6 @@
 from typing import Dict, Tuple
+import io
+import gzip
 import svgwrite
 import svgwrite.base
 import svgwrite.container
@@ -286,63 +288,66 @@ class AVGlyph:  # pylint: disable=function-redefined
 
 
 class SVGoutput:
-    def __init__(self, filename: str,
+    def __init__(self,
                  canvas_width_mm: float, canvas_height_mm: float,
                  viewbox_x: float, viewbox_y: float,
                  viewbox_width: float, viewbox_height: float):
         self.drawing: svgwrite.Drawing = svgwrite.Drawing(
-            filename,
             size=(f"{canvas_width_mm}mm", f"{canvas_height_mm}mm"),
             viewBox=(f"{viewbox_x} {viewbox_y} " +
                      f"{viewbox_width} {viewbox_height}"),
             profile='full')
-        self.inkscape: Inkscape = Inkscape(self.drawing)
+        self._inkscape: Inkscape = Inkscape(self.drawing)
 
         self.layer_debug: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer debug", locked=True)
         self.drawing.add(self.layer_debug)
 
         self.layer_debug_glyph_background: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer background", locked=True)
         self.layer_debug.add(self.layer_debug_glyph_background)
 
         self.layer_debug_glyph: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer glyph", locked=True)
         self.layer_debug.add(self.layer_debug_glyph)
 
         self.layer_debug_glyph_sidebearing: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer sidebearing", locked=True)  # yellow, orange
         self.layer_debug_glyph.add(self.layer_debug_glyph_sidebearing)
 
         self.layer_debug_glyph_font_ascent_descent: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer font_ascent_descent", locked=True)  # green
         self.layer_debug_glyph.add(self.layer_debug_glyph_font_ascent_descent)
 
         self.layer_debug_glyph_em_width: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer em_width", locked=True)  # blue
         self.layer_debug_glyph.add(self.layer_debug_glyph_em_width)
 
         self.layer_debug_glyph_bounding_box: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer bounding_box", locked=True)  # red
         self.layer_debug_glyph.add(self.layer_debug_glyph_bounding_box)
 
         self.layer_main: \
-            svgwrite.container.Group = self.inkscape.layer(
+            svgwrite.container.Group = self._inkscape.layer(
                 label="Layer main", locked=True)
         self.drawing.add(self.layer_main)
 
-    def save(self, pretty: bool = False, indent: int = 2):
-        return self.drawing.save(pretty=pretty, indent=indent)
-
-    def saveas(self, filename: str, pretty: bool = False, indent: int = 2):
-        return self.drawing.saveas(filename, pretty=pretty, indent=indent)
+    def saveas(self, filename: str, pretty: bool = False, indent: int = 2,
+               compressed: bool = False):
+        svg_buffer = io.StringIO()
+        self.drawing.write(svg_buffer, pretty=pretty, indent=indent)
+        output_data = svg_buffer.getvalue().encode('utf-8')
+        if compressed:
+            output_data = gzip.compress(output_data)
+        with open(filename, 'wb') as svg_file:
+            svg_file.write(output_data)
 
     def add_glyph_sidebearing(self, glyph: AVGlyph,
                               x_pos: float, y_pos: float, font_size: float):
@@ -406,8 +411,7 @@ def main():
     # Set up the SVG canvas:
     # Define viewBox so that "1" is the width of the rectangle
     # Multiply a dimension with "VB_RATIO" to get the size regarding viewBox
-    svg_output = SVGoutput(OUTPUT_FILE, CANVAS_WIDTH, CANVAS_HEIGHT,
-                           vb_x, vb_y, vb_w, vb_h)
+    svg_output = SVGoutput(CANVAS_WIDTH, CANVAS_HEIGHT, vb_x, vb_y, vb_w, vb_h)
     # Draw the rectangle
     svg_output.add(
         svg_output.drawing.rect(
@@ -471,7 +475,8 @@ def main():
         c_x_pos += glyph.real_width(FONT_SIZE)
 
     # Save the SVG file
-    svg_output.save(pretty=True, indent=2)
+    svg_output.saveas(OUTPUT_FILE, pretty=True, indent=2)
+    svg_output.saveas(OUTPUT_FILE+"z", pretty=True, indent=2, compressed=True)
 
     # glyph: AVGlyph = font.glyph("Ä")
     # print(type(glyph._avfont.ttfont.getGlyphSet()))
