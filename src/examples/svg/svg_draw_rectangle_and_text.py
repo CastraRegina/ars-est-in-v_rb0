@@ -1,10 +1,14 @@
 from typing import Dict, Tuple
 import svgwrite
+import svgwrite.base
+import svgwrite.container
+from svgwrite.extensions import Inkscape
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
+
 
 OUTPUT_FILE = "data/output/example/svg/din_a4_page_rectangle_and_text.svg"
 
@@ -102,20 +106,20 @@ class AVFont:
         self.license_description = self.ttfont['name'].getDebugName(13)
         self._glyph_cache: Dict[str, AVGlyph] = {}  # character->AVGlyph
 
-    def real_ascender(self, font_size: float) -> float:
-        return self.ascender * font_size / self.units_per_em
+    # def real_ascender(self, font_size: float) -> float:
+    #     return self.ascender * font_size / self.units_per_em
 
-    def real_descender(self, font_size: float) -> float:
-        return self.descender * font_size / self.units_per_em
+    # def real_descender(self, font_size: float) -> float:
+    #     return self.descender * font_size / self.units_per_em
 
-    def real_line_gap(self, font_size: float) -> float:
-        return self.line_gap * font_size / self.units_per_em
+    # def real_line_gap(self, font_size: float) -> float:
+    #     return self.line_gap * font_size / self.units_per_em
 
-    def real_x_height(self, font_size: float) -> float:
-        return self.x_height * font_size / self.units_per_em
+    # def real_x_height(self, font_size: float) -> float:
+    #     return self.x_height * font_size / self.units_per_em
 
-    def real_cap_height(self, font_size: float) -> float:
-        return self.cap_height * font_size / self.units_per_em
+    # def real_cap_height(self, font_size: float) -> float:
+    #     return self.cap_height * font_size / self.units_per_em
 
     def glyph(self, character: str) -> AVGlyph:
         glyph = self._glyph_cache.get(character, None)
@@ -137,6 +141,13 @@ class AVFont:
                 descent = min(descent, y_min)
         return (ascent, descent)
 
+    def real_dash_thickness(self, font_size: float) -> float:
+        glyph: AVGlyph = self.glyph("-")
+        if glyph.bounding_box:
+            thickness = glyph.bounding_box[3] - glyph.bounding_box[1]
+            return thickness * font_size / self.units_per_em
+        return 0.0
+
     @staticmethod
     def default_axes_values(ttfont: TTFont) -> Dict[str, float]:
         axes_values: Dict[str, float] = {}
@@ -146,7 +157,6 @@ class AVFont:
 
     @staticmethod
     def real_value(ttfont: TTFont, font_size: float, value: float) -> float:
-        # value in unitsPerEm
         units_per_em = ttfont['head'].unitsPerEm
         return value * font_size / units_per_em
 
@@ -164,6 +174,9 @@ class AVGlyph:  # pylint: disable=function-redefined
 
     def real_width(self, font_size: float) -> float:
         return self.width * font_size / self._avfont.units_per_em
+
+    def real_dash_thickness(self, font_size: float) -> float:
+        return self._avfont.real_dash_thickness(font_size)
 
     def real_sidebearing_left(self, font_size: float) -> float:
         if self.bounding_box:
@@ -272,6 +285,117 @@ class AVGlyph:  # pylint: disable=function-redefined
         return dwg.rect(**rect_properties)
 
 
+class SVGoutput:
+    def __init__(self, filename: str,
+                 canvas_width_mm: float, canvas_height_mm: float,
+                 viewbox_x: float, viewbox_y: float,
+                 viewbox_width: float, viewbox_height: float):
+        self.drawing: svgwrite.Drawing = svgwrite.Drawing(
+            filename,
+            size=(f"{canvas_width_mm}mm", f"{canvas_height_mm}mm"),
+            viewBox=(f"{viewbox_x} {viewbox_y} " +
+                     f"{viewbox_width} {viewbox_height}"),
+            profile='full')
+        self.inkscape: Inkscape = Inkscape(self.drawing)
+
+        self.layer_debug: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer debug", locked=True)
+        self.drawing.add(self.layer_debug)
+
+        self.layer_debug_glyph_background: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer background", locked=True)
+        self.layer_debug.add(self.layer_debug_glyph_background)
+
+        self.layer_debug_glyph: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer glyph", locked=True)
+        self.layer_debug.add(self.layer_debug_glyph)
+
+        self.layer_debug_glyph_sidebearing: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer sidebearing", locked=True)  # yellow, orange
+        self.layer_debug_glyph.add(self.layer_debug_glyph_sidebearing)
+
+        self.layer_debug_glyph_font_ascent_descent: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer font_ascent_descent", locked=True)  # green
+        self.layer_debug_glyph.add(self.layer_debug_glyph_font_ascent_descent)
+
+        self.layer_debug_glyph_em_width: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer em_width", locked=True)  # blue
+        self.layer_debug_glyph.add(self.layer_debug_glyph_em_width)
+
+        self.layer_debug_glyph_bounding_box: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer bounding_box", locked=True)  # red
+        self.layer_debug_glyph.add(self.layer_debug_glyph_bounding_box)
+
+        self.layer_main: \
+            svgwrite.container.Group = self.inkscape.layer(
+                label="Layer main", locked=True)
+        self.drawing.add(self.layer_main)
+
+    def save(self, pretty: bool = False, indent: int = 2):
+        return self.drawing.save(pretty=pretty, indent=indent)
+
+    def saveas(self, filename: str, pretty: bool = False, indent: int = 2):
+        return self.drawing.saveas(filename, pretty=pretty, indent=indent)
+
+    def add_glyph_sidebearing(self, glyph: AVGlyph,
+                              x_pos: float, y_pos: float, font_size: float):
+        sb_left = glyph.real_sidebearing_left(font_size)
+        sb_right = glyph.real_sidebearing_right(font_size)
+
+        rect_bb = glyph.rect_bounding_box(x_pos, y_pos, font_size)
+        rect = (x_pos, rect_bb[1], sb_left, rect_bb[3])
+        self.layer_debug_glyph_sidebearing.add(
+            glyph.svg_rect(self.drawing, rect, "none", 0, fill="yellow"))
+
+        rect = (x_pos + glyph.real_width(font_size) - sb_right,
+                rect_bb[1], sb_right, rect_bb[3])
+        self.layer_debug_glyph_sidebearing.add(
+            glyph.svg_rect(self.drawing, rect, "none", 0, fill="orange"))
+
+    def add_glyph_font_ascent_descent(self, glyph: AVGlyph,
+                                      x_pos: float, y_pos: float,
+                                      font_size: float):
+        stroke_width = glyph.real_dash_thickness(font_size)
+        rect = glyph.rect_font_ascent_descent(x_pos, y_pos, font_size)
+        self.layer_debug_glyph_font_ascent_descent.add(
+            glyph.svg_rect(self.drawing, rect, "green", 0.3*stroke_width))
+
+    def add_glyph_em_width(self, glyph: AVGlyph, x_pos: float, y_pos: float,
+                           font_size: float, ascent: float, descent: float):
+        stroke_width = glyph.real_dash_thickness(font_size)
+        rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
+        self.layer_debug_glyph_em_width.add(
+            glyph.svg_rect(self.drawing, rect, "blue", 0.2*stroke_width))
+
+    def add_glyph_bounding_box(self, glyph: AVGlyph,
+                               x_pos: float, y_pos: float, font_size: float):
+        stroke_width = glyph.real_dash_thickness(font_size)
+        rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
+        self.layer_debug_glyph_bounding_box.add(
+            glyph.svg_rect(self.drawing, rect, "red", 0.1*stroke_width))
+
+    def add_glyph(self, glyph: AVGlyph,
+                  x_pos: float, y_pos: float, font_size: float,
+                  ascent: float = None, descent: float = None):
+        if ascent and descent:
+            self.add_glyph_em_width(glyph, x_pos, y_pos,
+                                    font_size, ascent, descent)
+        self.add_glyph_sidebearing(glyph, x_pos, y_pos, font_size)
+        self.add_glyph_font_ascent_descent(glyph, x_pos, y_pos, font_size)
+        self.add_glyph_bounding_box(glyph, x_pos, y_pos, font_size)
+        self.add(glyph.svg_path(self.drawing, x_pos, y_pos, font_size))
+
+    def add(self, element: svgwrite.base.BaseElement):
+        return self.layer_main.add(element)
+
+
 def main():
     # Center the rectangle horizontally and vertically on the page
     vb_w = VB_RATIO * CANVAS_WIDTH
@@ -282,14 +406,11 @@ def main():
     # Set up the SVG canvas:
     # Define viewBox so that "1" is the width of the rectangle
     # Multiply a dimension with "VB_RATIO" to get the size regarding viewBox
-    dwg = svgwrite.Drawing(OUTPUT_FILE,
-                           size=(f"{CANVAS_WIDTH}mm", f"{CANVAS_HEIGHT}mm"),
-                           viewBox=(f"{vb_x} {vb_y} {vb_w} {vb_h}")
-                           )
-
+    svg_output = SVGoutput(OUTPUT_FILE, CANVAS_WIDTH, CANVAS_HEIGHT,
+                           vb_x, vb_y, vb_w, vb_h)
     # Draw the rectangle
-    dwg.add(
-        dwg.rect(
+    svg_output.add(
+        svg_output.drawing.rect(
             insert=(0, 0),
             size=(VB_RATIO*RECT_WIDTH, VB_RATIO*RECT_HEIGHT),  # = (1.0, xxxx)
             stroke="black",
@@ -317,60 +438,22 @@ def main():
     c_y_pos = y_pos
     for character in text:
         glyph: AVGlyph = font.glyph(character)
-
-        sb_left = glyph.real_sidebearing_left(FONT_SIZE)
-        sb_right = glyph.real_sidebearing_right(FONT_SIZE)
-        print(f"{character} : {sb_left:8.5f} {sb_right:8.5f}")
-        rect = glyph.rect_em(c_x_pos, c_y_pos, ascent, descent,
-                             sb_left, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="yellow"))
-        rect = glyph.rect_em(c_x_pos + glyph.real_width(FONT_SIZE) - sb_right,
-                             c_y_pos, ascent, descent, sb_right, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="orange"))
-
-        rect = glyph.rect_font_ascent_descent(c_x_pos, c_y_pos, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "green", 0.05*VB_RATIO))
-
-        rect = glyph.rect_em_width(c_x_pos, c_y_pos,
-                                   ascent, descent, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
-
-        rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "red", 0.025*VB_RATIO))
-
-        # dwg.add(glyph.svg_text(dwg, c_x_pos, c_y_pos, FONT_SIZE))
-        dwg.add(glyph.svg_path(dwg, c_x_pos, c_y_pos, FONT_SIZE))
-
+        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
+                             ascent, descent)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
     c_x_pos = x_pos
     c_y_pos = y_pos - FONT_SIZE
     for character in text:
         glyph: AVGlyph = font.glyph(character)
-        rect = glyph.rect_em_width(c_x_pos, c_y_pos,
-                                   ascent, descent, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
-
-        rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "red", 0.025*VB_RATIO))
-
-        dwg.add(glyph.svg_text(dwg, c_x_pos, c_y_pos, FONT_SIZE))
-
+        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
     c_x_pos = x_pos
     c_y_pos = y_pos + FONT_SIZE
     for character in text:
         glyph: AVGlyph = font.glyph(character)
-        rect = glyph.rect_em_width(c_x_pos, c_y_pos,
-                                   ascent, descent, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
-
-        rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "red", 0.025*VB_RATIO))
-
-        dwg.add(glyph.svg_text(dwg, c_x_pos, c_y_pos, FONT_SIZE))
-
+        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
     # check an instantiated font:
@@ -383,33 +466,12 @@ def main():
     c_y_pos = y_pos + 3 * FONT_SIZE
     for character in text:
         glyph: AVGlyph = font.glyph(character)
-
-        sb_left = glyph.real_sidebearing_left(FONT_SIZE)
-        sb_right = glyph.real_sidebearing_right(FONT_SIZE)
-        print(f"{character} : {sb_left:8.5f} {sb_right:8.5f}")
-        rect = glyph.rect_em(c_x_pos, c_y_pos, ascent, descent,
-                             sb_left, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="yellow"))
-        rect = glyph.rect_em(c_x_pos + glyph.real_width(FONT_SIZE) - sb_right,
-                             c_y_pos, ascent, descent, sb_right, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "none", 0, fill="orange"))
-
-        rect = glyph.rect_font_ascent_descent(c_x_pos, c_y_pos, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "green", 0.05*VB_RATIO))
-
-        rect = glyph.rect_em_width(
-            c_x_pos, c_y_pos, ascent, descent, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "blue", 0.05*VB_RATIO))
-
-        rect = glyph.rect_bounding_box(c_x_pos, c_y_pos, FONT_SIZE)
-        dwg.add(glyph.svg_rect(dwg, rect, "red", 0.025*VB_RATIO))
-
-        dwg.add(glyph.svg_path(dwg, c_x_pos, c_y_pos, FONT_SIZE))
-
+        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
+                             ascent, descent)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
     # Save the SVG file
-    dwg.saveas(OUTPUT_FILE, pretty=True, indent=2)
+    svg_output.save(pretty=True, indent=2)
 
     # glyph: AVGlyph = font.glyph("Ä")
     # print(type(glyph._avfont.ttfont.getGlyphSet()))
