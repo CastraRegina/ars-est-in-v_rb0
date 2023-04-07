@@ -224,15 +224,17 @@ Maybe check later if some of these packages are really needed...
 - Install SW packages on operating system (don't know if they are really needed):  
   `sudo apt-get install python-dev python-pip ffmpeg libffi-dev`  
   `sudo apt-get install libxml2-dev libxslt-dev`  
-  `sudo apt-get install libcairo2`
+  `sudo apt-get install libcairo2`  
+  `sudo apt-get install libgeos++-dev libgeos-dev libgeos-doc`
+- Check which SW packages are already installed, e.g.  
+  `sudo apt list --installed | grep -i geos`
 - Install python modules:  
   `python3 -m pip install pycodestyle flake8 black autopep8`  
   `python3 -m pip install lxml unicode scipy numpy`  
   `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
   `python3 -m pip install fonttools[ufo,lxml,woff,unicode,type1]`  
   `python3 -m pip install fonttools[interpolatable,symfont,pathops,plot]`  
-  `python3 -m pip install pillow opencv-python pypng
-  `  
+  `python3 -m pip install pillow opencv-python pypng shapely`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
   [OpenAI's ChatGPT](https://chat.openai.com) summarizes the function of the Python libraries as following:
@@ -843,8 +845,20 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Path direction (explaination given by [OpenAI's ChatGPT](https://chat.openai.com)):  
     A closed path that is drawn in a counterclockwise direction represents a filled path,
     while a closed path that is drawn in a clockwise direction represents a subtractive path.  
-    Note: This statement needs further investigation as it is not clear what type of coordinate system is meant,
-    i.e. SVG-coordinate-system with top-left origin or standard-coordinate-system with bottom-left origin.
+    Example using `svgpathtools` to check the direction by calculating the area:  
+    ```
+    from svgpathtools import parse_path
+
+    # Define a closed counterclockwise path
+    path1 = parse_path('M 10 10 L 20 10 L 20 20 L 10 20 Z')
+
+    # Define a closed clockwise path
+    path2 = parse_path('M 30 30 L 30 40 L 40 40 L 40 30 Z')
+
+    # Check the direction of the paths
+    print(path1.area())  # positive, counterclockwise
+    print(path2.area())  # negative, clockwise
+    ```
 
 ### Fonts
 - Font-Coordinates
