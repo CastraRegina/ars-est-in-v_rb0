@@ -4,7 +4,10 @@ import gzip
 import svgwrite
 import svgwrite.base
 import svgwrite.container
+import svgwrite.elementfactory
 from svgwrite.extensions import Inkscape
+import svgpathtools.paths2svg
+import svgpathtools.path
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from fontTools.pens.boundsPen import BoundsPen
@@ -12,6 +15,7 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 
 
+INPUT_FILE_LOREM_IPSUM = "data/input/example/txt/Lorem_ipsum_10000.txt"
 OUTPUT_FILE = "data/output/example/svg/din_a4_page_rectangle_and_text.svg"
 
 CANVAS_UNIT = "mm"  # Units for CANVAS dimensions
@@ -39,6 +43,9 @@ class AVGlyph:
         pass
 
     def real_sidebearing_right(self, font_size: float) -> float:
+        pass
+
+    def path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
         pass
 
     def svg_path(self, dwg: svgwrite.Drawing,
@@ -191,18 +198,22 @@ class AVGlyph:  # pylint: disable=function-redefined
             return sidebearing_right * font_size / self._avfont.units_per_em
         return 0.0
 
-    def svg_path(self, dwg: svgwrite.Drawing,
-                 x_pos: float, y_pos: float,
-                 font_size: float, **svg_properties) \
-            -> svgwrite.elementfactory.ElementBuilder:
+    def path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
         svg_pen = SVGPathPen(self._avfont.ttfont.getGlyphSet())
         scale = font_size / self._avfont.units_per_em
         trafo_pen = TransformPen(svg_pen, (scale, 0, 0, -scale, x_pos, y_pos))
         self._glyph_set.draw(trafo_pen)
-        path = svg_pen.getCommands()
-        if not path:
-            path = f"M{x_pos} {y_pos}"
-        svg_path = dwg.path(path, **svg_properties)
+        path_string = svg_pen.getCommands()
+        if not path_string:
+            path_string = f"M{x_pos} {y_pos}"
+        return path_string
+
+    def svg_path(self, dwg: svgwrite.Drawing,
+                 x_pos: float, y_pos: float,
+                 font_size: float, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        path_string = self.path_string(x_pos, y_pos, font_size)
+        svg_path = dwg.path(path_string, **svg_properties)
         return svg_path
 
     def svg_text(self, dwg: svgwrite.Drawing,
@@ -460,23 +471,34 @@ def main():
         svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
-    # check an instantiated font:
-    axes_values = AVFont.default_axes_values(ttfont)
-    axes_values.update({"wght": 700, "wdth": 25, "GRAD": 100})
-    ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
-    font = AVFont(ttfont)
+    # # check an instantiated font:
+    # axes_values = AVFont.default_axes_values(ttfont)
+    # axes_values.update({"wght": 700, "wdth": 25, "GRAD": 100})
+    # ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
+    # font = AVFont(ttfont)
 
-    c_x_pos = x_pos
-    c_y_pos = y_pos + 3 * FONT_SIZE
-    for character in text:
-        glyph: AVGlyph = font.glyph(character)
-        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
-                             ascent, descent)
-        c_x_pos += glyph.real_width(FONT_SIZE)
+    # c_x_pos = x_pos
+    # c_y_pos = y_pos + 3 * FONT_SIZE
+    # for character in text:
+    #     glyph: AVGlyph = font.glyph(character)
+    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
+    #                          ascent, descent)
+    #     c_x_pos += glyph.real_width(FONT_SIZE)
 
     # Save the SVG file
-    svg_output.saveas(OUTPUT_FILE, pretty=True, indent=2)
+    # svg_output.saveas(OUTPUT_FILE, pretty=True, indent=2)
     svg_output.saveas(OUTPUT_FILE+"z", pretty=True, indent=2, compressed=True)
+
+    # which glyphs are constructed using several paths?
+    for character in text:
+        glyph: AVGlyph = font.glyph(character)
+        path_string = glyph.path_string(0, 0, 1)
+        path = svgpathtools.parse_path(path_string)
+        num_sub_paths = len(path.continuous_subpaths())
+        if num_sub_paths > 1:
+            areas = [path.area() for path in path.continuous_subpaths()]
+            areas = [f"{(-a):+04.2f}" for a in areas]
+            print(f"{character:1} : {num_sub_paths:2} - {areas}")
 
     # glyph: AVGlyph = font.glyph("Ä")
     # print(type(glyph._avfont.ttfont.getGlyphSet()))
@@ -486,6 +508,10 @@ def main():
     # glyph_name = glyph._avfont.ttfont.getBestCmap()[ord(character)]
     # glyph_set = glyph._avfont.ttfont.getGlyphSet()[glyph_name]
     # print(vars(glyph_set))
+
+    # with open(INPUT_FILE_LOREM_IPSUM, 'r', encoding="utf-8") as file:
+    #     lorem_ipsum = file.read()
+    #     print(lorem_ipsum)
 
 
 if __name__ == "__main__":
