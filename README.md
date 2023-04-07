@@ -231,7 +231,8 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
   `python3 -m pip install fonttools[ufo,lxml,woff,unicode,type1]`  
   `python3 -m pip install fonttools[interpolatable,symfont,pathops,plot]`  
-  `python3 -m pip install pillow opencv-python`  
+  `python3 -m pip install pillow opencv-python pypng
+  `  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
   [OpenAI's ChatGPT](https://chat.openai.com) summarizes the function of the Python libraries as following:
@@ -602,6 +603,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Peace-health-freedom: peace dove + human rights, tree-of-life,
     - Mathematics: pi, infinity, delta, gradient, phi, sum, product, sine, cosine, tangent, 
       pythagorean theorem / triangles, circle+pi,
+    - Penrose tiling, einstein problem,
+    - Rorschach test,
     - False Friends: freedom, this is not without,
     - Professional Category: rod of asclepius (medical) + Hippocratic Oath, Justitia, toque blanche, ...
     - Food: pizza, doner, burger, hotdog, curry sausage, french fries, gummy bears, abstract fish sign, 
@@ -633,7 +636,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - two puzzle parts fitting together like a couple,
     - statue, greek torso, diamonds and the cut of gems, 
     - Eye of Providence - All-Seeing Eye of God, the good God knows everything the neighborhood even more, 
-    - Don Quixote, Tutankhamun, Cleopatra, Pl.yb.y bunny, 
+    - Don Quixote, Tutankhamun, Cleopatra, Pl.yb.y bunny,
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
@@ -836,7 +839,13 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
       | Width (wdth)        | font-stretch: 115%;        | font-variation-settings: 'wdth' 115;  |
   - How to embed the font directly into a SVG file by converting the ttf file using base64...   
     see [stackoverflow.com -> how-to-specify-font-family-in-svg](https://stackoverflow.com/questions/30024943/how-to-specify-font-family-in-svg)
-  
+- SVG path
+  - Path direction (explaination given by [OpenAI's ChatGPT](https://chat.openai.com)):  
+    A closed path that is drawn in a counterclockwise direction represents a filled path,
+    while a closed path that is drawn in a clockwise direction represents a subtractive path.  
+    Note: This statement needs further investigation as it is not clear what type of coordinate system is meant,
+    i.e. SVG-coordinate-system with top-left origin or standard-coordinate-system with bottom-left origin.
+
 ### Fonts
 - Font-Coordinates
   - (0,0) at left side (of *EM box*) on baseline (y-direction)
