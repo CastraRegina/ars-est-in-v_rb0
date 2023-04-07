@@ -845,14 +845,15 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Path direction (explaination given by [OpenAI's ChatGPT](https://chat.openai.com)):  
     A closed path that is drawn in a counterclockwise direction represents a filled path,
     while a closed path that is drawn in a clockwise direction represents a subtractive path.  
+    Note: "clockwise" and "counterclockwise" direction are applied to a coordinate system with bottom-left origin.  
     Example using `svgpathtools` to check the direction by calculating the area:  
     ```
     from svgpathtools import parse_path
 
-    # Define a closed counterclockwise path
+    # Define a closed counterclockwise path: right, up, left, down (close) 
     path1 = parse_path('M 10 10 L 20 10 L 20 20 L 10 20 Z')
 
-    # Define a closed clockwise path
+    # Define a closed clockwise path: up, right, down, left (close)
     path2 = parse_path('M 30 30 L 30 40 L 40 40 L 40 30 Z')
 
     # Check the direction of the paths
