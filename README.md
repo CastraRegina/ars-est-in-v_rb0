@@ -234,7 +234,8 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
   `python3 -m pip install fonttools[ufo,lxml,woff,unicode,type1]`  
   `python3 -m pip install fonttools[interpolatable,symfont,pathops,plot]`  
-  `python3 -m pip install pillow opencv-python pypng shapely`  
+  `python3 -m pip install shapely svg.path svgpath2mpl matplotlib pytest`  
+  `python3 -m pip install pillow opencv-python pypng`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
   [OpenAI's ChatGPT](https://chat.openai.com) summarizes the function of the Python libraries as following:
@@ -845,7 +846,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Path direction (explaination given by [OpenAI's ChatGPT](https://chat.openai.com)):  
     A closed path that is drawn in a counterclockwise direction represents a filled path,
     while a closed path that is drawn in a clockwise direction represents a subtractive path.  
-    Note: "clockwise" and "counterclockwise" direction are applied to a coordinate system with bottom-left origin.  
+    **Note:** "clockwise" and "counterclockwise" direction are applied to a coordinate system with bottom-left origin.  
     Example using `svgpathtools` to check the direction by calculating the area:  
     ```
     from svgpathtools import parse_path
@@ -860,6 +861,27 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     print(path1.area())  # positive, counterclockwise
     print(path2.area())  # negative, clockwise
     ```
+- [Shapely](https://shapely.readthedocs.io/en/stable/manual.html)
+  is a Python package for working with vector geometries
+  - For the defintions / conventions used by `Shapely` and `JTS` see  
+  [JTS Discussion stored at archive.org](https://web.archive.org/web/20160719195511/http://www.vividsolutions.com/jts/discussion.htm),  
+  [Simple Feature Access - Part 1: Common Architecture](https://www.ogc.org/standard/sfa/)  
+  and also the [Introduction to Spatial Data Programming with Python](https://geobgu.xyz/py/shapely.html).  
+  See also the [Well-known text representation of geometry](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry).  
+  **Note:** "clockwise" and "counterclockwise" direction are applied to a coordinate system with bottom-left origin. 
+  - The
+  [Dimensionally Extended Nine-Intersection Model (DE-9IM)](https://giswiki.hsr.ch/images/3/3d/9dem_springer.pdf)
+    describes the topological predicates and their corresponding meanings.
+  - According to 
+  [JTS Technical Specs.pdf](https://raw.githubusercontent.com/locationtech/jts/master/doc/JTS%20Technical%20Specs.pdf)... 
+    - a `LinearRing` represents an ordered sequence of point tuples `(x, y[, z])`.  
+      The sequence may be **explicitly closed** by passing identical values in the first and last indices.  
+      Otherwise, the sequence will be **implicitly closed** by copying the first tuple to the last index.  
+      A `LinearRing` may not cross itself, and may not touch itself at a single point.
+    - a `Polygon` is implemented as a single `LinearRing` for the outer shell and an array of `LinearRings` for the holes.  
+      The **outer shell** (exterior ring) is oriented **clockwise** (CW) and the **holes** (interior rings) are oriented **counterclockwise** (CCW),
+      see [`shapely.geometry.polygon.orient()`](https://shapely.readthedocs.io/en/stable/manual.html#shapely.geometry.polygon.orient).
+    - a `MultiPolygon` is a collection of `Polygons`.
 
 ### Fonts
 - Font-Coordinates
