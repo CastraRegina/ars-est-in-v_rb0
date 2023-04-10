@@ -1,15 +1,21 @@
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 import io
 import gzip
+import re
+import numpy
 import svgwrite
 import svgwrite.base
 import svgwrite.container
 import svgwrite.elementfactory
 from svgwrite.extensions import Inkscape
+import shapely
+import shapely.geometry
+import shapely.wkt
 import svgpathtools.paths2svg
 import svgpathtools.path
+import svgpath2mpl
+import matplotlib.path
 from fontTools.ttLib import TTFont
-from fontTools.varLib import instancer
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
@@ -170,6 +176,95 @@ class AVFont:
         return value * font_size / units_per_em
 
 
+class AVPathPolygon:
+    @staticmethod
+    def multipolygon_to_path_string(multipolygon: shapely.geometry.MultiPolygon
+                                    ) -> List[str]:
+        svg_string = multipolygon.svg()
+        path_strings = re.findall(r'd="([^"]+)"', svg_string)
+        return path_strings
+
+    @staticmethod
+    def deepcopy(geometry: shapely.geometry.base.BaseGeometry) \
+            -> shapely.geometry.base.BaseGeometry:
+        return shapely.wkt.loads(geometry.wkt)
+
+    @staticmethod
+    def polygonize_path_uniform(path_string: str,
+                                num_points: int = 100) -> str:
+        def moveto(coord) -> str:
+            return f'M{coord.real:g},{coord.imag:g}'
+
+        def lineto(coord) -> str:
+            return f'L{coord.real:g},{coord.imag:g}'
+
+        def polygonize_segment(segment, num_points) -> str:
+            ret_string = ""
+            poly = segment.poly()
+            points = [poly(i/(num_points-1)) for i in range(1, num_points-1)]
+            for point in points:
+                ret_string += lineto(point)
+            ret_string += lineto(segment.end)
+            return ret_string
+
+        ret_path_string = ""
+        path_collection = svgpathtools.parse_path(path_string)
+        for sub_path in path_collection.continuous_subpaths():
+            ret_path_string += moveto(sub_path.start)
+            for segment in sub_path:
+                if isinstance(segment, svgpathtools.CubicBezier) or \
+                        isinstance(segment, svgpathtools.QuadraticBezier):
+                    ret_path_string += polygonize_segment(segment, num_points)
+                elif isinstance(segment, svgpathtools.Line):
+                    ret_path_string += lineto(segment.end)
+                else:
+                    print("ERROR during polygonizing: " +
+                          "not supported segment: " + segment)
+                    ret_path_string += lineto(segment.end)
+            if sub_path.isclosed():
+                ret_path_string += "Z "
+        return ret_path_string
+
+    def __init__(self, multipolygon: shapely.geometry.MultiPolygon = None):
+        self.multipolygon: shapely.geometry.MultiPolygon = \
+            shapely.geometry.MultiPolygon()
+        if multipolygon:
+            self.multipolygon = multipolygon
+
+    def add_polygon_arrays(self, polygon_arrays: list[numpy.ndarray]):
+        # first polygon_array is always additive.
+        # All other arrays are additive, if same orient like first array.
+        first_is_ccw = True
+        for index, polygon_array in enumerate(polygon_arrays):
+            polygon = shapely.Polygon(polygon_array)
+            polygon_ccw = polygon.exterior.is_ccw
+            if index == 0:  # first array, so store its orientation
+                first_is_ccw = polygon_ccw
+            if self.multipolygon.is_empty:  # just add first polygon
+                self.multipolygon = shapely.geometry.MultiPolygon([polygon])
+            else:
+                if polygon_ccw == first_is_ccw:  # same orient --> add to...
+                    self.multipolygon = self.multipolygon.union(polygon)
+                else:  # different orient --> substract from existing...
+                    self.multipolygon = self.multipolygon.difference(polygon)
+
+    def add_path_string(self, path_string: str):
+        mpl_path: matplotlib.path.Path = svgpath2mpl.parse_path(path_string)
+        polygon_arrays: numpy.ndarray = mpl_path.to_polygons()
+        self.add_polygon_arrays(polygon_arrays)
+
+    def path_strings(self) -> List[str]:
+        return AVPathPolygon.multipolygon_to_path_string(self.multipolygon)
+
+    def svg_paths(self, dwg: svgwrite.Drawing, **svg_properties) \
+            -> List[svgwrite.elementfactory.ElementBuilder]:
+        svg_paths = []
+        path_strings = self.path_strings()
+        for path_string in path_strings:
+            svg_paths.append(dwg.path(path_string, **svg_properties))
+        return svg_paths
+
+
 class AVGlyph:  # pylint: disable=function-redefined
     def __init__(self, avfont: AVFont, character: str):
         self._avfont: AVFont = avfont
@@ -206,6 +301,13 @@ class AVGlyph:  # pylint: disable=function-redefined
         path_string = svg_pen.getCommands()
         if not path_string:
             path_string = f"M{x_pos} {y_pos}"
+        else:
+            polygon = AVPathPolygon()
+            path_string = AVPathPolygon.polygonize_path_uniform(
+                path_string, 20)
+            polygon.add_path_string(path_string)
+            path_strings = polygon.path_strings()
+            path_string = " ".join(path_strings)
         return path_string
 
     def svg_path(self, dwg: svgwrite.Drawing,
@@ -492,13 +594,13 @@ def main():
     # which glyphs are constructed using several paths?
     for character in text:
         glyph: AVGlyph = font.glyph(character)
-        path_string = glyph.path_string(0, 0, 1)
-        path = svgpathtools.parse_path(path_string)
-        num_sub_paths = len(path.continuous_subpaths())
-        if num_sub_paths > 1:
-            areas = [path.area() for path in path.continuous_subpaths()]
-            areas = [f"{(-a):+04.2f}" for a in areas]
-            print(f"{character:1} : {num_sub_paths:2} - {areas}")
+        glyph_path_string = glyph.path_string(0, 0, 1)
+        parsed_path = svgpathtools.parse_path(glyph_path_string)
+        num_parsed_sub_paths = len(parsed_path.continuous_subpaths())
+        if num_parsed_sub_paths > 1:
+            areas = [path.area() for path in parsed_path.continuous_subpaths()]
+            areas = [f"{(a):+04.2f}" for a in areas]
+            print(f"{character:1} : {num_parsed_sub_paths:2} - {areas}")
 
     # glyph: AVGlyph = font.glyph("Ä")
     # print(type(glyph._avfont.ttfont.getGlyphSet()))
