@@ -1,5 +1,4 @@
-from svgpathtools import Line, QuadraticBezier, CubicBezier
-from svgpathtools import parse_path
+import svgpathtools
 import svgwrite
 
 # Define the SVG path string
@@ -9,7 +8,8 @@ POLYGONIZE_NUM_POINTS = 50  # minimum 2 = (start, end)
 OUTPUT_FILE = "data/output/example/svg/polygonize_path_uniform.svg"
 
 
-def polygonize_path_uniform(path_string: str, num_points: int = 100) -> str:
+def polygonize_path_uniform(path_string: str,
+                            num_points: int = 100) -> str:
     def moveto(coord) -> str:
         return f'M{coord.real:g},{coord.imag:g}'
 
@@ -26,14 +26,14 @@ def polygonize_path_uniform(path_string: str, num_points: int = 100) -> str:
         return ret_string
 
     ret_path_string = ""
-    path_collection = parse_path(path_string)
+    path_collection = svgpathtools.parse_path(path_string)
     for sub_path in path_collection.continuous_subpaths():
         ret_path_string += moveto(sub_path.start)
         for segment in sub_path:
-            if isinstance(segment, CubicBezier) or \
-                    isinstance(segment, QuadraticBezier):
+            if isinstance(segment, svgpathtools.CubicBezier) or \
+                    isinstance(segment, svgpathtools.QuadraticBezier):
                 ret_path_string += polygonize_segment(segment, num_points)
-            elif isinstance(segment, Line):
+            elif isinstance(segment, svgpathtools.Line):
                 ret_path_string += lineto(segment.end)
             else:
                 print("ERROR during polygonizing: " +
