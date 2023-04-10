@@ -554,7 +554,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
     - horse (in various gaits like walk, trot, canter, gallop, pace and also pesade), 
     - dear (partly), boar, donkey (partly), cow, zebra, gnu, dog, dalmatian dog, greyhound, wolf+moon,
-    - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, rhinoceros, giraffe, camel, moose, panda, kangaroo,
+    - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, mammoth, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, sparrow, pelican, flamingo, cockatoo, swallow, black bird, 
       robin, crow, peacock, ostrich, hummingbird, kiwi-bird, 
     - cock, weathercock, meerkat/suricate, 
@@ -594,8 +594,10 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Einstein: I am convinced that He (God) does not play dice,
     - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, Albert Schweitzer, Samuel Hahnemann,
     - Friedrich Nietzsche, Machiavelli, Niels Bohr, Zeno of Elea, Argonauts,
-    - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, roman emperors,
+    - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, Baron Munchausen, roman emperors,
     - Mozart, Ludwig van Beethoven, Bach, Chopin, Joseph Haydn, Antonio Vivaldi, 
+    - Johannes Kepler, Galileo Galilei, Nicolaus Copernicus, 
+    - Odysseus, Christopher Columbus, Amerigo Vespucci, Ferdinand Magellan, James Cook, Marco Polo,
     - black/white of portraits / face(s): eye, mouth, lips, ears, butt, breast,
     - black/white portraits of animal faces like tiger, lion, 
   - Signs / themes
@@ -666,6 +668,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - if looks could kill, 
   - crumpy cat - crumpy by nature
   - Do not get too excited, it's just a card with Easter greetings
+  - Don't play with my heart, juggling with my feelings
 
 - Further ideas and variations
   - Shape
@@ -971,6 +974,8 @@ see also internet recommendations, e.g. aufbauen-online-business.de
 - packaging license, registration at the Central Packaging Register LUCID ($)
 - inform your employer about your sideline business
 - read also [some first hints regarding tax topics](https://www.alltageinesfotoproduzenten.de/2011/11/23/die-steuerlichen-aspekte-der-stockfotografie/)
+- create a [Catalogue raisonné](https://en.wikipedia.org/wiki/Catalogue_raisonn%C3%A9),  
+  see also [artvise.me](https://artvise.me/)
 
 ### Exhibitions
 - Opportunities to show your art
