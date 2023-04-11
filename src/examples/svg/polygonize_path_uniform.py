@@ -17,6 +17,8 @@ def polygonize_path_uniform(path_string: str,
         return f'L{coord.real:g},{coord.imag:g}'
 
     def polygonize_segment(segment, num_points) -> str:
+        # *segment* most likely of type QuadraticBezier or CubicBezier
+        # create points ]start,...,end], as moveto/lineto start already done
         ret_string = ""
         poly = segment.poly()
         points = [poly(i/(num_points-1)) for i in range(1, num_points-1)]
