@@ -592,7 +592,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Greek mythology like Icarus, Daedalus, Achilles, Sisyphus, Heracles, Prometheus, ...
   - Portraits
     - Einstein: I am convinced that He (God) does not play dice,
-    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Newton, Albert Schweitzer, Samuel Hahnemann,
+    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, 
+    - Newton, Albert Schweitzer, Samuel Hahnemann, Richard Feynman,
     - Friedrich Nietzsche, Machiavelli, Niels Bohr, Zeno of Elea, Argonauts,
     - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, Baron Munchausen, roman emperors,
     - Mozart, Ludwig van Beethoven, Bach, Chopin, Joseph Haydn, Antonio Vivaldi, 
