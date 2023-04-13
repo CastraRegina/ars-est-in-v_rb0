@@ -565,6 +565,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - cat head with flashing eyes, cat looking up at a balloon from below, 2 swans showing a heart,
     - cat's paw, dog's paw, wolf's paw,
     - goldfish in spherical glass, animals that look into the picture from the side,
+    - animal paw prints and animal tracks,
   - Technology
     - car, train/locomotive, tractor, airplane, lunar module, lunar roving vehicle, sailing ship, paddle steamer, scooter,
     - zeppelin, hot-air balloon,
