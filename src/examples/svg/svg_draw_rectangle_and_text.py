@@ -1,7 +1,9 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Callable
+from enum import Enum, auto
 import io
 import gzip
 import re
+import math
 import numpy
 import svgwrite
 import svgwrite.base
@@ -11,8 +13,9 @@ from svgwrite.extensions import Inkscape
 import shapely
 import shapely.geometry
 import shapely.wkt
-import svgpathtools.paths2svg
+import svgpathtools
 import svgpathtools.path
+import svgpathtools.paths2svg
 import svgpath2mpl
 import matplotlib.path
 from fontTools.ttLib import TTFont
@@ -39,6 +42,17 @@ FONT_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA," + \
 # FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
 
 FONT_SIZE = VB_RATIO * 3  # in mm
+
+
+class Polygonize(Enum):
+    BY_ANGLE = auto()
+    UNIFORM = auto()
+
+
+POLYGONIZE_UNIFORM_NUM_POINTS = 10  # minimum 2 = (start, end)
+POLYGONIZE_ANGLE_MAX_DEGREE = 5  # 2 # difference of two derivatives less than
+POLYGONIZE_ANGLE_MAX_STEPS = 9  # 9
+POLYGONIZE_TYPE = Polygonize.BY_ANGLE
 
 
 class AVGlyph:
@@ -190,24 +204,69 @@ class AVPathPolygon:
         return shapely.wkt.loads(geometry.wkt)
 
     @staticmethod
-    def polygonize_path_uniform(path_string: str,
-                                num_points: int = 100) -> str:
-        def moveto(coord) -> str:
+    def polygonize_uniform(segment,
+                           num_points: int =
+                           POLYGONIZE_UNIFORM_NUM_POINTS) -> str:
+        # *segment* most likely of type QuadraticBezier or CubicBezier
+        # create points ]start,...,end]
+        ret_string = ""
+        poly = segment.poly()
+        points = [poly(i/(num_points-1)) for i in range(1, num_points-1)]
+        for point in points:
+            ret_string += f'L{point.real:g},{point.imag:g}'
+        ret_string += f'L{segment.end.real:g},{segment.end.imag:g}'
+        return ret_string
+
+    @staticmethod
+    def polygonize_by_angle(segment,
+                            max_angle_degree: float =
+                            POLYGONIZE_ANGLE_MAX_DEGREE,
+                            max_steps: int =
+                            POLYGONIZE_ANGLE_MAX_STEPS) -> str:
+        # *segment* most likely of type QuadraticBezier or CubicBezier
+        # create points ]start,...,end]
+        params = [0, 0.5, 1]  # [0, 1/3, 0.5, 2/3, 1]
+        points = [segment.point(t) for t in params]
+        tangents = [segment.unit_tangent(t) for t in params]
+        angle_limit = math.cos(max_angle_degree * math.pi/180)
+
+        for _ in range(1, max_steps):
+            (new_params, new_points, new_tangents) = ([], [], [])
+            updated = False
+            for (param, point, tangent) in zip(params, points, tangents):
+                if not new_points:  # nps is empty, i.e. first iteration
+                    (new_params, new_points, new_tangents) = (
+                        [param], [point], [tangent])
+                else:
+                    dot_product = new_tangents[-1].real*tangent.real + \
+                        new_tangents[-1].imag*tangent.imag
+                    if dot_product < angle_limit:
+                        new_param = (new_params[-1] + param) / 2
+                        new_params.append(new_param)
+                        new_points.append(segment.point(new_param))
+                        new_tangents.append(segment.unit_tangent(new_param))
+                        updated = True
+                    new_params.append(param)
+                    new_points.append(point)
+                    new_tangents.append(tangent)
+            params = new_params
+            points = new_points
+            tangents = new_tangents
+            if not updated:
+                break
+        ret_string = ""
+        for point in points[1:]:
+            ret_string += f'L{point.real:g},{point.imag:g}'
+        return ret_string
+
+    @staticmethod
+    def polygonize_path(path_string: str,
+                        polygonize_segment_func: Callable) -> str:
+        def moveto(coord: complex) -> str:
             return f'M{coord.real:g},{coord.imag:g}'
 
-        def lineto(coord) -> str:
+        def lineto(coord: complex) -> str:
             return f'L{coord.real:g},{coord.imag:g}'
-
-        def polygonize_segment(segment, num_points) -> str:
-            # *segment* most likely of type QuadraticBezier or CubicBezier
-            # create points ]start,...,end], as moveto/lineto start already done
-            ret_string = ""
-            poly = segment.poly()
-            points = [poly(i/(num_points-1)) for i in range(1, num_points-1)]
-            for point in points:
-                ret_string += lineto(point)
-            ret_string += lineto(segment.end)
-            return ret_string
 
         ret_path_string = ""
         path_collection = svgpathtools.parse_path(path_string)
@@ -216,7 +275,7 @@ class AVPathPolygon:
             for segment in sub_path:
                 if isinstance(segment, svgpathtools.CubicBezier) or \
                         isinstance(segment, svgpathtools.QuadraticBezier):
-                    ret_path_string += polygonize_segment(segment, num_points)
+                    ret_path_string += polygonize_segment_func(segment)
                 elif isinstance(segment, svgpathtools.Line):
                     ret_path_string += lineto(segment.end)
                 else:
@@ -305,8 +364,13 @@ class AVGlyph:  # pylint: disable=function-redefined
             path_string = f"M{x_pos} {y_pos}"
         else:
             polygon = AVPathPolygon()
-            path_string = AVPathPolygon.polygonize_path_uniform(
-                path_string, 20)
+            poly_func = None
+            match POLYGONIZE_TYPE:
+                case Polygonize.UNIFORM:
+                    poly_func = AVPathPolygon.polygonize_uniform
+                case Polygonize.BY_ANGLE:
+                    poly_func = AVPathPolygon.polygonize_by_angle
+            path_string = AVPathPolygon.polygonize_path(path_string, poly_func)
             polygon.add_path_string(path_string)
             path_strings = polygon.path_strings()
             path_string = " ".join(path_strings)
