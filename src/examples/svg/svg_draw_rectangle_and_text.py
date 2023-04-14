@@ -299,6 +299,7 @@ class AVPathPolygon:
         for index, polygon_array in enumerate(polygon_arrays):
             polygon = shapely.Polygon(polygon_array)
             polygon_ccw = polygon.exterior.is_ccw
+            polygon = polygon.buffer(0)  # get rid of self-intersections (4,9)
             if index == 0:  # first array, so store its orientation
                 first_is_ccw = polygon_ccw
             if self.multipolygon.is_empty:  # just add first polygon
