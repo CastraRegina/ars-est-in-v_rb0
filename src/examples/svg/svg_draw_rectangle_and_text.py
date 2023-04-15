@@ -478,10 +478,17 @@ class SVGoutput:
                      f"{viewbox_width} {viewbox_height}"),
             profile='full')
         self._inkscape: Inkscape = Inkscape(self.drawing)
-
+        # main   -- editable->locked=False  --  hidden->display="block"
+        # debug  -- editable->locked=False  --  hidden->display="none"
+        #    glyph
+        #       bounding_box
+        #       em_width
+        #       font_ascent_descent
+        #       sidebearing
+        #    background
         self.layer_debug: \
             svgwrite.container.Group = self._inkscape.layer(
-                label="Layer debug", locked=True)
+                label="Layer debug", locked=False, display="none")
         self.drawing.add(self.layer_debug)
 
         self.layer_debug_glyph_background: \
@@ -516,7 +523,7 @@ class SVGoutput:
 
         self.layer_main: \
             svgwrite.container.Group = self._inkscape.layer(
-                label="Layer main", locked=True)
+                label="Layer main", locked=False)
         self.drawing.add(self.layer_main)
 
     def saveas(self, filename: str, pretty: bool = False, indent: int = 2,
