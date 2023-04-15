@@ -596,6 +596,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, 
     - Newton, Albert Schweitzer, Samuel Hahnemann, Richard Feynman,
     - Friedrich Nietzsche, Machiavelli, Niels Bohr, Zeno of Elea, Argonauts,
+    - Thomas Hobbes, John Locke, Jean-Jacques Rousseau,
     - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, Baron Munchausen, roman emperors,
     - Mozart, Ludwig van Beethoven, Bach, Chopin, Joseph Haydn, Antonio Vivaldi, 
     - Johannes Kepler, Galileo Galilei, Nicolaus Copernicus, 
