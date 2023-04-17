@@ -575,7 +575,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, Pablo Picasso, 
+    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, Pablo Picasso, Henri Matisse, Paul Klee, Wassily Kandinsky, Franz Marc,
     - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
     - Optical illusion (e.g. moving points),
     - The Creation of Adam,
@@ -596,7 +596,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, 
     - Newton, Albert Schweitzer, Samuel Hahnemann, Richard Feynman,
     - Friedrich Nietzsche, Machiavelli, Niels Bohr, Zeno of Elea, Argonauts,
-    - Thomas Hobbes, John Locke, Jean-Jacques Rousseau,
+    - Thomas Hobbes, John Locke, Jean-Jacques Rousseau, Georg Wilhelm Friedrich Hegel,
     - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, Baron Munchausen, roman emperors,
     - Mozart, Ludwig van Beethoven, Bach, Chopin, Joseph Haydn, Antonio Vivaldi, 
     - Johannes Kepler, Galileo Galilei, Nicolaus Copernicus, 
