@@ -593,8 +593,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Greek mythology like Icarus, Daedalus, Achilles, Sisyphus, Heracles, Prometheus, ...
   - Portraits
     - Einstein: I am convinced that He (God) does not play dice,
-    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, 
-    - Newton, Albert Schweitzer, Samuel Hahnemann, Richard Feynman,
+    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Salvador Dali,
+    - Newton, Albert Schweitzer, Samuel Hahnemann, Richard Feynman, Claude Monet, 
     - Friedrich Nietzsche, Machiavelli, Niels Bohr, Zeno of Elea, Argonauts,
     - Thomas Hobbes, John Locke, Jean-Jacques Rousseau, Georg Wilhelm Friedrich Hegel,
     - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, Baron Munchausen, roman emperors,
@@ -1020,4 +1020,4 @@ Interesting websites I stumbled upon: check in future:
 - https://pictory.ai/ Video creation made easy
 - https://lumen5.com/ Create video from blog content
 - https://discoveryartfair.com/how-to-sell-art/ Some infos for artists
-
+- https://www.wikiart.org/de/popular-artists
