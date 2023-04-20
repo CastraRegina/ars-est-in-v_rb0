@@ -575,7 +575,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, Pablo Picasso, Henri Matisse, Paul Klee, Wassily Kandinsky, Franz Marc,
+    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, Pablo Picasso, Henri Matisse, 
+    - Leonardo da Vinci, Otto Müller, Claude Monet, Paul Klee, Wassily Kandinsky, Franz Marc,
     - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
     - Optical illusion (e.g. moving points),
     - The Creation of Adam,
@@ -592,9 +593,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
       Rudolph the Red-Nosed Reindeer, Easter Bunny, garden gnome,
     - Greek mythology like Icarus, Daedalus, Achilles, Sisyphus, Heracles, Prometheus, ...
   - Portraits
-    - Einstein: I am convinced that He (God) does not play dice,
-    - Goethe, Heinrich Heine, Leonardo da Vinci, Darwin, Kelvin, Tesla, Salvador Dali,
-    - Newton, Albert Schweitzer, Samuel Hahnemann, Richard Feynman, Claude Monet, 
+    - Einstein: I am convinced that He (God) does not play dice, 
+    - Goethe, Heinrich Heine, Oscar Wilde, Darwin, Kelvin, Tesla, Salvador Dali, 
+    - Newton, Albert Schweitzer, Samuel Hahnemann, Richard Feynman,  
     - Friedrich Nietzsche, Machiavelli, Niels Bohr, Zeno of Elea, Argonauts,
     - Thomas Hobbes, John Locke, Jean-Jacques Rousseau, Georg Wilhelm Friedrich Hegel,
     - Karl Valentin, Charlie Chaplin, Yoda, Nostradamus, Baron Munchausen, roman emperors,
