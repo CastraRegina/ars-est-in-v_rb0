@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple, Callable
+from typing import Dict, List, Tuple, Callable, ClassVar
 from enum import Enum, auto
 import io
 import gzip
@@ -21,7 +21,7 @@ import matplotlib.path
 from fontTools.ttLib import TTFont
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
-from fontTools.pens.transformPen import TransformPen
+# from fontTools.pens.transformPen import TransformPen
 
 
 INPUT_FILE_LOREM_IPSUM = "data/input/example/txt/Lorem_ipsum_10000.txt"
@@ -55,8 +55,181 @@ POLYGONIZE_ANGLE_MAX_STEPS = 9  # 9
 POLYGONIZE_TYPE = Polygonize.BY_ANGLE
 
 
-class AVGlyph:
+class AVsvgPath:
+    SVG_CMDS: ClassVar[str] = "MmLlHhVvCcSsQqTtAaZz"
+    SVG_ARGS: ClassVar[str] = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
+    # Commands (number of values : command-character):
+    #     MoveTo            2: Mm
+    #     LineTo            2: Ll   1: Hh(x)   1:Vv(y)
+    #     CubicBezier:      6: Cc   4: Ss
+    #     QuadraticBezier:  4: Qq   2: Tt
+    #     ArcCurve:         7: Aa
+    #     ClosePath:        0: Zz
+
+    @staticmethod
+    def beautify_commands(path_string: str,
+                          round_func: Callable = None) -> str:
+        org_commands = re.findall(
+            f'[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*', path_string)
+        ret_commands = []
+        for command in org_commands:
+            command_letter = command[0]
+            args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
+            batch_size = len(args)
+            if command_letter in "MmLlTt":
+                batch_size = 2
+            elif command_letter in "SsQq":
+                batch_size = 4
+            elif command_letter in "Cc":
+                batch_size = 6
+            elif command_letter in "HhVv":
+                batch_size = 1
+            elif command_letter in "Aa":
+                batch_size = 7
+
+            if batch_size == 0:  # e.g. for command "Z"
+                ret_commands.append(command_letter)
+            else:
+                for i, arg in enumerate(args):
+                    if not (i % batch_size):
+                        ret_commands.append(command_letter)
+                    if round_func:
+                        ret_commands.append(f'{(round_func(float(arg))):g}')
+                    else:
+                        ret_commands.append(f'{(float(arg)):g}')
+
+        ret_path_string = ' '.join(ret_commands)
+        return ret_path_string
+
+    @staticmethod
+    def convert_relative_to_absolute(path_string: str) -> str:
+        org_commands = re.findall(
+            f'[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*', path_string)
+        ret_commands = []
+        first_point = None  # Store the first point of each path (absolute)
+        # Keep track of the last (iterating) point (absolute)
+        last_point = [0, 0]
+
+        for command in org_commands:
+            command_letter = command[0]
+            args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
+
+            if command_letter.isupper():
+                if command_letter in 'MLCSQTA':
+                    last_point = [float(args[-2]), float(args[-1])]
+                elif command_letter in 'H':
+                    last_point[0] = float(args[-1])
+                elif command_letter in 'V':
+                    last_point[1] = float(args[-1])
+            else:
+                if command_letter in "mlt":
+                    for i in range(0, len(args), 2):
+                        args[i+0] = f'{(float(args[i+0]) + last_point[0]):g}'
+                        args[i+1] = f'{(float(args[i+1]) + last_point[1]):g}'
+                        last_point = [float(args[i+0]), float(args[i+1])]
+                elif command_letter in "sq":
+                    for i in range(0, len(args), 4):
+                        args[i+0] = f'{(float(args[i+0]) + last_point[0]):g}'
+                        args[i+1] = f'{(float(args[i+1]) + last_point[1]):g}'
+                        args[i+2] = f'{(float(args[i+2]) + last_point[0]):g}'
+                        args[i+3] = f'{(float(args[i+3]) + last_point[1]):g}'
+                        last_point = [float(args[i+2]), float(args[i+3])]
+                elif command_letter in "c":
+                    for i in range(0, len(args), 6):
+                        args[i+0] = f'{(float(args[i+0]) + last_point[0]):g}'
+                        args[i+1] = f'{(float(args[i+1]) + last_point[1]):g}'
+                        args[i+2] = f'{(float(args[i+2]) + last_point[0]):g}'
+                        args[i+3] = f'{(float(args[i+3]) + last_point[1]):g}'
+                        args[i+4] = f'{(float(args[i+4]) + last_point[0]):g}'
+                        args[i+5] = f'{(float(args[i+5]) + last_point[1]):g}'
+                        last_point = [float(args[i+4]), float(args[i+5])]
+                elif command_letter in "h":
+                    for i, arg in enumerate(args):
+                        args[i] = f'{(float(arg) + last_point[0]):g}'
+                        last_point[0] = float(args[i])
+                elif command_letter in "v":
+                    for i, arg in enumerate(args):
+                        args[i] = f'{(float(arg) + last_point[1]):g}'
+                        last_point[1] = float(args[i])
+                elif command_letter in "a":
+                    for i in range(0, len(args), 7):
+                        args[i+5] = f'{(float(args[i+5]) + last_point[0]):g}'
+                        args[i+6] = f'{(float(args[i+6]) + last_point[1]):g}'
+                        last_point = [float(args[i+5]), float(args[i+6])]
+
+            ret_commands.append(command_letter.upper() + ' '.join(args))
+
+            if command_letter in 'Mm' and not first_point:
+                first_point = [float(args[0]), float(args[1])]
+            if command_letter in 'Zz':
+                last_point = first_point
+                first_point = None
+
+        ret_path_string = ' '.join(ret_commands)
+        return ret_path_string
+
+    @staticmethod
+    def transform_path_string(path_string: str,
+                              affine_trafo: List[float]) -> str:
+        # Affine transform (see also shapely - Affine Transformations)
+        #     affine_transform = [a00, a01, a10, a11, b0, b1]
+        #       | x' | = | a00 a01 b0 |   | x |
+        #       | y' | = | a10 a11 b1 | * | y |
+        #       | 1  | = |  0   0  1  |   | 1 |
+
+        def transform(x_str: str, y_str: str) -> Tuple[str, str]:
+            x_new = affine_trafo[0] * float(x_str) + \
+                affine_trafo[1] * float(y_str) + \
+                affine_trafo[4]
+            y_new = affine_trafo[2] * float(x_str) + \
+                affine_trafo[3] * float(y_str) + \
+                affine_trafo[5]
+            return f'{x_new:g}', f'{y_new:g}'
+
+        org_commands = re.findall(
+            f'[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*', path_string)
+        ret_commands = []
+
+        for command in org_commands:
+            command_letter = command[0]
+            args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
+
+            if command_letter in 'MLCSQT':  # (x,y) once or several times
+                for i in range(0, len(args), 2):
+                    (args[i+0], args[i+1]) = transform(args[i+0], args[i+1])
+            elif command_letter in 'H':  # (x) once or several times
+                for i, _ in enumerate(args):
+                    (args[i], _) = transform(args[i], 1)
+            elif command_letter in 'V':  # (y) once or several times
+                for i, _ in enumerate(args):
+                    (_, args[i]) = transform(1, args[i])
+            elif command_letter in 'A':  # (rx ry angle flag flag x y)+
+                for i in range(0, len(args), 7):
+                    args[i+0] = f'{float(args[i+0])*affine_trafo[0]:g}'
+                    args[i+1] = f'{float(args[i+1])*affine_trafo[3]:g}'
+                    (args[i+5], args[i+6]) = transform(args[i+5], args[i+6])
+            ret_commands.append(command_letter.upper() + ' '.join(args))
+
+        ret_path_string = ' '.join(ret_commands)
+        return ret_path_string
+
+
+class AVGlyph:  # pylint: disable=function-redefined
+    @staticmethod
+    def svg_rect(dwg: svgwrite.Drawing,
+                 rect: Tuple[float, float, float, float],
+                 stroke: str, stroke_width: float, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        pass
+
+    @staticmethod
+    def polygonize_path_string(path_string: str) -> str:
+        pass
+
     def real_width(self, font_size: float) -> float:
+        pass
+
+    def real_dash_thickness(self, font_size: float) -> float:
         pass
 
     def real_sidebearing_left(self, font_size: float) -> float:
@@ -65,7 +238,8 @@ class AVGlyph:
     def real_sidebearing_right(self, font_size: float) -> float:
         pass
 
-    def path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
+    def real_path_string(self, x_pos: float, y_pos: float,
+                         font_size: float) -> str:
         pass
 
     def svg_path(self, dwg: svgwrite.Drawing,
@@ -110,12 +284,6 @@ class AVGlyph:
     def rect_bounding_box(self, x_pos: float, y_pos: float, font_size: float) \
             -> Tuple[float, float, float, float]:
         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        pass
-
-    def svg_rect(self, dwg: svgwrite.Drawing,
-                 rect: Tuple[float, float, float, float],
-                 stroke: str, stroke_width: float, **svg_properties) \
-            -> svgwrite.elementfactory.ElementBuilder:
         pass
 
 
@@ -328,6 +496,39 @@ class AVPathPolygon:
 
 
 class AVGlyph:  # pylint: disable=function-redefined
+    @staticmethod
+    def svg_rect(dwg: svgwrite.Drawing,
+                 rect: Tuple[float, float, float, float],
+                 stroke: str, stroke_width: float, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        (x_pos, y_pos, width, height) = rect
+        rect_properties = {"insert": (x_pos, y_pos),
+                           "size": (width, height),
+                           "stroke": stroke,  # color
+                           "stroke_width": stroke_width,
+                           "fill": "none"}
+        rect_properties.update(svg_properties)
+        return dwg.rect(**rect_properties)
+
+    @staticmethod
+    def polygonize_path_string(path_string: str) -> str:
+        if not path_string:
+            path_string = "M 0 0"
+        else:
+            polygon = AVPathPolygon()
+            poly_func = None
+            match POLYGONIZE_TYPE:
+                case Polygonize.UNIFORM:
+                    poly_func = AVPathPolygon.polygonize_uniform
+                case Polygonize.BY_ANGLE:
+                    poly_func = AVPathPolygon.polygonize_by_angle
+            path_string = AVPathPolygon.polygonize_path(path_string, poly_func)
+
+            polygon.add_path_string(path_string)
+            path_strings = polygon.path_strings()
+            path_string = " ".join(path_strings)
+        return path_string
+
     def __init__(self, avfont: AVFont, character: str):
         self._avfont: AVFont = avfont
         self.character: str = character
@@ -337,6 +538,12 @@ class AVGlyph:  # pylint: disable=function-redefined
         self._glyph_set.draw(bounds_pen)
         self.bounding_box = bounds_pen.bounds  # (x_min, y_min, x_max, y_max)
         self.width = self._glyph_set.width
+        # create and store a polygonized_path_string:
+        svg_pen = SVGPathPen(self._avfont.ttfont.getGlyphSet())
+        self._glyph_set.draw(svg_pen)
+        self.path_string = svg_pen.getCommands()
+        self.polygonized_path_string = \
+            AVGlyph.polygonize_path_string(self.path_string)
 
     def real_width(self, font_size: float) -> float:
         return self.width * font_size / self._avfont.units_per_em
@@ -355,33 +562,19 @@ class AVGlyph:  # pylint: disable=function-redefined
             return sidebearing_right * font_size / self._avfont.units_per_em
         return 0.0
 
-    def path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
-        svg_pen = SVGPathPen(self._avfont.ttfont.getGlyphSet())
+    def real_path_string(self, x_pos: float, y_pos: float,
+                         font_size: float) -> str:
         scale = font_size / self._avfont.units_per_em
-        trafo_pen = TransformPen(svg_pen, (scale, 0, 0, -scale, x_pos, y_pos))
-        self._glyph_set.draw(trafo_pen)
-        path_string = svg_pen.getCommands()
-        if not path_string:
-            path_string = f"M{x_pos} {y_pos}"
-        else:
-            polygon = AVPathPolygon()
-            poly_func = None
-            match POLYGONIZE_TYPE:
-                case Polygonize.UNIFORM:
-                    poly_func = AVPathPolygon.polygonize_uniform
-                case Polygonize.BY_ANGLE:
-                    poly_func = AVPathPolygon.polygonize_by_angle
-            path_string = AVPathPolygon.polygonize_path(path_string, poly_func)
-            polygon.add_path_string(path_string)
-            path_strings = polygon.path_strings()
-            path_string = " ".join(path_strings)
+        path_string = AVsvgPath.transform_path_string(
+            self.polygonized_path_string,
+            (scale, 0, 0, -scale, x_pos, y_pos))
         return path_string
 
     def svg_path(self, dwg: svgwrite.Drawing,
                  x_pos: float, y_pos: float,
                  font_size: float, **svg_properties) \
             -> svgwrite.elementfactory.ElementBuilder:
-        path_string = self.path_string(x_pos, y_pos, font_size)
+        path_string = self.real_path_string(x_pos, y_pos, font_size)
         svg_path = dwg.path(path_string, **svg_properties)
         return svg_path
 
@@ -452,19 +645,6 @@ class AVGlyph:  # pylint: disable=function-redefined
                     (x_max - x_min) * font_size / units_per_em,
                     (y_max - y_min) * font_size / units_per_em)
         return rect
-
-    def svg_rect(self, dwg: svgwrite.Drawing,
-                 rect: Tuple[float, float, float, float],
-                 stroke: str, stroke_width: float, **svg_properties) \
-            -> svgwrite.elementfactory.ElementBuilder:
-        (x_pos, y_pos, width, height) = rect
-        rect_properties = {"insert": (x_pos, y_pos),
-                           "size": (width, height),
-                           "stroke": stroke,
-                           "stroke_width": stroke_width,
-                           "fill": "none"}
-        rect_properties.update(svg_properties)
-        return dwg.rect(**rect_properties)
 
 
 class SVGoutput:
@@ -544,12 +724,12 @@ class SVGoutput:
         rect_bb = glyph.rect_bounding_box(x_pos, y_pos, font_size)
         rect = (x_pos, rect_bb[1], sb_left, rect_bb[3])
         self.layer_debug_glyph_sidebearing.add(
-            glyph.svg_rect(self.drawing, rect, "none", 0, fill="yellow"))
+            AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="yellow"))
 
         rect = (x_pos + glyph.real_width(font_size) - sb_right,
                 rect_bb[1], sb_right, rect_bb[3])
         self.layer_debug_glyph_sidebearing.add(
-            glyph.svg_rect(self.drawing, rect, "none", 0, fill="orange"))
+            AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="orange"))
 
     def add_glyph_font_ascent_descent(self, glyph: AVGlyph,
                                       x_pos: float, y_pos: float,
@@ -557,21 +737,21 @@ class SVGoutput:
         stroke_width = glyph.real_dash_thickness(font_size)
         rect = glyph.rect_font_ascent_descent(x_pos, y_pos, font_size)
         self.layer_debug_glyph_font_ascent_descent.add(
-            glyph.svg_rect(self.drawing, rect, "green", 0.3*stroke_width))
+            AVGlyph.svg_rect(self.drawing, rect, "green", 0.3*stroke_width))
 
     def add_glyph_em_width(self, glyph: AVGlyph, x_pos: float, y_pos: float,
                            font_size: float, ascent: float, descent: float):
         stroke_width = glyph.real_dash_thickness(font_size)
         rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
         self.layer_debug_glyph_em_width.add(
-            glyph.svg_rect(self.drawing, rect, "blue", 0.2*stroke_width))
+            AVGlyph.svg_rect(self.drawing, rect, "blue", 0.2*stroke_width))
 
     def add_glyph_bounding_box(self, glyph: AVGlyph,
                                x_pos: float, y_pos: float, font_size: float):
         stroke_width = glyph.real_dash_thickness(font_size)
         rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
         self.layer_debug_glyph_bounding_box.add(
-            glyph.svg_rect(self.drawing, rect, "red", 0.1*stroke_width))
+            AVGlyph.svg_rect(self.drawing, rect, "red", 0.1*stroke_width))
 
     def add_glyph(self, glyph: AVGlyph,
                   x_pos: float, y_pos: float, font_size: float,
@@ -611,7 +791,7 @@ def main():
     )
 
     ttfont = TTFont(FONT_FILENAME)
-    font = AVFont(ttfont)
+    avfont = AVFont(ttfont)
 
     x_pos = VB_RATIO * 10  # in mm
     y_pos = VB_RATIO * 10  # in mm
@@ -621,14 +801,14 @@ def main():
            "ÄÖÜ äöü ß€µ@²³~^°\\ 1234567890 " + \
            ',.;:+-*#_<> !"§$%&/()=?{}[]'
 
-    (ascent, descent) = font.glyph_ascent_descent_of(
+    (ascent, descent) = avfont.glyph_ascent_descent_of(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ " +
         "abcdefghijklmnopqrstuvwxyz ")
 
     c_x_pos = x_pos
     c_y_pos = y_pos
     for character in text:
-        glyph: AVGlyph = font.glyph(character)
+        glyph: AVGlyph = avfont.glyph(character)
         svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
                              ascent, descent)
         c_x_pos += glyph.real_width(FONT_SIZE)
@@ -636,14 +816,21 @@ def main():
     c_x_pos = x_pos
     c_y_pos = y_pos - FONT_SIZE
     for character in text:
-        glyph: AVGlyph = font.glyph(character)
+        glyph: AVGlyph = avfont.glyph(character)
         svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
     c_x_pos = x_pos
     c_y_pos = y_pos + FONT_SIZE
     for character in text:
-        glyph: AVGlyph = font.glyph(character)
+        glyph: AVGlyph = avfont.glyph(character)
+        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
+        c_x_pos += glyph.real_width(FONT_SIZE)
+
+    c_x_pos = x_pos
+    c_y_pos = y_pos + 3 * FONT_SIZE
+    for character in "Q":
+        glyph: AVGlyph = avfont.glyph(character)
         svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
@@ -666,16 +853,17 @@ def main():
     svg_output.saveas(OUTPUT_FILE+"z", pretty=True, indent=2, compressed=True)
 
     # which glyphs are constructed using several paths?
-    for character in text:
-        glyph: AVGlyph = font.glyph(character)
-        glyph_path_string = glyph.path_string(0, 0, 1)
-        parsed_path = svgpathtools.parse_path(glyph_path_string)
-        num_parsed_sub_paths = len(parsed_path.continuous_subpaths())
-        if num_parsed_sub_paths > 1:
-            areas = [path.area() for path in parsed_path.continuous_subpaths()]
-            areas = [f"{(a):+04.2f}" for a in areas]
-            print(f"{character:1} : {num_parsed_sub_paths:2} - {areas}")
+    # for character in text:
+    #     glyph: AVGlyph = avfont.glyph(character)
+    #     glyph_path_string = glyph.real_path_string(0, 0, 1)
+    #     parsed_path = svgpathtools.parse_path(glyph_path_string)
+    #     num_parsed_sub_paths = len(parsed_path.continuous_subpaths())
+    #     if num_parsed_sub_paths > 1:
+    #         areas = [p.area() for p in parsed_path.continuous_subpaths()]
+    #         areas = [f"{(a):+04.2f}" for a in areas]
+    #         print(f"{character:1} : {num_parsed_sub_paths:2} - {areas}")
 
+    # # Take a look on Ä:
     # glyph: AVGlyph = font.glyph("Ä")
     # print(type(glyph._avfont.ttfont.getGlyphSet()))
     # print(dir(glyph._avfont.ttfont.getGlyphSet()))
