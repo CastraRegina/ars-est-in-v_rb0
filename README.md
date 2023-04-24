@@ -554,7 +554,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - rabbit, hedgehog, raccoon, sloth, koala, squirrel, mouse, fawn / bambi, penguin, 
     - horse (in various gaits like walk, trot, canter, gallop, pace and also pesade), 
     - dear (partly), boar, donkey (partly), cow, zebra, gnu, dog, dalmatian dog, greyhound, wolf+moon,
-    - tiger, cat, lion, cheetah, cougar, panther, polar bear, fox, elephant, mammoth, rhinoceros, giraffe, camel, moose, panda, kangaroo,
+    - tiger, cat, lion, cheetah, cougar, panther, grizzly bear, polar bear, fox,
+    - elephant, mammoth, rhinoceros, giraffe, camel, moose, panda, kangaroo,
     - owl, eagle, pigeon, sparrow, pelican, flamingo, cockatoo, swallow, black bird, 
       robin, crow, peacock, ostrich, hummingbird, kiwi-bird, 
     - cock, weathercock, meerkat/suricate, 
@@ -575,9 +576,10 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Hollow Ware
     - vase, bottle, cup (of coffee), teapot, glass, wine glass, beer mug,
   - Art
-    - Banksy, Vermeer, Rembrandt, Vincent van Gogh, Pablo Picasso, Henri Matisse, Dante Gabriel Rossetti,
+    - Banksy, Rembrandt, Vincent van Gogh, Pablo Picasso, Henri Matisse, Dante Gabriel Rossetti,
     - Leonardo da Vinci, Otto Müller, Claude Monet, Paul Klee, Wassily Kandinsky, Franz Marc,
     - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
+    - Johannes Vermeer - Girl with a Pearl Earring,
     - Optical illusion (e.g. moving points),
     - The Creation of Adam,
     - Mona Lisa,
