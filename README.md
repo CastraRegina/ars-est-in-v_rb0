@@ -229,7 +229,7 @@ Maybe check later if some of these packages are really needed...
 - Check which SW packages are already installed, e.g.  
   `sudo apt list --installed | grep -i geos`
 - Install python modules:  
-  `python3 -m pip install pycodestyle flake8 black autopep8`  
+  `python3 -m pip install pycodestyle flake8 black autopep8 mypy`  
   `python3 -m pip install lxml unicode scipy numpy`  
   `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
   `python3 -m pip install fonttools[ufo,lxml,woff,unicode,type1]`  
