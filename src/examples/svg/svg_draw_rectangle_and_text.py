@@ -338,12 +338,12 @@ class AVFont:
                 descent = min(descent, y_min)
         return (ascent, descent)
 
-    def real_dash_thickness(self, font_size: float) -> float:
-        glyph: AVGlyph = self.glyph("-")
-        if glyph.bounding_box:
-            thickness = glyph.bounding_box[3] - glyph.bounding_box[1]
-            return thickness * font_size / self.units_per_em
-        return 0.0
+    # def real_dash_thickness(self, font_size: float) -> float:
+    #     glyph: AVGlyph = self.glyph("-")
+    #     if glyph.bounding_box:
+    #         thickness = glyph.bounding_box[3] - glyph.bounding_box[1]
+    #         return thickness * font_size / self.units_per_em
+    #     return 0.0
 
     @staticmethod
     def default_axes_values(ttfont: TTFont) -> Dict[str, float]:
@@ -549,7 +549,11 @@ class AVGlyph:  # pylint: disable=function-redefined
         return self.width * font_size / self._avfont.units_per_em
 
     def real_dash_thickness(self, font_size: float) -> float:
-        return self._avfont.real_dash_thickness(font_size)
+        glyph: AVGlyph = self._avfont.glyph("-")
+        if glyph.bounding_box:
+            thickness = glyph.bounding_box[3] - glyph.bounding_box[1]
+            return thickness * font_size / self._avfont.units_per_em
+        return 0.0
 
     def real_sidebearing_left(self, font_size: float) -> float:
         if self.bounding_box:
