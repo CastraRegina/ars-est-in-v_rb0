@@ -108,7 +108,7 @@ class AVsvgPath:
         ret_commands = []
         first_point = None  # Store the first point of each path (absolute)
         # Keep track of the last (iterating) point (absolute)
-        last_point = [0, 0]
+        last_point: list[float] = [0, 0]
 
         for command in org_commands:
             command_letter = command[0]
@@ -454,6 +454,19 @@ class AVPathPolygon:
                 ret_path_string += "Z "
         return ret_path_string
 
+    @staticmethod
+    def rect_to_path(rect: Tuple[float, float, float, float]) -> str:
+        (x_pos, y_pos, width, height) = rect
+        (x00, y00) = (x_pos, y_pos)
+        (x10, y10) = (x_pos+width, y_pos)
+        (x11, y11) = (x_pos+width, y_pos+height)
+        (x01, y01) = (x_pos, y_pos+height)
+        ret_path = f"M{x00:g} {y00:g} " + \
+                   f"L{x10:g} {y10:g} " + \
+                   f"L{x11:g} {y11:g} " + \
+                   f"L{x01:g} {y01:g} Z"
+        return ret_path
+
     def __init__(self, multipolygon: shapely.geometry.MultiPolygon = None):
         self.multipolygon: shapely.geometry.MultiPolygon = \
             shapely.geometry.MultiPolygon()
@@ -650,6 +663,23 @@ class AVGlyph:  # pylint: disable=function-redefined
                     (y_max - y_min) * font_size / units_per_em)
         return rect
 
+    def area_coverage(self, ascent: float, descent: float,
+                      font_size: float) -> float:
+        glyph_string = self.real_path_string(0, 0, font_size)
+        glyph_polygon = AVPathPolygon()
+        glyph_polygon.add_path_string(glyph_string)
+
+        rect = self.rect_em_width(0, 0, ascent, descent, font_size)
+        rect_string = AVPathPolygon.rect_to_path(rect)
+        rect_polygon = AVPathPolygon()
+        rect_polygon.add_path_string(rect_string)
+
+        inter = rect_polygon.multipolygon.intersection(
+            glyph_polygon.multipolygon)
+        rect_area = rect_polygon.multipolygon.area
+
+        return inter.area / rect_area
+
 
 class SVGoutput:
     def __init__(self,
@@ -833,8 +863,13 @@ def main():
 
     c_x_pos = x_pos
     c_y_pos = y_pos + 3 * FONT_SIZE
-    for character in "Q":
+    for character in text:
         glyph: AVGlyph = avfont.glyph(character)
+
+        area_ratio = glyph.area_coverage(ascent, descent, FONT_SIZE)
+
+        print(character, area_ratio)
+
         svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
