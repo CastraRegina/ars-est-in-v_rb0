@@ -50,7 +50,7 @@ class Polygonize(Enum):
 
 
 POLYGONIZE_UNIFORM_NUM_POINTS = 10  # minimum 2 = (start, end)
-POLYGONIZE_ANGLE_MAX_DEGREE = 5  # 2 # difference of two derivatives less than
+POLYGONIZE_ANGLE_MAX_DEG = 5  # 2 # difference of two derivatives less than
 POLYGONIZE_ANGLE_MAX_STEPS = 9  # 9
 POLYGONIZE_TYPE = Polygonize.BY_ANGLE
 
@@ -388,7 +388,7 @@ class AVPathPolygon:
     @staticmethod
     def polygonize_by_angle(segment,
                             max_angle_degree: float =
-                            POLYGONIZE_ANGLE_MAX_DEGREE,
+                            POLYGONIZE_ANGLE_MAX_DEG,
                             max_steps: int =
                             POLYGONIZE_ANGLE_MAX_STEPS) -> str:
         # *segment* most likely of type QuadraticBezier or CubicBezier
@@ -465,6 +465,22 @@ class AVPathPolygon:
                    f"L{x10:g} {y10:g} " + \
                    f"L{x11:g} {y11:g} " + \
                    f"L{x01:g} {y01:g} Z"
+        return ret_path
+
+    @staticmethod
+    def circle_to_path(x_pos: float, y_pos: float, radius: float,
+                       angle_degree: float = POLYGONIZE_ANGLE_MAX_DEG) -> str:
+        ret_path = ""
+        num_points = math.ceil(360 / angle_degree)
+        for i in range(num_points):
+            angle_rad = 2 * math.pi * i / num_points
+            x_circ = x_pos + radius * math.sin(angle_rad)
+            y_circ = y_pos + radius * math.cos(angle_rad)
+            if i <= 0:
+                ret_path += f"M{x_circ:g} {y_circ:g} "
+            else:
+                ret_path += f"L{x_circ:g} {y_circ:g} "
+        ret_path += "Z"
         return ret_path
 
     def __init__(self, multipolygon: shapely.geometry.MultiPolygon = None):
@@ -740,6 +756,10 @@ class SVGoutput:
                 label="Layer main", locked=False)
         self.drawing.add(self.layer_main)
 
+    def draw_path(self, path_string: str, **svg_properties) \
+            -> svgwrite.elementfactory.ElementBuilder:
+        return self.drawing.path(path_string, **svg_properties)
+
     def saveas(self, filename: str, pretty: bool = False, indent: int = 2,
                compressed: bool = False):
         svg_buffer = io.StringIO()
@@ -872,6 +892,12 @@ def main():
 
         svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
+
+    circ_path = AVPathPolygon.circle_to_path(
+        20*VB_RATIO, 20*VB_RATIO, 15*VB_RATIO, 2)
+    svg_path = svg_output.draw_path(circ_path, stroke="red",
+                                    stroke_width=0.1 * VB_RATIO, fill="blue")
+    svg_output.add(svg_path)
 
     # # check an instantiated font:
     # axes_values = AVFont.default_axes_values(ttfont)
