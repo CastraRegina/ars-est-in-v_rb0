@@ -578,6 +578,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - Art
     - Banksy, Rembrandt, Vincent van Gogh, Pablo Picasso, Henri Matisse, Dante Gabriel Rossetti,
     - Leonardo da Vinci, Otto Müller, Claude Monet, Paul Klee, Wassily Kandinsky, Franz Marc,
+    - Michelangelo (David, The Creation of Adam),
     - M. C. Escher (Penrose triangle, Penrose stairs), Triskelion, three hares, op-art,
     - Johannes Vermeer - Girl with a Pearl Earring,
     - Optical illusion (e.g. moving points),
@@ -647,7 +648,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - two puzzle parts fitting together like a couple,
     - statue, greek torso, diamonds and the cut of gems, 
     - Eye of Providence - All-Seeing Eye of God, the good God knows everything the neighborhood even more, 
-    - Don Quixote, Tutankhamun, Cleopatra, Pl.yb.y bunny,
+    - Don Quixote, Tutankhamun, Cleopatra, Sphinx, Pl.yb.y bunny,
+    - Valkyrie, Brunhild, Swedish Blenda, British Iceni's Boudica,
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
