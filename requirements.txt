@@ -13,7 +13,7 @@ cycler==0.11.0
 defusedxml==0.7.1
 flake8==6.0.0
 fonttools==4.39.3
-freetype-py==2.3.0
+freetype-py==2.4.0
 fs==2.4.16
 gizeh==0.1.11
 iniconfig==2.0.0
