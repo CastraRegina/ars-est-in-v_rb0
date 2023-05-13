@@ -302,12 +302,12 @@ Maybe check later if some of these packages are really needed...
   - AREPL for python (almenon.arepl)
   - Vim (vscodevim.vim)
 - Setup / modify settings:
-  - Python Analysis Type Checking Mode: on
-  - Editor Format On Save: on
-  - Editor Default Formatter: Python (ms-python.python)
-  - Python Formatting Provider: autopep8
-  - Python Linting Enabled: check-on
-  - Python Linting Flake8 Enabled: check-on
+  - Editor: Format On Save: check-on
+  - Editor: Default Formatter: Python (ms-python.python)
+  - Python > Analysis: Type Checking Mode: basic
+  - Python > Formatting: Provider: autopep8
+  - Python > Linting: Enabled: check-on
+  - Python > Linting: Flake8 Enabled: check-on
   - Edit `$HOME/.config/Code/User/settings.json`:  
     `"editor.rulers": [79]`
   - Python Select Interpreter: `./venv/bin/python`
