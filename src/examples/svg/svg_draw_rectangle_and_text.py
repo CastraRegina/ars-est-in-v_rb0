@@ -822,6 +822,30 @@ class SVGoutput:
         return self.layer_main.add(element)
 
 
+class Potpourri:
+    @staticmethod
+    def print_glyph_coverage(avfont: AVFont, ascent: float, descent: float,
+                             font_size: float, text: str) -> None:
+        # how much of the space (width*(ascent+descent)) is covered by glyph?
+        for character in text:
+            glyph: AVGlyph = avfont.glyph(character)
+            area_ratio = glyph.area_coverage(ascent, descent, font_size)
+            print(character, area_ratio)
+
+    @staticmethod
+    def print_glyph_number_of_paths(avfont: AVFont, text: str) -> None:
+        # which glyphs are constructed using several paths (add & sub)?
+        for character in text:
+            glyph: AVGlyph = avfont.glyph(character)
+            glyph_path_string = glyph.real_path_string(0, 0, 1)
+            parsed_path = svgpathtools.parse_path(glyph_path_string)
+            num_parsed_sub_paths = len(parsed_path.continuous_subpaths())
+            if num_parsed_sub_paths > 1:
+                areas = [p.area() for p in parsed_path.continuous_subpaths()]
+                areas = [f"{(a):+04.2f}" for a in areas]
+                print(f"{character:1} : {num_parsed_sub_paths:2} - {areas}")
+
+
 def main():
     # Center the rectangle horizontally and vertically on the page
     vb_w = VB_RATIO * CANVAS_WIDTH
@@ -885,11 +909,6 @@ def main():
     c_y_pos = y_pos + 3 * FONT_SIZE
     for character in text:
         glyph: AVGlyph = avfont.glyph(character)
-
-        area_ratio = glyph.area_coverage(ascent, descent, FONT_SIZE)
-
-        print(character, area_ratio)
-
         svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
         c_x_pos += glyph.real_width(FONT_SIZE)
 
@@ -917,16 +936,8 @@ def main():
     # svg_output.saveas(OUTPUT_FILE, pretty=True, indent=2)
     svg_output.saveas(OUTPUT_FILE+"z", pretty=True, indent=2, compressed=True)
 
-    # which glyphs are constructed using several paths?
-    # for character in text:
-    #     glyph: AVGlyph = avfont.glyph(character)
-    #     glyph_path_string = glyph.real_path_string(0, 0, 1)
-    #     parsed_path = svgpathtools.parse_path(glyph_path_string)
-    #     num_parsed_sub_paths = len(parsed_path.continuous_subpaths())
-    #     if num_parsed_sub_paths > 1:
-    #         areas = [p.area() for p in parsed_path.continuous_subpaths()]
-    #         areas = [f"{(a):+04.2f}" for a in areas]
-    #         print(f"{character:1} : {num_parsed_sub_paths:2} - {areas}")
+    Potpourri.print_glyph_coverage(avfont, ascent, descent, FONT_SIZE, text)
+    Potpourri.print_glyph_number_of_paths(avfont, text)
 
     # # Take a look on Ä:
     # glyph: AVGlyph = font.glyph("Ä")
