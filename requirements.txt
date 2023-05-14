@@ -45,7 +45,7 @@ shapely==2.0.1
 six==1.16.0
 skia-pathops==0.7.4
 svg.path==6.3
-svgelements==1.9.3
+svgelements==1.9.4
 svgpath2mpl==1.0.0
 svgpathtools==1.6.0
 svgutils==0.3.4
