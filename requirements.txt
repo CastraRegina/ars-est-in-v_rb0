@@ -47,7 +47,7 @@ skia-pathops==0.7.4
 svg.path==6.3
 svgelements==1.9.5
 svgpath2mpl==1.0.0
-svgpathtools==1.6.0
+svgpathtools==1.6.1
 svgutils==0.3.4
 svgwrite==1.4.3
 sympy==1.12
