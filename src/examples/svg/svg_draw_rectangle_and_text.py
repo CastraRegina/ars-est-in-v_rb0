@@ -21,6 +21,7 @@ import matplotlib.path
 from fontTools.ttLib import TTFont
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.varLib import instancer
 # from fontTools.pens.transformPen import TransformPen
 
 
@@ -31,8 +32,8 @@ CANVAS_UNIT = "mm"  # Units for CANVAS dimensions
 CANVAS_WIDTH = 210  # DIN A4 page width in mm
 CANVAS_HEIGHT = 297  # DIN A4 page height in mm
 
-RECT_WIDTH = 140  # rectangle width in mm
-RECT_HEIGHT = 100  # rectangle height in mm
+RECT_WIDTH = 150  # rectangle width in mm
+RECT_HEIGHT = 150  # rectangle height in mm
 
 VB_RATIO = 1 / RECT_WIDTH  # multiply each dimension with this ratio
 
@@ -47,6 +48,12 @@ FONT_SIZE = VB_RATIO * 3  # in mm
 class Polygonize(Enum):
     BY_ANGLE = auto()
     UNIFORM = auto()
+
+
+class Align(Enum):
+    LEFT = auto()
+    RIGHT = auto()
+    BOTH = auto()
 
 
 POLYGONIZE_UNIFORM_NUM_POINTS = 10  # minimum 2 = (start, end)
@@ -226,7 +233,7 @@ class AVGlyph:  # pylint: disable=function-redefined
     def polygonize_path_string(path_string: str) -> str:
         pass
 
-    def real_width(self, font_size: float) -> float:
+    def real_width(self, font_size: float, align: Align = None) -> float:
         pass
 
     def real_dash_thickness(self, font_size: float) -> float:
@@ -339,7 +346,7 @@ class AVFont:
         return (ascent, descent)
 
     # def real_dash_thickness(self, font_size: float) -> float:
-    #     glyph: AVGlyph = self.glyph("-")
+    #     glyph = self.glyph("-")
     #     if glyph.bounding_box:
     #         thickness = glyph.bounding_box[3] - glyph.bounding_box[1]
     #         return thickness * font_size / self.units_per_em
@@ -574,11 +581,24 @@ class AVGlyph:  # pylint: disable=function-redefined
         self.polygonized_path_string = \
             AVGlyph.polygonize_path_string(self.path_string)
 
-    def real_width(self, font_size: float) -> float:
-        return self.width * font_size / self._avfont.units_per_em
+    def real_width(self, font_size: float, align: Align = None) -> float:
+        real_width = self.width * font_size / self._avfont.units_per_em
+        if not align:
+            return real_width
+        (bb_x_pos, _, bb_width, _) = self.rect_bounding_box(0, 0, font_size)
+
+        if align == Align.LEFT:
+            return real_width - bb_x_pos
+        elif align == Align.RIGHT:
+            return bb_x_pos + bb_width
+        elif align == Align.BOTH:
+            return bb_width
+        else:
+            print("ERROR in real_width(): align-value not implemented", align)
+            return real_width
 
     def real_dash_thickness(self, font_size: float) -> float:
-        glyph: AVGlyph = self._avfont.glyph("-")
+        glyph = self._avfont.glyph("-")
         if glyph.bounding_box:
             thickness = glyph.bounding_box[3] - glyph.bounding_box[1]
             return thickness * font_size / self._avfont.units_per_em
@@ -828,7 +848,7 @@ class Potpourri:
                              font_size: float, text: str) -> None:
         # how much of the space (width*(ascent+descent)) is covered by glyph?
         for character in text:
-            glyph: AVGlyph = avfont.glyph(character)
+            glyph = avfont.glyph(character)
             area_ratio = glyph.area_coverage(ascent, descent, font_size)
             print(character, area_ratio)
 
@@ -836,7 +856,7 @@ class Potpourri:
     def print_glyph_number_of_paths(avfont: AVFont, text: str) -> None:
         # which glyphs are constructed using several paths (add & sub)?
         for character in text:
-            glyph: AVGlyph = avfont.glyph(character)
+            glyph = avfont.glyph(character)
             glyph_path_string = glyph.real_path_string(0, 0, 1)
             parsed_path = svgpathtools.parse_path(glyph_path_string)
             num_parsed_sub_paths = len(parsed_path.continuous_subpaths())
@@ -844,6 +864,71 @@ class Potpourri:
                 areas = [p.area() for p in parsed_path.continuous_subpaths()]
                 areas = [f"{(a):+04.2f}" for a in areas]
                 print(f"{character:1} : {num_parsed_sub_paths:2} - {areas}")
+
+
+class SimpleLineLayouter:
+    def __init__(self, svg_output: SVGoutput,
+                 avfont: AVFont, font_size: float):
+        self.svg_output = svg_output
+        self.avfont = avfont
+        self.font_size = font_size
+
+    def end_pos_text(self, x_left: float, text: str) -> float:
+        x_pos = x_left
+        for index, character in enumerate(text):
+            if character.isspace():
+                character = " "
+            glyph = self.avfont.glyph(character)
+            if not index:  # first character:
+                x_pos += glyph.real_width(self.font_size, Align.LEFT)
+            elif index < len(text)-1:  # "middle" character:
+                x_pos += glyph.real_width(self.font_size)
+            else:  # last character:
+                x_pos += glyph.real_width(self.font_size, Align.RIGHT)
+        return x_pos
+
+    def layout_line(self, y_pos: float, x_left: float, x_right: float,
+                    text: str) -> str:
+        line_text = text
+        ret_text = ""
+        index_last_space = 0
+        for index, character in enumerate(text):
+            if character.isspace():
+                if self.end_pos_text(x_left, text[:index]) > x_right:
+                    line_text = text[:index_last_space].rstrip()
+                    ret_text = text[index_last_space:].lstrip()
+                    break
+                index_last_space = index
+        line_end_pos = self.end_pos_text(x_left, line_text)
+        each_delta = 0
+        if ret_text:
+            each_delta = (x_right - line_end_pos) / (len(line_text)-1)
+        # print(f"line_text:  _{line_text}_ _{line_end_pos}_<_{x_right}_")
+        # print(f"ret_text:   _{ret_text}_")
+        # print(f"delta= _{(x_right - line_end_pos)}_")
+
+        # do the layout:
+        x_pos = x_left
+        for index, character in enumerate(line_text):
+            glyph = self.avfont.glyph(character)
+            if not index:  # first character:
+                x_sb = glyph.real_sidebearing_left(self.font_size)
+                self.svg_output.add_glyph(
+                    glyph, x_pos - x_sb, y_pos, self.font_size)
+                x_pos += glyph.real_width(self.font_size, Align.LEFT)
+            else:
+                self.svg_output.add_glyph(
+                    glyph, x_pos, y_pos, self.font_size)
+                x_pos += glyph.real_width(self.font_size)
+            x_pos += each_delta
+        # circ_path = AVPathPolygon.circle_to_path(x_pos, y_pos,
+        #                                          0.5*VB_RATIO, 2)
+        # svg_path = self.svg_output.draw_path(circ_path, stroke="red",
+        #                                      stroke_width=0.01 * VB_RATIO,
+        #                                      fill="blue")
+        # self.svg_output.add(svg_path)
+
+        return ret_text
 
 
 def main():
@@ -871,76 +956,73 @@ def main():
     ttfont = TTFont(FONT_FILENAME)
     avfont = AVFont(ttfont)
 
-    x_pos = VB_RATIO * 10  # in mm
-    y_pos = VB_RATIO * 10  # in mm
+    # x_pos = VB_RATIO * 10  # in mm
+    # y_pos = VB_RATIO * 10  # in mm
 
-    text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ " + \
-           "abcdefghijklmnopqrstuvwxyz " + \
-           "ÄÖÜ äöü ß€µ@²³~^°\\ 1234567890 " + \
-           ',.;:+-*#_<> !"§$%&/()=?{}[]'
+    # text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ " + \
+    #        "abcdefghijklmnopqrstuvwxyz " + \
+    #        "ÄÖÜ äöü ß€µ@²³~^°\\ 1234567890 " + \
+    #        ',.;:+-*#_<> !"§$%&/()=?{}[]'
 
-    (ascent, descent) = avfont.glyph_ascent_descent_of(
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ " +
-        "abcdefghijklmnopqrstuvwxyz ")
+    # (ascent, descent) = avfont.glyph_ascent_descent_of(
+    #     "ABCDEFGHIJKLMNOPQRSTUVWXYZ " +
+    #     "abcdefghijklmnopqrstuvwxyz ")
 
-    c_x_pos = x_pos
-    c_y_pos = y_pos
-    for character in text:
-        glyph: AVGlyph = avfont.glyph(character)
-        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
-                             ascent, descent)
-        c_x_pos += glyph.real_width(FONT_SIZE)
+    # c_x_pos = x_pos
+    # c_y_pos = y_pos
+    # for character in text:
+    #     glyph = avfont.glyph(character)
+    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
+    #                          ascent, descent)
+    #     c_x_pos += glyph.real_width(FONT_SIZE)
 
-    c_x_pos = x_pos
-    c_y_pos = y_pos - FONT_SIZE
-    for character in text:
-        glyph: AVGlyph = avfont.glyph(character)
-        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
-        c_x_pos += glyph.real_width(FONT_SIZE)
+    # c_x_pos = x_pos
+    # c_y_pos = y_pos - FONT_SIZE
+    # for character in text:
+    #     glyph = avfont.glyph(character)
+    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
+    #     c_x_pos += glyph.real_width(FONT_SIZE)
 
-    c_x_pos = x_pos
-    c_y_pos = y_pos + FONT_SIZE
-    for character in text:
-        glyph: AVGlyph = avfont.glyph(character)
-        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
-        c_x_pos += glyph.real_width(FONT_SIZE)
+    # c_x_pos = x_pos
+    # c_y_pos = y_pos + FONT_SIZE
+    # for character in text:
+    #     glyph = avfont.glyph(character)
+    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
+    #     c_x_pos += glyph.real_width(FONT_SIZE)
 
-    c_x_pos = x_pos
-    c_y_pos = y_pos + 3 * FONT_SIZE
-    for character in text:
-        glyph: AVGlyph = avfont.glyph(character)
-        svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
-        c_x_pos += glyph.real_width(FONT_SIZE)
+    # c_x_pos = x_pos
+    # c_y_pos = y_pos + 3 * FONT_SIZE
+    # for character in text:
+    #     glyph = avfont.glyph(character)
+    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
+    #     c_x_pos += glyph.real_width(FONT_SIZE)
 
-    circ_path = AVPathPolygon.circle_to_path(
-        20*VB_RATIO, 20*VB_RATIO, 15*VB_RATIO, 2)
-    svg_path = svg_output.draw_path(circ_path, stroke="red",
-                                    stroke_width=0.1 * VB_RATIO, fill="blue")
-    svg_output.add(svg_path)
+    # circ_path = AVPathPolygon.circle_to_path(
+    #     20*VB_RATIO, 20*VB_RATIO, 15*VB_RATIO, 2)
+    # svg_path = svg_output.draw_path(circ_path, stroke="red",
+    #                                 stroke_width=0.1 * VB_RATIO, fill="blue")
+    # svg_output.add(svg_path)
 
+    # Potpourri.print_glyph_coverage(avfont, ascent, descent, FONT_SIZE, text)
+    # Potpourri.print_glyph_number_of_paths(avfont, text)
+
+    # -------------------------------------------------------------------------
     # # check an instantiated font:
     # axes_values = AVFont.default_axes_values(ttfont)
     # axes_values.update({"wght": 700, "wdth": 25, "GRAD": 100})
     # ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
     # font = AVFont(ttfont)
-
     # c_x_pos = x_pos
-    # c_y_pos = y_pos + 3 * FONT_SIZE
+    # c_y_pos = y_pos + 4 * FONT_SIZE
     # for character in text:
-    #     glyph: AVGlyph = font.glyph(character)
+    #     glyph = font.glyph(character)
     #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
     #                          ascent, descent)
     #     c_x_pos += glyph.real_width(FONT_SIZE)
 
-    # Save the SVG file
-    # svg_output.saveas(OUTPUT_FILE, pretty=True, indent=2)
-    svg_output.saveas(OUTPUT_FILE+"z", pretty=True, indent=2, compressed=True)
-
-    Potpourri.print_glyph_coverage(avfont, ascent, descent, FONT_SIZE, text)
-    Potpourri.print_glyph_number_of_paths(avfont, text)
-
+    # -------------------------------------------------------------------------
     # # Take a look on Ä:
-    # glyph: AVGlyph = font.glyph("Ä")
+    # glyph = font.glyph("Ä")
     # print(type(glyph._avfont.ttfont.getGlyphSet()))
     # print(dir(glyph._avfont.ttfont.getGlyphSet()))
     # print(vars(glyph._avfont.ttfont.getGlyphSet()))
@@ -949,9 +1031,42 @@ def main():
     # glyph_set = glyph._avfont.ttfont.getGlyphSet()[glyph_name]
     # print(vars(glyph_set))
 
-    # with open(INPUT_FILE_LOREM_IPSUM, 'r', encoding="utf-8") as file:
-    #     lorem_ipsum = file.read()
-    #     print(lorem_ipsum)
+    def instantiate_font(ttfont: TTFont, values: Dict[str, float]) -> AVFont:
+        # values {"wght": 700, "wdth": 25, "GRAD": 100}
+        axes_values = AVFont.default_axes_values(ttfont)
+        axes_values.update(values)
+        ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
+        return AVFont(ttfont)
+
+    y_pos = VB_RATIO * -0.7 + 1 * FONT_SIZE  # in mm
+    x_left = 0
+    x_right = 1
+    font_weight = 100
+    font_weight_delta = 18
+    with open(INPUT_FILE_LOREM_IPSUM, 'r', encoding="utf-8") as file:
+        lorem_ipsum = file.read()
+        # lorem_ipsum = lorem_ipsum[:400]
+        # print(f"input-text: _{lorem_ipsum}_")
+        # y_pos = y_pos + 6 * FONT_SIZE
+        text = lorem_ipsum
+        while y_pos < (RECT_HEIGHT*VB_RATIO):
+            print(y_pos, font_weight)
+            avfont = instantiate_font(ttfont, {"wght": font_weight})
+            layouter = SimpleLineLayouter(svg_output, avfont, FONT_SIZE)
+            text = layouter.layout_line(y_pos, x_left, x_right, text)
+            # print(f"remaining-text: _{text}_")
+            if not text:
+                break
+            y_pos += 1 * FONT_SIZE
+            font_weight += font_weight_delta
+            font_weight = min(font_weight, 1000)
+
+    # Save the SVG file
+    print("save...")
+    svg_output.saveas(OUTPUT_FILE+"z", pretty=True, indent=2, compressed=True)
+    print("save done.")
+
+    print(RECT_HEIGHT*VB_RATIO)
 
 
 if __name__ == "__main__":
