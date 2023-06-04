@@ -236,6 +236,7 @@ Maybe check later if some of these packages are really needed...
   `python3 -m pip install fonttools[interpolatable,symfont,pathops,plot]`  
   `python3 -m pip install shapely svg.path svgpath2mpl matplotlib pytest`  
   `python3 -m pip install pillow opencv-python pypng`  
+  `python3 -m pip install afdko fontmake`  
   `python3 -m pip install pangocffi cairocffi pangocairocffi freetype-py`  
   `python3 -m pip install pycairo` (does not install properly as libcairo2 is too old on my machine)  
   [OpenAI's ChatGPT](https://chat.openai.com) summarizes the function of the Python libraries as following:
@@ -349,6 +350,27 @@ Maybe check later if some of these packages are really needed...
   - `Crtl+Shift+7` Fold All Block Comments
   - `Crtl+x`       Remove whole line (if nothing is selected)
   - `Crtl+RETURN`  Python: Run Python File in Terminal (assigned by using `Ctrl+Shift+P`)
+
+
+## Install fontforge
+- See fontforge website [https://fontforge.org](https://fontforge.org)
+- Install fontforge like described in [INSTALL.md](https://github.com/fontforge/fontforge/blob/master/INSTALL.md) and
+  the [CMake guide for FontForge](https://github.com/fontforge/fontforge/wiki/CMake-guide-for-FontForge).  
+  See also [CONTRIBUTING.md](https://github.com/fontforge/fontforge/blob/master/CONTRIBUTING.md)
+  for making a debian package.
+- Install SW packages on operating system:  
+  `sudo apt-get install libjpeg-dev libtiff5-dev libpng-dev libfreetype6-dev libgif-dev libgtk-3-dev libxml2-dev libpango1.0-dev libcairo2-dev libspiro-dev python3-dev ninja-build cmake build-essential gettext`
+- Checkout/clone [sources from github](https://github.com/fontforge/fontforge):  
+  `git clone https://github.com/fontforge/fontforge.git`
+- Build it  
+  ```
+  cd fontforge
+  mkdir build
+  cd build
+  cmake -GNinja ..
+  ninja
+  ninja install
+  ```
 
 ## Folder and Git setup
 - Git ssh setup
