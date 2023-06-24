@@ -112,7 +112,9 @@
 ## Git
 - Repository --> local
   - Clone the repository (i.e. creates the repository-folder in your local folder):  
-    `git clone https://<your-link-to-the-repository>`  
+    ~~`git clone https://<your-link-to-the-repository>`~~  
+    Remark: Use the ssh-version, e.g. (see also below):  
+    `git clone git@github.com:CastraRegina/ars-est-in-verbo.git`
   - Fetch file(s):  
     `git fetch`
   - Pull file(s) = fetch and merge file(s):  
@@ -354,7 +356,15 @@ Maybe check later if some of these packages are really needed...
 
 ## Install fontforge
 - See fontforge website [https://fontforge.org](https://fontforge.org)
-- Install fontforge like described in [INSTALL.md](https://github.com/fontforge/fontforge/blob/master/INSTALL.md) and
+- To install the latest version on Linux, do ...  
+  ```
+  sudo apt-get update
+  sudo apt install software-properties-common
+  sudo add-apt-repository ppa:fontforge/fontforge
+  sudo apt-get update
+  sudo apt-get install fontforge
+  ```
+- Or install fontforge like described in [INSTALL.md](https://github.com/fontforge/fontforge/blob/master/INSTALL.md) and
   the [CMake guide for FontForge](https://github.com/fontforge/fontforge/wiki/CMake-guide-for-FontForge).  
   See also [CONTRIBUTING.md](https://github.com/fontforge/fontforge/blob/master/CONTRIBUTING.md)
   for making a debian package.
@@ -371,6 +381,10 @@ Maybe check later if some of these packages are really needed...
   ninja
   ninja install
   ```
+- Remarks for creating glyphs:  
+  - clockwise = positive (adding)
+  - counter-clockwise = negative (removing) = hole
+
 
 ## Folder and Git setup
 - Git ssh setup
@@ -487,6 +501,9 @@ Maybe check later if some of these packages are really needed...
     Available axes of Roboto Mono:
       - wght:   100.0 to   700.0, default:   400.0 
     ```
+- Cantarell ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Cantarell)  
+  It is a non-variable font but can be well interpolated between *Regular* and *Bold*.
 
 ### Links to information
 - Check [freetype.org](https://freetype.org/) for information about fonts,
@@ -717,6 +734,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - gray-scale as lines with different thickness
     - gray-scale as lines with different density
   - Op art, optical art
+
+- First steps / first ideas for realisation
+  - dove of peace (b/w) with "Peace" in several languages,
+    One bold font outline vs. filled (partially)
+  - Smiley out of glyphs ";-)" (b/w) with "Happiness / Luck" in several languages,
+    One bold font outline vs. filled (partially)
 
 ## Copyright topics
 - Reuse of Wikipedia texts:
