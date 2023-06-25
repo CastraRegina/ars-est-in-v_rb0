@@ -740,6 +740,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     One bold font outline vs. filled (partially)
   - Smiley out of glyphs ";-)" (b/w) with "Happiness / Luck" in several languages,
     One bold font outline vs. filled (partially)
+  - Emulate the look of a book page. Either use the text 1:1 or just imitate the look.
 
 ## Copyright topics
 - Reuse of Wikipedia texts:
