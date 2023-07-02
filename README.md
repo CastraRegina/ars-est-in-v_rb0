@@ -304,7 +304,7 @@ Maybe check later if some of these packages are really needed...
   - python snippets (frhtylcn.pythonsnippets)
   - AREPL for python (almenon.arepl)
   - Vim (vscodevim.vim)
-- Setup / modify settings:
+- Setup / modify settings (`File->Preferences->Settings [Ctrl+,]`):
   - Editor: Format On Save: check-on
   - Editor: Default Formatter: Python (ms-python.python)
   - Python > Analysis: Type Checking Mode: basic
@@ -347,7 +347,7 @@ Maybe check later if some of these packages are really needed...
     }
     ```
   - ... and: `PYTHONPATH=${PYTHONPATH}:./src`
-- Helpful Keyboard Shortcuts (`keybindings.json`)
+- Helpful Keyboard Shortcuts (`File->Preferences->Keyboard Shortcuts [Ctrl+K Ctrl+S]`, `keybindings.json`)
   - `Ctrl+Shift+P` to open the Command Palette
   - `Crtl+Shift+7` Fold All Block Comments
   - `Crtl+x`       Remove whole line (if nothing is selected)
