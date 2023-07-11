@@ -2,7 +2,7 @@ afdko==3.9.6
 appdirs==1.4.4
 attrs==23.1.0
 autopep8==2.0.2
-black==23.3.0
+black==23.7.0
 booleanOperations==0.9.0
 Brotli==1.0.9
 cairocffi==1.6.0
@@ -26,7 +26,7 @@ fonttools==4.40.0
 freetype-py==2.4.0
 fs==2.4.16
 gizeh==0.1.11
-glyphsLib==6.2.3
+glyphsLib==6.2.4
 iniconfig==2.0.0
 kiwisolver==1.4.4
 lxml==4.9.3
