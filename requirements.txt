@@ -9,8 +9,8 @@ cairocffi==1.6.0
 CairoSVG==2.7.0
 cffi==1.15.1
 cffsubr==0.2.9.post1
-click==8.1.5
-compreffor==0.5.3
+click==8.1.6
+compreffor==0.5.4
 contourpy==1.1.0
 cssselect2==0.7.0
 cu2qu==1.6.7.post2
@@ -18,11 +18,11 @@ cycler==0.11.0
 defcon==0.10.2
 defusedxml==0.7.1
 flake8==6.0.0
-fontmake==3.6.0
+fontmake==3.6.1
 fontMath==0.9.3
 fontParts==0.11.0
 fontPens==0.2.4
-fonttools==4.41.0
+fonttools==4.41.1
 freetype-py==2.4.0
 fs==2.4.16
 gizeh==0.1.11
