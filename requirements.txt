@@ -42,7 +42,7 @@ openstep-plist==0.3.0.post1
 packaging==23.1
 pangocairocffi==0.7.0
 pangocffi==0.11.0
-pathspec==0.11.1
+pathspec==0.11.2
 Pillow==10.0.0
 platformdirs==3.9.1
 pluggy==1.2.0
@@ -69,8 +69,8 @@ sympy==1.12
 tinycss2==1.2.1
 tqdm==4.65.0
 typing_extensions==4.7.1
-ufo2ft==2.32.0
-ufoLib2==0.14.0
+ufo2ft==2.33.2
+ufoLib2==0.16.0
 ufonormalizer==0.6.1
 ufoProcessor==1.9.0
 unicode==2.9
