@@ -6,7 +6,7 @@ black==23.7.0
 booleanOperations==0.9.0
 Brotli==1.0.9
 cairocffi==1.6.1
-CairoSVG==2.7.0
+CairoSVG==2.7.1
 cffi==1.15.1
 cffsubr==0.2.9.post1
 click==8.1.6
