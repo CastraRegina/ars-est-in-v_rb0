@@ -1,4 +1,4 @@
-afdko==3.9.6
+afdko==3.9.7
 appdirs==1.4.4
 attrs==23.1.0
 autopep8==2.0.2
