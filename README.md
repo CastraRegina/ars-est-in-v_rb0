@@ -1,4 +1,4 @@
-# ars-est-in-verbo
+# ars-est-in-v_rb0
 
 ## Content
 [Rules / Guidelines / Best Practices](#rules--guidelines--best-practices)  
@@ -114,7 +114,7 @@
   - Clone the repository (i.e. creates the repository-folder in your local folder):  
     ~~`git clone https://<your-link-to-the-repository>`~~  
     Remark: Use the ssh-version, e.g. (see also below):  
-    `git clone git@github.com:CastraRegina/ars-est-in-verbo.git`
+    `git clone git@github.com:CastraRegina/ars-est-in-v_rb0.git`
   - Fetch file(s):  
     `git fetch`
   - Pull file(s) = fetch and merge file(s):  
@@ -211,8 +211,8 @@
     
 ## General project setup
 - Setup a virtual environment for the project
-  - Go to your home directory and create folder `cd $HOME ; mkdir ars-est-in-verbo`
-  - Change into project folder `cd ars-est-in-verbo`
+  - Go to your home directory and create folder `cd $HOME ; mkdir ars-est-in-v_rb0`
+  - Change into project folder `cd ars-est-in-v_rb0`
   - Setup the virtual environment `/opt/python/bin/python3 -m venv venv`
 - Activate virtual environment: `. venv/bin/activate`
 - Upgrade/update modules `pip`, `setuptools`, `wheels`:  
@@ -399,12 +399,12 @@ Maybe check later if some of these packages are really needed...
     *Settings->SSH and GPG keys->SSH keys->New SSH key*...  
   - Test ssh connection:  
     `ssh -T git@github.com` should show: `Hi ...! You've successfully authenticated...`
-- Clone github project `ars-est-in-verbo`:  
+- Clone github project `ars-est-in-v_rb0`:  
   `cd $HOME`  
-  ~~`git clone https://github.com/CastraRegina/ars-est-in-verbo`~~  
-  `git clone git@github.com:CastraRegina/ars-est-in-verbo.git`
+  ~~`git clone https://github.com/CastraRegina/ars-est-in-v_rb0`~~  
+  `git clone git@github.com:CastraRegina/ars-est-in-v_rb0.git`
 - Create folders:  
-  `cd ars-est-in-verbo`  
+  `cd ars-est-in-v_rb0`  
   `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`
 - Set username for this repository:  
   `git config user.name "Regina Castra"`  
