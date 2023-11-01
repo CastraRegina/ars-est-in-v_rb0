@@ -211,16 +211,25 @@
     
 ## General project setup
 - Setup a virtual environment for the project
-  - Go to your home directory and create folder `cd $HOME ; mkdir ars-est-in-v_rb0`
   - Change into project folder `cd ars-est-in-v_rb0`
-  - Setup the virtual environment `/opt/python/bin/python3 -m venv venv`
-- Activate virtual environment: `. venv/bin/activate`
+  - Setup the virtual environment  
+    ~~`/opt/python/bin/python3 -m venv venv`~~  
+    `/usr/bin/python3 -m venv venv`
+- Activate virtual environment:  
+  `. venv/bin/activate`
 - Upgrade/update modules `pip`, `setuptools`, `wheels`:  
   `python3 -m pip install --upgrade pip setuptools wheel`
+- Install modules according to `requirements.txt`  
+  `python3 -m pip install -r requirements.txt`
 - Upgrade/update all already installed modules:  
   `python3 -m pip freeze | cut -d'=' -f1 | xargs -n1 python3 -m pip install -U`  
-  after that update also the `requirements.txt` file by executing  
+  after that also update the `requirements.txt` file by executing  
   `python3 -m pip freeze > requirements.txt`
+
+
+
+
+
 ## Specific project setup
 Maybe check later if some of these packages are really needed...
 - Install SW packages on operating system (don't know if they are really needed):  
@@ -274,6 +283,32 @@ Maybe check later if some of these packages are really needed...
 - Remark: Later use `requirements.txt` to install needed PyPI packages:  
   `python3 -m pip install -r requirements.txt`  
   `python3 -m pip freeze > requirements.txt`
+
+### Clone the project / fresh start
+- Clone  
+  `git clone git@github.com:CastraRegina/ars-est-in-v_rb0.git`
+- Setup python  
+  `cd ars-est-in-v_rb0/output`  
+  `/usr/bin/python3 -m venv venv`
+- Activate virtual environment:  
+    `. venv/bin/activate`
+- Upgrade/update modules `pip`, `setuptools`, `wheels`:  
+  `python3 -m pip install --upgrade pip setuptools wheel`
+- Install modules according to `requirements.txt`  
+  `python3 -m pip install -r requirements.txt`
+- Upgrade/update all already installed modules:  
+  `python3 -m pip freeze | cut -d'=' -f1 | xargs -n1 python3 -m pip install -U`  
+  after that also update the `requirements.txt` file by executing  
+  `python3 -m pip freeze > requirements.txt`
+- Create folders (optional):  
+  `cd ars-est-in-v_rb0`  
+  `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`
+- Create `data/output`-folders  
+  `cd ars-est-in-v_rb0/output`  
+  `bash ./create_output_folders.sh`
+- Retrieve fonts  
+  `cd ars-est-in-v_rb0/fonts`  
+  `bash ./retrieve_fonts.sh`
   
 ## Install Visual Studio Code or VSCodium
 - Install [Visual Studio Code](https://code.visualstudio.com/) or [VSCodium](https://vscodium.com)
@@ -403,12 +438,12 @@ Maybe check later if some of these packages are really needed...
   `cd $HOME`  
   ~~`git clone https://github.com/CastraRegina/ars-est-in-v_rb0`~~  
   `git clone git@github.com:CastraRegina/ars-est-in-v_rb0.git`
-- Create folders:  
-  `cd ars-est-in-v_rb0`  
-  `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`
 - Set username for this repository:  
   `git config user.name "Regina Castra"`  
   `git config user.name` to check the settings
+- Create folders (optional):  
+  `cd ars-est-in-v_rb0`  
+  `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`
 
 
 ## Fonts
