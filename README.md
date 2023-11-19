@@ -331,6 +331,7 @@ Maybe check later if some of these packages are really needed...
   - Code Spell Checker (streetsidesoftware.code-spell-checker)
   - Todo Tree (Gruntfuggly.todo-tree)
   - Flake8 (ms-python.flake8)
+  - Black (ms-python.black-formatter)
 - Extensions to check later:
   - Code Runner (formulahendry.code-runner)
   - Python Extension Pack (donjayamanne.python-extension-pack)
@@ -341,13 +342,13 @@ Maybe check later if some of these packages are really needed...
   - Vim (vscodevim.vim)
 - Setup / modify settings (`File->Preferences->Settings [Ctrl+,]`):
   - Editor: Format On Save: check-on
-  - Editor: Default Formatter: Python (ms-python.python)
+  - Editor: Default Formatter: ~~Python (ms-python.python)~~ Black Formatter
   - Python > Analysis: Type Checking Mode: basic
-  - Python > Formatting: Provider: autopep8
-  - Python > Linting: Enabled: check-on
-  - Python > Linting: Flake8 Enabled: check-on
+  - ~~Python > Formatting: Provider: autopep8~~
+  - ~~Python > Linting: Enabled: check-on~~
+  - ~~Python > Linting: Flake8 Enabled: check-on~~
   - Edit `$HOME/.config/Code/User/settings.json`:  
-    `"editor.rulers": [79]`
+    `"editor.rulers": [79,100,120]`
   - Python Select Interpreter: `./venv/bin/python`
 - Setting for python `src`-folder
   - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
