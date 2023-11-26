@@ -32,19 +32,20 @@ def main():
     # Set up the SVG canvas:
     # Define viewBox so that "1" is the width of the rectangle
     # Multiply a dimension with "VB_RATIO" to get the size regarding viewBox
-    dwg = svgwrite.Drawing(OUTPUT_FILE,
-                           size=(f"{CANVAS_WIDTH}mm", f"{CANVAS_HEIGHT}mm"),
-                           viewBox=(f"{vb_x} {vb_y} {vb_w} {vb_h}")
-                           )
+    dwg = svgwrite.Drawing(
+        OUTPUT_FILE,
+        size=(f"{CANVAS_WIDTH}mm", f"{CANVAS_HEIGHT}mm"),
+        viewBox=(f"{vb_x} {vb_y} {vb_w} {vb_h}"),
+    )
 
     # Draw the rectangle
     dwg.add(
         dwg.rect(
             insert=(0, 0),
-            size=(VB_RATIO*RECT_WIDTH, VB_RATIO*RECT_HEIGHT),  # = (1.0, xxxx)
+            size=(VB_RATIO * RECT_WIDTH, VB_RATIO * RECT_HEIGHT),  # = (1.0, xxxx)
             stroke="black",
-            stroke_width=0.1*VB_RATIO,
-            fill="none"
+            stroke_width=0.1 * VB_RATIO,
+            fill="none",
         )
     )
 
