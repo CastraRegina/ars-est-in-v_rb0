@@ -29,14 +29,15 @@ def find_ttf_files(font_family_name: str) -> List[str]:
     cmd = ["fc-list", "--format=%{file}\\n", f":family={font_family_name}"]
 
     # Run the fc-list command and capture the output
-    result = subprocess.run(cmd, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, check=True)
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+    )
     output = result.stdout.decode().strip()
 
     # If output is not empty, add all TTF files to the list and return it
     ttf_files: List[str] = []
     if output:
-        for font_file in output.split('\n'):
+        for font_file in output.split("\n"):
             if font_file.endswith(".ttf"):
                 ttf_files.append(font_file)
 
@@ -45,7 +46,6 @@ def find_ttf_files(font_family_name: str) -> List[str]:
 
 
 if __name__ == "__main__":
-
     INPUT_FONT_FAMILY_NAME = "Free Sans"
 
     ttf_files_found = find_ttf_files(INPUT_FONT_FAMILY_NAME)
