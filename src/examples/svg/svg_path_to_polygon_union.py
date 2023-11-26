@@ -33,32 +33,33 @@ OUTPUT_FILE = "data/output/example/svg/path_to_polygon_union.svg"
 
 class AVPathPolygon:
     @staticmethod
-    def multipolygon_to_path_string(multipolygon: shapely.geometry.MultiPolygon
-                                    ) -> List[str]:
+    def multipolygon_to_path_string(
+        multipolygon: shapely.geometry.MultiPolygon,
+    ) -> List[str]:
         svg_string = multipolygon.svg()
         path_strings = re.findall(r'd="([^"]+)"', svg_string)
         return path_strings
 
     @staticmethod
-    def deepcopy(geometry: shapely.geometry.base.BaseGeometry) \
-            -> shapely.geometry.base.BaseGeometry:
+    def deepcopy(
+        geometry: shapely.geometry.base.BaseGeometry,
+    ) -> shapely.geometry.base.BaseGeometry:
         return shapely.wkt.loads(geometry.wkt)
 
     @staticmethod
-    def polygonize_path_uniform(path_string: str,
-                                num_points: int = 100) -> str:
+    def polygonize_path_uniform(path_string: str, num_points: int = 100) -> str:
         def moveto(coord) -> str:
-            return f'M{coord.real:g},{coord.imag:g}'
+            return f"M{coord.real:g},{coord.imag:g}"
 
         def lineto(coord) -> str:
-            return f'L{coord.real:g},{coord.imag:g}'
+            return f"L{coord.real:g},{coord.imag:g}"
 
         def polygonize_segment(segment, num_points) -> str:
             # *segment* most likely of type QuadraticBezier or CubicBezier
             # create points ]start,...,end]
             ret_string = ""
             poly = segment.poly()
-            points = [poly(i/(num_points-1)) for i in range(1, num_points-1)]
+            points = [poly(i / (num_points - 1)) for i in range(1, num_points - 1)]
             for point in points:
                 ret_string += lineto(point)
             ret_string += lineto(segment.end)
@@ -69,22 +70,27 @@ class AVPathPolygon:
         for sub_path in path_collection.continuous_subpaths():
             ret_path_string += moveto(sub_path.start)
             for segment in sub_path:
-                if isinstance(segment, svgpathtools.CubicBezier) or \
-                        isinstance(segment, svgpathtools.QuadraticBezier):
+                if isinstance(segment, svgpathtools.CubicBezier) or isinstance(
+                    segment, svgpathtools.QuadraticBezier
+                ):
                     ret_path_string += polygonize_segment(segment, num_points)
                 elif isinstance(segment, svgpathtools.Line):
                     ret_path_string += lineto(segment.end)
                 else:
-                    print("ERROR during polygonizing: " +
-                          "not supported segment: " + segment)
+                    print(
+                        "ERROR during polygonizing: "
+                        + "not supported segment: "
+                        + segment
+                    )
                     ret_path_string += lineto(segment.end)
             if sub_path.isclosed():
                 ret_path_string += "Z "
         return ret_path_string
 
     def __init__(self, multipolygon: shapely.geometry.MultiPolygon = None):
-        self.multipolygon: shapely.geometry.MultiPolygon = \
+        self.multipolygon: shapely.geometry.MultiPolygon = (
             shapely.geometry.MultiPolygon()
+        )
         if multipolygon:
             self.multipolygon = multipolygon
 
@@ -113,8 +119,9 @@ class AVPathPolygon:
     def path_strings(self) -> List[str]:
         return AVPathPolygon.multipolygon_to_path_string(self.multipolygon)
 
-    def svg_paths(self, dwg: svgwrite.Drawing, **svg_properties) \
-            -> List[svgwrite.elementfactory.ElementBuilder]:
+    def svg_paths(
+        self, dwg: svgwrite.Drawing, **svg_properties
+    ) -> List[svgwrite.elementfactory.ElementBuilder]:
         svg_paths = []
         path_strings = self.path_strings()
         for path_string in path_strings:
@@ -125,11 +132,14 @@ class AVPathPolygon:
 print("- 1 ------------------------------------------------------------------")
 
 polygon_11 = shapely.geometry.Polygon(
-    svgpath2mpl.parse_path(SVG_PATH_11_ADD).to_polygons()[0])
+    svgpath2mpl.parse_path(SVG_PATH_11_ADD).to_polygons()[0]
+)
 polygon_12 = shapely.geometry.Polygon(
-    svgpath2mpl.parse_path(SVG_PATH_12_SUB).to_polygons()[0])
+    svgpath2mpl.parse_path(SVG_PATH_12_SUB).to_polygons()[0]
+)
 polygon_13 = shapely.geometry.Polygon(
-    svgpath2mpl.parse_path(SVG_PATH_13_SUB).to_polygons()[0])
+    svgpath2mpl.parse_path(SVG_PATH_13_SUB).to_polygons()[0]
+)
 
 polygon_10 = polygon_11.difference(polygon_12)
 polygon_10 = polygon_10.difference(polygon_13)
@@ -143,9 +153,11 @@ print(polygon_10)
 print("- 2 ------------------------------------------------------------------")
 
 polygon_31 = shapely.geometry.Polygon(
-    svgpath2mpl.parse_path(SVG_PATH_31_ADD).to_polygons()[0])
+    svgpath2mpl.parse_path(SVG_PATH_31_ADD).to_polygons()[0]
+)
 polygon_32 = shapely.geometry.Polygon(
-    svgpath2mpl.parse_path(SVG_PATH_32_ADD).to_polygons()[0])
+    svgpath2mpl.parse_path(SVG_PATH_32_ADD).to_polygons()[0]
+)
 
 polygon_30 = polygon_31.union(polygon_32)
 
@@ -161,9 +173,16 @@ print("- 3 ------------------------------------------------------------------")
 print("- 4 ------------------------------------------------------------------")
 
 SVG_PATH_STRING = " ".join(
-    [SVG_PATH_11_ADD, SVG_PATH_12_SUB, SVG_PATH_13_SUB,
-     SVG_PATH_31_ADD, SVG_PATH_32_ADD,
-     SVG_PATH_41_ADD, SVG_PATH_42_ADD])
+    [
+        SVG_PATH_11_ADD,
+        SVG_PATH_12_SUB,
+        SVG_PATH_13_SUB,
+        SVG_PATH_31_ADD,
+        SVG_PATH_32_ADD,
+        SVG_PATH_41_ADD,
+        SVG_PATH_42_ADD,
+    ]
+)
 print("A1:", SVG_PATH_STRING)
 SVG_PATH_STRING = AVPathPolygon.polygonize_path_uniform(SVG_PATH_STRING)
 
@@ -174,9 +193,10 @@ p_shape.add_path_string(SVG_PATH_STRING)
 print("C:", p_shape.multipolygon)
 print("D:", p_shape.path_strings())
 
-drawing = svgwrite.Drawing(OUTPUT_FILE, viewBox='-14 -2 37 25')
-for path in p_shape.svg_paths(drawing, stroke="black",
-                              stroke_width="0.03", fill="none"):
+drawing = svgwrite.Drawing(OUTPUT_FILE, viewBox="-14 -2 37 25")
+for path in p_shape.svg_paths(
+    drawing, stroke="black", stroke_width="0.03", fill="none"
+):
     drawing.add(path)
 drawing.save()
 
