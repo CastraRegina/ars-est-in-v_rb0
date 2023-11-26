@@ -14,10 +14,10 @@ class AVsvgPath:
     #     ClosePath:        0: Zz
 
     @staticmethod
-    def beautify_commands(path_string: str,
-                          round_func: Callable = None) -> str:
+    def beautify_commands(path_string: str, round_func: Callable = None) -> str:
         org_commands = re.findall(
-            f'[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*', path_string)
+            f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string
+        )
         ret_commands = []
         for command in org_commands:
             command_letter = command[0]
@@ -41,17 +41,18 @@ class AVsvgPath:
                     if not (i % batch_size):
                         ret_commands.append(command_letter)
                     if round_func:
-                        ret_commands.append(f'{(round_func(float(arg))):g}')
+                        ret_commands.append(f"{(round_func(float(arg))):g}")
                     else:
-                        ret_commands.append(f'{(float(arg)):g}')
+                        ret_commands.append(f"{(float(arg)):g}")
 
-        ret_path_string = ' '.join(ret_commands)
+        ret_path_string = " ".join(ret_commands)
         return ret_path_string
 
     @staticmethod
     def convert_relative_to_absolute(path_string: str) -> str:
         org_commands = re.findall(
-            f'[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*', path_string)
+            f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string
+        )
         ret_commands = []
         first_point = None  # Store the first point of each path (absolute)
         # Keep track of the last (iterating) point (absolute)
@@ -62,62 +63,61 @@ class AVsvgPath:
             args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
 
             if command_letter.isupper():
-                if command_letter in 'MLCSQTA':
+                if command_letter in "MLCSQTA":
                     last_point = [float(args[-2]), float(args[-1])]
-                elif command_letter in 'H':
+                elif command_letter in "H":
                     last_point[0] = float(args[-1])
-                elif command_letter in 'V':
+                elif command_letter in "V":
                     last_point[1] = float(args[-1])
             else:
                 if command_letter in "mlt":
                     for i in range(0, len(args), 2):
-                        args[i+0] = f'{(float(args[i+0]) + last_point[0]):g}'
-                        args[i+1] = f'{(float(args[i+1]) + last_point[1]):g}'
-                        last_point = [float(args[i+0]), float(args[i+1])]
+                        args[i + 0] = f"{(float(args[i+0]) + last_point[0]):g}"
+                        args[i + 1] = f"{(float(args[i+1]) + last_point[1]):g}"
+                        last_point = [float(args[i + 0]), float(args[i + 1])]
                 elif command_letter in "sq":
                     for i in range(0, len(args), 4):
-                        args[i+0] = f'{(float(args[i+0]) + last_point[0]):g}'
-                        args[i+1] = f'{(float(args[i+1]) + last_point[1]):g}'
-                        args[i+2] = f'{(float(args[i+2]) + last_point[0]):g}'
-                        args[i+3] = f'{(float(args[i+3]) + last_point[1]):g}'
-                        last_point = [float(args[i+2]), float(args[i+3])]
+                        args[i + 0] = f"{(float(args[i+0]) + last_point[0]):g}"
+                        args[i + 1] = f"{(float(args[i+1]) + last_point[1]):g}"
+                        args[i + 2] = f"{(float(args[i+2]) + last_point[0]):g}"
+                        args[i + 3] = f"{(float(args[i+3]) + last_point[1]):g}"
+                        last_point = [float(args[i + 2]), float(args[i + 3])]
                 elif command_letter in "c":
                     for i in range(0, len(args), 6):
-                        args[i+0] = f'{(float(args[i+0]) + last_point[0]):g}'
-                        args[i+1] = f'{(float(args[i+1]) + last_point[1]):g}'
-                        args[i+2] = f'{(float(args[i+2]) + last_point[0]):g}'
-                        args[i+3] = f'{(float(args[i+3]) + last_point[1]):g}'
-                        args[i+4] = f'{(float(args[i+4]) + last_point[0]):g}'
-                        args[i+5] = f'{(float(args[i+5]) + last_point[1]):g}'
-                        last_point = [float(args[i+4]), float(args[i+5])]
+                        args[i + 0] = f"{(float(args[i+0]) + last_point[0]):g}"
+                        args[i + 1] = f"{(float(args[i+1]) + last_point[1]):g}"
+                        args[i + 2] = f"{(float(args[i+2]) + last_point[0]):g}"
+                        args[i + 3] = f"{(float(args[i+3]) + last_point[1]):g}"
+                        args[i + 4] = f"{(float(args[i+4]) + last_point[0]):g}"
+                        args[i + 5] = f"{(float(args[i+5]) + last_point[1]):g}"
+                        last_point = [float(args[i + 4]), float(args[i + 5])]
                 elif command_letter in "h":
                     for i, arg in enumerate(args):
-                        args[i] = f'{(float(arg) + last_point[0]):g}'
+                        args[i] = f"{(float(arg) + last_point[0]):g}"
                         last_point[0] = float(args[i])
                 elif command_letter in "v":
                     for i, arg in enumerate(args):
-                        args[i] = f'{(float(arg) + last_point[1]):g}'
+                        args[i] = f"{(float(arg) + last_point[1]):g}"
                         last_point[1] = float(args[i])
                 elif command_letter in "a":
                     for i in range(0, len(args), 7):
-                        args[i+5] = f'{(float(args[i+5]) + last_point[0]):g}'
-                        args[i+6] = f'{(float(args[i+6]) + last_point[1]):g}'
-                        last_point = [float(args[i+5]), float(args[i+6])]
+                        args[i + 5] = f"{(float(args[i+5]) + last_point[0]):g}"
+                        args[i + 6] = f"{(float(args[i+6]) + last_point[1]):g}"
+                        last_point = [float(args[i + 5]), float(args[i + 6])]
 
-            ret_commands.append(command_letter.upper() + ' '.join(args))
+            ret_commands.append(command_letter.upper() + " ".join(args))
 
-            if command_letter in 'Mm' and not first_point:
+            if command_letter in "Mm" and not first_point:
                 first_point = [float(args[0]), float(args[1])]
-            if command_letter in 'Zz':
+            if command_letter in "Zz":
                 last_point = first_point
                 first_point = None
 
-        ret_path_string = ' '.join(ret_commands)
+        ret_path_string = " ".join(ret_commands)
         return ret_path_string
 
     @staticmethod
-    def transform_path_string(path_string: str,
-                              affine_trafo: List[float]) -> str:
+    def transform_path_string(path_string: str, affine_trafo: List[float]) -> str:
         # Affine transform (see also shapely - Affine Transformations)
         #     affine_transform = [a00, a01, a10, a11, b0, b1]
         #       | x' | = | a00 a01 b0 |   | x |
@@ -125,39 +125,44 @@ class AVsvgPath:
         #       | 1  | = |  0   0  1  |   | 1 |
 
         def transform(x_str: str, y_str: str) -> Tuple[str, str]:
-            x_new = affine_trafo[0] * float(x_str) + \
-                affine_trafo[1] * float(y_str) + \
-                affine_trafo[4]
-            y_new = affine_trafo[2] * float(x_str) + \
-                affine_trafo[3] * float(y_str) + \
-                affine_trafo[5]
-            return f'{x_new:g}', f'{y_new:g}'
+            x_new = (
+                affine_trafo[0] * float(x_str)
+                + affine_trafo[1] * float(y_str)
+                + affine_trafo[4]
+            )
+            y_new = (
+                affine_trafo[2] * float(x_str)
+                + affine_trafo[3] * float(y_str)
+                + affine_trafo[5]
+            )
+            return f"{x_new:g}", f"{y_new:g}"
 
         org_commands = re.findall(
-            f'[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*', path_string)
+            f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string
+        )
         ret_commands = []
 
         for command in org_commands:
             command_letter = command[0]
             args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
 
-            if command_letter in 'MLCSQT':  # (x,y) once or several times
+            if command_letter in "MLCSQT":  # (x,y) once or several times
                 for i in range(0, len(args), 2):
-                    (args[i+0], args[i+1]) = transform(args[i+0], args[i+1])
-            elif command_letter in 'H':  # (x) once or several times
+                    (args[i + 0], args[i + 1]) = transform(args[i + 0], args[i + 1])
+            elif command_letter in "H":  # (x) once or several times
                 for i, _ in enumerate(args):
                     (args[i], _) = transform(args[i], 1)
-            elif command_letter in 'V':  # (y) once or several times
+            elif command_letter in "V":  # (y) once or several times
                 for i, _ in enumerate(args):
                     (_, args[i]) = transform(1, args[i])
-            elif command_letter in 'A':  # (rx ry angle flag flag x y)+
+            elif command_letter in "A":  # (rx ry angle flag flag x y)+
                 for i in range(0, len(args), 7):
-                    args[i+0] = f'{float(args[i+0])*affine_trafo[0]:g}'
-                    args[i+1] = f'{float(args[i+1])*affine_trafo[3]:g}'
-                    (args[i+5], args[i+6]) = transform(args[i+5], args[i+6])
-            ret_commands.append(command_letter.upper() + ' '.join(args))
+                    args[i + 0] = f"{float(args[i+0])*affine_trafo[0]:g}"
+                    args[i + 1] = f"{float(args[i+1])*affine_trafo[3]:g}"
+                    (args[i + 5], args[i + 6]) = transform(args[i + 5], args[i + 6])
+            ret_commands.append(command_letter.upper() + " ".join(args))
 
-        ret_path_string = ' '.join(ret_commands)
+        ret_path_string = " ".join(ret_commands)
         return ret_path_string
 
     @staticmethod
@@ -309,13 +314,18 @@ class AVsvgPath:
             "M100,200L150,250H200V100C250,50,250,150,300,100S350,150,400,100Q450,50,450,150T500,100A50,50,0,0,1,550,150Z",
         ]
 
-        def test_helper_compare(output: str, expected: str,
-                                round_precision: int = 8,
-                                affine_trafo: List[float] = None) -> None:
+        def test_helper_compare(
+            output: str,
+            expected: str,
+            round_precision: int = 8,
+            affine_trafo: List[float] = None,
+        ) -> None:
             output_b = AVsvgPath.beautify_commands(
-                output, lambda x: round(x, round_precision))
+                output, lambda x: round(x, round_precision)
+            )
             expected_b = AVsvgPath.beautify_commands(
-                expected, lambda x: round(x, round_precision))
+                expected, lambda x: round(x, round_precision)
+            )
             if output_b != expected_b:
                 print("precision   :", round_precision)
                 print("affine_trafo:", affine_trafo)
@@ -323,13 +333,11 @@ class AVsvgPath:
                 print("expected_b  :", expected_b)
             assert output_b == expected_b
 
-        def test_helper_convert_and_compare(input: str,
-                                            expected: str) -> None:
+        def test_helper_convert_and_compare(input: str, expected: str) -> None:
             output = AVsvgPath.convert_relative_to_absolute(input)
             test_helper_compare(output, expected)
 
-        def inverse_affine_transform(affine_trafo: List[float]
-                                     ) -> List[float]:
+        def inverse_affine_transform(affine_trafo: List[float]) -> List[float]:
             # Affine transform (see shapely - Affine Transformations)
             #     affine_transform = [a00, a01, a10, a11, b0, b1]
             #     x' = | a00 a01 b0 |   | x |
@@ -341,50 +349,53 @@ class AVsvgPath:
             a11 = affine_trafo[3]
             b00 = affine_trafo[4]
             b10 = affine_trafo[5]
-            denom = a00*a11 - a01*a10
+            denom = a00 * a11 - a01 * a10
             # ret = [a11/denom, -a01/denom, -a10/denom, a00/denom,
             #        (-a11*b00 + a01*b10)/denom,
             #        (a10*b00 - a00*b10)/denom]
-            ret = [a11/denom, -a01/denom, -a10/denom, a00/denom,
-                   (-a11*b00/denom + a01*b10/denom),
-                   (a10*b00/denom - a00*b10/denom)]
+            ret = [
+                a11 / denom,
+                -a01 / denom,
+                -a10 / denom,
+                a00 / denom,
+                (-a11 * b00 / denom + a01 * b10 / denom),
+                (a10 * b00 / denom - a00 * b10 / denom),
+            ]
             return ret
 
-        def test_helper_transform_and_compare(input: str,
-                                              affine_trafo: List[float],
-                                              round_precision=1) -> None:
+        def test_helper_transform_and_compare(
+            input: str, affine_trafo: List[float], round_precision=1
+        ) -> None:
             intermed = AVsvgPath.transform_path_string(input, affine_trafo)
             inverse_trafo = inverse_affine_transform(affine_trafo)
             result = AVsvgPath.transform_path_string(intermed, inverse_trafo)
-            test_helper_compare(input, result,
-                                round_precision, affine_trafo)
+            test_helper_compare(input, result, round_precision, affine_trafo)
 
         # do the convert-tests:
-        for input_string, expected_string in zip(test_strings,
-                                                 absolute_strings):
+        for input_string, expected_string in zip(test_strings, absolute_strings):
             test_helper_convert_and_compare(input_string, expected_string)
-        for input_string, expected_string in zip(relative_strings,
-                                                 absolute_strings):
+        for input_string, expected_string in zip(relative_strings, absolute_strings):
             test_helper_convert_and_compare(input_string, expected_string)
 
         print("All convert tests passed!")
 
         # # do the transform-tests:
-        affine_trafos = [(1, 0, 0, 1, -10, -20),
-                         (1, 0, 0, 1, 10, 20),
-                         (10, 0, 0, 1, 0, 0),
-                         (1, 0, 0, 10, 0, 0),
-                         (10, 0, 0, 10, 0, 0),
-                         (10, 0, 0, 100, 20, 30),
-                         (1, 0, 0, 0.1, -30, 0),
-                         (10, 0, 0, 100, -30, -20)]
+        affine_trafos = [
+            (1, 0, 0, 1, -10, -20),
+            (1, 0, 0, 1, 10, 20),
+            (10, 0, 0, 1, 0, 0),
+            (1, 0, 0, 10, 0, 0),
+            (10, 0, 0, 10, 0, 0),
+            (10, 0, 0, 100, 20, 30),
+            (1, 0, 0, 0.1, -30, 0),
+            (10, 0, 0, 100, -30, -20),
+        ]
         for affine_trafo in affine_trafos:
             for test_string in absolute_strings:
                 input_string = test_string
                 # input_string = AVsvgPath.convert_relative_to_absolute(
                 #     test_string)
-                test_helper_transform_and_compare(input_string,
-                                                  affine_trafo, 8)
+                test_helper_transform_and_compare(input_string, affine_trafo, 8)
 
         print("All transform tests passed!")
 
