@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Dict, List, Tuple, Callable, ClassVar
 from enum import Enum, auto
 import io
@@ -39,8 +41,7 @@ RECT_HEIGHT = 150  # rectangle height in mm
 VB_RATIO = 1 / RECT_WIDTH  # multiply each dimension with this ratio
 
 FONT_FILENAME = (
-    "fonts/RobotoFlex-VariableFont_"
-    + "GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
 )
 # FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
 # FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
@@ -78,9 +79,7 @@ class AVsvgPath:
 
     @staticmethod
     def beautify_commands(path_string: str, round_func: Callable = None) -> str:
-        org_commands = re.findall(
-            f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string
-        )
+        org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
         for command in org_commands:
             command_letter = command[0]
@@ -101,7 +100,7 @@ class AVsvgPath:
                 ret_commands.append(command_letter)
             else:
                 for i, arg in enumerate(args):
-                    if not (i % batch_size):
+                    if not i % batch_size:
                         ret_commands.append(command_letter)
                     if round_func:
                         ret_commands.append(f"{(round_func(float(arg))):g}")
@@ -113,9 +112,7 @@ class AVsvgPath:
 
     @staticmethod
     def convert_relative_to_absolute(path_string: str) -> str:
-        org_commands = re.findall(
-            f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string
-        )
+        org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
         first_point = None  # Store the first point of each path (absolute)
         # Keep track of the last (iterating) point (absolute)
@@ -189,20 +186,14 @@ class AVsvgPath:
 
         def transform(x_str: str, y_str: str) -> Tuple[str, str]:
             x_new = (
-                affine_trafo[0] * float(x_str)
-                + affine_trafo[1] * float(y_str)
-                + affine_trafo[4]
+                affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
             )
             y_new = (
-                affine_trafo[2] * float(x_str)
-                + affine_trafo[3] * float(y_str)
-                + affine_trafo[5]
+                affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
             )
             return f"{x_new:g}", f"{y_new:g}"
 
-        org_commands = re.findall(
-            f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string
-        )
+        org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
 
         for command in org_commands:
@@ -229,101 +220,101 @@ class AVsvgPath:
         return ret_path_string
 
 
-class AVGlyph:  # pylint: disable=function-redefined
-    @staticmethod
-    def svg_rect(
-        dwg: svgwrite.Drawing,
-        rect: Tuple[float, float, float, float],
-        stroke: str,
-        stroke_width: float,
-        **svg_properties,
-    ) -> svgwrite.elementfactory.ElementBuilder:
-        pass
+# class AVGlyph:  # pylint: disable=function-redefined
+#     @staticmethod
+#     def svg_rect(
+#         dwg: svgwrite.Drawing,
+#         rect: Tuple[float, float, float, float],
+#         stroke: str,
+#         stroke_width: float,
+#         **svg_properties,
+#     ) -> svgwrite.elementfactory.ElementBuilder:
+#         pass
 
-    @staticmethod
-    def polygonize_path_string(path_string: str) -> str:
-        pass
+#     @staticmethod
+#     def polygonize_path_string(path_string: str) -> str:
+#         pass
 
-    def real_width(self, font_size: float, align: Align = None) -> float:
-        pass
+#     def real_width(self, font_size: float, align: Align = None) -> float:
+#         pass
 
-    def real_dash_thickness(self, font_size: float) -> float:
-        pass
+#     def real_dash_thickness(self, font_size: float) -> float:
+#         pass
 
-    def real_sidebearing_left(self, font_size: float) -> float:
-        pass
+#     def real_sidebearing_left(self, font_size: float) -> float:
+#         pass
 
-    def real_sidebearing_right(self, font_size: float) -> float:
-        pass
+#     def real_sidebearing_right(self, font_size: float) -> float:
+#         pass
 
-    def real_path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
-        pass
+#     def real_path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
+#         pass
 
-    def svg_path(
-        self,
-        dwg: svgwrite.Drawing,
-        x_pos: float,
-        y_pos: float,
-        font_size: float,
-        **svg_properties,
-    ) -> svgwrite.elementfactory.ElementBuilder:
-        pass
+#     def svg_path(
+#         self,
+#         dwg: svgwrite.Drawing,
+#         x_pos: float,
+#         y_pos: float,
+#         font_size: float,
+#         **svg_properties,
+#     ) -> svgwrite.elementfactory.ElementBuilder:
+#         pass
 
-    def svg_text(
-        self,
-        dwg: svgwrite.Drawing,
-        x_pos: float,
-        y_pos: float,
-        font_size: float,
-        **svg_properties,
-    ) -> svgwrite.elementfactory.ElementBuilder:
-        pass
+#     def svg_text(
+#         self,
+#         dwg: svgwrite.Drawing,
+#         x_pos: float,
+#         y_pos: float,
+#         font_size: float,
+#         **svg_properties,
+#     ) -> svgwrite.elementfactory.ElementBuilder:
+#         pass
 
-    def rect_em(
-        self,
-        x_pos: float,
-        y_pos: float,
-        ascent: float,
-        descent: float,
-        real_width: float,
-        font_size: float,
-    ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        pass
+#     def rect_em(
+#         self,
+#         x_pos: float,
+#         y_pos: float,
+#         ascent: float,
+#         descent: float,
+#         real_width: float,
+#         font_size: float,
+#     ) -> Tuple[float, float, float, float]:
+#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+#         pass
 
-    def rect_em_width(
-        self,
-        x_pos: float,
-        y_pos: float,
-        ascent: float,
-        descent: float,
-        font_size: float,
-    ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        pass
+#     def rect_em_width(
+#         self,
+#         x_pos: float,
+#         y_pos: float,
+#         ascent: float,
+#         descent: float,
+#         font_size: float,
+#     ) -> Tuple[float, float, float, float]:
+#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+#         pass
 
-    def rect_given_ascent_descent(
-        self,
-        x_pos: float,
-        y_pos: float,
-        ascent: float,
-        descent: float,
-        font_size: float,
-    ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        pass
+#     def rect_given_ascent_descent(
+#         self,
+#         x_pos: float,
+#         y_pos: float,
+#         ascent: float,
+#         descent: float,
+#         font_size: float,
+#     ) -> Tuple[float, float, float, float]:
+#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+#         pass
 
-    def rect_font_ascent_descent(
-        self, x_pos: float, y_pos: float, font_size: float
-    ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        pass
+#     def rect_font_ascent_descent(
+#         self, x_pos: float, y_pos: float, font_size: float
+#     ) -> Tuple[float, float, float, float]:
+#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+#         pass
 
-    def rect_bounding_box(
-        self, x_pos: float, y_pos: float, font_size: float
-    ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        pass
+#     def rect_bounding_box(
+#         self, x_pos: float, y_pos: float, font_size: float
+#     ) -> Tuple[float, float, float, float]:
+#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+#         pass
 
 
 class AVFont:
@@ -413,9 +404,7 @@ class AVPathPolygon:
         return shapely.wkt.loads(geometry.wkt)
 
     @staticmethod
-    def polygonize_uniform(
-        segment, num_points: int = POLYGONIZE_UNIFORM_NUM_POINTS
-    ) -> str:
+    def polygonize_uniform(segment, num_points: int = POLYGONIZE_UNIFORM_NUM_POINTS) -> str:
         # *segment* most likely of type QuadraticBezier or CubicBezier
         # create points ]start,...,end]
         ret_string = ""
@@ -451,8 +440,7 @@ class AVPathPolygon:
                     )
                 else:
                     dot_product = (
-                        new_tangents[-1].real * tangent.real
-                        + new_tangents[-1].imag * tangent.imag
+                        new_tangents[-1].real * tangent.real + new_tangents[-1].imag * tangent.imag
                     )
                     if dot_product < angle_limit:
                         new_param = (new_params[-1] + param) / 2
@@ -493,11 +481,7 @@ class AVPathPolygon:
                 elif isinstance(segment, svgpathtools.Line):
                     ret_path_string += lineto(segment.end)
                 else:
-                    print(
-                        "ERROR during polygonizing: "
-                        + "not supported segment: "
-                        + segment
-                    )
+                    print("ERROR during polygonizing: " + "not supported segment: " + segment)
                     ret_path_string += lineto(segment.end)
             if sub_path.isclosed():
                 ret_path_string += "Z "
@@ -539,9 +523,7 @@ class AVPathPolygon:
         return ret_path
 
     def __init__(self, multipolygon: shapely.geometry.MultiPolygon = None):
-        self.multipolygon: shapely.geometry.MultiPolygon = (
-            shapely.geometry.MultiPolygon()
-        )
+        self.multipolygon: shapely.geometry.MultiPolygon = shapely.geometry.MultiPolygon()
         if multipolygon:
             self.multipolygon = multipolygon
 
@@ -730,9 +712,7 @@ class AVGlyph:  # pylint: disable=function-redefined
         font_size: float,
     ) -> Tuple[float, float, float, float]:
         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        return self.rect_em(
-            x_pos, y_pos, ascent, descent, self.real_width(font_size), font_size
-        )
+        return self.rect_em(x_pos, y_pos, ascent, descent, self.real_width(font_size), font_size)
 
     def rect_given_ascent_descent(
         self,
@@ -821,8 +801,8 @@ class SVGoutput:
         )
         self.drawing.add(self.layer_debug)
 
-        self.layer_debug_glyph_background: svgwrite.container.Group = (
-            self._inkscape.layer(label="Layer background", locked=True)
+        self.layer_debug_glyph_background: svgwrite.container.Group = self._inkscape.layer(
+            label="Layer background", locked=True
         )
         self.layer_debug.add(self.layer_debug_glyph_background)
 
@@ -831,23 +811,23 @@ class SVGoutput:
         )
         self.layer_debug.add(self.layer_debug_glyph)
 
-        self.layer_debug_glyph_sidebearing: svgwrite.container.Group = (
-            self._inkscape.layer(label="Layer sidebearing", locked=True)
+        self.layer_debug_glyph_sidebearing: svgwrite.container.Group = self._inkscape.layer(
+            label="Layer sidebearing", locked=True
         )  # yellow, orange
         self.layer_debug_glyph.add(self.layer_debug_glyph_sidebearing)
 
-        self.layer_debug_glyph_font_ascent_descent: svgwrite.container.Group = (
-            self._inkscape.layer(label="Layer font_ascent_descent", locked=True)
+        self.layer_debug_glyph_font_ascent_descent: svgwrite.container.Group = self._inkscape.layer(
+            label="Layer font_ascent_descent", locked=True
         )  # green
         self.layer_debug_glyph.add(self.layer_debug_glyph_font_ascent_descent)
 
-        self.layer_debug_glyph_em_width: svgwrite.container.Group = (
-            self._inkscape.layer(label="Layer em_width", locked=True)
+        self.layer_debug_glyph_em_width: svgwrite.container.Group = self._inkscape.layer(
+            label="Layer em_width", locked=True
         )  # blue
         self.layer_debug_glyph.add(self.layer_debug_glyph_em_width)
 
-        self.layer_debug_glyph_bounding_box: svgwrite.container.Group = (
-            self._inkscape.layer(label="Layer bounding_box", locked=True)
+        self.layer_debug_glyph_bounding_box: svgwrite.container.Group = self._inkscape.layer(
+            label="Layer bounding_box", locked=True
         )  # red
         self.layer_debug_glyph.add(self.layer_debug_glyph_bounding_box)
 
@@ -876,9 +856,7 @@ class SVGoutput:
         with open(filename, "wb") as svg_file:
             svg_file.write(output_data)
 
-    def add_glyph_sidebearing(
-        self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
-    ):
+    def add_glyph_sidebearing(self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
         sb_left = glyph.real_sidebearing_left(font_size)
         sb_right = glyph.real_sidebearing_right(font_size)
 
@@ -922,9 +900,7 @@ class SVGoutput:
             AVGlyph.svg_rect(self.drawing, rect, "blue", 0.2 * stroke_width)
         )
 
-    def add_glyph_bounding_box(
-        self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
-    ):
+    def add_glyph_bounding_box(self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
         stroke_width = glyph.real_dash_thickness(font_size)
         rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
         self.layer_debug_glyph_bounding_box.add(
@@ -996,9 +972,7 @@ class SimpleLineLayouter:
                 x_pos += glyph.real_width(self.font_size, Align.RIGHT)
         return x_pos
 
-    def layout_line(
-        self, y_pos: float, x_left: float, x_right: float, text: str
-    ) -> str:
+    def layout_line(self, y_pos: float, x_left: float, x_right: float, text: str) -> str:
         line_text = text
         ret_text = ""
         index_last_space = 0
