@@ -1038,6 +1038,13 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - TODO: alignment-point #############################################################
 - TODO: advancement (x-distance to next character) ##########################################
 
+### PILLOW Images
+- Coordinates
+  - (0,0) at top left corner
+  - x-direction: positive from left to right ("width")
+  - y-direction: positive from top to bottom ("height")
+
+
 ### Further Resources
 - Lorem Ipsum generator: [loremipsum.de](https://www.loremipsum.de/)
 
