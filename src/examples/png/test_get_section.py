@@ -36,14 +36,16 @@ class AVImageGrey:
         """
         return self.image_np_array.shape[0]
 
-    def crop_px(self, x_px: int, y_px: int, width_px: int, height_px: int) -> AVImageGrey:
-        """Crop a rectangular portion defined by pixels. Coordinate (0,0) at top left corner.
+    def cropw_px(self, x_px: int, y_px: int, width_px: int, height_px: int) -> AVImageGrey:
+        """Crop a rectangular portion defined by pixels.
+           Coordinates start at (0,0) at top left corner.
+           E.g. whole image would be (0, 0, width, height)
 
         Args:
-            x_px (int): start point (left)
-            y_px (int): start point (top)
-            width_px (int): width to the right
-            height_px (int): height to the bottom
+            x_px (int): start point (left, inclusive)
+            y_px (int): start point (top, inclusive)
+            width_px (int): width to the right in pixel
+            height_px (int): height to the bottom in pixel
 
         Returns:
             AVImageGrey: cropped image
@@ -51,21 +53,53 @@ class AVImageGrey:
         image_np_array = self.image_np_array[y_px : (y_px + height_px), x_px : (x_px + width_px)]
         return AVImageGrey(image_np_array)
 
-    def crop_pt(self, left: int, top: int, right: int, bottom: int) -> AVImageGrey:
-        """Crop a rectangular portion defined by pixels including pixels of right and bottom.
-            Coordinate (0,0) at top left corner.
+    def cropp_pt(self, left: int, top: int, right: int, bottom: int) -> AVImageGrey:
+        """Crop a rectangular portion defined by pixel-positions
+            including pixels of right and bottom.
+            Coordinates start at (0,0) at top left corner.
+            E.g. whole image would be (0, 0, width-1, height-1)
 
         Args:
-            left (int): start point (left)
-            top (int): start point (top)
+            left (int): start point (left, inclusive)
+            top (int): start point (top, inclusive)
             right (int): end point (right, inclusive)
             bottom (int): end point (bottom, inclusive)
 
         Returns:
             AVImageGrey: cropped image
         """
-        image_np_array = self.image_np_array[top:bottom, left:right]
+        image_np_array = self.image_np_array[top : (bottom + 1), left : (right + 1)]
         return AVImageGrey(image_np_array)
+
+    def getpixel_px(self, x_px: int, y_px: int) -> int:
+        """Returns the value of a pixel at x_px, y_px.
+            Coordinates start at (0,0) at top left corner.
+            Right-bottom-corner at coordinate [ (width-1), (height-1) ]
+
+        Args:
+            x_px (int): x-position (left-to-right)
+            y_px (int): y-position (top-to-bottom)
+
+        Returns:
+            int: The value of a pixel at x_px, y_px
+        """
+        return self.image_np_array[y_px, x_px]
+
+    def getpixel_rel(self, x_rel: float, y_rel: float) -> int:
+        """Returns the value of a pixel at relative coordinate x_rel, y_rel.
+            Coordinate (0,0) at top left corner.
+            0 <= x_rel <= 1  and   0 <= y_rel <= 1
+
+        Args:
+            x_rel (float): x-position (left-to-right)
+            y_rel (float): y-position (top-to-bottom)
+
+        Returns:
+            int: The value of a pixel at relative coordinate x_rel, y_rel
+        """
+        x_px = round(x_rel * (self.width - 1))
+        y_px = round(y_rel * (self.height - 1))
+        return self.getpixel_px(x_px, y_px)
 
     @classmethod
     def load_image(cls, filename: str) -> AVImageGrey:
@@ -103,13 +137,17 @@ def main():
     print("width :", image_in.width)
     print("height:", image_in.height)
 
-    image1 = image_in.crop_px(10, 0, 350, 600)
+    image1 = image_in.cropw_px(199, 99, 202, 402)
     print("width :", image1.width)
     print("height:", image1.height)
 
-    image2 = image_in.crop_pt(199, 99, 401, 501)
+    image2 = image_in.cropp_pt(199, 99, 400, 500)
     print("width :", image2.width)
     print("height:", image2.height)
+
+    print("Value(  0,  0)", image_in.getpixel_px(0, 0))
+    print("Value(150,150)", image_in.getpixel_px(150, 150))
+    print("Value(15/70,15/70)", image_in.getpixel_rel(150 / 700, 150 / 700))
 
     print(np.array_equal(image1.image_np_array, image2.image_np_array))
     AVImageGrey.save_image(image2, filename_output)
