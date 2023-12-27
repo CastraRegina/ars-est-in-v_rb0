@@ -11,7 +11,13 @@ import PIL.Image
 
 @dataclass
 class AVImageGrey:
-    """An image representation "Pillow Type L (8-bit pixels, grayscale)" using Numpy ndarray"""
+    """An image representation "Pillow Type L (8-bit pixels, grayscale)" using Numpy ndarray
+    Coordinates start at (0,0) at top left corner.
+    x-Axis from left to right.
+    y-Axis from top to bottom.
+    Methods with "px" are pixel-based absolute coordinate values.
+    Methods with "rel" are relative coordinate values with width=1.0 and height=1.0
+    """
 
     image_np_array: np.ndarray
 
@@ -36,7 +42,7 @@ class AVImageGrey:
         """
         return self.image_np_array.shape[0]
 
-    def cropw_px(self, x_px: int, y_px: int, width_px: int, height_px: int) -> AVImageGrey:
+    def crop_width_px(self, x_px: int, y_px: int, width_px: int, height_px: int) -> AVImageGrey:
         """Crop a rectangular portion defined by pixels.
            Coordinates start at (0,0) at top left corner.
            E.g. whole image would be (0, 0, width, height)
@@ -53,7 +59,7 @@ class AVImageGrey:
         image_np_array = self.image_np_array[y_px : (y_px + height_px), x_px : (x_px + width_px)]
         return AVImageGrey(image_np_array)
 
-    def cropp_pt(self, left: int, top: int, right: int, bottom: int) -> AVImageGrey:
+    def crop_point_px(self, left: int, top: int, right: int, bottom: int) -> AVImageGrey:
         """Crop a rectangular portion defined by pixel-positions
             including pixels of right and bottom.
             Coordinates start at (0,0) at top left corner.
@@ -137,11 +143,11 @@ def main():
     print("width :", image_in.width)
     print("height:", image_in.height)
 
-    image1 = image_in.cropw_px(199, 99, 202, 402)
+    image1 = image_in.crop_width_px(199, 99, 202, 402)
     print("width :", image1.width)
     print("height:", image1.height)
 
-    image2 = image_in.cropp_pt(199, 99, 400, 500)
+    image2 = image_in.crop_point_px(199, 99, 400, 500)
     print("width :", image2.width)
     print("height:", image2.height)
 
