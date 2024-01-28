@@ -20,7 +20,7 @@ class AVImageGrey:
     Methods with "rel" are relative coordinate values with width=1.0 and height=1.0.
     """
 
-    # definition of coordinates: image_np_array[y_px, x_px]
+    # definition of coordinates: image_np_array[y_px, x_px] : array of int
     image_np_array: np.ndarray
 
     def __init__(self, image_np_array: np.ndarray):
@@ -43,6 +43,21 @@ class AVImageGrey:
             int: height
         """
         return self.image_np_array.shape[0]
+
+    def mean_rel(self, max_range: float = 255.0, min_range: float = 0.0) -> float:
+        """Relative mean value [0.0...1.0],
+        representing the relative value between min(=0.0) and max(=1.0)
+
+        Args:
+            max_range (float, optional): max value, representing 1.0. Defaults to 255.
+            min_range (float, optional): min value, representing 0.0. Defaults to 0.
+
+        Returns:
+            float: Relative mean value between min_range(=0.0) and max_range(=1.0)
+        """
+        mean = self.image_np_array.mean()
+        mean_ret = (mean - min_range) / (max_range - min_range)
+        return mean_ret
 
     def crop_width_px(self, x_px: int, y_px: int, width_px: int, height_px: int) -> AVImageGrey:
         """Crop a rectangular portion defined by pixels (int).
@@ -228,6 +243,7 @@ def main():
     print("image_half.width :", image_half.width)
     print("image_half.height:", image_half.height)
 
+    print("image_half.mean_rel()", image_half.mean_rel(110, 50))
     AVImageGrey.save_image(image2, filename_output)
 
 
