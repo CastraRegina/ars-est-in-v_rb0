@@ -11,14 +11,16 @@ import PIL.Image
 
 @dataclass
 class AVImageGrey:
-    """An image representation "Pillow Type L (8-bit pixels, grayscale)" using Numpy ndarray
+    """An image representation
+    "Pillow Type L (8-bit pixels, grayscale, i.e. black=0, white=255)" using Numpy ndarray.
     Coordinates start at (0,0) at top left corner.
     x-Axis from left to right.
     y-Axis from top to bottom.
     Methods with "px" are pixel-based absolute coordinate values.
-    Methods with "rel" are relative coordinate values with width=1.0 and height=1.0
+    Methods with "rel" are relative coordinate values with width=1.0 and height=1.0.
     """
 
+    # definition of coordinates: image_np_array[y_px, x_px]
     image_np_array: np.ndarray
 
     def __init__(self, image_np_array: np.ndarray):
@@ -43,9 +45,9 @@ class AVImageGrey:
         return self.image_np_array.shape[0]
 
     def crop_width_px(self, x_px: int, y_px: int, width_px: int, height_px: int) -> AVImageGrey:
-        """Crop a rectangular portion defined by pixels.
+        """Crop a rectangular portion defined by pixels (int).
            Coordinates start at (0,0) at top left corner.
-           E.g. whole image would be (0, 0, width, height)
+           E.g. whole image would be (0, 0, width, height).
 
         Args:
             x_px (int): start point (left, inclusive)
@@ -59,11 +61,33 @@ class AVImageGrey:
         image_np_array = self.image_np_array[y_px : (y_px + height_px), x_px : (x_px + width_px)]
         return AVImageGrey(image_np_array)
 
+    def crop_width_rel(
+        self, x_rel: float, y_rel: float, width_rel: float, height_rel: float
+    ) -> AVImageGrey:
+        """Crop a rectangular portion defined by relative pixel-positions (float).
+           Coordinates start at (0,0) at top left corner.
+           E.g. whole image would be (0.0, 0.0, 1.0, 1.0).
+
+        Args:
+            x_rel (float): start point (left, inclusive)
+            y_rel (float): start point (top, inclusive)
+            width_rel (float): width to the right
+            height_rel (float): height to the bottom
+
+        Returns:
+            AVImageGrey: cropped image
+        """
+        x_px = round(x_rel * (self.width - 1))
+        y_px = round(y_rel * (self.height - 1))
+        width_px = round(width_rel * self.width)
+        height_px = round(height_rel * self.height)
+        return self.crop_width_px(x_px, y_px, width_px, height_px)
+
     def crop_point_px(self, left: int, top: int, right: int, bottom: int) -> AVImageGrey:
-        """Crop a rectangular portion defined by pixel-positions
+        """Crop a rectangular portion defined by pixel-positions (int)
             including pixels of right and bottom.
             Coordinates start at (0,0) at top left corner.
-            E.g. whole image would be (0, 0, width-1, height-1)
+            E.g. whole image would be (0, 0, width-1, height-1).
 
         Args:
             left (int): start point (left, inclusive)
@@ -77,10 +101,31 @@ class AVImageGrey:
         image_np_array = self.image_np_array[top : (bottom + 1), left : (right + 1)]
         return AVImageGrey(image_np_array)
 
+    def crop_point_rel(self, left: float, top: float, right: float, bottom: float) -> AVImageGrey:
+        """Crop a rectangular portion defined by relative pixel-positions (float)
+            including pixels of right and bottom.
+            Coordinates start at (0,0) at top left corner.
+            E.g. whole image would be (0.0, 0.0, 1.0, 1.0).
+
+        Args:
+            left (float): start point (left, inclusive)
+            top (float): start point (top, inclusive)
+            right (float): end point (right, inclusive)
+            bottom (float): end point (bottom, inclusive)
+
+        Returns:
+            AVImageGrey: cropped image
+        """
+        left_px = round(left * (self.width - 1))
+        top_px = round(top * (self.height - 1))
+        right_px = round(right * (self.width - 1))
+        bottom_px = round(bottom * (self.height - 1))
+        return self.crop_point_px(left_px, top_px, right_px, bottom_px)
+
     def getpixel_px(self, x_px: int, y_px: int) -> int:
         """Returns the value of a pixel at x_px, y_px.
             Coordinates start at (0,0) at top left corner.
-            Right-bottom-corner at coordinate [ (width-1), (height-1) ]
+            Right-bottom-corner at coordinate [ (width-1), (height-1) ].
 
         Args:
             x_px (int): x-position (left-to-right)
@@ -109,7 +154,8 @@ class AVImageGrey:
 
     @classmethod
     def load_image(cls, filename: str) -> AVImageGrey:
-        """Loads image and converts it if not in the correct format of "L (8-bit pixels, grayscale)"
+        """Loads image
+        and converts it if not in the correct format of "L (8-bit pixels, grayscale)".
 
         Args:
             filename (str): path and filename
@@ -125,7 +171,7 @@ class AVImageGrey:
 
     @classmethod
     def save_image(cls, image: AVImageGrey, filename: str):
-        """Saves an image using format of "L (8-bit pixels, grayscale)"
+        """Saves an image using format of "L (8-bit pixels, grayscale)".
 
         Args:
             image (AVImageGrey): image to save
@@ -139,23 +185,49 @@ def main():
     """Some examples to show the functionality of this module"""
     filename_input = "data/output/example/png/test_board_10grays.png"
     filename_output = "section_output.png"
+
     image_in = AVImageGrey.load_image(filename_input)
-    print("width :", image_in.width)
-    print("height:", image_in.height)
-
-    image1 = image_in.crop_width_px(199, 99, 202, 402)
-    print("width :", image1.width)
-    print("height:", image1.height)
-
-    image2 = image_in.crop_point_px(199, 99, 400, 500)
-    print("width :", image2.width)
-    print("height:", image2.height)
+    print("image_in.width :", image_in.width)
+    print("image_in.height:", image_in.height)
 
     print("Value(  0,  0)", image_in.getpixel_px(0, 0))
     print("Value(150,150)", image_in.getpixel_px(150, 150))
-    print("Value(15/70,15/70)", image_in.getpixel_rel(150 / 700, 150 / 700))
+    print("Value(150/700,150/700)", image_in.getpixel_rel(150 / 700, 150 / 700))
 
-    print(np.array_equal(image1.image_np_array, image2.image_np_array))
+    image1 = image_in.crop_width_px(199, 99, 202, 402)
+    print("image1.width :", image1.width)
+    print("image1.height:", image1.height)
+
+    image2 = image_in.crop_point_px(199, 99, 400, 500)
+    print("image2.width :", image2.width)
+    print("image2.height:", image2.height)
+
+    image3 = image_in.crop_point_rel(199 / 700, 99 / 700, 400 / 700 + 0.001, 500 / 700 + 0.001)
+    print("image3.width :", image3.width)
+    print("image3.height:", image3.height)
+
+    print("image1 == image2 ?", np.array_equal(image1.image_np_array, image2.image_np_array))
+    print("image1 == image3 ?", np.array_equal(image1.image_np_array, image3.image_np_array))
+
+    image_all1 = image_in.crop_point_rel(0.0, 0.0, 1.0, 1.0)
+    print("image_all1.width :", image_all1.width)
+    print("image_all1.height:", image_all1.height)
+    print(
+        "image_in == image_all1 ?",
+        np.array_equal(image_in.image_np_array, image_all1.image_np_array),
+    )
+    image_all2 = image_in.crop_width_rel(0.0, 0.0, 1.0, 1.00)
+    print("image_all2.width :", image_all2.width)
+    print("image_all2.height:", image_all2.height)
+    print(
+        "image_in == image_all2 ?",
+        np.array_equal(image_in.image_np_array, image_all2.image_np_array),
+    )
+
+    image_half = image_in.crop_point_rel(0.0, 0.0, 0.5, 0.5)
+    print("image_half.width :", image_half.width)
+    print("image_half.height:", image_half.height)
+
     AVImageGrey.save_image(image2, filename_output)
 
 
