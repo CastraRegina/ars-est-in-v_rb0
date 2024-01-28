@@ -191,6 +191,8 @@
   `sed -i 's/\s\+/ /g' file.txt`  
   or replace all kind of "spaces" by one single space:  
   `sed -i 's/[ \t\r\n\v\f]\+/ /g' file.txt`
+- Create class-diagram (needs: pylint, graphviz) - run it in python venv:  
+  `pyreverse file.py -o png`
 ---
 
 ## General installation of Python
@@ -234,14 +236,14 @@
 Maybe check later if some of these packages are really needed...
 - Install SW packages on operating system (don't know if they are really needed):  
   `sudo apt-get install python-dev python-pip ffmpeg libffi-dev`  
-  `sudo apt-get install libxml2-dev libxslt-dev`  
+  `sudo apt-get install libxml2-dev libxslt-dev graphviz`  
   `sudo apt-get install libcairo2`  
   `sudo apt-get install libgeos++-dev libgeos-dev libgeos-doc`
 - Check which SW packages are already installed, e.g.  
   `sudo apt list --installed | grep -i geos`
 - Install python modules:  
   `python3 -m pip install pycodestyle flake8 black autopep8 mypy`  
-  `python3 -m pip install lxml unicode scipy numpy`  
+  `python3 -m pip install lxml unicode scipy numpy pylint`  
   `python3 -m pip install gizeh svgutils svgwrite svgpathtools svgelements cairosvg`  
   `python3 -m pip install fonttools[ufo,lxml,woff,unicode,type1]`  
   `python3 -m pip install fonttools[interpolatable,symfont,pathops,plot]`  
