@@ -1,29 +1,30 @@
 from __future__ import annotations
 
-from typing import Dict, List, Tuple, Callable, ClassVar
-from enum import Enum, auto
-import io
 import gzip
-import re
+import io
 import math
+import re
+from enum import Enum, auto
+from typing import Callable, ClassVar, Dict, List, Tuple
+
+import matplotlib.path
 import numpy
+import shapely
+import shapely.geometry
+import shapely.wkt
+import svgpath2mpl
+import svgpathtools
+import svgpathtools.path
+import svgpathtools.paths2svg
 import svgwrite
 import svgwrite.base
 import svgwrite.container
 import svgwrite.elementfactory
-from svgwrite.extensions import Inkscape
-import shapely
-import shapely.geometry
-import shapely.wkt
-import svgpathtools
-import svgpathtools.path
-import svgpathtools.paths2svg
-import svgpath2mpl
-import matplotlib.path
-from fontTools.ttLib import TTFont
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
+from svgwrite.extensions import Inkscape
 
 # from fontTools.pens.transformPen import TransformPen
 
@@ -836,10 +837,10 @@ class SVGoutput:
         )
         self.drawing.add(self.layer_main)
 
-    def draw_path(
-        self, path_string: str, **svg_properties
-    ) -> svgwrite.elementfactory.ElementBuilder:
-        return self.drawing.path(path_string, **svg_properties)
+    # def draw_path(
+    #     self, path_string: str, **svg_properties
+    # ) -> svgwrite.elementfactory.ElementBuilder:
+    #     return self.drawing.path(path_string, **svg_properties)
 
     def saveas(
         self,
