@@ -54,7 +54,8 @@
 - Folder Structure
   - See [Python Packages - Package structure](https://py-pkgs.org/04-package-structure.html#package-structure)
   - See Jason C. McDonald's [Dead Simple Python: Project Structure and Imports](https://dev.to/codemouse92/dead-simple-python-project-structure-and-imports-38c6)
-  - See [Sampleproject by the "Python Packaging Authority"](https://github.com/pypa/sampleproject)   
+  - See [Sampleproject by the "Python Packaging Authority"](https://github.com/pypa/sampleproject)  
+  - See [Python Package Structure for Scientific Python Projects](https://www.pyopensci.org/python-package-guide/package-structure-code/python-package-structure.html) 
   - folders `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`:   
     ```
         bin
@@ -70,11 +71,19 @@
         [logs]
         src
         src/examples
-        [src/subpackage]
+        [src/package]
+        [src/package/subpackage]
         tests
         [tools]
-        (venv)
+        venv
     ```
+  - Some sample packages using `src/package`
+    - [poliastro](https://github.com/poliastro/poliastro)
+    - [awkward](https://github.com/scikit-hep/awkward)
+    - [openscm-runner](https://github.com/openscm/openscm-runner)
+    - [bokeh](https://github.com/bokeh/bokeh)
+    - [sourmash](https://github.com/sourmash-bio/sourmash)
+
 - Naming Conventions of file and folders
   - Naming according to
     [PEP-0008 - Style Guide for Python Code - Prescriptive: Naming Conventions](https://peps.python.org/pep-0008/#prescriptive-naming-conventions)
