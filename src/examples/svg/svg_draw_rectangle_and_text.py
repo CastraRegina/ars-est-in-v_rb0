@@ -564,7 +564,7 @@ class AVPathPolygon:
         return svg_paths
 
 
-class AVGlyph:  # pylint: disable=function-redefined
+class AVGlyph:
     @staticmethod
     def svg_rect(
         dwg: svgwrite.Drawing,
