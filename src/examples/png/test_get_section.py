@@ -1,4 +1,5 @@
 """An image representation "Pillow Type L (8-bit pixels, grayscale)" using Numpy ndarray"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
