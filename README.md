@@ -1106,6 +1106,13 @@ see also internet recommendations, e.g. aufbauen-online-business.de
   - [Neunkubikmeter](https://www.regensburg.de/kultur/veranstaltungen-des-kulturreferats/neunkubikmeter)
   - [Kunstschaufenster](https://www.12achtzig.de)
   - [M26 - Maximilianstrasse 26](https://www.regensburg.de/m26)
+
+### Free / Public Domain Art
+- TODO: Check Wikipedia / Wikimedia
+
+### Free / Public Domain Music
+- [In_the_Hall_Of_The_Mountain_King](https://en.m.wikipedia.org/wiki/File:Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg)
+
 ---
 
 ## Next steps / check in future / ToDos / Reminders
