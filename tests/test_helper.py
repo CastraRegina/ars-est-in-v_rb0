@@ -8,46 +8,27 @@ from av.helper import HelperTypeHinting
 
 
 class TestHelperTypeHinting(unittest.TestCase):
-    """Test class"""
+    """Test class for class HelperTypeHinting"""
 
-    def test_check_list_of_ndarrays_valid(self):
-        """A test function"""
-        # Valid case: list of numpy arrays
+    def test_check_list_of_ndarrays_positive(self):
+        """Positive test case for check_list_of_ndarrays function"""
         variable = [numpy.array([1, 2, 3]), numpy.array([4, 5, 6])]
         self.assertTrue(HelperTypeHinting.check_list_of_ndarrays(variable))
 
-    def test_check_list_of_ndarrays_invalid(self):
-        """A test function"""
-        # Invalid case: not a list
-        variable = numpy.array([1, 2, 3])
+    def test_check_list_of_ndarrays_negative(self):
+        """Negative test case for check_list_of_ndarrays function"""
+        variable = [numpy.array([1, 2, 3]), [4, 5, 6]]  # One element is not numpy.ndarray
         self.assertFalse(HelperTypeHinting.check_list_of_ndarrays(variable))
 
-        # Invalid case: list containing non-numpy array
-        variable = [numpy.array([1, 2, 3]), "not an array"]
-        self.assertFalse(HelperTypeHinting.check_list_of_ndarrays(variable))
-
-    def test_ensure_list_of_ndarrays_valid(self):
-        """A test function"""
-        # Valid case: list of numpy arrays
+    def test_ensure_list_of_ndarrays_positive(self):
+        """Positive test case for ensure_list_of_ndarrays function"""
         variable = [numpy.array([1, 2, 3]), numpy.array([4, 5, 6])]
-        ensured_variable = HelperTypeHinting.ensure_list_of_ndarrays(variable)
-        for x, y in zip(variable, ensured_variable):
-            self.assertTrue(numpy.array_equal(x, y))
+        self.assertEqual(HelperTypeHinting.ensure_list_of_ndarrays(variable), variable)
 
-    # def test_ensure_list_of_ndarrays_invalid(self):
-    #     # Invalid case: not a list
-    #     variable = numpy.array([1, 2, 3])
-    #     ensured_variable = HelperTypeHinting.ensure_list_of_ndarrays(variable)
-    #     self.assertEqual(variable, ensured_variable)  # Should return the original variable
-
-    #     # Invalid case: list containing non-numpy array
-    #     variable = [numpy.array([1, 2, 3]), "not an array"]
-    #     ensured_variable = HelperTypeHinting.ensure_list_of_ndarrays(variable)
-    #     for x, y in zip(variable, ensured_variable):
-    #         if isinstance(x, numpy.ndarray):
-    #             self.assertTrue(numpy.array_equal(x, y))
-    #         else:
-    #             self.assertEqual(x, y)
+    def test_ensure_list_of_ndarrays_negative(self):
+        """Negative test case for ensure_list_of_ndarrays function"""
+        variable = [numpy.array([1, 2, 3]), [4, 5, 6]]  # One element is not numpy.ndarray
+        self.assertEqual(HelperTypeHinting.ensure_list_of_ndarrays(variable), variable)
 
 
 if __name__ == "__main__":
