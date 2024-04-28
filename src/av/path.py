@@ -1,13 +1,10 @@
+"""Handling Paths for SVG"""
+
 from __future__ import annotations
 
-import gzip
-import io
 import math
-import os
 import re
-import sys
-from enum import Enum, auto
-from typing import Callable, ClassVar, Dict, List, Optional, Tuple
+from typing import Callable, ClassVar, List, Optional, Tuple
 
 import matplotlib.path
 import numpy
@@ -23,14 +20,7 @@ import svgwrite.base
 import svgwrite.container
 import svgwrite.elementfactory
 
-from av.consts import (
-    POLYGONIZE_ANGLE_MAX_DEG,
-    POLYGONIZE_ANGLE_MAX_STEPS,
-    POLYGONIZE_UNIFORM_NUM_POINTS,
-)
-
-# if __name__ == "__main__":
-#     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+import av.consts
 
 
 class AVsvgPath:
@@ -203,7 +193,9 @@ class AVPathPolygon:
         return shapely.wkt.loads(geometry.wkt)
 
     @staticmethod
-    def polygonize_uniform(segment, num_points: int = POLYGONIZE_UNIFORM_NUM_POINTS) -> str:
+    def polygonize_uniform(
+        segment, num_points: int = av.consts.POLYGONIZE_UNIFORM_NUM_POINTS
+    ) -> str:
         # *segment* most likely of type QuadraticBezier or CubicBezier
         # create points ]start,...,end]
         ret_string = ""
@@ -217,8 +209,8 @@ class AVPathPolygon:
     @staticmethod
     def polygonize_by_angle(
         segment,
-        max_angle_degree: float = POLYGONIZE_ANGLE_MAX_DEG,
-        max_steps: int = POLYGONIZE_ANGLE_MAX_STEPS,
+        max_angle_degree: float = av.consts.POLYGONIZE_ANGLE_MAX_DEG,
+        max_steps: int = av.consts.POLYGONIZE_ANGLE_MAX_STEPS,
     ) -> str:
         # *segment* most likely of type QuadraticBezier or CubicBezier
         # create points ]start,...,end]
@@ -285,41 +277,6 @@ class AVPathPolygon:
             if sub_path.isclosed():
                 ret_path_string += "Z "
         return ret_path_string
-
-    @staticmethod
-    def rect_to_path(rect: Tuple[float, float, float, float]) -> str:
-        (x_pos, y_pos, width, height) = rect
-        (x00, y00) = (x_pos, y_pos)
-        (x10, y10) = (x_pos + width, y_pos)
-        (x11, y11) = (x_pos + width, y_pos + height)
-        (x01, y01) = (x_pos, y_pos + height)
-        ret_path = (
-            f"M{x00:g} {y00:g} "
-            + f"L{x10:g} {y10:g} "
-            + f"L{x11:g} {y11:g} "
-            + f"L{x01:g} {y01:g} Z"
-        )
-        return ret_path
-
-    @staticmethod
-    def circle_to_path(
-        x_pos: float,
-        y_pos: float,
-        radius: float,
-        angle_degree: float = POLYGONIZE_ANGLE_MAX_DEG,
-    ) -> str:
-        ret_path = ""
-        num_points = math.ceil(360 / angle_degree)
-        for i in range(num_points):
-            angle_rad = 2 * math.pi * i / num_points
-            x_circ = x_pos + radius * math.sin(angle_rad)
-            y_circ = y_pos + radius * math.cos(angle_rad)
-            if i <= 0:
-                ret_path += f"M{x_circ:g} {y_circ:g} "
-            else:
-                ret_path += f"L{x_circ:g} {y_circ:g} "
-        ret_path += "Z"
-        return ret_path
 
     def __init__(self, multipolygon: Optional[shapely.geometry.MultiPolygon] = None):
         self.multipolygon: shapely.geometry.MultiPolygon = shapely.geometry.MultiPolygon()

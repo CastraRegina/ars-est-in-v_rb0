@@ -6,9 +6,6 @@ import os
 import sys
 from enum import Enum, auto
 
-# if __name__ == "__main__":
-#     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
 
 class Polygonize(Enum):
     """Enum to define types of polygonization"""

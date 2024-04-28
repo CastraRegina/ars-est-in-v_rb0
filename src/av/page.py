@@ -1,4 +1,4 @@
-"""A representation of a page described by SVG"""
+"""Representation of a page described by SVG"""
 
 from __future__ import annotations
 
@@ -17,9 +17,6 @@ from fontTools.varLib import instancer
 from svgwrite.extensions import Inkscape
 
 from av.glyph import AVFont, AVGlyph
-
-# if __name__ == "__main__":
-#     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 
 @dataclass
@@ -50,10 +47,13 @@ class AvPageSVG:
     layer_debug_background: svgwrite.container.Group
 
     class Helper:
+        """Helper-class mainly to provide staticmethods for handling Glyphs"""
+
         @staticmethod
         def add_glyph_sidebearing(
             page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
         ):
+            """Add a box to debug layer showing glyph's sidebearing left and right"""
             sb_left = glyph.real_sidebearing_left(font_size)
             sb_right = glyph.real_sidebearing_right(font_size)
 
@@ -77,6 +77,7 @@ class AvPageSVG:
         def add_glyph_font_ascent_descent(
             page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
         ):
+            """Add a box to debug layer showing font's ascent and descent"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_font_ascent_descent(x_pos, y_pos, font_size)
             page.layer_debug_glyph_font_ascent_descent.add(
@@ -93,6 +94,7 @@ class AvPageSVG:
             ascent: float,
             descent: float,
         ):
+            """Add a box to debug layer showing GlyphSet's width"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
             page.layer_debug_glyph_em_width.add(
@@ -103,6 +105,7 @@ class AvPageSVG:
         def add_glyph_bounding_box(
             page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
         ):
+            """Add glyph's bounding box to debug layer"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
             page.layer_debug_glyph_bounding_box.add(
@@ -181,7 +184,8 @@ class AvPageSVG:
 
         Args:
             filename (str): path and filename
-            include_debug_layer (bool, optional): True if file should contain debug_layer. Defaults to False.
+            include_debug_layer (bool, optional): True if file should contain debug_layer.
+                Defaults to False.
             pretty (bool, optional): True for easy readable output. Defaults to False.
             indent (int, optional): Indention if pretty is enabled. Defaults to 2 spaces.
             compressed (bool, optional): Save as compressed svgz-file. Defaults to False.
@@ -210,6 +214,17 @@ class AvPageSVG:
         ascent: Optional[float] = None,
         descent: Optional[float] = None,
     ):
+        """Add a glyph as SVG element as subelement.
+           Additionally associated boxes are added as debug-layer-subelements
+
+        Args:
+            glyph (AVGlyph): _description_
+            x_pos (float): _description_
+            y_pos (float): _description_
+            font_size (float): _description_
+            ascent (Optional[float], optional): _description_. Defaults to None.
+            descent (Optional[float], optional): _description_. Defaults to None.
+        """
         if not ascent:
             ascent = glyph.font_ascender()
         if not descent:

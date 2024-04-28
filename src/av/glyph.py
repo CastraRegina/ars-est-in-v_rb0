@@ -1,3 +1,5 @@
+"""Handling Glyphs for SVG"""
+
 from __future__ import annotations
 
 from typing import Dict, Optional, Tuple
@@ -11,10 +13,15 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
 
 import av.consts
+import av.helper_svg
 import av.path
 
 
 class AVGlyph:
+    """Representation of a Glyph (single character of a certain font) for SVG.
+    A Glyph is independent from font_size.
+    To get the *real* dimensions call the functions by providing *font_size*.
+    """
 
     def __init__(self, avfont: AVFont, character: str):
         self._avfont: AVFont = avfont
@@ -192,7 +199,7 @@ class AVGlyph:
         glyph_polygon.add_path_string(glyph_string)
 
         rect = self.rect_em_width(0, 0, ascent, descent, font_size)
-        rect_string = av.path.AVPathPolygon.rect_to_path(rect)
+        rect_string = av.helper_svg.HelperSvg.rect_to_path(rect)
         rect_polygon = av.path.AVPathPolygon()
         rect_polygon.add_path_string(rect_string)
 
@@ -242,6 +249,8 @@ class AVGlyph:
 
 # pyright: reportAttributeAccessIssue=false
 class AVFont:
+    """Representation of a Font used by Glyph-class"""
+
     def __init__(self, ttfont: TTFont):
         # ttfont is already configured with the given axes_values
         self.ttfont: TTFont = ttfont
