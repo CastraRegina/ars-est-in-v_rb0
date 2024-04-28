@@ -3,9 +3,50 @@
 from __future__ import annotations
 
 import math
-from typing import Tuple
+from typing import Any, List, Tuple, Union, cast
+
+import numpy
 
 import av.consts
+
+
+class HelperTypeHinting:
+    """Helper-class to check for certain types and do type casting"""
+
+    @staticmethod
+    def check_list_of_ndarrays(variable: Union[List[numpy.ndarray], Any]) -> bool:
+        """
+        Check if a given variable is of type list containing elements of type numpy.ndarray.
+
+        Parameters:
+            variable (Union[List[numpy.ndarray], Any]): The variable to be checked.
+
+        Returns:
+            bool: True if the variable is of type list[numpy.ndarray], False otherwise.
+        """
+        if isinstance(variable, list):
+            if all(isinstance(item, numpy.ndarray) for item in variable):
+                return True
+        return False
+
+    @staticmethod
+    def ensure_list_of_ndarrays(variable: Union[List[numpy.ndarray], Any]) -> List[numpy.ndarray]:
+        """
+        Ensure that a given variable is of type list containing elements of type numpy.ndarray.
+        If the variable is not of this type, return the variable without the type and print an error message.
+
+        Parameters:
+            variable (Union[List[numpy.ndarray], Any]): The variable to be checked.
+
+        Returns:
+            Union[List[numpy.ndarray], Any]: The variable with type List[numpy.ndarray] if it passes the check,
+                                          otherwise return the variable without the type.
+        """
+        if HelperTypeHinting.check_list_of_ndarrays(variable):
+            return cast(list[numpy.ndarray], variable)
+        else:
+            print("Error: The variable is not of type List[numpy.ndarray]. Nevertheless going on...")
+            return cast(list[numpy.ndarray], variable)
 
 
 class HelperSvg:
@@ -26,12 +67,7 @@ class HelperSvg:
         (x01, y01) = (x_pos + width, y_pos)
         (x11, y11) = (x_pos + width, y_pos + height)
         (x10, y10) = (x_pos, y_pos + height)
-        ret_path = (
-            f"M{x00:g} {y00:g} "
-            + f"L{x01:g} {y01:g} "
-            + f"L{x11:g} {y11:g} "
-            + f"L{x10:g} {y10:g} Z"
-        )
+        ret_path = f"M{x00:g} {y00:g} " + f"L{x01:g} {y01:g} " + f"L{x11:g} {y11:g} " + f"L{x10:g} {y10:g} Z"
         return ret_path
 
     @staticmethod

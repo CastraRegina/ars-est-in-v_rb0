@@ -50,18 +50,14 @@ class AvPageSVG:
         """Helper-class mainly to provide staticmethods for handling Glyphs"""
 
         @staticmethod
-        def add_glyph_sidebearing(
-            page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
-        ):
+        def add_glyph_sidebearing(page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
             """Add a box to debug layer showing glyph's sidebearing left and right"""
             sb_left = glyph.real_sidebearing_left(font_size)
             sb_right = glyph.real_sidebearing_right(font_size)
 
             rect_bb = glyph.rect_bounding_box(x_pos, y_pos, font_size)
             rect = (x_pos, rect_bb[1], sb_left, rect_bb[3])
-            page.layer_debug_glyph_sidebearing.add(
-                AVGlyph.svg_rect(page.drawing, rect, "none", 0, fill="yellow")
-            )
+            page.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(page.drawing, rect, "none", 0, fill="yellow"))
 
             rect = (
                 x_pos + glyph.real_width(font_size) - sb_right,
@@ -69,9 +65,7 @@ class AvPageSVG:
                 sb_right,
                 rect_bb[3],
             )
-            page.layer_debug_glyph_sidebearing.add(
-                AVGlyph.svg_rect(page.drawing, rect, "none", 0, fill="orange")
-            )
+            page.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(page.drawing, rect, "none", 0, fill="orange"))
 
         @staticmethod
         def add_glyph_font_ascent_descent(
@@ -97,20 +91,14 @@ class AvPageSVG:
             """Add a box to debug layer showing GlyphSet's width"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
-            page.layer_debug_glyph_em_width.add(
-                AVGlyph.svg_rect(page.drawing, rect, "blue", 0.2 * stroke_width)
-            )
+            page.layer_debug_glyph_em_width.add(AVGlyph.svg_rect(page.drawing, rect, "blue", 0.2 * stroke_width))
 
         @staticmethod
-        def add_glyph_bounding_box(
-            page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
-        ):
+        def add_glyph_bounding_box(page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
             """Add glyph's bounding box to debug layer"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
-            page.layer_debug_glyph_bounding_box.add(
-                AVGlyph.svg_rect(page.drawing, rect, "red", 0.1 * stroke_width)
-            )
+            page.layer_debug_glyph_bounding_box.add(AVGlyph.svg_rect(page.drawing, rect, "red", 0.1 * stroke_width))
 
     def __init__(
         self,
@@ -145,16 +133,16 @@ class AvPageSVG:
         self._inkscape: Inkscape = Inkscape(self.drawing)
 
         # define layers
-        # fmt: off
         self.layer_debug = self._inkscape.layer(label="Layer debug", locked=False, display="none")
         self.layer_debug_background = self._inkscape.layer(label="Layer background", locked=True)
         self.layer_debug_glyph = self._inkscape.layer(label="Layer glyph", locked=True)
-        self.layer_debug_glyph_sidebearing = self._inkscape.layer(label="Layer sidebearing", locked=True)  # noqa
-        self.layer_debug_glyph_font_ascent_descent = self._inkscape.layer(label="Layer font_ascent_descent", locked=True)  # noqa
+        self.layer_debug_glyph_sidebearing = self._inkscape.layer(label="Layer sidebearing", locked=True)
+        self.layer_debug_glyph_font_ascent_descent = self._inkscape.layer(
+            label="Layer font_ascent_descent", locked=True
+        )
         self.layer_debug_glyph_em_width = self._inkscape.layer(label="Layer em_width", locked=True)
-        self.layer_debug_glyph_bounding_box = self._inkscape.layer(label="Layer bounding_box", locked=True)  # noqa
+        self.layer_debug_glyph_bounding_box = self._inkscape.layer(label="Layer bounding_box", locked=True)
         self.layer_main = self._inkscape.layer(label="Layer main", locked=False)
-        # fmt: on
 
         # build up layer hierarchy
         self.layer_debug.add(self.layer_debug_background)
@@ -292,7 +280,7 @@ def main():
         ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
         return AVFont(ttfont)
 
-    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"  # noqa
+    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
     font_size = vb_ratio * 3  # in mm
     text = (
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
@@ -312,9 +300,7 @@ def main():
 
     # Save the SVG file
     print("save...")
-    svg_output.save_as(
-        output_filename + "z", include_debug_layer=True, pretty=True, indent=2, compressed=True
-    )
+    svg_output.save_as(output_filename + "z", include_debug_layer=True, pretty=True, indent=2, compressed=True)
     print("save done.")
 
     print(rect_vb_height * vb_ratio)

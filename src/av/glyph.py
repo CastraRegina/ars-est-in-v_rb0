@@ -13,7 +13,7 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
 
 import av.consts
-import av.helper_svg
+import av.helper
 import av.path
 
 
@@ -177,9 +177,7 @@ class AVGlyph:
         descent = self._avfont.descender
         return self.rect_given_ascent_descent(x_pos, y_pos, ascent, descent, font_size)
 
-    def rect_bounding_box(
-        self, x_pos: float, y_pos: float, font_size: float
-    ) -> Tuple[float, float, float, float]:
+    def rect_bounding_box(self, x_pos: float, y_pos: float, font_size: float) -> Tuple[float, float, float, float]:
         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
         rect = (0.0, 0.0, 0.0, 0.0)
         if self.bounding_box:
@@ -199,7 +197,7 @@ class AVGlyph:
         glyph_polygon.add_path_string(glyph_string)
 
         rect = self.rect_em_width(0, 0, ascent, descent, font_size)
-        rect_string = av.helper_svg.HelperSvg.rect_to_path(rect)
+        rect_string = av.helper.HelperSvg.rect_to_path(rect)
         rect_polygon = av.path.AVPathPolygon()
         rect_polygon.add_path_string(rect_string)
 

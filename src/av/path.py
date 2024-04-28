@@ -10,6 +10,7 @@ import matplotlib.path
 import numpy
 import shapely
 import shapely.geometry
+import shapely.geometry.base
 import shapely.wkt
 import svgpath2mpl
 import svgpathtools
@@ -21,6 +22,7 @@ import svgwrite.container
 import svgwrite.elementfactory
 
 import av.consts
+import av.helper
 
 
 class AVsvgPath:
@@ -71,9 +73,10 @@ class AVsvgPath:
     def convert_relative_to_absolute(path_string: str) -> str:
         org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
-        first_point = None  # Store the first point of each path (absolute)
-        # Keep track of the last (iterating) point (absolute)
-        last_point: list[float] = [0, 0]
+        # Store the first point of each path (absolute):
+        first_point: list[float] = []  # acts like None
+        # Keep track of the last (iterating) point (absolute):
+        last_point: list[float] = [0.0, 0.0]
 
         for command in org_commands:
             command_letter = command[0]
@@ -128,7 +131,7 @@ class AVsvgPath:
                 first_point = [float(args[0]), float(args[1])]
             if command_letter in "Zz":
                 last_point = first_point
-                first_point = None
+                first_point = []  # acts like None
 
         ret_path_string = " ".join(ret_commands)
         return ret_path_string
@@ -142,12 +145,8 @@ class AVsvgPath:
         #       | 1  | = |  0   0  1  |   | 1 |
 
         def transform(x_str: str, y_str: str) -> Tuple[str, str]:
-            x_new = (
-                affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
-            )
-            y_new = (
-                affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
-            )
+            x_new = affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
+            y_new = affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
             return f"{x_new:g}", f"{y_new:g}"
 
         org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
@@ -193,9 +192,7 @@ class AVPathPolygon:
         return shapely.wkt.loads(geometry.wkt)
 
     @staticmethod
-    def polygonize_uniform(
-        segment, num_points: int = av.consts.POLYGONIZE_UNIFORM_NUM_POINTS
-    ) -> str:
+    def polygonize_uniform(segment, num_points: int = av.consts.POLYGONIZE_UNIFORM_NUM_POINTS) -> str:
         # *segment* most likely of type QuadraticBezier or CubicBezier
         # create points ]start,...,end]
         ret_string = ""
@@ -223,16 +220,14 @@ class AVPathPolygon:
             (new_params, new_points, new_tangents) = ([], [], [])
             updated = False
             for param, point, tangent in zip(params, points, tangents):
-                if not new_points:  # nps is empty, i.e. first iteration
+                if not new_points:  # new_points is empty, i.e. first iteration
                     (new_params, new_points, new_tangents) = (
                         [param],
                         [point],
                         [tangent],
                     )
                 else:
-                    dot_product = (
-                        new_tangents[-1].real * tangent.real + new_tangents[-1].imag * tangent.imag
-                    )
+                    dot_product = new_tangents[-1].real * tangent.real + new_tangents[-1].imag * tangent.imag
                     if dot_product < angle_limit:
                         new_param = (new_params[-1] + param) / 2
                         new_params.append(new_param)
@@ -265,9 +260,7 @@ class AVPathPolygon:
         for sub_path in path_collection.continuous_subpaths():
             ret_path_string += moveto(sub_path.start)
             for segment in sub_path:
-                if isinstance(segment, svgpathtools.CubicBezier) or isinstance(
-                    segment, svgpathtools.QuadraticBezier
-                ):
+                if isinstance(segment, svgpathtools.CubicBezier) or isinstance(segment, svgpathtools.QuadraticBezier):
                     ret_path_string += polygonize_segment_func(segment)
                 elif isinstance(segment, svgpathtools.Line):
                     ret_path_string += lineto(segment.end)
@@ -303,17 +296,37 @@ class AVPathPolygon:
 
     def add_path_string(self, path_string: str):
         mpl_path: matplotlib.path.Path = svgpath2mpl.parse_path(path_string)
-        polygon_arrays: numpy.ndarray = mpl_path.to_polygons()
+        # polygon_arrays = cast(list[numpy.ndarray], mpl_path.to_polygons())
+        polygon_arrays = av.helper.HelperTypeHinting.ensure_list_of_ndarrays(mpl_path.to_polygons())
         self.add_polygon_arrays(polygon_arrays)
 
     def path_strings(self) -> List[str]:
         return AVPathPolygon.multipolygon_to_path_string(self.multipolygon)
 
-    def svg_paths(
-        self, dwg: svgwrite.Drawing, **svg_properties
-    ) -> List[svgwrite.elementfactory.ElementBuilder]:
+    def svg_paths(self, dwg: svgwrite.Drawing, **svg_properties) -> List[svgwrite.elementfactory.ElementBuilder]:
         svg_paths = []
         path_strings = self.path_strings()
         for path_string in path_strings:
             svg_paths.append(dwg.path(path_string, **svg_properties))
         return svg_paths
+
+
+if __name__ == "__main__":
+    A_LIST_NONE = None
+    a_list_empty = []
+    a_list_filled = [0, 0]
+
+    if A_LIST_NONE:
+        print("a_list_none true", A_LIST_NONE)
+    else:
+        print("a_list_none false", A_LIST_NONE)
+
+    if a_list_empty:
+        print("a_list_empty true", a_list_empty)
+    else:
+        print("a_list_empty false", a_list_empty)
+
+    if a_list_filled:
+        print("a_list_filled true", a_list_filled)
+    else:
+        print("a_list_filled false", a_list_filled)
