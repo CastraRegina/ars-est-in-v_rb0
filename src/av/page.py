@@ -211,9 +211,9 @@ class AvPageSVG:
         descent: Optional[float] = None,
     ):
         if not ascent:
-            ascent = glyph.avfont_ascender()
+            ascent = glyph.font_ascender()
         if not descent:
-            descent = glyph.avfont_descender()
+            descent = glyph.font_descender()
         AvPageSVG.Helper.add_glyph_em_width(self, glyph, x_pos, y_pos, font_size, ascent, descent)
         AvPageSVG.Helper.add_glyph_sidebearing(self, glyph, x_pos, y_pos, font_size)
         AvPageSVG.Helper.add_glyph_font_ascent_descent(self, glyph, x_pos, y_pos, font_size)
@@ -277,7 +277,7 @@ def main():
         ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
         return AVFont(ttfont)
 
-    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"  # noqa
     font_size = vb_ratio * 3  # in mm
     text = (
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ "

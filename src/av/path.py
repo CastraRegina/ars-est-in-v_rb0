@@ -33,12 +33,6 @@ from av.consts import (
 #     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 
-# POLYGONIZE_UNIFORM_NUM_POINTS = 10  # minimum 2 = (start, end)
-# POLYGONIZE_ANGLE_MAX_DEG = 5  # 2 # difference of two derivatives less than
-# POLYGONIZE_ANGLE_MAX_STEPS = 9  # 9
-# POLYGONIZE_TYPE = Polygonize.BY_ANGLE
-
-
 class AVsvgPath:
     SVG_CMDS: ClassVar[str] = "MmLlHhVvCcSsQqTtAaZz"
     SVG_ARGS: ClassVar[str] = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
@@ -152,7 +146,7 @@ class AVsvgPath:
     @staticmethod
     def transform_path_string(path_string: str, affine_trafo: List[float]) -> str:
         # Affine transform (see also shapely - Affine Transformations)
-        #     affine_transform = [a00, a01, a10, a11, b0, b1]
+        #     affine_trafo = [a00, a01, a10, a11, b0, b1]
         #       | x' | = | a00 a01 b0 |   | x |
         #       | y' | = | a10 a11 b1 | * | y |
         #       | 1  | = |  0   0  1  |   | 1 |
