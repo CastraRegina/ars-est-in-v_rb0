@@ -25,7 +25,7 @@ import av.consts
 import av.helper
 
 
-class AVsvgPath:
+class AvSvgPath:
     SVG_CMDS: ClassVar[str] = "MmLlHhVvCcSsQqTtAaZz"
     SVG_ARGS: ClassVar[str] = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
     # Commands (number of values : command-character):
@@ -38,11 +38,11 @@ class AVsvgPath:
 
     @staticmethod
     def beautify_commands(path_string: str, round_func: Optional[Callable] = None) -> str:
-        org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
+        org_commands = re.findall(f"[{AvSvgPath.SVG_CMDS}][^{AvSvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
         for command in org_commands:
             command_letter = command[0]
-            args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
+            args = re.findall(AvSvgPath.SVG_ARGS, command[1:])
             batch_size = len(args)
             if command_letter in "MmLlTt":
                 batch_size = 2
@@ -71,7 +71,7 @@ class AVsvgPath:
 
     @staticmethod
     def convert_relative_to_absolute(path_string: str) -> str:
-        org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
+        org_commands = re.findall(f"[{AvSvgPath.SVG_CMDS}][^{AvSvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
         # Store the first point of each path (absolute):
         first_point: list[float] = []  # acts like None
@@ -80,7 +80,7 @@ class AVsvgPath:
 
         for command in org_commands:
             command_letter = command[0]
-            args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
+            args = re.findall(AvSvgPath.SVG_ARGS, command[1:])
 
             if command_letter.isupper():
                 if command_letter in "MLCSQTA":
@@ -149,12 +149,12 @@ class AVsvgPath:
             y_new = affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
             return f"{x_new:g}", f"{y_new:g}"
 
-        org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
+        org_commands = re.findall(f"[{AvSvgPath.SVG_CMDS}][^{AvSvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
 
         for command in org_commands:
             command_letter = command[0]
-            args = re.findall(AVsvgPath.SVG_ARGS, command[1:])
+            args = re.findall(AvSvgPath.SVG_ARGS, command[1:])
 
             if command_letter in "MLCSQT":  # (x,y) once or several times
                 for i in range(0, len(args), 2):
@@ -176,7 +176,7 @@ class AVsvgPath:
         return ret_path_string
 
 
-class AVPathPolygon:
+class AvPathPolygon:
     @staticmethod
     def multipolygon_to_path_string(
         multipolygon: shapely.geometry.MultiPolygon,
@@ -301,7 +301,7 @@ class AVPathPolygon:
         self.add_polygon_arrays(polygon_arrays)
 
     def path_strings(self) -> List[str]:
-        return AVPathPolygon.multipolygon_to_path_string(self.multipolygon)
+        return AvPathPolygon.multipolygon_to_path_string(self.multipolygon)
 
     def svg_paths(self, dwg: svgwrite.Drawing, **svg_properties) -> List[svgwrite.elementfactory.ElementBuilder]:
         svg_paths = []

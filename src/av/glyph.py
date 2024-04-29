@@ -17,14 +17,14 @@ import av.helper
 import av.path
 
 
-class AVGlyph:
+class AvGlyph:
     """Representation of a Glyph (single character of a certain font) for SVG.
     A Glyph is independent from font_size.
     To get the *real* dimensions call the functions by providing *font_size*.
     """
 
-    def __init__(self, avfont: AVFont, character: str):
-        self._avfont: AVFont = avfont
+    def __init__(self, avfont: AvFont, character: str):
+        self._avfont: AvFont = avfont
         self.character: str = character
         bounds_pen = BoundsPen(self._avfont.ttfont.getGlyphSet())
         glyph_name = self._avfont.ttfont.getBestCmap()[ord(character)]
@@ -36,7 +36,7 @@ class AVGlyph:
         svg_pen = SVGPathPen(self._avfont.ttfont.getGlyphSet())
         self._glyph_set.draw(svg_pen)
         self.path_string = svg_pen.getCommands()
-        self.polygonized_path_string = AVGlyph.polygonize_path_string(self.path_string)
+        self.polygonized_path_string = AvGlyph.polygonize_path_string(self.path_string)
 
     def font_ascender(self) -> float:
         """Returns the ascender of the font
@@ -90,7 +90,7 @@ class AVGlyph:
 
     def real_path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
         scale = font_size / self._avfont.units_per_em
-        path_string = av.path.AVsvgPath.transform_path_string(
+        path_string = av.path.AvSvgPath.transform_path_string(
             self.polygonized_path_string, [scale, 0, 0, -scale, x_pos, y_pos]
         )
         return path_string
@@ -193,12 +193,12 @@ class AVGlyph:
 
     def area_coverage(self, ascent: float, descent: float, font_size: float) -> float:
         glyph_string = self.real_path_string(0, 0, font_size)
-        glyph_polygon = av.path.AVPathPolygon()
+        glyph_polygon = av.path.AvPathPolygon()
         glyph_polygon.add_path_string(glyph_string)
 
         rect = self.rect_em_width(0, 0, ascent, descent, font_size)
         rect_string = av.helper.HelperSvg.rect_to_path(rect)
-        rect_polygon = av.path.AVPathPolygon()
+        rect_polygon = av.path.AvPathPolygon()
         rect_polygon.add_path_string(rect_string)
 
         inter = rect_polygon.multipolygon.intersection(glyph_polygon.multipolygon)
@@ -230,14 +230,14 @@ class AVGlyph:
         if not path_string:
             path_string = "M 0 0"
         else:
-            polygon = av.path.AVPathPolygon()
+            polygon = av.path.AvPathPolygon()
             poly_func = None
             match av.consts.POLYGONIZE_TYPE:
                 case av.consts.Polygonize.UNIFORM:
-                    poly_func = av.path.AVPathPolygon.polygonize_uniform
+                    poly_func = av.path.AvPathPolygon.polygonize_uniform
                 case av.consts.Polygonize.BY_ANGLE:
-                    poly_func = av.path.AVPathPolygon.polygonize_by_angle
-            path_string = av.path.AVPathPolygon.polygonize_path(path_string, poly_func)
+                    poly_func = av.path.AvPathPolygon.polygonize_by_angle
+            path_string = av.path.AvPathPolygon.polygonize_path(path_string, poly_func)
 
             polygon.add_path_string(path_string)
             path_strings = polygon.path_strings()
@@ -246,7 +246,7 @@ class AVGlyph:
 
 
 # pyright: reportAttributeAccessIssue=false
-class AVFont:
+class AvFont:
     """Representation of a Font used by Glyph-class"""
 
     def __init__(self, ttfont: TTFont):
@@ -262,12 +262,12 @@ class AVFont:
         self.subfamily_name: str = self.ttfont["name"].getDebugName(2)
         self.full_name: str = self.ttfont["name"].getDebugName(4)
         self.license_description: str = self.ttfont["name"].getDebugName(13)
-        self._glyph_cache: Dict[str, AVGlyph] = {}  # character->AVGlyph
+        self._glyph_cache: Dict[str, AvGlyph] = {}  # character->AVGlyph
 
-    def glyph(self, character: str) -> AVGlyph:
+    def glyph(self, character: str) -> AvGlyph:
         glyph = self._glyph_cache.get(character, None)
         if not glyph:
-            glyph = AVGlyph(self, character)
+            glyph = AvGlyph(self, character)
             self._glyph_cache[character] = glyph
         return glyph
 

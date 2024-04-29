@@ -16,11 +16,11 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from svgwrite.extensions import Inkscape
 
-from av.glyph import AVFont, AVGlyph
+from av.glyph import AvFont, AvGlyph
 
 
 @dataclass
-class AvPageSVG:
+class AvPageSvg:
     """A page (canvas) described by SVG with a viewbox to draw inside
 
     Contains several layers:
@@ -50,14 +50,14 @@ class AvPageSVG:
         """Helper-class mainly to provide staticmethods for handling Glyphs"""
 
         @staticmethod
-        def add_glyph_sidebearing(page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
+        def add_glyph_sidebearing(page: AvPageSvg, glyph: AvGlyph, x_pos: float, y_pos: float, font_size: float):
             """Add a box to debug layer showing glyph's sidebearing left and right"""
             sb_left = glyph.real_sidebearing_left(font_size)
             sb_right = glyph.real_sidebearing_right(font_size)
 
             rect_bb = glyph.rect_bounding_box(x_pos, y_pos, font_size)
             rect = (x_pos, rect_bb[1], sb_left, rect_bb[3])
-            page.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(page.drawing, rect, "none", 0, fill="yellow"))
+            page.layer_debug_glyph_sidebearing.add(AvGlyph.svg_rect(page.drawing, rect, "none", 0, fill="yellow"))
 
             rect = (
                 x_pos + glyph.real_width(font_size) - sb_right,
@@ -65,23 +65,23 @@ class AvPageSVG:
                 sb_right,
                 rect_bb[3],
             )
-            page.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(page.drawing, rect, "none", 0, fill="orange"))
+            page.layer_debug_glyph_sidebearing.add(AvGlyph.svg_rect(page.drawing, rect, "none", 0, fill="orange"))
 
         @staticmethod
         def add_glyph_font_ascent_descent(
-            page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
+            page: AvPageSvg, glyph: AvGlyph, x_pos: float, y_pos: float, font_size: float
         ):
             """Add a box to debug layer showing font's ascent and descent"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_font_ascent_descent(x_pos, y_pos, font_size)
             page.layer_debug_glyph_font_ascent_descent.add(
-                AVGlyph.svg_rect(page.drawing, rect, "green", 0.3 * stroke_width)
+                AvGlyph.svg_rect(page.drawing, rect, "green", 0.3 * stroke_width)
             )
 
         @staticmethod
         def add_glyph_em_width(
-            page: AvPageSVG,
-            glyph: AVGlyph,
+            page: AvPageSvg,
+            glyph: AvGlyph,
             x_pos: float,
             y_pos: float,
             font_size: float,
@@ -91,14 +91,14 @@ class AvPageSVG:
             """Add a box to debug layer showing GlyphSet's width"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
-            page.layer_debug_glyph_em_width.add(AVGlyph.svg_rect(page.drawing, rect, "blue", 0.2 * stroke_width))
+            page.layer_debug_glyph_em_width.add(AvGlyph.svg_rect(page.drawing, rect, "blue", 0.2 * stroke_width))
 
         @staticmethod
-        def add_glyph_bounding_box(page: AvPageSVG, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
+        def add_glyph_bounding_box(page: AvPageSvg, glyph: AvGlyph, x_pos: float, y_pos: float, font_size: float):
             """Add glyph's bounding box to debug layer"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
-            page.layer_debug_glyph_bounding_box.add(AVGlyph.svg_rect(page.drawing, rect, "red", 0.1 * stroke_width))
+            page.layer_debug_glyph_bounding_box.add(AvGlyph.svg_rect(page.drawing, rect, "red", 0.1 * stroke_width))
 
     def __init__(
         self,
@@ -195,7 +195,7 @@ class AvPageSVG:
 
     def add_glyph(
         self,
-        glyph: AVGlyph,
+        glyph: AvGlyph,
         x_pos: float,
         y_pos: float,
         font_size: float,
@@ -217,10 +217,10 @@ class AvPageSVG:
             ascent = glyph.font_ascender()
         if not descent:
             descent = glyph.font_descender()
-        AvPageSVG.Helper.add_glyph_em_width(self, glyph, x_pos, y_pos, font_size, ascent, descent)
-        AvPageSVG.Helper.add_glyph_sidebearing(self, glyph, x_pos, y_pos, font_size)
-        AvPageSVG.Helper.add_glyph_font_ascent_descent(self, glyph, x_pos, y_pos, font_size)
-        AvPageSVG.Helper.add_glyph_bounding_box(self, glyph, x_pos, y_pos, font_size)
+        AvPageSvg.Helper.add_glyph_em_width(self, glyph, x_pos, y_pos, font_size, ascent, descent)
+        AvPageSvg.Helper.add_glyph_sidebearing(self, glyph, x_pos, y_pos, font_size)
+        AvPageSvg.Helper.add_glyph_font_ascent_descent(self, glyph, x_pos, y_pos, font_size)
+        AvPageSvg.Helper.add_glyph_bounding_box(self, glyph, x_pos, y_pos, font_size)
         self.add(glyph.svg_path(self.drawing, x_pos, y_pos, font_size))
 
     def add(
@@ -259,7 +259,7 @@ def main():
     # Set up the SVG canvas:
     #   Define viewBox so that "1" is the width of the rectangle
     #   Multiply a dimension with "vb_ratio" to get the size regarding viewBox
-    svg_output = AvPageSVG(canvas_width, canvas_height, vb_x, vb_y, vb_w, vb_h)
+    svg_output = AvPageSvg(canvas_width, canvas_height, vb_x, vb_y, vb_w, vb_h)
 
     # Draw the rectangle
     svg_output.add(
@@ -273,12 +273,12 @@ def main():
     )
 
     # Add some text
-    def instantiate_font(ttfont: TTFont, values: Dict[str, float]) -> AVFont:
+    def instantiate_font(ttfont: TTFont, values: Dict[str, float]) -> AvFont:
         # values {"wght": 700, "wdth": 25, "GRAD": 100}
-        axes_values = AVFont.default_axes_values(ttfont)
+        axes_values = AvFont.default_axes_values(ttfont)
         axes_values.update(values)
         ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
-        return AVFont(ttfont)
+        return AvFont(ttfont)
 
     font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
     font_size = vb_ratio * 3  # in mm
