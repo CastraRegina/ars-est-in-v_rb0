@@ -6,6 +6,7 @@ import math
 from typing import Any, List, Tuple, Union, cast
 
 import numpy
+import svgwrite
 import svgwrite.elementfactory
 
 import av.consts

@@ -16,10 +16,6 @@ import svgpath2mpl
 import svgpathtools
 import svgpathtools.path
 import svgpathtools.paths2svg
-import svgwrite
-import svgwrite.base
-import svgwrite.container
-import svgwrite.elementfactory
 
 import av.consts
 import av.helper
@@ -303,12 +299,12 @@ class AvPathPolygon:
     def path_strings(self) -> List[str]:
         return AvPathPolygon.multipolygon_to_path_string(self.multipolygon)
 
-    def svg_paths(self, dwg: svgwrite.Drawing, **svg_properties) -> List[svgwrite.elementfactory.ElementBuilder]:
-        svg_paths = []
-        path_strings = self.path_strings()
-        for path_string in path_strings:
-            svg_paths.append(dwg.path(path_string, **svg_properties))
-        return svg_paths
+    # def svg_paths(self, dwg: svgwrite.Drawing, **svg_properties) -> List[svgwrite.elementfactory.ElementBuilder]:
+    #     svg_paths = []
+    #     path_strings = self.path_strings()
+    #     for path_string in path_strings:
+    #         svg_paths.append(dwg.path(path_string, **svg_properties))
+    #     return svg_paths
 
 
 if __name__ == "__main__":
