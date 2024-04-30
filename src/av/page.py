@@ -17,6 +17,7 @@ from fontTools.varLib import instancer
 from svgwrite.extensions import Inkscape
 
 from av.glyph import AvFont, AvGlyph
+from av.helper import HelperSvg
 
 
 @dataclass
@@ -57,7 +58,7 @@ class AvPageSvg:
 
             rect_bb = glyph.rect_bounding_box(x_pos, y_pos, font_size)
             rect = (x_pos, rect_bb[1], sb_left, rect_bb[3])
-            page.layer_debug_glyph_sidebearing.add(AvGlyph.svg_rect(page.drawing, rect, "none", 0, fill="yellow"))
+            page.layer_debug_glyph_sidebearing.add(HelperSvg.svg_rect(page.drawing, rect, "none", 0, fill="yellow"))
 
             rect = (
                 x_pos + glyph.real_width(font_size) - sb_right,
@@ -65,7 +66,7 @@ class AvPageSvg:
                 sb_right,
                 rect_bb[3],
             )
-            page.layer_debug_glyph_sidebearing.add(AvGlyph.svg_rect(page.drawing, rect, "none", 0, fill="orange"))
+            page.layer_debug_glyph_sidebearing.add(HelperSvg.svg_rect(page.drawing, rect, "none", 0, fill="orange"))
 
         @staticmethod
         def add_glyph_font_ascent_descent(
@@ -75,7 +76,7 @@ class AvPageSvg:
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_font_ascent_descent(x_pos, y_pos, font_size)
             page.layer_debug_glyph_font_ascent_descent.add(
-                AvGlyph.svg_rect(page.drawing, rect, "green", 0.3 * stroke_width)
+                HelperSvg.svg_rect(page.drawing, rect, "green", 0.3 * stroke_width)
             )
 
         @staticmethod
@@ -91,14 +92,14 @@ class AvPageSvg:
             """Add a box to debug layer showing GlyphSet's width"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
-            page.layer_debug_glyph_em_width.add(AvGlyph.svg_rect(page.drawing, rect, "blue", 0.2 * stroke_width))
+            page.layer_debug_glyph_em_width.add(HelperSvg.svg_rect(page.drawing, rect, "blue", 0.2 * stroke_width))
 
         @staticmethod
         def add_glyph_bounding_box(page: AvPageSvg, glyph: AvGlyph, x_pos: float, y_pos: float, font_size: float):
             """Add glyph's bounding box to debug layer"""
             stroke_width = glyph.real_dash_thickness(font_size)
             rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
-            page.layer_debug_glyph_bounding_box.add(AvGlyph.svg_rect(page.drawing, rect, "red", 0.1 * stroke_width))
+            page.layer_debug_glyph_bounding_box.add(HelperSvg.svg_rect(page.drawing, rect, "red", 0.1 * stroke_width))
 
     def __init__(
         self,

@@ -6,6 +6,7 @@ import math
 from typing import Any, List, Tuple, Union, cast
 
 import numpy
+import svgwrite.elementfactory
 
 import av.consts
 
@@ -101,3 +102,33 @@ class HelperSvg:
                 ret_path += f"L{x_circ:g} {y_circ:g} "
         ret_path += "Z"
         return ret_path
+
+    @staticmethod
+    def svg_rect(
+        dwg: svgwrite.Drawing,
+        rect: Tuple[float, float, float, float],
+        stroke: str,
+        stroke_width: float,
+        **svg_properties,
+    ) -> svgwrite.elementfactory.ElementBuilder:
+        """Create a SVG-element which can be added to a SVG-layer
+
+        Args:
+            dwg (svgwrite.Drawing): dwg.rect()-function is called to create the rect
+            rect (Tuple[float, float, float, float]): (x_pos, y_pos, width, height)
+            stroke (str): color of the stroke
+            stroke_width (float): width of the stroke
+
+        Returns:
+            svgwrite.elementfactory.ElementBuilder: the rect which can be added to a SVG-layer
+        """
+        (x_pos, y_pos, width, height) = rect
+        rect_properties = {
+            "insert": (x_pos, y_pos),
+            "size": (width, height),
+            "stroke": stroke,  # color
+            "stroke_width": stroke_width,
+            "fill": "none",
+        }
+        rect_properties.update(svg_properties)
+        return dwg.rect(**rect_properties)

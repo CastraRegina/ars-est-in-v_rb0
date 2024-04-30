@@ -36,7 +36,7 @@ class AvGlyph:
         svg_pen = SVGPathPen(self._avfont.ttfont.getGlyphSet())
         self._glyph_set.draw(svg_pen)
         self.path_string = svg_pen.getCommands()
-        self.polygonized_path_string = AvGlyph.polygonize_path_string(self.path_string)
+        self.polygonized_path_string = AvGlyph.polygonize_svg_path_string(self.path_string)
 
     def font_ascender(self) -> float:
         """Returns the ascender of the font
@@ -207,28 +207,9 @@ class AvGlyph:
         return inter.area / rect_area
 
     @staticmethod
-    def svg_rect(
-        dwg: svgwrite.Drawing,
-        rect: Tuple[float, float, float, float],
-        stroke: str,
-        stroke_width: float,
-        **svg_properties,
-    ) -> svgwrite.elementfactory.ElementBuilder:
-        (x_pos, y_pos, width, height) = rect
-        rect_properties = {
-            "insert": (x_pos, y_pos),
-            "size": (width, height),
-            "stroke": stroke,  # color
-            "stroke_width": stroke_width,
-            "fill": "none",
-        }
-        rect_properties.update(svg_properties)
-        return dwg.rect(**rect_properties)
-
-    @staticmethod
-    def polygonize_path_string(path_string: str) -> str:
-        if not path_string:
-            path_string = "M 0 0"
+    def polygonize_svg_path_string(svg_path_string: str) -> str:
+        if not svg_path_string:
+            svg_path_string = "M 0 0"
         else:
             polygon = av.path.AvPathPolygon()
             poly_func = None
@@ -237,12 +218,12 @@ class AvGlyph:
                     poly_func = av.path.AvPathPolygon.polygonize_uniform
                 case av.consts.Polygonize.BY_ANGLE:
                     poly_func = av.path.AvPathPolygon.polygonize_by_angle
-            path_string = av.path.AvPathPolygon.polygonize_path(path_string, poly_func)
+            svg_path_string = av.path.AvPathPolygon.polygonize_path(svg_path_string, poly_func)
 
-            polygon.add_path_string(path_string)
+            polygon.add_path_string(svg_path_string)
             path_strings = polygon.path_strings()
-            path_string = " ".join(path_strings)
-        return path_string
+            svg_path_string = " ".join(path_strings)
+        return svg_path_string
 
 
 # pyright: reportAttributeAccessIssue=false
