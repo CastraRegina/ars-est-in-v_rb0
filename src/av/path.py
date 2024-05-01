@@ -22,18 +22,36 @@ import av.helper
 
 
 class AvSvgPath:
+    """This class provides collection of functions for manipulation of SVG-paths.
+    A SVG-path is characterized by a string describing a sequence of points.
+    The points' connection type is according to their commands.
+    Commands (number of values : command-character):
+        MoveTo            2: Mm
+        LineTo            2: Ll   1: Hh(x)   1:Vv(y)
+        CubicBezier:      6: Cc   4: Ss
+        QuadraticBezier:  4: Qq   2: Tt
+        ArcCurve:         7: Aa
+        ClosePath:        0: Zz
+    """
+
+    # Command letters:
     SVG_CMDS: ClassVar[str] = "MmLlHhVvCcSsQqTtAaZz"
+    # Definition of a number:
     SVG_ARGS: ClassVar[str] = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
-    # Commands (number of values : command-character):
-    #     MoveTo            2: Mm
-    #     LineTo            2: Ll   1: Hh(x)   1:Vv(y)
-    #     CubicBezier:      6: Cc   4: Ss
-    #     QuadraticBezier:  4: Qq   2: Tt
-    #     ArcCurve:         7: Aa
-    #     ClosePath:        0: Zz
 
     @staticmethod
     def beautify_commands(path_string: str, round_func: Optional[Callable] = None) -> str:
+        """Takes the given _path_string_ and rounds each point of the path
+           by using the given _round_func_.
+           If _round_func_ is None just a cast by "float()" is done.
+
+        Args:
+            path_string (str): _description_
+            round_func (Optional[Callable], optional): _description_. Defaults to None.
+
+        Returns:
+            str: the beautified path_string
+        """
         org_commands = re.findall(f"[{AvSvgPath.SVG_CMDS}][^{AvSvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
         for command in org_commands:
