@@ -22,9 +22,9 @@ import av.helper
 
 
 class AvSvgPath:
-    """This class provides collection of functions for manipulation of SVG-paths.
+    """This class provides a collection of functions for manipulation of SVG-paths.
     A SVG-path is characterized by a string describing a sequence of points.
-    The points' connection type is according to their commands.
+    The points' connection types are according to their commands.
     Commands (number of values : command-character):
         MoveTo            2: Mm
         LineTo            2: Ll   1: Hh(x)   1:Vv(y)
@@ -41,7 +41,7 @@ class AvSvgPath:
 
     @staticmethod
     def beautify_commands(path_string: str, round_func: Optional[Callable] = None) -> str:
-        """Takes the given _path_string_ and rounds each point of the path
+        """Takes the given _path_string_ and rounds (mathematical) each point of the path
            by using the given _round_func_.
            If _round_func_ is None just a cast by "float()" is done.
 
@@ -85,6 +85,18 @@ class AvSvgPath:
 
     @staticmethod
     def convert_relative_to_absolute(path_string: str) -> str:
+        """Take the give SVG _path_string_ and check the commands and coordinates.
+        Relative coordinates will be converted into absolute ones,
+        i.e. lower case letter commands will be replaced by upper case letter commands.
+        The representation (i.e. geometry) of the path is still the same.
+        Use this function before doing a transform.
+
+        Args:
+            path_string (str): SVG path string input
+
+        Returns:
+            str: path_string using absolute coordinates
+        """
         org_commands = re.findall(f"[{AvSvgPath.SVG_CMDS}][^{AvSvgPath.SVG_CMDS}]*", path_string)
         ret_commands = []
         # Store the first point of each path (absolute):
@@ -157,6 +169,8 @@ class AvSvgPath:
         #       | x' | = | a00 a01 b0 |   | x |
         #       | y' | = | a10 a11 b1 | * | y |
         #       | 1  | = |  0   0  1  |   | 1 |
+
+        # make sure _path_string_ uses absolute coordinates.
 
         def transform(x_str: str, y_str: str) -> Tuple[str, str]:
             x_new = affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
