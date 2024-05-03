@@ -164,13 +164,22 @@ class AvSvgPath:
 
     @staticmethod
     def transform_path_string(path_string: str, affine_trafo: List[float]) -> str:
-        # Affine transform (see also shapely - Affine Transformations)
-        #     affine_trafo = [a00, a01, a10, a11, b0, b1]
-        #       | x' | = | a00 a01 b0 |   | x |
-        #       | y' | = | a10 a11 b1 | * | y |
-        #       | 1  | = |  0   0  1  |   | 1 |
+        """Transform the given SVG-_path_string_ by using the given _affine_trafo_.
+        Make sure the _path_string_ uses absolute coordinates.
 
-        # make sure _path_string_ uses absolute coordinates.
+        Affine transform (see also shapely - Affine Transformations)
+            affine_trafo = [a00, a01, a10, a11, b0, b1]
+              | x' | = | a00 a01 b0 |   | x |
+              | y' | = | a10 a11 b1 | * | y |
+              | 1  | = |  0   0  1  |   | 1 |
+
+        Args:
+            path_string (str): SVG-path-string input
+            affine_trafo (List[float]): Affine transformation
+
+        Returns:
+            str: the transformed _path_string_
+        """
 
         def transform(x_str: str, y_str: str) -> Tuple[str, str]:
             x_new = affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
