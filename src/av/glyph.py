@@ -18,7 +18,10 @@ import av.path
 
 
 class AvGlyph:
-    """Representation of a Glyph (single character of a certain font) for SVG.
+    """Representation of a Glyph (single character of a certain font).
+    Purpose of this class is to provide data regarding
+    - the extensions of the Glyph (width, height, ascender, descender, sidebearings, ...)
+    - a SVG-path representation of the Glyph
     A Glyph is independent from font_size.
     To get the *real* dimensions call the functions by providing *font_size*.
     """
@@ -39,7 +42,7 @@ class AvGlyph:
         self.polygonized_path_string = AvGlyph.polygonize_svg_path_string(self.path_string)
 
     def font_ascender(self) -> float:
-        """Returns the ascender of the font
+        """Returns the ascender of the font in unitsPerEm
 
         Returns:
             float: ascender in unitsPerEm
@@ -47,7 +50,7 @@ class AvGlyph:
         return self._avfont.ascender
 
     def font_descender(self) -> float:
-        """Returns the descender of the font
+        """Returns the descender of the font in unitsPerEm
 
         Returns:
             float: descender in unitsPerEm
@@ -78,11 +81,35 @@ class AvGlyph:
         return 0.0
 
     def real_sidebearing_left(self, font_size: float) -> float:
+        """The left side bearing (LSB) refers to the horizontal space on the left side of
+        an individual character or glyph. The LSB, along with the Right Side Bearing (RSB),
+        ensures that characters sit beside one another with an even appearance.
+        A negative LSB means that the left sidebearing extends beyond the left edge of the glyph,
+        resulting in a character that appears visually shifted to the left.
+
+        Args:
+            font_size (float): font_size
+
+        Returns:
+            float: left side bearing LSB
+        """
         if self.bounding_box:
             return self.bounding_box[0] * font_size / self._avfont.units_per_em
         return 0.0
 
     def real_sidebearing_right(self, font_size: float) -> float:
+        """The right side bearing (RSB) refers to the horizontal space on the right side of
+        an individual character or glyph. The RSB, along with the Left Side Bearing (LSB),
+        ensures that characters sit beside one another with an even appearance.
+        A negative RSB means that the right sidebearing extends beyond the right edge of the glyph,
+        resulting in a character that appears visually shifted to the right.
+
+        Args:
+            font_size (float): font_size
+
+        Returns:
+            float: right side bearing RSB
+        """
         if self.bounding_box:
             sidebearing_right = self.width - self.bounding_box[2]
             return sidebearing_right * font_size / self._avfont.units_per_em
@@ -124,21 +151,21 @@ class AvGlyph:
     #     ret_text = dwg.text(self.character, **text_properties)
     #     return ret_text
 
-    def rect_em(
-        self,
-        x_pos: float,
-        y_pos: float,
-        ascent: float,
-        descent: float,
-        real_width: float,
-        font_size: float,
-    ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        units_per_em = self._avfont.units_per_em
-        middle_of_em = 0.5 * (ascent + descent) * font_size / units_per_em
+    # def rect_em(
+    #     self,
+    #     x_pos: float,
+    #     y_pos: float,
+    #     ascent: float,
+    #     descent: float,
+    #     real_width: float,
+    #     font_size: float,
+    # ) -> Tuple[float, float, float, float]:
+    #     # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+    #     units_per_em = self._avfont.units_per_em
+    #     middle_of_em = 0.5 * (ascent + descent) * font_size / units_per_em
 
-        rect = (x_pos, y_pos - middle_of_em - 0.5 * font_size, real_width, font_size)
-        return rect
+    #     rect = (x_pos, y_pos - middle_of_em - 0.5 * font_size, real_width, font_size)
+    #     return rect
 
     def rect_em_width(
         self,
@@ -149,7 +176,10 @@ class AvGlyph:
         font_size: float,
     ) -> Tuple[float, float, float, float]:
         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        return self.rect_em(x_pos, y_pos, ascent, descent, self.real_width(font_size), font_size)
+        units_per_em = self._avfont.units_per_em
+        middle_of_em = 0.5 * (ascent + descent) * font_size / units_per_em
+        rect = (x_pos, y_pos - middle_of_em - 0.5 * font_size, self.real_width(font_size), font_size)
+        return rect
 
     def rect_given_ascent_descent(
         self,
@@ -272,10 +302,10 @@ class AvFont:
             axes_values[axis.axisTag] = axis.defaultValue
         return axes_values
 
-    @staticmethod
-    def real_value(ttfont: TTFont, font_size: float, value: float) -> float:
-        units_per_em = ttfont["head"].unitsPerEm
-        return value * font_size / units_per_em
+    # @staticmethod
+    # def real_value(ttfont: TTFont, font_size: float, value: float) -> float:
+    #     units_per_em = ttfont["head"].unitsPerEm
+    #     return value * font_size / units_per_em
 
 
 def main():
