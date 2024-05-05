@@ -16,6 +16,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from svgwrite.extensions import Inkscape
 
+import av.consts
 from av.glyph import AvFont, AvGlyph
 from av.helper import HelperSvg
 
@@ -291,13 +292,77 @@ def main():
     )
 
     ttfont = TTFont(font_filename)
-    avfont = instantiate_font(ttfont, {"wght": 800})
+    avfont = AvFont(ttfont)  # instantiate_font(ttfont, {"wght": 800})
     x_pos = 0
     y_pos = 0.1
     for character in text:
         glyph = avfont.glyph(character)
         svg_output.add_glyph(glyph, x_pos, y_pos, font_size)
         x_pos += glyph.real_width(font_size)
+
+    glyph = AvGlyph(avfont, "A")
+    print("glyph A: ---------------------------------------------------------")
+    print("real_width(None)        :", glyph.real_width(font_size))
+    print("real_width(LEFT)        :", glyph.real_width(font_size, av.consts.Align.LEFT))
+    print("real_width(RIGTH)       :", glyph.real_width(font_size, av.consts.Align.RIGHT))
+    print("real_width(BOTH)        :", glyph.real_width(font_size, av.consts.Align.BOTH))
+    print("real_BB_width           :", glyph.rect_bounding_box(0, 0, font_size)[2])
+    print("real_LSB                :", glyph.real_sidebearing_left(font_size))
+    print("real_RSB                :", glyph.real_sidebearing_right(font_size))
+    print(
+        "real_width(BOTH)+LSB+RSB:",
+        glyph.real_width(font_size, av.consts.Align.BOTH)
+        + glyph.real_sidebearing_left(font_size)
+        + glyph.real_sidebearing_right(font_size),
+    )
+
+    glyph = AvGlyph(avfont, "B")
+    print("glyph B: ---------------------------------------------------------")
+    print("real_width(None)        :", glyph.real_width(font_size))
+    print("real_width(LEFT)        :", glyph.real_width(font_size, av.consts.Align.LEFT))
+    print("real_width(RIGTH)       :", glyph.real_width(font_size, av.consts.Align.RIGHT))
+    print("real_width(BOTH)        :", glyph.real_width(font_size, av.consts.Align.BOTH))
+    print("real_BB_width           :", glyph.rect_bounding_box(0, 0, font_size)[2])
+    print("real_LSB                :", glyph.real_sidebearing_left(font_size))
+    print("real_RSB                :", glyph.real_sidebearing_right(font_size))
+    print(
+        "real_width(BOTH)+LSB+RSB:",
+        glyph.real_width(font_size, av.consts.Align.BOTH)
+        + glyph.real_sidebearing_left(font_size)
+        + glyph.real_sidebearing_right(font_size),
+    )
+
+    glyph = AvGlyph(avfont, "W")
+    print("glyph W: ---------------------------------------------------------")
+    print("real_width(None)        :", glyph.real_width(font_size))
+    print("real_width(LEFT)        :", glyph.real_width(font_size, av.consts.Align.LEFT))
+    print("real_width(RIGTH)       :", glyph.real_width(font_size, av.consts.Align.RIGHT))
+    print("real_width(BOTH)        :", glyph.real_width(font_size, av.consts.Align.BOTH))
+    print("real_BB_width           :", glyph.rect_bounding_box(0, 0, font_size)[2])
+    print("real_LSB                :", glyph.real_sidebearing_left(font_size))
+    print("real_RSB                :", glyph.real_sidebearing_right(font_size))
+    print(
+        "real_width(BOTH)+LSB+RSB:",
+        glyph.real_width(font_size, av.consts.Align.BOTH)
+        + glyph.real_sidebearing_left(font_size)
+        + glyph.real_sidebearing_right(font_size),
+    )
+
+    glyph = AvGlyph(avfont, "K")
+    print("glyph K: ---------------------------------------------------------")
+    print("real_width(None)        :", glyph.real_width(font_size))
+    print("real_width(LEFT)        :", glyph.real_width(font_size, av.consts.Align.LEFT))
+    print("real_width(RIGTH)       :", glyph.real_width(font_size, av.consts.Align.RIGHT))
+    print("real_width(BOTH)        :", glyph.real_width(font_size, av.consts.Align.BOTH))
+    print("real_BB_width           :", glyph.rect_bounding_box(0, 0, font_size)[2])
+    print("real_LSB                :", glyph.real_sidebearing_left(font_size))
+    print("real_RSB                :", glyph.real_sidebearing_right(font_size))
+    print(
+        "real_width(BOTH)+LSB+RSB:",
+        glyph.real_width(font_size, av.consts.Align.BOTH)
+        + glyph.real_sidebearing_left(font_size)
+        + glyph.real_sidebearing_right(font_size),
+    )
 
     # Save the SVG file
     print("save...")

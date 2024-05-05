@@ -24,6 +24,7 @@ class AvGlyph:
     - a SVG-path representation of the Glyph
     A Glyph is independent from font_size.
     To get the *real* dimensions call the functions by providing *font_size*.
+    *real* means the dimension in real-coordinates, i.e. the dimension in the SVG-output.
     """
 
     def __init__(self, avfont: AvFont, character: str):
@@ -58,6 +59,19 @@ class AvGlyph:
         return self._avfont.descender
 
     def real_width(self, font_size: float, align: Optional[av.consts.Align] = None) -> float:
+        """Returns the real width using _font_size_.
+
+        Args:
+            font_size (float): font_size
+            align (Optional[av.consts.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
+                None: official width (i.e. including LSB and RSB) from _glyph_set.width
+                LEFT: official width - bounding_box.x_pos
+                RIGHT: bounding_box.width + bounding_box.x_pos
+                BOTH: bounding_box.width
+
+        Returns:
+            float: width
+        """
         real_width = self.width * font_size / self._avfont.units_per_em
         if not align:
             return real_width
