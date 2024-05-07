@@ -88,6 +88,15 @@ class AvGlyph:
             return real_width
 
     def real_dash_thickness(self, font_size: float) -> float:
+        """Return the thickness of a dash-line.
+        For example this value can be used as a reference value.
+
+        Args:
+            font_size (float): font_size in order to calculate the real thickness.
+
+        Returns:
+            float: the thickness of a dash-line
+        """
         glyph = self._avfont.glyph("-")
         if glyph.bounding_box:
             thickness = glyph.bounding_box[3] - glyph.bounding_box[1]
@@ -142,7 +151,7 @@ class AvGlyph:
         x_pos: float,
         y_pos: float,
         font_size: float,
-        **svg_properties,
+        **svg_properties: str,
     ) -> svgwrite.elementfactory.ElementBuilder:
         path_string = self.real_path_string(x_pos, y_pos, font_size)
         svg_path = dwg.path(path_string, **svg_properties)
