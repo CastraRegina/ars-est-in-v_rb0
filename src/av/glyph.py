@@ -65,9 +65,9 @@ class AvGlyph:
             font_size (float): font_size
             align (Optional[av.consts.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
                 None: official width (i.e. including LSB and RSB) from _glyph_set.width
-                LEFT: official width - bounding_box.x_pos
-                RIGHT: bounding_box.width + bounding_box.x_pos
-                BOTH: bounding_box.width
+                LEFT: official width - bounding_box.x_pos      = official width - LSB
+                RIGHT: bounding_box.width + bounding_box.x_pos = official width - RSB
+                BOTH: bounding_box.width                       = official width - LSB - RSB
 
         Returns:
             float: width
