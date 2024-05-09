@@ -212,6 +212,25 @@ class AvSvgPath:
         ret_path_string = " ".join(ret_commands)
         return ret_path_string
 
+    @staticmethod
+    def polygonize_svg_path_string(svg_path_string: str) -> str:
+        if not svg_path_string:
+            svg_path_string = "M 0 0"
+        else:
+            polygon = AvPathPolygon()
+            poly_func = None
+            match av.consts.POLYGONIZE_TYPE:
+                case av.consts.Polygonize.UNIFORM:
+                    poly_func = AvPathPolygon.polygonize_uniform
+                case av.consts.Polygonize.BY_ANGLE:
+                    poly_func = AvPathPolygon.polygonize_by_angle
+            svg_path_string = AvPathPolygon.polygonize_path(svg_path_string, poly_func)
+
+            polygon.add_path_string(svg_path_string)
+            path_strings = polygon.path_strings()
+            svg_path_string = " ".join(path_strings)
+        return svg_path_string
+
 
 class AvPathPolygon:
     @staticmethod
@@ -367,3 +386,16 @@ if __name__ == "__main__":
         print("a_list_filled true", a_list_filled)
     else:
         print("a_list_filled false", a_list_filled)
+
+    a_string_empty = ""
+    a_string_filled = "toto"
+
+    if a_string_empty:
+        print("a_string_empty true", a_string_empty)
+    else:
+        print("a_string_empty false", a_string_empty)
+
+    if a_string_filled:
+        print("a_string_filled true", a_string_filled)
+    else:
+        print("a_string_filled false", a_string_filled)

@@ -40,7 +40,7 @@ class AvGlyph:
         svg_pen = SVGPathPen(self._avfont.ttfont.getGlyphSet())
         self._glyph_set.draw(svg_pen)
         self.path_string = svg_pen.getCommands()
-        self.polygonized_path_string = AvGlyph.polygonize_svg_path_string(self.path_string)
+        self.polygonized_path_string = av.path.AvSvgPath.polygonize_svg_path_string(self.path_string)
 
     def font_ascender(self) -> float:
         """Returns the ascender of the font in unitsPerEm
@@ -59,7 +59,7 @@ class AvGlyph:
         return self._avfont.descender
 
     def real_width(self, font_size: float, align: Optional[av.consts.Align] = None) -> float:
-        """Returns the real width using _font_size_.
+        """Returns the "real" width calculated by using _font_size_.
 
         Args:
             font_size (float): font_size
@@ -258,25 +258,6 @@ class AvGlyph:
         rect_area = rect_polygon.multipolygon.area
 
         return inter.area / rect_area
-
-    @staticmethod
-    def polygonize_svg_path_string(svg_path_string: str) -> str:
-        if not svg_path_string:
-            svg_path_string = "M 0 0"
-        else:
-            polygon = av.path.AvPathPolygon()
-            poly_func = None
-            match av.consts.POLYGONIZE_TYPE:
-                case av.consts.Polygonize.UNIFORM:
-                    poly_func = av.path.AvPathPolygon.polygonize_uniform
-                case av.consts.Polygonize.BY_ANGLE:
-                    poly_func = av.path.AvPathPolygon.polygonize_by_angle
-            svg_path_string = av.path.AvPathPolygon.polygonize_path(svg_path_string, poly_func)
-
-            polygon.add_path_string(svg_path_string)
-            path_strings = polygon.path_strings()
-            svg_path_string = " ".join(path_strings)
-        return svg_path_string
 
 
 # pyright: reportAttributeAccessIssue=false
