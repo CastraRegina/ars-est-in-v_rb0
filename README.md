@@ -1113,7 +1113,12 @@ see also internet recommendations, e.g. aufbauen-online-business.de
 ### Free / Public Domain Music
 - [musopen.org](https://musopen.org/)
   - [In_the_Hall_Of_The_Mountain_King](https://en.m.wikipedia.org/wiki/File:Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg)  
-    e.g. used for [Florida Museum's oVert project](https://www.youtube.com/watch?v=1VqLsNMIPmc)
+    e.g. used for [Florida Museum's oVert project](https://www.youtube.com/watch?v=1VqLsNMIPmc)  
+    see also: [UW lab cataloging fish with CT scans](https://www.youtube.com/watch?v=99lQVQRZsmk),
+    [UW professor is making 3-D scans of every fish species in the sea](https://www.youtube.com/watch?v=butHSGs-QZk),
+    [Inside Insight: Clearing and Staining Fish](https://www.youtube.com/watch?v=haopSRCuPdo),
+    [X-ray imaging of a small fish](https://www.youtube.com/watch?v=cH7icjZm7V4),
+    ...
 
 ---
 
