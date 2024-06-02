@@ -265,13 +265,24 @@ class AvFont:
     """Representation of a Font used by Glyph-class"""
 
     def __init__(self, ttfont: TTFont):
-        # ttfont is already configured with the given axes_values
+        # remark: ttfont is already configured with the given axes_values
+
+        def get_char_height(char: str) -> float:
+            bounds_pen = BoundsPen(ttfont.getGlyphSet())
+            glyph_name = ttfont.getBestCmap()[ord(char)]
+            glyph_set = ttfont.getGlyphSet()[glyph_name]
+            glyph_set.draw(bounds_pen)
+            (_, _, _, char_height) = bounds_pen.bounds
+            return char_height
+
         self.ttfont: TTFont = ttfont
         self.ascender: float = self.ttfont["hhea"].ascender  # in unitsPerEm
         self.descender: float = self.ttfont["hhea"].descender  # in unitsPerEm
         self.line_gap: float = self.ttfont["hhea"].lineGap  # in unitsPerEm
-        self.x_height: float = self.ttfont["OS/2"].sxHeight  # in unitsPerEm
-        self.cap_height: float = self.ttfont["OS/2"].sCapHeight  # in unitsPerEm
+        # self.x_height: float = self.ttfont["OS/2"].sxHeight  # in unitsPerEm
+        self.x_height: float = get_char_height("x")  # in unitsPerEm
+        # self.cap_height: float = self.ttfont["OS/2"].sCapHeight  # in unitsPerEm
+        self.cap_height: float = get_char_height("H")  # in unitsPerEm
         self.units_per_em: float = self.ttfont["head"].unitsPerEm
         self.family_name: str = self.ttfont["name"].getDebugName(1)
         self.subfamily_name: str = self.ttfont["name"].getDebugName(2)
