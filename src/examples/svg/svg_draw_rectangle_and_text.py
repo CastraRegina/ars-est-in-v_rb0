@@ -41,9 +41,7 @@ RECT_HEIGHT = 150  # rectangle height in mm
 
 VB_RATIO = 1 / RECT_WIDTH  # multiply each dimension with this ratio
 
-FONT_FILENAME = (
-    "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
-)
+FONT_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
 # FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
 # FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
 
@@ -186,12 +184,8 @@ class AVsvgPath:
         #       | 1  | = |  0   0  1  |   | 1 |
 
         def transform(x_str: str, y_str: str) -> Tuple[str, str]:
-            x_new = (
-                affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
-            )
-            y_new = (
-                affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
-            )
+            x_new = affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
+            y_new = affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
             return f"{x_new:g}", f"{y_new:g}"
 
         org_commands = re.findall(f"[{AVsvgPath.SVG_CMDS}][^{AVsvgPath.SVG_CMDS}]*", path_string)
@@ -440,9 +434,7 @@ class AVPathPolygon:
                         [tangent],
                     )
                 else:
-                    dot_product = (
-                        new_tangents[-1].real * tangent.real + new_tangents[-1].imag * tangent.imag
-                    )
+                    dot_product = new_tangents[-1].real * tangent.real + new_tangents[-1].imag * tangent.imag
                     if dot_product < angle_limit:
                         new_param = (new_params[-1] + param) / 2
                         new_params.append(new_param)
@@ -475,9 +467,7 @@ class AVPathPolygon:
         for sub_path in path_collection.continuous_subpaths():
             ret_path_string += moveto(sub_path.start)
             for segment in sub_path:
-                if isinstance(segment, svgpathtools.CubicBezier) or isinstance(
-                    segment, svgpathtools.QuadraticBezier
-                ):
+                if isinstance(segment, svgpathtools.CubicBezier) or isinstance(segment, svgpathtools.QuadraticBezier):
                     ret_path_string += polygonize_segment_func(segment)
                 elif isinstance(segment, svgpathtools.Line):
                     ret_path_string += lineto(segment.end)
@@ -495,12 +485,7 @@ class AVPathPolygon:
         (x10, y10) = (x_pos + width, y_pos)
         (x11, y11) = (x_pos + width, y_pos + height)
         (x01, y01) = (x_pos, y_pos + height)
-        ret_path = (
-            f"M{x00:g} {y00:g} "
-            + f"L{x10:g} {y10:g} "
-            + f"L{x11:g} {y11:g} "
-            + f"L{x01:g} {y01:g} Z"
-        )
+        ret_path = f"M{x00:g} {y00:g} " + f"L{x10:g} {y10:g} " + f"L{x11:g} {y11:g} " + f"L{x01:g} {y01:g} Z"
         return ret_path
 
     @staticmethod
@@ -554,9 +539,7 @@ class AVPathPolygon:
     def path_strings(self) -> List[str]:
         return AVPathPolygon.multipolygon_to_path_string(self.multipolygon)
 
-    def svg_paths(
-        self, dwg: svgwrite.Drawing, **svg_properties
-    ) -> List[svgwrite.elementfactory.ElementBuilder]:
+    def svg_paths(self, dwg: svgwrite.Drawing, **svg_properties) -> List[svgwrite.elementfactory.ElementBuilder]:
         svg_paths = []
         path_strings = self.path_strings()
         for path_string in path_strings:
@@ -654,9 +637,7 @@ class AVGlyph:
 
     def real_path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
         scale = font_size / self._avfont.units_per_em
-        path_string = AVsvgPath.transform_path_string(
-            self.polygonized_path_string, (scale, 0, 0, -scale, x_pos, y_pos)
-        )
+        path_string = AVsvgPath.transform_path_string(self.polygonized_path_string, (scale, 0, 0, -scale, x_pos, y_pos))
         return path_string
 
     def svg_path(
@@ -741,9 +722,7 @@ class AVGlyph:
         descent = self._avfont.descender
         return self.rect_given_ascent_descent(x_pos, y_pos, ascent, descent, font_size)
 
-    def rect_bounding_box(
-        self, x_pos: float, y_pos: float, font_size: float
-    ) -> Tuple[float, float, float, float]:
+    def rect_bounding_box(self, x_pos: float, y_pos: float, font_size: float) -> Tuple[float, float, float, float]:
         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
         rect = (0.0, 0.0, 0.0, 0.0)
         if self.bounding_box:
@@ -807,9 +786,7 @@ class SVGoutput:
         )
         self.layer_debug.add(self.layer_debug_glyph_background)
 
-        self.layer_debug_glyph: svgwrite.container.Group = self._inkscape.layer(
-            label="Layer glyph", locked=True
-        )
+        self.layer_debug_glyph: svgwrite.container.Group = self._inkscape.layer(label="Layer glyph", locked=True)
         self.layer_debug.add(self.layer_debug_glyph)
 
         self.layer_debug_glyph_sidebearing: svgwrite.container.Group = self._inkscape.layer(
@@ -832,9 +809,7 @@ class SVGoutput:
         )  # red
         self.layer_debug_glyph.add(self.layer_debug_glyph_bounding_box)
 
-        self.layer_main: svgwrite.container.Group = self._inkscape.layer(
-            label="Layer main", locked=False
-        )
+        self.layer_main: svgwrite.container.Group = self._inkscape.layer(label="Layer main", locked=False)
         self.drawing.add(self.layer_main)
 
     # def draw_path(
@@ -863,9 +838,7 @@ class SVGoutput:
 
         rect_bb = glyph.rect_bounding_box(x_pos, y_pos, font_size)
         rect = (x_pos, rect_bb[1], sb_left, rect_bb[3])
-        self.layer_debug_glyph_sidebearing.add(
-            AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="yellow")
-        )
+        self.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="yellow"))
 
         rect = (
             x_pos + glyph.real_width(font_size) - sb_right,
@@ -873,13 +846,9 @@ class SVGoutput:
             sb_right,
             rect_bb[3],
         )
-        self.layer_debug_glyph_sidebearing.add(
-            AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="orange")
-        )
+        self.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="orange"))
 
-    def add_glyph_font_ascent_descent(
-        self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float
-    ):
+    def add_glyph_font_ascent_descent(self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
         stroke_width = glyph.real_dash_thickness(font_size)
         rect = glyph.rect_font_ascent_descent(x_pos, y_pos, font_size)
         self.layer_debug_glyph_font_ascent_descent.add(
@@ -897,16 +866,12 @@ class SVGoutput:
     ):
         stroke_width = glyph.real_dash_thickness(font_size)
         rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
-        self.layer_debug_glyph_em_width.add(
-            AVGlyph.svg_rect(self.drawing, rect, "blue", 0.2 * stroke_width)
-        )
+        self.layer_debug_glyph_em_width.add(AVGlyph.svg_rect(self.drawing, rect, "blue", 0.2 * stroke_width))
 
     def add_glyph_bounding_box(self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
         stroke_width = glyph.real_dash_thickness(font_size)
         rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
-        self.layer_debug_glyph_bounding_box.add(
-            AVGlyph.svg_rect(self.drawing, rect, "red", 0.1 * stroke_width)
-        )
+        self.layer_debug_glyph_bounding_box.add(AVGlyph.svg_rect(self.drawing, rect, "red", 0.1 * stroke_width))
 
     def add_glyph(
         self,
@@ -930,9 +895,7 @@ class SVGoutput:
 
 class Potpourri:
     @staticmethod
-    def print_glyph_coverage(
-        avfont: AVFont, ascent: float, descent: float, font_size: float, text: str
-    ) -> None:
+    def print_glyph_coverage(avfont: AVFont, ascent: float, descent: float, font_size: float, text: str) -> None:
         # how much of the space (width*(ascent+descent)) is covered by glyph?
         for character in text:
             glyph = avfont.glyph(character)
