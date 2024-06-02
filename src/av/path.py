@@ -217,7 +217,6 @@ class AvSvgPath:
         if not svg_path_string:
             svg_path_string = "M 0 0"
         else:
-            polygon = AvPathPolygon()
             poly_func = None
             match av.consts.POLYGONIZE_TYPE:
                 case av.consts.Polygonize.UNIFORM:
@@ -226,6 +225,7 @@ class AvSvgPath:
                     poly_func = AvPathPolygon.polygonize_by_angle
             svg_path_string = AvPathPolygon.polygonize_path(svg_path_string, poly_func)
 
+            polygon = AvPathPolygon()
             polygon.add_path_string(svg_path_string)
             path_strings = polygon.path_strings()
             svg_path_string = " ".join(path_strings)
@@ -333,19 +333,25 @@ class AvPathPolygon:
             self.multipolygon = multipolygon
 
     def add_polygon_arrays(self, polygon_arrays: list[numpy.ndarray]):
-        # first polygon_array is always additive.
-        # All other arrays are additive, if same orientation like first array.
+        # Convert numpy arrays to shapely.Polygons
+        polygons = [shapely.Polygon(polygon) for polygon in polygon_arrays]
+
+        # Sort polygons by area in descending order so that the first one is the biggest one
+        sorted_polygons = sorted(polygons, key=lambda p: abs(p.area), reverse=True)
+
+        # First polygon of sorted_polygons should always be "positive" == "additive".
+        # All other arrays are additive, if same orientation like first polygon.
         first_is_ccw = True
-        for index, polygon_array in enumerate(polygon_arrays):
-            polygon = shapely.Polygon(polygon_array)
-            polygon_ccw = polygon.exterior.is_ccw
+
+        for index, polygon in enumerate(sorted_polygons):
+            polygon_is_ccw = polygon.exterior.is_ccw
             polygon = polygon.buffer(0)  # get rid of self-intersections (4,9)
             if index == 0:  # first array, so store its orientation
-                first_is_ccw = polygon_ccw
+                first_is_ccw = polygon_is_ccw
             if self.multipolygon.is_empty:  # just add first polygon
                 self.multipolygon = shapely.geometry.MultiPolygon([polygon])
             else:
-                if polygon_ccw == first_is_ccw:  # same orient --> add to...
+                if polygon_is_ccw == first_is_ccw:  # same orient --> add to...
                     self.multipolygon = self.multipolygon.union(polygon)
                 else:  # different orient --> substract from existing...
                     self.multipolygon = self.multipolygon.difference(polygon)
