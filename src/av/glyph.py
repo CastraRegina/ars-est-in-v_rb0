@@ -298,6 +298,15 @@ class AvFont:
         return glyph
 
     def glyph_ascent_descent_of(self, characters: str) -> Tuple[float, float]:
+        """Retrieve the real ascent and descent values for the given *characters*
+           based on values (i.e. min(y_min), max(y_max)) of the bounding boxes
+
+        Args:
+            characters (str): String of characters
+
+        Returns:
+            Tuple[float, float]: (ascent, descent)
+        """
         (ascent, descent) = (0.0, 0.0)
         for char in characters:  # get "first" char to initialize
             if bounding_box := self.glyph(char).bounding_box:
