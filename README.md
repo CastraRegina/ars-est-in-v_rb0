@@ -511,6 +511,7 @@ Maybe check later if some of these packages are really needed...
     - `CASL` - Casual: 1
     - `MONO` - Monospace: 0
     - `CRSV` - Cursive: 1
+
 - Roboto Flex ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
     --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Flex)
     ```
@@ -538,6 +539,7 @@ Maybe check later if some of these packages are really needed...
     - `GRAD` - Grade (so that it looks good)
     - `YTLC` - Lowercase Height (so that it looks good for i,j,ä,ö,ü,a,c,e,g,s)
     - `YOPQ` - (Thin Stroke) (so that it looks good for a,e,f,g,s)
+
 - Roboto Mono ([Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0))
     --> see [fonts.google.com](https://fonts.google.com/specimen/Roboto+Mono)  
     Only axis *weight* (wght) and *italic*.  
@@ -548,9 +550,27 @@ Maybe check later if some of these packages are really needed...
     Available axes of Roboto Mono:
       - wght:   100.0 to   700.0, default:   400.0 
     ```
+
 - Cantarell ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
     --> see [fonts.google.com](https://fonts.google.com/specimen/Cantarell)  
-  It is a non-variable font but can be well interpolated between *Regular* and *Bold*.
+  It is a non-variable font but can be well interpolated between *Regular* and *Bold*.  
+  Correction: It turns out Paths are different and therefore cannot be interpolated easily.
+
+- Petrona ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Petrona)  
+    Only axis *weight* (wght) and *italic*. Font with Serif.
+    ```
+    Available axes of Petrona:
+      - wght:   100.0 to   900.0, default:   400.0 
+    ```
+
+- Caveat ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Caveat)  
+    Only axis *weight* (wght). Font looks like handwriting.
+    ```
+    Available axes of Caveat:
+      - wght:   400.0 to   700.0, default:   400.0 
+    ```
 
 ### Links to information
 - Check [freetype.org](https://freetype.org/) for information about fonts,
