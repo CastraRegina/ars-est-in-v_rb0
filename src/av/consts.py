@@ -25,7 +25,7 @@ class Align(Enum):
 POLYGONIZE_UNIFORM_NUM_POINTS = 10  # minimum 2 = (start, end)
 POLYGONIZE_ANGLE_MAX_DEG = 5  # 2 # difference of two derivatives less than
 POLYGONIZE_ANGLE_MAX_STEPS = 9  # 9
-POLYGONIZE_TYPE = Polygonize.BY_ANGLE
+POLYGONIZE_TYPE = Polygonize.UNIFORM
 
 
 def main():
