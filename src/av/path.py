@@ -343,15 +343,25 @@ class AvPathPolygon:
         # All other arrays are additive, if same orientation like first polygon.
         first_is_ccw = True
 
-        for index, polygon in enumerate(sorted_polygons):
+        for polygon in sorted_polygons:
             polygon_is_ccw = polygon.exterior.is_ccw
             polygon = polygon.buffer(0)  # get rid of self-intersections (4,9)
-            if index == 0:  # first array, so store its orientation
+
+            # print(polygon_is_ccw, polygon.exterior.is_ccw)
+            # exterior_points = list(polygon.exterior.coords)
+            # for point in exterior_points:
+            #     print(point)
+            # print()
+
+            if self.multipolygon.is_empty:  # just add first polygon and store its orientation
                 first_is_ccw = polygon_is_ccw
-            if self.multipolygon.is_empty:  # just add first polygon
                 self.multipolygon = shapely.geometry.MultiPolygon([polygon])
             else:
-                if polygon_is_ccw == first_is_ccw:  # same orient --> add to...
+                if polygon.within(self.multipolygon):
+                    # if polygon is fully inside the existing multipolygon, then substract from existing
+                    polygon_is_ccw = not first_is_ccw
+
+                if polygon_is_ccw == first_is_ccw:  # same orientation --> add to...
                     self.multipolygon = self.multipolygon.union(polygon)
                 else:  # different orient --> substract from existing...
                     self.multipolygon = self.multipolygon.difference(polygon)
