@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple
 
 import svgwrite
@@ -15,6 +16,47 @@ from fontTools.ttLib import TTFont
 import av.consts
 import av.helper
 import av.path
+
+
+class AvGlyphABC(ABC):
+    """Representation of a Glyph (single character of a certain font).
+    Purpose of class which implements this abstract class is to provide data regarding
+    - the extensions of the Glyph like
+      width, height, font-ascent, font-descent, left-/right-sidebearings, ...)
+    - a SVG-path representation of the Glyph
+    A Glyph returns *real* dimensions.
+    Therefore *font_size* is used internally to provide the *real* dimensions.
+    """
+
+    @abstractmethod
+    def character(self) -> str:
+        """Returns the character which this Glyph represents."""
+
+    @abstractmethod
+    def bounding_box(self) -> Tuple[float, float, float, float]:
+        """Returns bounding box (tightest box around Glyph) as
+        (0:x_min, 1:y_min, 2:x_max, 3:y_max)
+        relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
+
+        Returns:
+            Tuple[float, float, float, float]: (0:x_min, 1:y_min, 2:x_max, 3:y_max)
+        """
+
+    # bb_width # bounding box width (w/o LSB and RSB) of Glyph
+    # bb_height # bounding box height of Glyph
+
+    # advance_width # width to the next Glyph origin, i.e. LSB + bb_width + RSB
+
+    # left_sidebearing
+    # right_sidebearing
+
+    # font_ascent  # baseline to top-line of font
+    # font_descent # baseline to bottom-line of font
+
+    # def area_coverage(self) -> float:
+    #   using advance_width and font_ascent / font_descent
+
+    # svg_path
 
 
 class AvGlyph:
