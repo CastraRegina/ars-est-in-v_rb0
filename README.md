@@ -783,6 +783,8 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
   - crumpy cat - crumpy by nature
   - Do not get too excited, it's just a card with Easter greetings
   - Don't play with my heart, juggling with my feelings
+  - A wise man will adapt to the circumstances
+  
 
 - Further ideas and variations
   - Shape
@@ -827,6 +829,12 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 
 
 ## Know-How
+Mandatory:
+- Branding
+- Marketing
+- Sales  
+
+
 ### Images / Paintings - Sizes and Resolution
 - General  
   300 DPI, sRGB-colors, .png or .jpg  
