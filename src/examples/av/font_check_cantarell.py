@@ -1,4 +1,7 @@
-"""Module to check how to handle the font Cantarell"""
+"""Module to check how to handle the font Cantarell
+Actually Cantarell has different polylines for different weights.
+Therefore interpolation is not easy.
+"""
 
 from fontTools.pens.recordingPen import RecordingPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
