@@ -407,7 +407,8 @@ Maybe check later if some of these packages are really needed...
     ```
     "password-store":"gnome-libsecret"
     ```
-    Don't forget to start the `KWalletManager`/`PasswordManager`
+    Don't forget to start the `KWalletManager`/`PasswordManager`  
+    Use `Crtl+i` to open the *Codeium Command*
 
 
 ## Install fontforge
