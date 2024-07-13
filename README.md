@@ -399,6 +399,15 @@ Maybe check later if some of these packages are really needed...
   - `Crtl+Shift+7` Fold All Block Comments
   - `Crtl+x`       Remove whole line (if nothing is selected)
   - `Crtl+RETURN`  Python: Run Python File in Terminal (assigned by using `Ctrl+Shift+P`)
+  - `Ctrl+,`       Open Settings
+- AI extensions
+  - Bito
+  - Codeium  
+    Add to `argv.json` by `Ctrl+Shift+P` -> Preferences: Configure Runtime Arguments
+    ```
+    "password-store":"gnome-libsecret"
+    ```
+    Don't forget to start the `KWalletManager`/`PasswordManager`
 
 
 ## Install fontforge
