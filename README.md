@@ -357,8 +357,6 @@ Maybe check later if some of these packages are really needed...
   - ~~Sourcery (sourcery.sourcery)~~
   - ~~Better Comments (aaron-bond.better-comments)~~
   - ~~Night Owl (sdras.night-owl)~~
-
-  
 - Extensions to check later:
   - Code Runner (formulahendry.code-runner)
   - Python Extension Pack (donjayamanne.python-extension-pack)
@@ -367,8 +365,6 @@ Maybe check later if some of these packages are really needed...
   - python snippets (frhtylcn.pythonsnippets)
   - AREPL for python (almenon.arepl)
   - Vim (vscodevim.vim)
-
-
 - Setup / modify settings (`File->Preferences->Settings [Ctrl+,]`):
   - Editor: Format On Save: check-on
   - Editor: Default Formatter: ~~Python (ms-python.python)~~ Black Formatter
@@ -378,7 +374,6 @@ Maybe check later if some of these packages are really needed...
   - ~~Python > Formatting: Provider: autopep8~~
   - ~~Python > Linting: Enabled: check-on~~
   - ~~Python > Linting: Flake8 Enabled: check-on~~
-  
   - Edit `$HOME/.config/Code/User/settings.json` /  
       `%APPDATA%\Code\User\settings.json` /  
       `C:\Users\<user>\AppData\Code\User\settings.json` :
@@ -436,7 +431,6 @@ Maybe check later if some of these packages are really needed...
       "codegpt.apiKey": "sk-None-..<enter your APIkey here>..."
     }
     ```
-
 - Setting for python `src`-folder
   - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
   - Modify file `.vscode/settings.json`
@@ -474,7 +468,6 @@ Maybe check later if some of these packages are really needed...
     # Use path separator ';' on Windows.
     #PYTHONPATH=${PYTHONPATH};./src    
     ```
-
 - Helpful Keyboard Shortcuts (`File->Preferences->Keyboard Shortcuts [Ctrl+K Ctrl+S]`, `keybindings.json`)
   - `Ctrl+Shift+P` to open the Command Palette
   - `Crtl+Shift+7` Fold All Block Comments
