@@ -378,7 +378,7 @@ Maybe check later if some of these packages are really needed...
   - ~~Python > Formatting: Provider: autopep8~~
   - ~~Python > Linting: Enabled: check-on~~
   - ~~Python > Linting: Flake8 Enabled: check-on~~
-  - 
+  
   - Edit `$HOME/.config/Code/User/settings.json` /  
       `%APPDATA%\Code\User\settings.json` /  
       `C:\Users\<user>\AppData\Code\User\settings.json` :
