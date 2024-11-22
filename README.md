@@ -321,28 +321,44 @@ Maybe check later if some of these packages are really needed...
   `cd ars-est-in-v_rb0/fonts`  
   `bash ./retrieve_fonts.sh`
   
-## Install Visual Studio Code or VSCodium
+## Install Visual Studio Code or VSCodium (latest settings)
 - Install [Visual Studio Code](https://code.visualstudio.com/) or [VSCodium](https://vscodium.com)
   - Download: [code.visualstudio.com/download](https://code.visualstudio.com/download)
     or [github.com/VSCodium](https://github.com/VSCodium/vscodium/releases)
   - For VS Code...
     - Extract `.tar.gz`-file into folder `/opt/VSCode`
     - Start VS Code: `/opt/VSCode/code`
-  - VSCodium is available in [Snap Store](https://snapcraft.io/) as [Codium](https://snapcraft.io/codium) ...
+  - Or: ~~VSCodium~~ , it is available in [Snap Store](https://snapcraft.io/) as [Codium](https://snapcraft.io/codium) ...
     - Install: `snap install codium --classic`
 - Install extensions:
-  - Python extension for Visual Studio Code (ms-python.python)
-  - Python indent (KevinRose.vsc-python-indent)
   - autoDocstring - Python Docstring Generator (njpwerner.autodocstring)
-  - Pylance (ms-python.vscode-pylance) (seems to be already installed by ms-python.python)
-  - Pylint (ms-python.pylint)
-  - GitLens - Git supercharged (eamodio.gitlens)
-  - Markdown Preview Mermaid Support (bierner.markdown-mermaid) for diagrams and flowcharts
-  - XML (redhat.vscode-xml)
+  - autopep8 (ms-python.autopep8)
+  - Black Formatter (ms-python.black-formatter)
   - Code Spell Checker (streetsidesoftware.code-spell-checker)
+  - Codeium: AI Coding Autocomplete and Chat for Python, Javascript, Typescript, Java, Go, and more (Codeium.codeium)
+  - Dash (deerawan.vscode-dash)
+  - indent-rainbow (oderwat.indent-rainbow)
+  - IntelliCode (VisualStudioExptTeam.vscodeintellicode)
+  - IntelliCode API Usage Examples (VisualStudioExptTeam.intellicode-api-usage-examples)
+  - isort (ms-python.isort)
+  - Markdown Preview Mermaid Support (bierner.markdown-mermaid) for diagrams and flowcharts
+  - markdownlint (DavidAnson.vscode-markdownlint)
+  - Outline Map (Gerrnperl.outline-map)
+  - Pylance (ms-python.vscode-pylance)
+  - Pylint (ms-python.pylint)
+  - Python (ms-python.python)
+  - Python Debugger (ms-python.debugpy)
+  - Python Indent (KevinRose.vsc-python-indent)
   - Todo Tree (Gruntfuggly.todo-tree)
-  - Flake8 (ms-python.flake8)
-  - Black (ms-python.black-formatter)
+  - XML (redhat.vscode-xml)
+  - ~~ChatGPT GPT-4o - Bito AI Code Assistant (Bito.Bito)~~
+  - ~~Flake8 (ms-python.flake8)~~
+  - ~~GitLens - Git supercharged (eamodio.gitlens)~~
+  - ~~Sourcery (sourcery.sourcery)~~
+  - ~~Better Comments (aaron-bond.better-comments)~~
+  - ~~Night Owl (sdras.night-owl)~~
+
+  
 - Extensions to check later:
   - Code Runner (formulahendry.code-runner)
   - Python Extension Pack (donjayamanne.python-extension-pack)
@@ -351,49 +367,114 @@ Maybe check later if some of these packages are really needed...
   - python snippets (frhtylcn.pythonsnippets)
   - AREPL for python (almenon.arepl)
   - Vim (vscodevim.vim)
+
+
 - Setup / modify settings (`File->Preferences->Settings [Ctrl+,]`):
   - Editor: Format On Save: check-on
   - Editor: Default Formatter: ~~Python (ms-python.python)~~ Black Formatter
   - Python > Analysis: Type Checking Mode: basic
+  - Python Select Interpreter: `./venv/bin/python`
+  - Bracket Pair Colorization: enabled
   - ~~Python > Formatting: Provider: autopep8~~
   - ~~Python > Linting: Enabled: check-on~~
   - ~~Python > Linting: Flake8 Enabled: check-on~~
-  - Edit `$HOME/.config/Code/User/settings.json`:  
-    `"editor.rulers": [79,100,120]`
-  - Python Select Interpreter: `./venv/bin/python`
+  - 
+  - Edit `$HOME/.config/Code/User/settings.json` /  
+      `%APPDATA%\Code\User\settings.json` /  
+      `C:\Users\<user>\AppData\Code\User\settings.json` :
+    ```
+    {
+      "workbench.colorTheme": "Default Dark Modern",
+      "python.analysis.typeCheckingMode": "basic",
+      "python.defaultInterpreterPath": "./venv/bin/python",
+      "editor.rulers": [
+          79,
+          88,
+          100,
+          120
+      ],
+      "redhat.telemetry.enabled": false,
+      "[xml]": {
+          "editor.defaultFormatter": "redhat.vscode-xml"
+      },
+      "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": true,
+          "editor.formatOnType": true,
+          "editor.codeActionsOnSave": {
+              "source.organizeImports": "explicit"
+          },
+      },
+      "isort.args":["--profile", "black"],
+
+      "cSpell.diagnosticLevel": "Hint",
+      "black-formatter.args": [
+          "--line-length=120"
+      ],
+      "flake8.interpreter": [
+          "--max-line-length=120"
+      ],
+      "pylint.args": [
+          "--max-line-length=120"
+      ],
+      "autopep8.args": [
+          "--max-line-length=120"
+      ],
+      "window.zoomLevel": 1,
+      "bitoAI.codeCompletion.enableAutoCompletion": false,
+      "bitoAI.codeCompletion.enableCommentToCode": true,
+      "editor.inlineSuggest.showToolbar": "onHover",
+
+      "editor.language.colorizedBracketPairs": [
+        ["[", "]"],
+        ["(", ")"],
+        ["{", "}"]
+      ],
+      "editor.guides.bracketPairs": "active",
+      "bitoAI.appearance.fontSize (Match with IDE Font)": false,
+      "codegpt.model": "ChatGPT",
+      "codegpt.apiKey": "sk-None-..<enter your APIkey here>..."
+    }
+    ```
+
 - Setting for python `src`-folder
   - See [Setting Python source folders in Visual Studio Code](https://binx.io/2020/03/05/setting-python-source-folders-vscode/)
-  - Modify `settings.json`
+  - Modify file `.vscode/settings.json`
     ```
     {
+      "python.testing.unittestArgs": [
+          "-v",
+          "-s",
+          "./tests",
+          "-p",
+          "test_*.py"
+      ],
+      "python.testing.pytestEnabled": false,
+      "python.testing.nosetestEnabled": false,
+      "python.testing.unittestEnabled": true,
+
       "terminal.integrated.env.osx": {
-        "PYTHONPATH": "${workspaceFolder}/src",
+          "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
       },
       "terminal.integrated.env.linux": {
-        "PYTHONPATH": "${workspaceFolder}/src",
+          "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
       },
       "terminal.integrated.env.windows": {
-        "PYTHONPATH": "${workspaceFolder}/src",
+          "PYTHONPATH": "${env:PYTHONPATH};${workspaceFolder}/src",
       },
-      "python.envFile": "${workspaceFolder}/.env"
+
+      "python.analysis.extraPaths": ["src"]
     }
     ```
-  - Modify `.env` : `PYTHONPATH=./src`
-  - or:  
+  - Modify file `.env` :
     ```
-    {
-      "terminal.integrated.env.osx": {
-        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
-      },
-      "terminal.integrated.env.linux": {
-        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/src",
-      },
-      "terminal.integrated.env.windows": {
-        "PYTHONPATH": "${env:PYTHONPATH};${workspaceFolder}/src",
-      }
-    }
+    # Use path separator ':' on Linux.
+    PYTHONPATH=${PYTHONPATH}:./src
+
+    # Use path separator ';' on Windows.
+    #PYTHONPATH=${PYTHONPATH};./src    
     ```
-  - ... and: `PYTHONPATH=${PYTHONPATH}:./src`
+
 - Helpful Keyboard Shortcuts (`File->Preferences->Keyboard Shortcuts [Ctrl+K Ctrl+S]`, `keybindings.json`)
   - `Ctrl+Shift+P` to open the Command Palette
   - `Crtl+Shift+7` Fold All Block Comments
@@ -401,9 +482,9 @@ Maybe check later if some of these packages are really needed...
   - `Crtl+RETURN`  Python: Run Python File in Terminal (assigned by using `Ctrl+Shift+P`)
   - `Ctrl+,`       Open Settings
 - AI extensions
-  - Bito
+  - ~~Bito~~
   - Codeium  
-    Add to `argv.json` by `Ctrl+Shift+P` -> Preferences: Configure Runtime Arguments
+    Add to `$HOME/.vscode/argv.json` by `Ctrl+Shift+P` -> Preferences: Configure Runtime Arguments
     ```
     "password-store":"gnome-libsecret"
     ```
