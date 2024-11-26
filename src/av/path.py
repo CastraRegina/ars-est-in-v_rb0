@@ -42,8 +42,8 @@ class AvSvgPath:
     @staticmethod
     def beautify_commands(path_string: str, round_func: Optional[Callable] = None) -> str:
         """Takes the given _path_string_ and rounds (mathematical) each point of the path
-           by using the given _round_func_.
-           If _round_func_ is None just a cast by "float()" is done.
+            by using the given _round_func_.
+            If _round_func_ is None just a cast by "float()" is done.
 
         Args:
             path_string (str): _description_
@@ -169,9 +169,9 @@ class AvSvgPath:
 
         Affine transform (see also shapely - Affine Transformations)
             affine_trafo = [a00, a01, a10, a11, b0, b1]
-              | x' | = | a00 a01 b0 |   | x |
-              | y' | = | a10 a11 b1 | * | y |
-              | 1  | = |  0   0  1  |   | 1 |
+                | x' | = | a00 a01 b0 |   | x |
+                | y' | = | a10 a11 b1 | * | y |
+                | 1  | = |  0   0  1  |   | 1 |
 
         Args:
             path_string (str): SVG-path-string input

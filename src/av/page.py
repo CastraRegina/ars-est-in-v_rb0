@@ -205,7 +205,7 @@ class AvPageSvg:
         descent: Optional[float] = None,
     ):
         """Add a glyph as SVG element as subelement.
-           Additionally associated boxes are added as debug-layer-subelements
+            Additionally associated boxes are added as debug-layer-subelements
 
         Args:
             glyph (AVGlyph): _description_
