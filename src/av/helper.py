@@ -1,4 +1,4 @@
-"""Provide various SVG helper functionalities."""
+"""Provide various helper functionalities."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ class HelperTypeHinting:
 
         Returns:
             Union[List[numpy.ndarray], Any]: The variable with type List[numpy.ndarray] if it passes the check,
-                                          otherwise return the variable without the type.
+                                            otherwise return the variable without the type.
         """
         if HelperTypeHinting.check_list_of_ndarrays(variable):
             return cast(list[numpy.ndarray], variable)
@@ -119,6 +119,7 @@ class HelperSvg:
             rect (Tuple[float, float, float, float]): (x_pos, y_pos, width, height)
             stroke (str): color of the stroke
             stroke_width (float): width of the stroke
+            svg_properties: further SVG properties
 
         Returns:
             svgwrite.elementfactory.ElementBuilder: the rect which can be added to a SVG-layer
@@ -133,3 +134,115 @@ class HelperSvg:
         }
         rect_properties.update(svg_properties)
         return dwg.rect(**rect_properties)
+
+
+class AvBox:
+    """
+    Represents a rectangular box with coordinates and dimensions.
+
+    Attributes:
+        xmin (float): The minimum x-coordinate.
+        xmax (float): The maximum x-coordinate.
+        ymin (float): The minimum y-coordinate.
+        ymax (float): The maximum y-coordinate.
+    """
+
+    def __init__(self, xmin: float, xmax: float, ymin: float, ymax: float):
+        """
+        Initializes a new Box instance.
+
+        Args:
+            xmin (float): The minimum x-coordinate.
+            xmax (float): The maximum x-coordinate.
+            ymin (float): The minimum y-coordinate.
+            ymax (float): The maximum y-coordinate.
+        """
+
+        self._xmin = xmin
+        self._xmax = xmax
+        self._ymin = ymin
+        self._ymax = ymax
+
+    @property
+    def xmin(self) -> float:
+        """float: The minimum x-coordinate."""
+
+        return self._xmin
+
+    @property
+    def xmax(self) -> float:
+        """float: The maximum x-coordinate."""
+
+        return self._xmax
+
+    @property
+    def ymin(self) -> float:
+        """float: The minimum y-coordinate."""
+
+        return self._ymin
+
+    @property
+    def ymax(self) -> float:
+        """float: The maximum y-coordinate."""
+
+        return self._ymax
+
+    @property
+    def width(self) -> float:
+        """float: The width of the box (difference between xmax and xmin)."""
+
+        return self._xmax - self._xmin
+
+    @property
+    def height(self) -> float:
+        """float: The height of the box (difference between ymax and ymin)."""
+
+        return self._ymax - self._ymin
+
+    @property
+    def area(self) -> float:
+        """float: The area of the box."""
+
+        return self.width * self.height
+
+    def svg_rect(
+        self,
+        dwg: svgwrite.Drawing,
+        stroke: str,
+        stroke_width: float,
+        **svg_properties,
+    ) -> svgwrite.elementfactory.ElementBuilder:
+        """Create a SVG-element which can be added to a SVG-layer
+
+        Args:y
+            dwg (svgwrite.Drawing): dwg.rect()-function is called to create the rect
+            stroke (str): color of the stroke
+            stroke_width (float): width of the stroke
+            svg_properties: further SVG properties
+
+        Returns:
+            svgwrite.elementfactory.ElementBuilder: the rect which can be added to a SVG-layer
+        """
+        x_pos = self.xmin
+        y_pos = self.ymin  # TODO: check the direction top/bottom as SVG-coordinate-system is from top to bottom
+        width = self.width
+        height = self.height
+        rect = (x_pos, y_pos, width, height)
+
+        svg_rect = HelperSvg.svg_rect(dwg, rect, stroke, stroke_width, **svg_properties)
+        return svg_rect
+
+
+def main():
+    """Main"""
+
+    my_box = AvBox(xmin=10, xmax=30, ymin=40, ymax=70)
+
+    print(f"Width : {my_box.width}")
+    print(f"Height: {my_box.height}")
+    print(f"Area  : {my_box.area}")
+    print(f"xmin  : {my_box.xmin}, xmax: {my_box.xmax}, ymin: {my_box.ymin}, ymax: {my_box.ymax}")
+
+
+if __name__ == "__main__":
+    main()
