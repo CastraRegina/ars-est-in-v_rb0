@@ -1191,6 +1191,18 @@ see also internet recommendations, e.g. aufbauen-online-business.de
 - register at your professional association (Handwerkskammer, IHK, ...) ($?)
 - obtain a UStID (Umsatzsteuer-ID) at your tax office
 - legal texts-service, e.g. it-recht-kanzlei.de ($)
+- *Impressum* in english,
+  see [https://language-boutique.de/naithani/blogpost/impressum-auf-englisch.html](https://language-boutique.de/naithani/blogpost/impressum-auf-englisch.html):
+  - Impressum - Legal Disclosure
+  - Impressum - Legal Notice
+  - Impressum information
+  - see Youtube-Video:  
+  [KryptoArche: Impressum ohne Privatanschrift: Adresse, Email und Telefonnummer schützen](https://youtu.be/Uv8zsjAjqII)  
+    use e.g.
+    [https://www.postflex.de/](https://www.postflex.de/), 
+    [https://impressum-privatschutz.de/](https://impressum-privatschutz.de/),
+    ...
+
 - packaging license, registration at the Central Packaging Register LUCID ($)
 - inform your employer about your sideline business
 - read also [some first hints regarding tax topics](https://www.alltageinesfotoproduzenten.de/2011/11/23/die-steuerlichen-aspekte-der-stockfotografie/)
