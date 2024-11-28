@@ -4,7 +4,7 @@
 [Rules / Guidelines / Best Practices](#rules--guidelines--best-practices)  
 [Git](#git)  
 [Scripts](#scripts)  
-[Setup Visual Code](#install-visual-studio-code-or-vscodium-latest-settings)
+[Setup Visual Code](#install-visual-studio-code-or-vscodium-latest-settings)  
 [Fonts](#fonts)  
 [Ideas](#ideas)  
 [Know How](#know-how)
