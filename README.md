@@ -4,6 +4,7 @@
 [Rules / Guidelines / Best Practices](#rules--guidelines--best-practices)  
 [Git](#git)  
 [Scripts](#scripts)  
+[Setup Visual Code](#install-visual-studio-code-or-vscodium-latest-settings)
 [Fonts](#fonts)  
 [Ideas](#ideas)  
 [Know How](#know-how)
@@ -470,10 +471,12 @@ Maybe check later if some of these packages are really needed...
     ```
 - Helpful Keyboard Shortcuts (`File->Preferences->Keyboard Shortcuts [Ctrl+K Ctrl+S]`, `keybindings.json`)
   - `Ctrl+Shift+P` to open the Command Palette
+  - `Ctrl+,`       Open Settings
   - `Crtl+Shift+7` Fold All Block Comments
   - `Crtl+x`       Remove whole line (if nothing is selected)
-  - `Crtl+RETURN`  Python: Run Python File in Terminal (assigned by using `Ctrl+Shift+P`)
-  - `Ctrl+,`       Open Settings
+  - `Crtl+RETURN`  Python: Run Python File in Terminal `python.execInTerminal`
+  - `Ctrl+Alt+-`   Navigate back (Linux, shortcut command of "Go Back")
+  - `Ctrl+Shift+-` Navigate forward (Linux, shortcut command of "Go Forward")
 - AI extensions
   - ~~Bito~~
   - Codeium  
