@@ -1,4 +1,6 @@
 # ars-est-in-v_rb0
+This site is for family and friends only.
+
 
 ## Content
 [Rules / Guidelines / Best Practices](#rules--guidelines--best-practices)  
