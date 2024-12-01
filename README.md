@@ -9,7 +9,8 @@ This site is for family and friends only.
 [Setup Visual Studio Code](#install-visual-studio-code-or-vscodium-latest-settings)  
 [Fonts](#fonts)  
 [Ideas](#ideas)  
-[Know How](#know-how)
+[Know How](#know-how)  
+[Architecture](#architecture)
 
 
 ## Purpose
@@ -534,7 +535,9 @@ Maybe check later if some of these packages are really needed...
   - Copy public-key `cat id_ed2551_github.pub` and add it to github  
     *Settings->SSH and GPG keys->SSH keys->New SSH key*...  
   - Test ssh connection:  
-    `ssh -T git@github.com` should show: `Hi ...! You've successfully authenticated...`
+    `ssh -T git@github.com`  
+    should show:  
+    `Hi ...! You've successfully authenticated...`
 - Clone github project `ars-est-in-v_rb0`:  
   `cd $HOME`  
   ~~`git clone https://github.com/CastraRegina/ars-est-in-v_rb0`~~  
@@ -1175,6 +1178,23 @@ Mandatory:
 
 ### Further Resources
 - Lorem Ipsum generator: [loremipsum.de](https://www.loremipsum.de/)
+
+
+
+## Architecture
+A few notes on classes and functions
+
+- AvPageSvg  
+  A page (canvas, e.g. DIN A4) described by SVG with a viewbox to draw inside.
+- AvGlyph  
+  Description of a "character", e.g. by its outline path.
+  Uses dimensions in unitsPerEm, i.e. independent from font_size.
+- AvLetter  
+  A Glyph in real coordinates to print it on a Page.
+
+
+
+
 
 ## Business
 Some remarks for starting a business -
