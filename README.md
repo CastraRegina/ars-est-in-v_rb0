@@ -1192,7 +1192,8 @@ A few notes on classes and functions
 - AvLetter  
   A Glyph in real coordinates to print it on a Page.
 
-
+### Remarks
+- A SVG path should be in absolute coordinates so that it can be transformed by an AffineTransform.
 
 
 
