@@ -1186,11 +1186,13 @@ A few notes on classes and functions
 
 - AvPageSvg  
   A page (canvas, e.g. DIN A4) described by SVG with a viewbox to draw inside.
-- AvGlyph  
-  Description of a "character", e.g. by its outline path.
-  Uses dimensions in unitsPerEm, i.e. independent from font_size.
+  The width of the viewbox is defined to be of size "1".
+- AvGlyphABC (abstract class)  
+  A glyph is a visual representation of a character or symbol in a font.
+  Uses dimensions in unitsPerEm, i.e. independent from font_size and position.
 - AvLetter  
-  A Glyph in real coordinates to print it on a Page.
+  A Glyph in real coordinates to print it on a Page,
+  i.e. an AvGlyph scaled by fontsize and placed at the wanted position.
 
 ### Remarks
 - A SVG path should be in absolute coordinates so that it can be transformed by an AffineTransform.
