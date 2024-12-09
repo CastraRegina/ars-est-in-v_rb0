@@ -2,8 +2,42 @@
 
 from __future__ import annotations
 
+from typing import Dict
+
 from fontTools.pens.basePen import BasePen
 from fontTools.pens.recordingPen import RecordingPen
+from fontTools.ttLib import TTFont
+from fontTools.varLib import instancer
+
+
+class FontHelper:
+    """
+    Class to provide various static methods related to font handling.
+    """
+
+    @staticmethod
+    def get_default_axes_values(variable_font: TTFont) -> Dict[str, float]:
+        """
+        Get the default axes values of a given variable TTFont.
+        Use returned values to instantiate a new font.
+        """
+        default_axes_values: Dict[str, float] = {}
+        if variable_font.get("fvar") is not None:
+            for axis in variable_font["fvar"].axes:  # type: ignore
+                default_axes_values[axis.axisTag] = axis.defaultValue
+        else:
+            raise ValueError("Variable font has no 'fvar' table.")
+        return default_axes_values
+
+    @staticmethod
+    def instantiate(variable_font: TTFont, axes_values: Dict[str, float]) -> TTFont:
+        """
+        Instantiate a new font from a given variable_font and the given axes_values.
+        Example for axes_values: {"wght": 700, "wdth": 25, "GRAD": 100}
+        """
+        instantiate_axes_values = FontHelper.get_default_axes_values(variable_font)
+        instantiate_axes_values.update(axes_values)
+        return instancer.instantiateVariableFont(variable_font, instantiate_axes_values)
 
 
 class AvPolylinePen(BasePen):
