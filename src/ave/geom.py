@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Tuple
+
 
 class AvBox:
     """
@@ -55,6 +57,11 @@ class AvBox:
         return self._ymax
 
     @property
+    def extent(self) -> Tuple[float, float, float, float]:
+        """The extent of the box as Tuple (xmin, ymin, xmax, ymax)."""
+        return self._xmin, self._ymin, self._xmax, self._ymax
+
+    @property
     def width(self) -> float:
         """float: The width of the box (difference between xmax and xmin)."""
 
@@ -82,6 +89,8 @@ def main():
     print(f"Height: {my_box.height}")
     print(f"Area  : {my_box.area}")
     print(f"xmin  : {my_box.xmin}, ymin: {my_box.ymin}, xmax: {my_box.xmax}, ymax: {my_box.ymax}")
+
+    # scale = font_size / units_per_em
 
 
 if __name__ == "__main__":
