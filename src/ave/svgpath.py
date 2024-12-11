@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
-from typing import Callable, ClassVar, List, Optional, Tuple
+from typing import Callable, ClassVar, List, Optional, Tuple, Union
+
+# SixValueSequence = (1, 2, 3, 4, 5, 6) or [1, 2, 3, 4, 5, 6]
+SixValueSequence = Union[Tuple[float, float, float, float, float, float], List[float]]
 
 
 class AvSvgPath:
@@ -148,7 +151,7 @@ class AvSvgPath:
         return ret_path_string
 
     @staticmethod
-    def transform_path_string(path_string: str, affine_trafo: List[float]) -> str:
+    def transform_path_string(path_string: str, affine_trafo: SixValueSequence) -> str:
         """Transform the given SVG-_path_string_ by using the given _affine_trafo_.
         Make sure the _path_string_ uses absolute coordinates.
 
