@@ -1185,10 +1185,10 @@ Mandatory:
 A few notes on classes and functions
 
 - AvPageSvg  
-  A page (canvas, e.g. DIN A4) described by SVG with a viewbox to draw inside.
+  A page (canvas, e.g. DIN A4) described by SVG with a viewbox to draw inside.  
   The width of the viewbox is defined to be of size "1".
 - AvGlyphABC (abstract class)  
-  A glyph is a visual representation of a character or symbol in a font.
+  A glyph is a visual representation of a character or symbol in a font.  
   Uses dimensions in unitsPerEm, i.e. independent from font_size and position.
 - AvLetter  
   A Glyph in real coordinates to print it on a Page,
