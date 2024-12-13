@@ -6,7 +6,7 @@ import copy
 import gzip
 import io
 from dataclasses import dataclass
-from typing import Union
+from typing import Optional, Union
 
 import svgwrite
 import svgwrite.base
@@ -19,16 +19,18 @@ from svgwrite.extensions import Inkscape
 class AvPageSvg:
     """A page (canvas) described by SVG with a viewbox to draw inside
 
-    Contains layers:
-        - main   -- editable->locked=False  --  hidden->display="block"
-        - debug  -- editable->locked=False  --  hidden->display="none"
+    Contains groups/layers:
+        - root       -- (group) just contains the y-flip and translation to bottom left
+            - main   -- editable->locked=False  --  hidden->display="block"
+            - debug  -- editable->locked=False  --  hidden->display="none"
     """
 
-    drawing: svgwrite.Drawing
     _inkscape: Inkscape  # extension to support layers
 
-    layer_main: svgwrite.container.Group
-    layer_debug: svgwrite.container.Group
+    drawing: svgwrite.Drawing
+    root_group: svgwrite.container.Group
+    main_layer: svgwrite.container.Group
+    debug_layer: svgwrite.container.Group
 
     def __init__(
         self,
@@ -40,7 +42,7 @@ class AvPageSvg:
         viewbox_height: float,
     ):
         """Setup page defined by canvas width and height together with
-        viewbox position, width and height.
+        viewbox's position, width and height.
         The viewbox is the area for drawing.
 
         Args:
@@ -60,12 +62,46 @@ class AvPageSvg:
             profile="full",
         )
 
+        # define root group with transform to flip y-direction and set origin to bottom left
+        self.root_group: svgwrite.container.Group = self.drawing.g(transform="scale(1,-1) translate(0,-1)")
+        # TODO: replace translate-1 with correct y-value
+
         # use Inkscape extension to support layers
         self._inkscape: Inkscape = Inkscape(self.drawing)
 
         # define layers
-        self.layer_main = self._inkscape.layer(label="main", locked=False)
-        self.layer_debug = self._inkscape.layer(label="debug", locked=False, display="none")
+        self.main_layer = self._inkscape.layer(label="main", locked=False)
+        self.debug_layer = self._inkscape.layer(label="debug", locked=False, display="none")
+
+    @classmethod
+    def assemble_tree(
+        cls,
+        drawing: svgwrite.Drawing,
+        root_group: svgwrite.container.Group,
+        main_layer: svgwrite.container.Group,
+        debug_layer: Optional[svgwrite.container.Group] = None,
+        include_debug_layer: bool = False,
+    ) -> svgwrite.Drawing:
+        """Assemble a tree out of the given SVG elements.
+
+        Args:
+            drawing (svgwrite.Drawing): The main SVG drawing element.
+            root_group (svgwrite.container.Group): The root group of the drawing.
+            main_layer (svgwrite.container.Group): The main layer of the drawing.
+            debug_layer (svgwrite.container.Group): The debug layer of the drawing.
+            include_debug_layer (bool, optional): Include the debug layer in the tree. Defaults to False.
+
+        Returns:
+            svgwrite.Drawing: The assembled SVG drawing element.
+        """
+        drawing.add(root_group)
+
+        if include_debug_layer and debug_layer:
+            root_group.add(debug_layer)
+
+        root_group.add(main_layer)
+
+        return drawing
 
     def save_as(
         self,
@@ -84,11 +120,13 @@ class AvPageSvg:
             indent (int, optional): Indention if pretty is enabled. Defaults to 2 spaces.
             compressed (bool, optional): Save as compressed svgz-file. Defaults to False.
         """
-        # copy drawing and include layer-copies:
-        drawing = copy.deepcopy(self.drawing)
-        if include_debug_layer:
-            drawing.add(copy.deepcopy(self.layer_debug))
-        drawing.add(copy.deepcopy(self.layer_main))
+        drawing = self.assemble_tree(
+            copy.deepcopy(self.drawing),
+            copy.deepcopy(self.root_group),
+            copy.deepcopy(self.main_layer),
+            copy.deepcopy(self.debug_layer),
+            include_debug_layer,
+        )
 
         # setup IO:
         svg_buffer = io.StringIO()
@@ -104,7 +142,7 @@ class AvPageSvg:
     def add(
         self,
         element: Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder],
-        debug: bool = False,
+        add_to_debug_layer: bool = False,
     ) -> Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder]:
         """Add an SVG element as subelement.
 
@@ -115,9 +153,9 @@ class AvPageSvg:
         Returns:
             svgwrite.base.BaseElement: the added element
         """
-        if debug:
-            return self.layer_debug.add(element)
-        return self.layer_main.add(element)
+        if add_to_debug_layer:
+            return self.debug_layer.add(element)
+        return self.main_layer.add(element)
 
 
 def main():
@@ -128,8 +166,8 @@ def main():
     canvas_width = 210  # DIN A4 page width in mm
     canvas_height = 297  # DIN A4 page height in mm
 
-    viewbox_width = 150  # viewbox width in mm
-    viewbox_height = 150  # viewbox height in mm
+    viewbox_width = 180  # viewbox width in mm
+    viewbox_height = 100  # viewbox height in mm
 
     viewbox_ratio = 1 / viewbox_width  # multiply each dimension with this ratio
 
@@ -143,6 +181,21 @@ def main():
     #   Define viewBox so that "1" is the width of the viewbox
     #   Multiply a dimension with "vb_ratio" to get the size regarding viewBox
     svg_output = AvPageSvg(canvas_width, canvas_height, vb_x, vb_y, vb_w, vb_h)
+
+    # Draw a triangle left-bottom to middle-top to right-bottom not filled with red border
+    svg_output.add(
+        svg_output.drawing.polygon(
+            points=[
+                (0.5, viewbox_ratio * viewbox_height),
+                (0.0, viewbox_ratio * viewbox_height / 2),
+                (1.0, viewbox_ratio * viewbox_height / 2),
+            ],
+            stroke="red",
+            stroke_width=0.1 * viewbox_ratio,
+            fill="none",
+        ),
+        True,
+    )  # TODO: does not show up --> fix it
 
     # Draw a rectangle to show the viewbox
     svg_output.add(
@@ -163,3 +216,49 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ########################################
+# import svgwrite
+# # Define the dimensions of the DIN A4 page in pixels
+# page_width = 2480
+# page_height = 3508
+
+# # Define the dimensions of the viewbox
+# viewbox_width = 1
+# viewbox_height = page_height / page_width  # Maintain aspect ratio, approximately 1.414
+
+# # Create an SVG drawing object with the specified page dimensions
+# dwg = svgwrite.Drawing("triangle_viewbox.svg", profile="tiny", size=(page_width, page_height))
+
+# # Set the viewbox to be centered on the DIN A4 page with half the width and height of the page
+# dwg.viewbox(0, 0, viewbox_width, int(viewbox_height))
+
+# # Define the points of the triangle
+# points = [(0.5, viewbox_height), (0, viewbox_height / 2), (1, viewbox_height / 2)]
+
+# # Create a group with scaling and translation transformation
+# group = dwg.g(transform="scale(1, -1) translate(0, -1.414)")
+
+# # Add the triangle to the group
+# group.add(dwg.polygon(points, fill="none", stroke="black", stroke_width=0.01))
+
+# # Draw a rectangle showing the size of the viewbox
+# # Note: The rectangle should be positioned at (0, 0) with width=1 and height=viewbox_height
+
+# rectangle = dwg.rect(
+#     insert=(0, 0),
+#     size=(viewbox_width, viewbox_height),
+#     fill="none",
+#     stroke="red",
+#     stroke_width=0.01,
+# )
+# group.add(rectangle)
+
+# # Add the group to the SVG drawing
+# dwg.add(group)
+
+# # Save the SVG file
+# dwg.save()
+
+# print("SVG file 'triangle_viewbox.svg' has been created.")
