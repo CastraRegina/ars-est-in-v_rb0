@@ -16,7 +16,7 @@ from svgwrite.extensions import Inkscape
 
 
 @dataclass
-class AvPageSvg:
+class AvSvgPage:
     """A page (canvas) described by SVG with a viewbox to draw inside
 
     Contains groups/layers:
@@ -41,37 +41,37 @@ class AvPageSvg:
         viewbox_width: float,
         viewbox_height: float,
     ):
-        """Setup page defined by canvas width and height together with
-        viewbox's position, width and height.
-        The viewbox is the area for drawing.
+        """Initialize the SVG page with specified canvas and viewbox dimensions.
+            The viewbox is the drawing area.
 
         Args:
-            canvas_width_mm (float): _description_
-            canvas_height_mm (float): _description_
-            viewbox_x (float): _description_
-            viewbox_y (float): _description_
-            viewbox_width (float): _description_
-            viewbox_height (float): _description_
+            canvas_width_mm (float): The width of the canvas in millimeters.
+            canvas_height_mm (float): The height of the canvas in millimeters.
+            viewbox_x (float): The x-coordinate of the viewbox's starting point.
+            viewbox_y (float): The y-coordinate of the viewbox's starting point.
+            viewbox_width (float): The width of the viewbox.
+            viewbox_height (float): The height of the viewbox.
         """
 
-        # setup canvas & viewbox
-        # (profile="full" to support numbers with more than 4 decimal digits)
+        # Setup canvas and viewbox. profile="full" to support numbers with more than 4 decimal digits
         self.drawing: svgwrite.Drawing = svgwrite.Drawing(
             size=(f"{canvas_width_mm}mm", f"{canvas_height_mm}mm"),
             viewBox=(f"{viewbox_x} {viewbox_y} {viewbox_width} {viewbox_height}"),
             profile="full",
         )
 
-        # define root group with transform to flip y-direction and set origin to bottom left
-        self.root_group: svgwrite.container.Group = self.drawing.g(transform="scale(1,-1) translate(0,-1)")
+        # Define root group with transformation to flip y-axis and set origin to bottom-left
+        # self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,-1) translate(0,-1)")
+        self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,-1)")
+        # transform=f"scale(1,-1) translate(0,{-canvas_height_mm})"
         # TODO: replace translate-1 with correct y-value
 
-        # use Inkscape extension to support layers
+        # Initialize Inkscape extension for layer support
         self._inkscape: Inkscape = Inkscape(self.drawing)
 
-        # define layers
-        self.main_layer = self._inkscape.layer(label="main", locked=False)
-        self.debug_layer = self._inkscape.layer(label="debug", locked=False, display="none")
+        # Define layers
+        self.main_layer = self._inkscape.layer(label="Main", locked=False)
+        self.debug_layer = self._inkscape.layer(label="Debug", locked=False, display="none")
 
     @classmethod
     def assemble_tree(
@@ -95,12 +95,9 @@ class AvPageSvg:
             svgwrite.Drawing: The assembled SVG drawing element.
         """
         drawing.add(root_group)
-
         if include_debug_layer and debug_layer:
             root_group.add(debug_layer)
-
         root_group.add(main_layer)
-
         return drawing
 
     def save_as(
@@ -167,42 +164,73 @@ def main():
     canvas_height = 297  # DIN A4 page height in mm
 
     viewbox_width = 180  # viewbox width in mm
-    viewbox_height = 100  # viewbox height in mm
+    viewbox_height = 295  # viewbox height in mm
 
     viewbox_ratio = 1 / viewbox_width  # multiply each dimension with this ratio
 
     # Center the viewbox horizontally and vertically on the page
+    #   vb_x seen from viewbox left border
     vb_w = viewbox_ratio * canvas_width
     vb_h = viewbox_ratio * canvas_height
     vb_x = -viewbox_ratio * (canvas_width - viewbox_width) / 2
-    vb_y = -viewbox_ratio * (canvas_height - viewbox_height) / 2
+    vb_y = 0  # viewbox_ratio * ((canvas_height - viewbox_height) / 2 + 2 * viewbox_height)
+    # -viewbox_ratio * (canvas_height - viewbox_height) / 2
+    # vb_y = (
+    #     viewbox_ratio * viewbox_width
+    #     - viewbox_ratio * (canvas_height - viewbox_height) / 2
+    #     - viewbox_ratio * viewbox_height
+    # )
 
     # Set up the SVG canvas:
     #   Define viewBox so that "1" is the width of the viewbox
     #   Multiply a dimension with "vb_ratio" to get the size regarding viewBox
-    svg_output = AvPageSvg(canvas_width, canvas_height, vb_x, vb_y, vb_w, vb_h)
+    # vb_y = -viewbox_ratio * (canvas_height - viewbox_height) / 2
 
-    # Draw a triangle left-bottom to middle-top to right-bottom not filled with red border
-    svg_output.add(
-        svg_output.drawing.polygon(
-            points=[
-                (0.5, viewbox_ratio * viewbox_height),
-                (0.0, viewbox_ratio * viewbox_height / 2),
-                (1.0, viewbox_ratio * viewbox_height / 2),
-            ],
+    svg_page = AvSvgPage(canvas_width, canvas_height, vb_x, vb_y, vb_w, vb_h)
+
+    # define a path that describes the outline of the viewbox
+    svg_page.add(
+        svg_page.drawing.path(
+            d=(
+                f"M 0 0 "
+                f"L {viewbox_ratio * viewbox_width} 0 "  # = (1.0, 0.0)
+                f"L {viewbox_ratio * viewbox_width} {viewbox_ratio * viewbox_height} "
+                f"L 0 {viewbox_ratio * viewbox_height} "
+                f"Z"
+            ),
+            stroke="black",
+            stroke_width=0.1 * viewbox_ratio,
+            fill="none",
+        )
+    )
+
+    # define a red path that describes a box in the left-bottom corner of the viewbox
+    svg_page.add(
+        svg_page.drawing.path(
+            d=(
+                f"M 0 0 "
+                f"L {viewbox_ratio * viewbox_width * 0.1} 0 "
+                f"L {viewbox_ratio * viewbox_width * 0.1} {viewbox_ratio * viewbox_height * 0.1} "
+                f"L 0 {viewbox_ratio * viewbox_height * 0.1} "
+                f"Z"
+            ),
             stroke="red",
             stroke_width=0.1 * viewbox_ratio,
             fill="none",
-        ),
-        True,
-    )  # TODO: does not show up --> fix it
+        )
+    )
 
-    # Draw a rectangle to show the viewbox
-    svg_output.add(
-        svg_output.drawing.rect(
-            insert=(0, 0),
-            size=(viewbox_ratio * viewbox_width, viewbox_ratio * viewbox_height),  # = (1.0, xxxx)
-            stroke="black",
+    # define a green path that describes a box in the right-top corner of the viewbox
+    svg_page.add(
+        svg_page.drawing.path(
+            d=(
+                f"M {viewbox_ratio * viewbox_width * 0.9} {viewbox_ratio * viewbox_height * 0.9} "
+                f"L {viewbox_ratio * viewbox_width} {viewbox_ratio * viewbox_height * 0.9} "
+                f"L {viewbox_ratio * viewbox_width} {viewbox_ratio * viewbox_height} "
+                f"L {viewbox_ratio * viewbox_width * 0.9} {viewbox_ratio * viewbox_height} "
+                f"Z"
+            ),
+            stroke="green",
             stroke_width=0.1 * viewbox_ratio,
             fill="none",
         )
@@ -210,7 +238,7 @@ def main():
 
     # Save the SVG file
     print("save...")
-    svg_output.save_as(output_filename, include_debug_layer=True, pretty=True, indent=2, compressed=True)
+    svg_page.save_as(output_filename, include_debug_layer=True, pretty=True, indent=2, compressed=True)
     print("save done.")
 
 
