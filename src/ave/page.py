@@ -52,7 +52,8 @@ class AvSvgPage:
             viewbox_width (float): The width of the viewbox.
             viewbox_height (float): The height of the viewbox.
         """
-
+        print(f"Initializing page: {canvas_width_mm} {canvas_height_mm}")
+        print(f"Initializing viewbox: {viewbox_x} {viewbox_y} {viewbox_width} {viewbox_height}")
         # Setup canvas and viewbox. profile="full" to support numbers with more than 4 decimal digits
         self.drawing: svgwrite.Drawing = svgwrite.Drawing(
             size=(f"{canvas_width_mm}mm", f"{canvas_height_mm}mm"),
@@ -62,7 +63,11 @@ class AvSvgPage:
 
         # Define root group with transformation to flip y-axis and set origin to bottom-left
         # self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,-1) translate(0,-1)")
-        self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,-1)")
+        y_translate = -(viewbox_height / viewbox_width)
+        # y_translate = -0.1
+        print(f"y_translate: {y_translate}")
+        # self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,-1) translate(0,{y_translate})")
+        self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,1)")
         # transform=f"scale(1,-1) translate(0,{-canvas_height_mm})"
         # TODO: replace translate-1 with correct y-value
 
@@ -163,8 +168,8 @@ def main():
     canvas_width = 210  # DIN A4 page width in mm
     canvas_height = 297  # DIN A4 page height in mm
 
-    viewbox_width = 180  # viewbox width in mm
-    viewbox_height = 295  # viewbox height in mm
+    viewbox_width = 105  # viewbox width in mm
+    viewbox_height = 148.5  # viewbox height in mm
 
     viewbox_ratio = 1 / viewbox_width  # multiply each dimension with this ratio
 
@@ -173,7 +178,8 @@ def main():
     vb_w = viewbox_ratio * canvas_width
     vb_h = viewbox_ratio * canvas_height
     vb_x = -viewbox_ratio * (canvas_width - viewbox_width) / 2
-    vb_y = 0  # viewbox_ratio * ((canvas_height - viewbox_height) / 2 + 2 * viewbox_height)
+    vb_y = -viewbox_ratio * (canvas_height - viewbox_height) / 2
+    # vb_y = 0  # viewbox_ratio * ((canvas_height - viewbox_height) / 2 + 2 * viewbox_height)
     # -viewbox_ratio * (canvas_height - viewbox_height) / 2
     # vb_y = (
     #     viewbox_ratio * viewbox_width
