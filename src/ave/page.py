@@ -17,8 +17,9 @@ from svgwrite.extensions import Inkscape
 
 @dataclass
 class AvSvgPage:
-    """A page (canvas) described by SVG with a viewbox to draw inside
+    """A page (canvas) described by SVG with a viewbox to draw inside.
 
+    The viewbox has its own coordinate-system left-to-right and bottom-to-top.
     Contains groups/layers:
         - root       -- (group) just contains the y-flip and translation to bottom left
             - main   -- editable->locked=False  --  hidden->display="block"
@@ -36,47 +37,105 @@ class AvSvgPage:
         self,
         canvas_width_mm: float,
         canvas_height_mm: float,
-        viewbox_x: float,
-        viewbox_y: float,
-        viewbox_width: float,
-        viewbox_height: float,
+        viewbox_x_mm: float,
+        viewbox_y_mm: float,
+        viewbox_width_mm: float,
+        viewbox_height_mm: float,
+        viewbox_scale: float = 1.0,
     ):
-        """Initialize the SVG page with specified canvas and viewbox dimensions.
-            The viewbox is the drawing area.
+        """
+        Initialize the SVG page with specified canvas and viewbox dimensions.
+
+        The viewbox is the drawing area with its own coordinate-system left-to-right and bottom-to-top.
+        viewbox_scale scales the viewbox coordinates for further use (e.g. by the add()-method).
 
         Args:
             canvas_width_mm (float): The width of the canvas in millimeters.
             canvas_height_mm (float): The height of the canvas in millimeters.
-            viewbox_x (float): The x-coordinate of the viewbox's starting point.
-            viewbox_y (float): The y-coordinate of the viewbox's starting point.
-            viewbox_width (float): The width of the viewbox.
-            viewbox_height (float): The height of the viewbox.
+            viewbox_x_mm (float): The x-coordinate of the viewbox's top-left point in millimeters.
+            viewbox_y_mm (float): The y-coordinate of the viewbox's top-left point in millimeters.
+            viewbox_width_mm (float): The width of the viewbox in millimeters left-to-right.
+            viewbox_height_mm (float): The height of the viewbox in millimeters top-to-bottom.
+            viewbox_scale (float, optional): The scale factor for the viewbox. Defaults to 1.0.
         """
-        print(f"Initializing page: {canvas_width_mm} {canvas_height_mm}")
-        print(f"Initializing viewbox: {viewbox_x} {viewbox_y} {viewbox_width} {viewbox_height}")
+
+        # calculate viewbox coordinates, i.e. the canvas coordinates from viewbox perspective
+        vb_x: float = -viewbox_x_mm * viewbox_scale
+        vb_y: float = -viewbox_y_mm * viewbox_scale
+        vb_width: float = viewbox_scale * canvas_width_mm  # canvas width relativ to viewbox
+        vb_height: float = viewbox_scale * canvas_height_mm  # canvas height relativ to viewbox
+
         # Setup canvas and viewbox. profile="full" to support numbers with more than 4 decimal digits
-        self.drawing: svgwrite.Drawing = svgwrite.Drawing(
+        self.drawing = svgwrite.Drawing(
             size=(f"{canvas_width_mm}mm", f"{canvas_height_mm}mm"),
-            viewBox=(f"{viewbox_x} {viewbox_y} {viewbox_width} {viewbox_height}"),
+            viewBox=(f"{vb_x} {vb_y} {vb_width} {vb_height}"),
             profile="full",
         )
 
         # Define root group with transformation to flip y-axis and set origin to bottom-left
-        # self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,-1) translate(0,-1)")
-        y_translate = -(viewbox_height / viewbox_width)
-        # y_translate = -0.1
-        print(f"y_translate: {y_translate}")
-        # self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,-1) translate(0,{y_translate})")
-        self.root_group: svgwrite.container.Group = self.drawing.g(transform=f"scale(1,1)")
-        # transform=f"scale(1,-1) translate(0,{-canvas_height_mm})"
-        # TODO: replace translate-1 with correct y-value
+        y_translate = -viewbox_height_mm * viewbox_scale
+        self.root_group = self.drawing.g(id="root", transform=f"scale(1,-1) translate(0,{y_translate})")
 
         # Initialize Inkscape extension for layer support
-        self._inkscape: Inkscape = Inkscape(self.drawing)
+        self._inkscape = Inkscape(self.drawing)
 
         # Define layers
-        self.main_layer = self._inkscape.layer(label="Main", locked=False)
-        self.debug_layer = self._inkscape.layer(label="Debug", locked=False, display="none")
+        self.main_layer = self._inkscape.layer(label="main", locked=False)
+        self.debug_layer = self._inkscape.layer(label="debug", locked=False, display="none")
+
+    def add(
+        self,
+        element: Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder],
+        add_to_debug_layer: bool = False,
+    ) -> Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder]:
+        """Add a SVG element as subelement.
+
+        Args:
+            element (svgwrite.base.BaseElement): append this SVG element
+            debug (bool, optional): True if element should be added to debug layer. Defaults to False.
+
+        Returns:
+            svgwrite.base.BaseElement: the added element
+        """
+        if add_to_debug_layer:
+            return self.debug_layer.add(element)
+        return self.main_layer.add(element)
+
+    def save_as(
+        self,
+        filename: str,
+        include_debug_layer: bool = False,
+        pretty: bool = False,
+        indent: int = 2,
+        compressed: bool = False,
+    ):
+        """Save as SVG file
+
+        Args:
+            filename (str): path and filename
+            include_debug_layer (bool, optional): True if file should contain debug_layer. Defaults to False.
+            pretty (bool, optional): True for easy readable output. Defaults to False.
+            indent (int, optional): Indention if pretty is enabled. Defaults to 2 spaces.
+            compressed (bool, optional): Save as compressed svgz-file. Defaults to False.
+        """
+        drawing_for_save = self.assemble_tree(
+            copy.deepcopy(self.drawing),
+            copy.deepcopy(self.root_group),
+            copy.deepcopy(self.main_layer),
+            copy.deepcopy(self.debug_layer),
+            include_debug_layer,
+        )
+
+        # setup IO:
+        svg_buffer = io.StringIO()
+        drawing_for_save.write(svg_buffer, pretty=pretty, indent=indent)
+        output_data = svg_buffer.getvalue().encode("utf-8")
+        if compressed:
+            output_data = gzip.compress(output_data)
+
+        # save file:
+        with open(filename, "wb") as svg_file:
+            svg_file.write(output_data)
 
     @classmethod
     def assemble_tree(
@@ -97,7 +156,7 @@ class AvSvgPage:
             include_debug_layer (bool, optional): Include the debug layer in the tree. Defaults to False.
 
         Returns:
-            svgwrite.Drawing: The assembled SVG drawing element.
+            svgwrite.Drawing: The given drawing with assembled SVG drawing elements.
         """
         drawing.add(root_group)
         if include_debug_layer and debug_layer:
@@ -105,59 +164,47 @@ class AvSvgPage:
         root_group.add(main_layer)
         return drawing
 
-    def save_as(
-        self,
-        filename: str,
-        include_debug_layer: bool = False,
-        pretty: bool = False,
-        indent: int = 2,
-        compressed: bool = False,
-    ):
-        """Save as SVG file
-
-        Args:
-            filename (str): path and filename
-            include_debug_layer (bool, optional): True if file should contain debug_layer. Defaults to False.
-            pretty (bool, optional): True for easy readable output. Defaults to False.
-            indent (int, optional): Indention if pretty is enabled. Defaults to 2 spaces.
-            compressed (bool, optional): Save as compressed svgz-file. Defaults to False.
+    @classmethod
+    def create_page_a4(
+        cls,
+        viewbox_width_mm: float,
+        viewbox_height_mm: float,
+        viewbox_scale: float = 1.0,
+    ) -> AvSvgPage:
         """
-        drawing = self.assemble_tree(
-            copy.deepcopy(self.drawing),
-            copy.deepcopy(self.root_group),
-            copy.deepcopy(self.main_layer),
-            copy.deepcopy(self.debug_layer),
-            include_debug_layer,
-        )
+        Create a new page with A4 dimensions.
 
-        # setup IO:
-        svg_buffer = io.StringIO()
-        drawing.write(svg_buffer, pretty=pretty, indent=indent)
-        output_data = svg_buffer.getvalue().encode("utf-8")
-        if compressed:
-            output_data = gzip.compress(output_data)
-
-        # save file:
-        with open(filename, "wb") as svg_file:
-            svg_file.write(output_data)
-
-    def add(
-        self,
-        element: Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder],
-        add_to_debug_layer: bool = False,
-    ) -> Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder]:
-        """Add an SVG element as subelement.
+        The viewbox is centered horizontally and vertically on the page.
+        The viewbox coordinates are scaled so that the viewbox width is 1.0
+        and the height is the ratio of the viewbox height to the viewbox width.
 
         Args:
-            element (svgwrite.base.BaseElement): append this SVG element
-            debug (bool, optional): True if element should be added to debug layer. Defaults to False.
+            viewbox_width_mm (float): The width of the viewbox in mm.
+            viewbox_height_mm (float): The height of the viewbox in mm.
+            viewbox_scale (float, optional): The scale factor for the viewbox. Defaults to 1.0.
 
         Returns:
-            svgwrite.base.BaseElement: the added element
+            AvSvgPage: A new page with A4 dimensions.
         """
-        if add_to_debug_layer:
-            return self.debug_layer.add(element)
-        return self.main_layer.add(element)
+        # DIN A4 page dimensions
+        canvas_width_mm = 210  # DIN A4 page width in mm
+        canvas_height_mm = 297  # DIN A4 page height in mm
+
+        # calculate viewbox origin (top-left corner)
+        viewbox_x_mm = (canvas_width_mm - viewbox_width_mm) / 2  # viewbox top-left corner
+        viewbox_y_mm = (canvas_height_mm - viewbox_height_mm) / 2  # viewbox top-left corner
+
+        svg_page = AvSvgPage(
+            canvas_width_mm,
+            canvas_height_mm,
+            viewbox_x_mm,
+            viewbox_y_mm,
+            viewbox_width_mm,
+            viewbox_height_mm,
+            viewbox_scale,
+        )
+
+        return svg_page
 
 
 def main():
@@ -165,47 +212,24 @@ def main():
 
     output_filename = "data/output/example/svg/ave/example_PageSVG.svgz"
 
-    canvas_width = 210  # DIN A4 page width in mm
-    canvas_height = 297  # DIN A4 page height in mm
-
-    viewbox_width = 105  # viewbox width in mm
-    viewbox_height = 148.5  # viewbox height in mm
-
-    viewbox_ratio = 1 / viewbox_width  # multiply each dimension with this ratio
-
-    # Center the viewbox horizontally and vertically on the page
-    #   vb_x seen from viewbox left border
-    vb_w = viewbox_ratio * canvas_width
-    vb_h = viewbox_ratio * canvas_height
-    vb_x = -viewbox_ratio * (canvas_width - viewbox_width) / 2
-    vb_y = -viewbox_ratio * (canvas_height - viewbox_height) / 2
-    # vb_y = 0  # viewbox_ratio * ((canvas_height - viewbox_height) / 2 + 2 * viewbox_height)
-    # -viewbox_ratio * (canvas_height - viewbox_height) / 2
-    # vb_y = (
-    #     viewbox_ratio * viewbox_width
-    #     - viewbox_ratio * (canvas_height - viewbox_height) / 2
-    #     - viewbox_ratio * viewbox_height
-    # )
-
-    # Set up the SVG canvas:
-    #   Define viewBox so that "1" is the width of the viewbox
-    #   Multiply a dimension with "vb_ratio" to get the size regarding viewBox
-    # vb_y = -viewbox_ratio * (canvas_height - viewbox_height) / 2
-
-    svg_page = AvSvgPage(canvas_width, canvas_height, vb_x, vb_y, vb_w, vb_h)
+    # create a page with A4 dimensions
+    vb_width_mm = 150  # 105  # viewbox width in mm
+    vb_height_mm = 150  # 148.5  # viewbox height in mm
+    vb_scale = 1.0 / vb_width_mm  # scale viewbox so that x-coordinates are between 0 and 1
+    svg_page = AvSvgPage.create_page_a4(vb_width_mm, vb_height_mm, vb_scale)
 
     # define a path that describes the outline of the viewbox
     svg_page.add(
         svg_page.drawing.path(
             d=(
                 f"M 0 0 "
-                f"L {viewbox_ratio * viewbox_width} 0 "  # = (1.0, 0.0)
-                f"L {viewbox_ratio * viewbox_width} {viewbox_ratio * viewbox_height} "
-                f"L 0 {viewbox_ratio * viewbox_height} "
+                f"L {vb_scale * vb_width_mm} 0 "  # = (1.0, 0.0)
+                f"L {vb_scale * vb_width_mm} {vb_scale * vb_height_mm} "
+                f"L 0 {vb_scale * vb_height_mm} "
                 f"Z"
             ),
             stroke="black",
-            stroke_width=0.1 * viewbox_ratio,
+            stroke_width=0.1 * vb_scale,
             fill="none",
         )
     )
@@ -215,13 +239,13 @@ def main():
         svg_page.drawing.path(
             d=(
                 f"M 0 0 "
-                f"L {viewbox_ratio * viewbox_width * 0.1} 0 "
-                f"L {viewbox_ratio * viewbox_width * 0.1} {viewbox_ratio * viewbox_height * 0.1} "
-                f"L 0 {viewbox_ratio * viewbox_height * 0.1} "
+                f"L {vb_scale * vb_width_mm * 0.1} 0 "
+                f"L {vb_scale * vb_width_mm * 0.1} {vb_scale * vb_height_mm * 0.1} "
+                f"L 0 {vb_scale * vb_height_mm * 0.1} "
                 f"Z"
             ),
             stroke="red",
-            stroke_width=0.1 * viewbox_ratio,
+            stroke_width=0.1 * vb_scale,
             fill="none",
         )
     )
@@ -230,69 +254,41 @@ def main():
     svg_page.add(
         svg_page.drawing.path(
             d=(
-                f"M {viewbox_ratio * viewbox_width * 0.9} {viewbox_ratio * viewbox_height * 0.9} "
-                f"L {viewbox_ratio * viewbox_width} {viewbox_ratio * viewbox_height * 0.9} "
-                f"L {viewbox_ratio * viewbox_width} {viewbox_ratio * viewbox_height} "
-                f"L {viewbox_ratio * viewbox_width * 0.9} {viewbox_ratio * viewbox_height} "
+                f"M {vb_scale * vb_width_mm * 0.9} {vb_scale * vb_height_mm * 0.9} "
+                f"L {vb_scale * vb_width_mm} {vb_scale * vb_height_mm * 0.9} "
+                f"L {vb_scale * vb_width_mm} {vb_scale * vb_height_mm} "
+                f"L {vb_scale * vb_width_mm * 0.9} {vb_scale * vb_height_mm} "
                 f"Z"
             ),
             stroke="green",
-            stroke_width=0.1 * viewbox_ratio,
+            stroke_width=0.1 * vb_scale,
             fill="none",
         )
     )
 
+    # define a blue path that describes a box in the middle of the viewbox
+    half_width_mm = 0.5
+    svg_page.add(
+        svg_page.drawing.path(
+            d=(
+                f"M {vb_scale * (vb_width_mm * 0.5 - half_width_mm)} {vb_scale * (vb_height_mm * 0.5 -half_width_mm)} "
+                f"L {vb_scale * (vb_width_mm * 0.5 - half_width_mm)} {vb_scale * (vb_height_mm * 0.5 +half_width_mm)} "
+                f"L {vb_scale * (vb_width_mm * 0.5 + half_width_mm)} {vb_scale * (vb_height_mm * 0.5 +half_width_mm)} "
+                f"L {vb_scale * (vb_width_mm * 0.5 + half_width_mm)} {vb_scale * (vb_height_mm * 0.5 -half_width_mm)} "
+                f"Z"
+            ),
+            stroke="blue",
+            stroke_width=0.1 * vb_scale,
+            fill="none",
+        ),
+        True,
+    )
+
     # Save the SVG file
-    print("save...")
+    print(f"save file {output_filename} ...")
     svg_page.save_as(output_filename, include_debug_layer=True, pretty=True, indent=2, compressed=True)
     print("save done.")
 
 
 if __name__ == "__main__":
     main()
-
-
-# ########################################
-# import svgwrite
-# # Define the dimensions of the DIN A4 page in pixels
-# page_width = 2480
-# page_height = 3508
-
-# # Define the dimensions of the viewbox
-# viewbox_width = 1
-# viewbox_height = page_height / page_width  # Maintain aspect ratio, approximately 1.414
-
-# # Create an SVG drawing object with the specified page dimensions
-# dwg = svgwrite.Drawing("triangle_viewbox.svg", profile="tiny", size=(page_width, page_height))
-
-# # Set the viewbox to be centered on the DIN A4 page with half the width and height of the page
-# dwg.viewbox(0, 0, viewbox_width, int(viewbox_height))
-
-# # Define the points of the triangle
-# points = [(0.5, viewbox_height), (0, viewbox_height / 2), (1, viewbox_height / 2)]
-
-# # Create a group with scaling and translation transformation
-# group = dwg.g(transform="scale(1, -1) translate(0, -1.414)")
-
-# # Add the triangle to the group
-# group.add(dwg.polygon(points, fill="none", stroke="black", stroke_width=0.01))
-
-# # Draw a rectangle showing the size of the viewbox
-# # Note: The rectangle should be positioned at (0, 0) with width=1 and height=viewbox_height
-
-# rectangle = dwg.rect(
-#     insert=(0, 0),
-#     size=(viewbox_width, viewbox_height),
-#     fill="none",
-#     stroke="red",
-#     stroke_width=0.01,
-# )
-# group.add(rectangle)
-
-# # Add the group to the SVG drawing
-# dwg.add(group)
-
-# # Save the SVG file
-# dwg.save()
-
-# print("SVG file 'triangle_viewbox.svg' has been created.")
