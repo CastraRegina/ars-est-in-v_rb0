@@ -675,7 +675,11 @@ Maybe check later if some of these packages are really needed...
 - Also see [Awesome Typography](https://github.com/Jolg42/awesome-typography), a curated list about digital typography
 - For text (i.e. glyph) layout engine check [pango.org](https://pango.gnome.org/)
 - For font manipulation see [fonttools](https://github.com/fonttools/fonttools)
-  and the [fonttools-documentation](https://fonttools.readthedocs.io/en/latest/)
+  and the [fonttools-documentation](https://fonttools.readthedocs.io/en/latest/)  
+  see also
+  - [Navigating TTFs via FontTools by Lynne Yun](https://github.com/lynneyun/Tutorials/blob/master/FontTools%20%26%20DrawBot/Navigating%20TTFs%20with%20fontTools.ipynb)
+  - [Manipulating font data by Allison Parrish](https://github.com/aparrish/material-of-language/blob/master/manipulating-font-data.ipynb)
+  with nice explaination of *Typography Terminology* and *Glyph Metrics*
 
 ## Artist name
 Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.com/) and register/secure it at several online services:  
@@ -1187,7 +1191,7 @@ A few notes on classes and functions
 - AvPageSvg  
   A page (canvas, e.g. DIN A4) described by SVG with a viewbox to draw inside.  
   The width of the viewbox is defined to be of size "1".
-- AvGlyphABC (abstract class)  
+- AvGlyph 
   A glyph is a visual representation of a character or symbol in a font.  
   Uses dimensions in unitsPerEm, i.e. independent from font_size and position.
 - AvLetter  
