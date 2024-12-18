@@ -697,6 +697,9 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
 - GitHub (pwd+2factor+2ndSMS)
 -    redbubble (pwd w/o 2factor authentication)
 - ... further ...
+- stripe.com - multinational financial services
+- buymeacoffee.com - monetization platform
+- ... further - further ...
 -    artmajeur.com
 -    inprnt.com
 -   society6
