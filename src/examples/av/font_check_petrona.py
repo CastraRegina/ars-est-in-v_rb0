@@ -84,6 +84,9 @@ def main():
     svg_page_output.save_as(output_filename + "z", include_debug_layer=True, pretty=True, indent=2, compressed=True)
     print("save done.")
 
+    glyph: AvGlyph = avfont_w100.glyph(" ")
+    print(glyph.real_width(font_size))
+
 
 if __name__ == "__main__":
     main()
