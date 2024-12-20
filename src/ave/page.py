@@ -39,7 +39,7 @@ class AvSvgPage:
         canvas_height_mm: float,
         viewbox_x_mm: float,
         viewbox_y_mm: float,
-        viewbox_width_mm: float,
+        _viewbox_width_mm: float,  # not used for the moment
         viewbox_height_mm: float,
         viewbox_scale: float = 1.0,
     ):
@@ -88,7 +88,7 @@ class AvSvgPage:
         element: Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder],
         add_to_debug_layer: bool = False,
     ) -> Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder]:
-        """Add a SVG element as subelement.
+        """Add a SVG element as subelement either to main or debug layer.
 
         Args:
             element (svgwrite.base.BaseElement): append this SVG element
