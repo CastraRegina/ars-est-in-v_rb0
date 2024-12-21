@@ -30,16 +30,27 @@ class FontHelper:
         return default_axes_values
 
     @staticmethod
-    def instantiate(variable_font: TTFont, axes_values: Dict[str, float]) -> TTFont:
+    def instantiate_ttfont(variable_font: TTFont, axes_values: Dict[str, float]) -> TTFont:
         """
-        Instantiate a new font from a given variable_font and the given axes_values.
+        Instantiate a new font from a given variable TTFont and the given axes_values.
+        Returns a new TTFont.
         Example for axes_values: {"wght": 700, "wdth": 25, "GRAD": 100}
+
+        Args:
+            variable_font (TTFont): The variable font to instantiate.
+            axes_values (Dict[str, float]): A dictionary mapping axis names to values.
+
+        Returns:
+            TTFont: The instantiated font.
         """
         instantiate_axes_values = FontHelper.get_default_axes_values(variable_font)
         instantiate_axes_values.update(axes_values)
         return instancer.instantiateVariableFont(variable_font, instantiate_axes_values)
 
 
+# =============================================================================
+# Pens
+# =============================================================================
 class AvPolylinePen(BasePen):
     """
     This pen is used to convert curves to line segments.
