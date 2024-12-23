@@ -543,8 +543,12 @@ Maybe check later if some of these packages are really needed...
   ~~`git clone https://github.com/CastraRegina/ars-est-in-v_rb0`~~  
   `git clone git@github.com:CastraRegina/ars-est-in-v_rb0.git`
 - Set username for this repository:  
-  `git config user.name "Regina Castra"`  
-  `git config user.name` to check the settings
+  ~~`git config user.name "Regina Castra"`~~  
+  ~~`git config user.name` to check the settings~~
+  ```
+  git config --global user.email "castraregina@xyz.net"   # replace by correct email-address, see github-settings
+  git config --global user.name "fk"
+  ```
 - Create folders (optional):  
   `cd ars-est-in-v_rb0`  
   `mkdir -p {bin,data,docs,examples,src,src/examples,tests}`
