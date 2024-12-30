@@ -489,6 +489,10 @@ Maybe check later if some of these packages are really needed...
     ```
     Don't forget to start the `KWalletManager`/`PasswordManager`  
     Use `Crtl+i` to open the *Codeium Command*
+  - Codeium - Windsurf editor  
+    Download instructions: [https://codeium.com/windsurf/download_linux](https://codeium.com/windsurf/download_linux)  
+    Use `Ctrl+L` to Code with Cascade  
+    Use `Ctrl+Shift+P` to Open Command Palette
 
 
 ## Install fontforge
