@@ -105,20 +105,23 @@ class AvPolylinePen(BasePen):
     #     for command in self.recordingPen.value:
     #         pen._callCommand(command)
 
-    # TODO: for SVG-commands use fontTools.pens.svgPathPen.SVGPathPen
+    # # TODO: for SVG-commands use fontTools.pens.svgPathPen.SVGPathPen
     # def svg_commands(self):
-    #     svg_commands = []
+    #     """Return the SVG path string representation of the pen's movements."""
+    #     svg_path = []
+
     #     for command, points in self.recording_pen.value:
     #         if command == "moveTo":
-    #             svg_commands.append(f"M {points[0][0]} {points[0][1]}")
+    #             svg_path.append(f"M {points[0][0]} {points[0][1]}")
     #         elif command == "lineTo":
-    #             svg_commands.append(f"L {points[0][0]} {points[0][1]}")
+    #             svg_path.append(f"L {points[0][0]} {points[0][1]}")
     #         elif command == "curveTo":
-    #             svg_commands.append(
-    #                 f"C {points[0][0][0]} {points[0][0][1]} {points[1][0]} {points[1][1]} {points[2][0]} {points[2][1]}"
+    #             svg_path.append(
+    #                 f"C {points[0][0]} {points[0][1]} {points[1][0]} {points[1][1]} {points[2][0]} {points[2][1]}"
     #             )
     #         elif command == "qCurveTo":
-    #             svg_commands.append(f"Q {points[0][0]} {points[0][1]} {points[1][0]} {points[1][1]}")
+    #             svg_path.append(f"Q {points[0][0]} {points[0][1]} {points[1][0]} {points[1][1]}")
     #         elif command == "closePath":
-    #             svg_commands.append("Z")
-    #     return " ".join(svg_commands)
+    #             svg_path.append("Z")
+
+    #     return " ".join(svg_path)
