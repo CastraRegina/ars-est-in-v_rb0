@@ -2,8 +2,8 @@
 
 from typing import Dict
 
-from fontTools.pens.recordingPen import RecordingPen
-from fontTools.pens.ttGlyphPen import TTGlyphPen
+# from fontTools.pens.recordingPen import RecordingPen
+# from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
