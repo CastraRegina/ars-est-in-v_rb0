@@ -1,7 +1,7 @@
 afdko==4.0.2
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.13
-aiosignal==1.3.2
+aiosignal==1.4.0
 appdirs==1.4.4
 astroid==3.3.10
 async-timeout==5.0.1
@@ -28,12 +28,12 @@ fontmake==3.10.1
 fontMath==0.9.4
 fontParts==0.13.1
 fontPens==0.2.4
-fonttools==4.58.4
+fonttools==4.58.5
 freetype-py==2.5.1
 frozenlist==1.7.0
 fs==2.4.16
 gizeh==0.1.11
-glyphsLib==6.11.0
+glyphsLib==6.11.1
 idna==3.10
 iniconfig==2.1.0
 isort==6.0.1
@@ -42,7 +42,7 @@ lxml==6.0.0
 matplotlib==3.10.3
 mccabe==0.7.0
 mpmath==1.3.0
-multidict==6.6.0
+multidict==6.6.3
 MutatorMath==3.0.1
 mypy==1.16.1
 mypy_extensions==1.1.0
@@ -53,7 +53,7 @@ packaging==25.0
 pangocairocffi==0.7.0
 pangocffi==0.13.0
 pathspec==0.12.1
-pillow==11.2.1
+pillow==11.3.0
 platformdirs==4.3.8
 pluggy==1.6.0
 propcache==0.3.2
@@ -85,8 +85,8 @@ tinycss2==1.4.0
 tomli==2.2.1
 tomlkit==0.13.3
 tqdm==4.67.1
-typing_extensions==4.14.0
-ufo2ft==3.5.0
+typing_extensions==4.14.1
+ufo2ft==3.5.1
 ufoLib2==0.17.1
 ufonormalizer==0.6.2
 ufoProcessor==1.13.3
