@@ -1,7 +1,10 @@
-"""Pytest tests"""
+"""Test module for av.helper
+
+The tests are run using pytest.
+"""
 
 import numpy as np
-import pytest
+import pytest  # pylint: disable=unused-import
 
 from av.helper import HelperTypeHinting
 

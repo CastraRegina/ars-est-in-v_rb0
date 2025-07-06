@@ -1,12 +1,9 @@
-"""Test module for the ave.svgpath module.
+"""Test module for the ave.svgpath
 
-This module contains unit tests for the ave.svgpath module.
-
-The tests are grouped into test cases, each of which is a function prefixed with "test_".
 The tests are run using pytest.
 """
 
-import pytest
+import pytest  # pylint: disable=unused-import
 
 from ave.svgpath import AvSvgPath  # replace with the actual module name
 
