@@ -29,9 +29,7 @@ def find_ttf_files(font_family_name: str) -> List[str]:
     cmd = ["fc-list", "--format=%{file}\\n", f":family={font_family_name}"]
 
     # Run the fc-list command and capture the output
-    result = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
-    )
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     output = result.stdout.decode().strip()
 
     # If output is not empty, add all TTF files to the list and return it
@@ -45,13 +43,18 @@ def find_ttf_files(font_family_name: str) -> List[str]:
     return ttf_files
 
 
-if __name__ == "__main__":
-    INPUT_FONT_FAMILY_NAME = "Free Sans"
+def main():
+    """Main function to demonstrate the usage of find_ttf_files."""
+    font_family_name = "Free Sans"  # Example font family name
+    ttf_files = find_ttf_files(font_family_name)
 
-    ttf_files_found = find_ttf_files(INPUT_FONT_FAMILY_NAME)
-    if ttf_files_found:
-        print(f'TTF file(s) for font "{INPUT_FONT_FAMILY_NAME}":')
-        for ttf_filename in ttf_files_found:
-            print("   ", ttf_filename)
+    if ttf_files:
+        print(f'TTF file(s) for font "{font_family_name}":')
+        for ttf_file in ttf_files:
+            print("   ", ttf_file)
     else:
-        print(f"Font {INPUT_FONT_FAMILY_NAME} not found")
+        print(f"No TTF files found for font family '{font_family_name}'.")
+
+
+if __name__ == "__main__":
+    main()

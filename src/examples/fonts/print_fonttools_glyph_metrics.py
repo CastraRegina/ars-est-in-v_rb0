@@ -3,9 +3,9 @@ This script demonstrates how to use fontTools to print the bounding box, width,
 ascent, descent, line gap, and units per em of a given character in a font.
 """
 
+from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
-from fontTools.pens.boundsPen import BoundsPen
 
 
 def print_font_metrics(font: TTFont) -> None:
@@ -64,14 +64,11 @@ def print_glyph_metrics(font: TTFont, char: str) -> None:
     print("    width          :", glyph.width)
 
 
-if __name__ == "__main__":
+def main():
     FONT_FILENAME = "fonts/Grandstander-VariableFont_wght.ttf"
     FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
     FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
-    FONT_FILENAME = (
-        "fonts/RobotoFlex-VariableFont_"
-        + "GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
-    )
+    FONT_FILENAME = "fonts/RobotoFlex-VariableFont_" + "GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
 
     # FONT_FILENAME = "fonts/RobotoMono-VariableFont_wght.ttf"
 
@@ -127,3 +124,7 @@ if __name__ == "__main__":
     print_font_metrics(ttfont)
 
     print("--------------------------------------")
+
+
+if __name__ == "__main__":
+    main()
