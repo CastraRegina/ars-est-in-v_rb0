@@ -1,9 +1,9 @@
 afdko==4.0.2
 aiohappyeyeballs==2.6.1
-aiohttp==3.12.13
+aiohttp==3.12.14
 aiosignal==1.4.0
 appdirs==1.4.4
-astroid==3.3.10
+astroid==3.3.11
 async-timeout==5.0.1
 attrs==25.3.0
 autopep8==2.3.2
@@ -19,7 +19,7 @@ compreffor==0.5.6
 contourpy==1.3.2
 cssselect2==0.8.0
 cycler==0.12.1
-defcon==0.12.1
+defcon==0.12.2
 defusedxml==0.7.1
 dill==0.4.0
 exceptiongroup==1.3.0
@@ -28,12 +28,12 @@ fontmake==3.10.1
 fontMath==0.9.4
 fontParts==0.13.1
 fontPens==0.2.4
-fonttools==4.58.5
+fonttools==4.59.0
 freetype-py==2.5.1
 frozenlist==1.7.0
 fs==2.4.16
 gizeh==0.1.11
-glyphsLib==6.11.1
+glyphsLib==6.11.2
 idna==3.10
 iniconfig==2.1.0
 isort==6.0.1
@@ -44,10 +44,10 @@ mccabe==0.7.0
 mpmath==1.3.0
 multidict==6.6.3
 MutatorMath==3.0.1
-mypy==1.16.1
+mypy==1.17.0
 mypy_extensions==1.1.0
-numpy==2.3.1
-opencv-python==4.11.0.86
+numpy==2.2.6
+opencv-python==4.12.0.88
 openstep_plist==0.5.0
 packaging==25.0
 pangocairocffi==0.7.0
@@ -74,7 +74,7 @@ setuptools==80.9.0
 shapely==2.1.1
 six==1.17.0
 skia-pathops==0.8.0.post2
-svg.path==6.3
+svg.path==7.0
 svgelements==1.9.6
 svgpath2mpl==1.0.0
 svgpathtools==1.7.1
@@ -87,7 +87,7 @@ tomlkit==0.13.3
 tqdm==4.67.1
 typing_extensions==4.14.1
 ufo2ft==3.5.1
-ufoLib2==0.17.1
+ufoLib2==0.18.1
 ufonormalizer==0.6.2
 ufoProcessor==1.13.3
 unicode==2.9
