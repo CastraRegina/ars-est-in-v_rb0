@@ -50,8 +50,8 @@ class AvSvgPage:
         viewbox_scale scales the viewbox coordinates for further use (e.g. by the add()-method).
 
         Args:
-            canvas_width_mm (float): The width of the canvas in millimeters.
-            canvas_height_mm (float): The height of the canvas in millimeters.
+            canvas_width_mm (float): The width of the canvas (=whole page) in millimeters.
+            canvas_height_mm (float): The height of the canvas (=whole page) in millimeters.
             viewbox_x_mm (float): The x-coordinate of the viewbox's top-left point in millimeters.
             viewbox_y_mm (float): The y-coordinate of the viewbox's top-left point in millimeters.
             viewbox_width_mm (float): The width of the viewbox in millimeters left-to-right.
@@ -175,13 +175,13 @@ class AvSvgPage:
         Create a new page with A4 dimensions.
 
         The viewbox is centered horizontally and vertically on the page.
-        The viewbox coordinates are scaled so that the viewbox width is 1.0
-        and the height is the ratio of the viewbox height to the viewbox width.
+        The viewbox coordinates are scaled by viewbox_scale
 
         Args:
             viewbox_width_mm (float): The width of the viewbox in mm.
             viewbox_height_mm (float): The height of the viewbox in mm.
-            viewbox_scale (float, optional): The scale factor for the viewbox. Defaults to 1.0.
+            viewbox_scale (float, optional): The scale factor for the viewbox.
+                Defaults to 1.0. Usually 1.0 / viewbox_width_mm to scale x-coordinates between 0 and 1.
 
         Returns:
             AvSvgPage: A new page with A4 dimensions.
@@ -212,11 +212,12 @@ def main():
 
     output_filename = "data/output/example/svg/ave/example_PageSVG.svgz"
 
-    # create a page with A4 dimensions
-    vb_width_mm = 150  # 105  # viewbox width in mm
-    vb_height_mm = 150  # 148.5  # viewbox height in mm
+    # create a page with A4 dimensions and a viewbox in the middle of the page
+    vb_width_mm = 170  # 105  # viewbox width in mm
+    vb_height_mm = 120  # 148.5  # viewbox height in mm
     vb_scale = 1.0 / vb_width_mm  # scale viewbox so that x-coordinates are between 0 and 1
     svg_page = AvSvgPage.create_page_a4(vb_width_mm, vb_height_mm, vb_scale)
+    stroke_width_mm = 0.1  # stroke width = 0.1 mm
 
     # define a path that describes the outline of the viewbox
     svg_page.add(
@@ -229,7 +230,7 @@ def main():
                 f"Z"
             ),
             stroke="black",
-            stroke_width=0.1 * vb_scale,
+            stroke_width=stroke_width_mm * vb_scale,
             fill="none",
         )
     )
@@ -245,7 +246,7 @@ def main():
                 f"Z"
             ),
             stroke="red",
-            stroke_width=0.1 * vb_scale,
+            stroke_width=stroke_width_mm * vb_scale,
             fill="none",
         )
     )
@@ -261,7 +262,7 @@ def main():
                 f"Z"
             ),
             stroke="green",
-            stroke_width=0.1 * vb_scale,
+            stroke_width=stroke_width_mm * vb_scale,
             fill="none",
         )
     )
@@ -278,7 +279,7 @@ def main():
                 f"Z"
             ),
             stroke="blue",
-            stroke_width=0.1 * vb_scale,
+            stroke_width=stroke_width_mm * vb_scale,
             fill="none",
         ),
         True,
