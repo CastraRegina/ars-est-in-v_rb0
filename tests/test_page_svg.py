@@ -5,11 +5,11 @@ The tests are run using pytest.
 
 import pytest  # pylint: disable=unused-import
 
-import av.page
+import ave.page
 
 
 def test_main():
     """A test function"""
     # do something useful here ...
-    av.page.main()
+    ave.page.main()
     assert True
