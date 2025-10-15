@@ -53,7 +53,7 @@ packaging==25.0
 pangocairocffi==0.7.0
 pangocffi==0.13.0
 pathspec==0.12.1
-pillow==11.3.0
+pillow==12.0.0
 platformdirs==4.5.0
 pluggy==1.6.0
 propcache==0.4.1
@@ -64,12 +64,12 @@ pycodestyle==2.14.0
 pycparser==2.23
 pyflakes==3.4.0
 Pygments==2.19.2
-pylint==4.0.0
+pylint==4.0.1
 pyparsing==3.2.5
 pypng==0.20220715.0
 pytest==8.4.2
 python-dateutil==2.9.0.post0
-pytokens==0.1.10
+pytokens==0.2.0
 scipy==1.16.2
 setuptools==80.9.0
 shapely==2.1.2
@@ -87,7 +87,7 @@ tomli==2.3.0
 tomlkit==0.13.3
 tqdm==4.67.1
 typing_extensions==4.15.0
-ufo2ft==3.6.6
+ufo2ft==3.6.8
 ufoLib2==0.18.1
 ufonormalizer==0.6.3
 ufoProcessor==1.14.0
