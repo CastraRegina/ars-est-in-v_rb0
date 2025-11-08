@@ -863,6 +863,7 @@ Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.c
     - Eye of Providence - All-Seeing Eye of God, the good God knows everything the neighborhood even more, 
     - Don Quixote, Tutankhamun, Cleopatra, Sphinx, Pl.yb.y bunny,
     - Valkyrie, Brunhild, Swedish Blenda, British Iceni's Boudica,
+    - Mandalas by Carl Gustav Jung
 
 - Themes and texts like...  
   - luck and happiness: smile, be happy, don't worry be happy, home, sweet home, 
