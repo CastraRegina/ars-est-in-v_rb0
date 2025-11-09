@@ -67,7 +67,7 @@ Pygments==2.19.2
 pylint==4.0.2
 pyparsing==3.2.5
 pypng==0.20220715.0
-pytest==8.4.2
+pytest==9.0.0
 python-dateutil==2.9.0.post0
 pytokens==0.3.0
 scipy==1.16.3
