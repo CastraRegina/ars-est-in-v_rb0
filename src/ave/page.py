@@ -15,6 +15,7 @@ import svgwrite.elementfactory
 from fontTools.ttLib import TTFont
 from svgwrite.extensions import Inkscape
 
+from ave.consts import Align
 from ave.fonttools import FontHelper
 from ave.glyph import AvFont, AvGlyph, AvGlyphFactory, AvLetter
 
@@ -291,18 +292,19 @@ def main():
 
     # load a font and place letter L on lower left corner and letter T on upper right corner
     font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
-    font_size = vb_scale * 3  # in mm
-
     ttfont_w400 = FontHelper.instantiate_ttfont(TTFont(font_filename), {"wght": 400})
     avfont_w400 = AvFont(ttfont_w400, AvGlyphFactory())
 
+    font_size = vb_scale * 3  # in mm
+    font_scale = font_size / avfont_w400.units_per_em
+
     glyph: AvGlyph = avfont_w400.fetch_glyph("L")
-    letter = AvLetter(0.0, 0.0, font_size, glyph)
+    letter = AvLetter(glyph, 0.0, 0.0, font_scale, Align.LEFT)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
     glyph: AvGlyph = avfont_w400.fetch_glyph("T")
-    letter = AvLetter(1.0, vb_scale * vb_height_mm, font_size, glyph)
+    letter = AvLetter(glyph, 1.0, vb_scale * vb_height_mm, font_scale)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 

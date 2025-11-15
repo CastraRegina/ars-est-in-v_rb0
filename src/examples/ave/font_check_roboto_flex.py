@@ -43,9 +43,11 @@ def main():
     ttfont_w900 = FontHelper.instantiate_ttfont(TTFont(font_filename), {"wght": 900})
     avfont_w100 = AvFont(ttfont_w100, AvGlyphFactory())
     avfont_w900 = AvFont(ttfont_w900, AvGlyphFactory())
+    font_scale_w100 = font_size / avfont_w100.units_per_em
+    font_scale_w900 = font_size / avfont_w900.units_per_em
 
     glyph: AvGlyph = avfont_w100.fetch_glyph(" ")
-    letter = AvLetter(0.0, 0.9, font_size, glyph)
+    letter = AvLetter(glyph, 0.0, 0.9, font_scale_w100)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
@@ -60,19 +62,19 @@ def main():
     y_pos = 0.8
     for character in text:
         glyph: AvGlyph = avfont_w100.fetch_glyph(character)
-        letter = AvLetter(x_pos, y_pos, font_size, glyph)
+        letter = AvLetter(glyph, x_pos, y_pos, font_scale_w100)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
-        x_pos += letter.width()
+        x_pos += letter.width
 
     x_pos = 0
     y_pos = 0.75
     for character in text:
         glyph: AvGlyph = avfont_w900.fetch_glyph(character)
-        letter = AvLetter(x_pos, y_pos, font_size, glyph)
+        letter = AvLetter(glyph, x_pos, y_pos, font_scale_w900)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
-        x_pos += letter.width()
+        x_pos += letter.width
 
     # Save the SVG file
     print(f"save file {output_filename} ...")

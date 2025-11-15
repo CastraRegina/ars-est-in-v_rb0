@@ -36,19 +36,12 @@ class AvGlyph:
 
     _font: TTFont
     _character: str
-    _bounding_box: Optional[AvBox] = None
-    _svg_path_string: str = ""
+    _bounding_box: Optional[AvBox] = None  # caching variable
+    _svg_path_string: str = ""  # caching variable
 
     def __init__(self, font: TTFont, character: str) -> None:
         self._font = font
         self._character = character
-
-    @property
-    def font(self) -> TTFont:
-        """
-        The font of this glyph.
-        """
-        return self._font
 
     @property
     def character(self) -> str:
@@ -68,8 +61,8 @@ class AvGlyph:
                 RIGHT: bounding_box.width + bounding_box.xmin  == official width - RSB
                 BOTH: bounding_box.width                       == official width - LSB - RSB
         """
-        glyph_set = self.font.getGlyphSet()
-        glyph_name = self.font.getBestCmap()[ord(self.character)]
+        glyph_set = self._font.getGlyphSet()
+        glyph_name = self._font.getBestCmap()[ord(self.character)]
         glyph_width = glyph_set[glyph_name].width
         bounding_box = self.bounding_box()
 
@@ -84,30 +77,35 @@ class AvGlyph:
         else:
             raise ValueError(f"Invalid align value: {align}")
 
+    @property
     def height(self) -> float:
         """
         The height of the glyph, i.e. the height of the bounding box.
         """
         return self.bounding_box().height
 
+    @property
     def ascender(self) -> float:
         """
         The maximum distance above the baseline, i.e. the highest y-coordinate of a glyph (positive value).
         """
         return self.bounding_box().ymax
 
+    @property
     def descender(self) -> float:
         """
         The maximum distance below the baseline, i.e. the lowest y-coordinate of a glyph (negative value).
         """
         return self.bounding_box().ymin
 
+    @property
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of a glyph.
         """
         return self.bounding_box().xmin
 
+    @property
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of a glyph.
@@ -151,7 +149,7 @@ class AvGlyph:
             svg_path_pen = SVGPathPen(glyph_set)
             glyph_set[glyph_name].draw(svg_path_pen)
             svg_path_string = svg_path_pen.getCommands()
-            # print(f'svg_path_string:"{svg_path_string}"')
+
             if not svg_path_string:
                 svg_path_string = "M 0 0"
             self._svg_path_string = AvSvgPath.convert_relative_to_absolute(svg_path_string)
@@ -231,7 +229,7 @@ class AvGlyphFactoryABC(ABC):
             character (str): The character to create a glyph for.
 
         Returns:
-            AvGlyphABC: An instance representing the glyph of the specified
+            AvGlyph: An instance representing the glyph of the specified
             character in the given font.
         """
 
@@ -256,19 +254,23 @@ class AvPolygonizedGlyphFactory(AvGlyphFactoryABC):
 @dataclass
 class AvLetter:
     """
-    A letter is a Glyph which is sclaled to real dimensions with a position and a font size.
+    A Letter is a Glyph which is scaled to real dimensions with a position.
     """
 
     _xpos: float  # left-to-right
     _ypos: float  # bottom-to-top
-    _font_size: float
+    _scale: float  # = font_size / units_per_em
     _glyph: AvGlyph
+    _align: Optional[ave.consts.Align] = None
 
-    def __init__(self, xpos: float, ypos: float, font_size: float, glyph: AvGlyph) -> None:
+    def __init__(
+        self, glyph: AvGlyph, xpos: float, ypos: float, scale: float, align: Optional[ave.consts.Align] = None
+    ) -> None:
+        self._glyph = glyph
         self._xpos = xpos
         self._ypos = ypos
-        self._font_size = font_size
-        self._glyph = glyph
+        self._scale = scale
+        self._align = align
 
     @property
     def xpos(self) -> float:
@@ -281,37 +283,66 @@ class AvLetter:
         return self._ypos
 
     @property
-    def font_size(self) -> float:
-        """The font size of the letter in real dimensions."""
-        return self._font_size
-
-    @property
-    def glyph(self) -> AvGlyph:
-        """The glyph of the letter."""
-        return self._glyph
-
-    @property
-    def units_per_em(self) -> float:
-        """The units per em of the letter's font."""
-        return self._glyph.font["head"].unitsPerEm  # type: ignore
-
-    @property
     def scale(self) -> float:
         """Returns the scale factor for the letter which is used to transform the glyph to real dimensions."""
-        return self.font_size / self.units_per_em
+        return self._scale
+
+    @property
+    def align(self) -> Optional[ave.consts.Align]:
+        """The alignment of the letter; None, LEFT, RIGHT, BOTH."""
+        return self._align
 
     @property
     def trafo(self) -> List[float]:
         """
         Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
-        Returns: [scale, 0, 0, scale, xpos, ypos].
+        Returns: [scale, 0, 0, scale, xpos, ypos] or [scale, 0, 0, scale, xpos-lsb, ypos] if alignment is LEFT.
         """
+        if self.align == ave.consts.Align.LEFT:
+            return [self.scale, 0, 0, self.scale, self.xpos - self.left_side_bearing, self.ypos]
         return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
 
-    def width(self, align: Optional[ave.consts.Align] = None) -> float:
-        """Returns the width of the letter in real dimensions, considering the alignment."""
-        glyph_width = self.glyph.width(align)
-        return glyph_width * self.scale
+    @property
+    def width(self) -> float:
+        """
+        Returns the width calculated considering the alignment.
+        """
+        return self.scale * self._glyph.width(self.align)
+
+    @property
+    def height(self) -> float:
+        """
+        The height of the Letter, i.e. the height of the bounding box.
+        """
+        return self.scale * self._glyph.height
+
+    @property
+    def ascender(self) -> float:
+        """
+        The maximum distance above the baseline, i.e. the highest y-coordinate of a Letter (positive value).
+        """
+        return self.scale * self._glyph.ascender
+
+    @property
+    def descender(self) -> float:
+        """
+        The maximum distance below the baseline, i.e. the lowest y-coordinate of a Letter (negative value).
+        """
+        return self.scale * self._glyph.descender
+
+    @property
+    def left_side_bearing(self) -> float:
+        """
+        LSB: The horizontal space on the left side of the Letter.
+        """
+        return self.scale * self._glyph.left_side_bearing
+
+    @property
+    def right_side_bearing(self) -> float:
+        """
+        RSB: The horizontal space on the right side of the Letter.
+        """
+        return self.scale * self._glyph.right_side_bearing
 
     def bounding_box(self) -> AvBox:
         """
@@ -465,7 +496,7 @@ class AvFont:
         """Calculates the overall maximum ascender by iterating over the given glyphs."""
         ascender: float = 0
         for glyph in glyphs:
-            ascender = max(ascender, glyph.ascender())
+            ascender = max(ascender, glyph.ascender)
         return ascender
 
     @staticmethod
@@ -473,7 +504,7 @@ class AvFont:
         """Calculates the overall minimum descender by iterating over the given glyphs."""
         descender: float = 0
         for glyph in glyphs:
-            descender = min(descender, glyph.descender())
+            descender = min(descender, glyph.descender)
         return descender
 
 
