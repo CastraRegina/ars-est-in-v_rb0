@@ -395,6 +395,8 @@ class AvFont:
     subfamily_name: str = ""
     full_name: str = ""
     license_description: str = ""
+    # TODO: add dash_thickness: Return the thickness of a dash-line, e.g. as a reference value for stroke-width.
+    # TODO: add em_width: Return the width of an "em"
 
     def __init__(self, font: TTFont, glyph_factory: AvGlyphFactoryABC) -> None:
         """
