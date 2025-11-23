@@ -131,6 +131,7 @@ dmypy.json
 # my own settings
 data/output/
 fonts/*.ttf
+fonts/*.odt
 fonts/zips/
 infos/
 todo.txt
