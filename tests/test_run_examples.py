@@ -5,22 +5,16 @@ The tests are run using pytest.
 
 import pytest  # pylint: disable=unused-import
 
-from examples.ave import font_check_petrona, font_check_roboto_flex
+from examples.ave import font_check_variable_fonts
 from examples.fonts import (
     find_ttf_files_for_font_family_name,
     print_fonttools_glyph_metrics,
 )
 
 
-def test_examples_font_check_petrona():
-    """Test function for font_check_petrona example"""
-    font_check_petrona.main()
-    assert True
-
-
-def test_examples_font_check_roboto_flex():
-    """Test function for font_check_roboto_flex example"""
-    font_check_roboto_flex.main()
+def test_examples_font_check_variable_fonts():
+    """Test function for font_check_variable_fonts example"""
+    font_check_variable_fonts.main()
     assert True
 
 

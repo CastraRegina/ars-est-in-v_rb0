@@ -5,6 +5,40 @@ from __future__ import annotations
 import re
 from typing import Callable, ClassVar, Optional, Sequence, Tuple, Union
 
+# Type-Definition for SvgPath-Commands; uppercase = absolute coordinates; lowercase = relative.
+# SvgPathCmds = Literal[
+#     # MoveTo (2) - start a new subpath and move the current point to (x,y)
+#     "M",
+#     "m",
+#     # LineTo (2) - draw a straight line from the current point to (x,y)
+#     "L",
+#     "l",
+#     # Horizontal LineTo (1) - draw a horizontal line to the given x coordinate (y stays unchanged)
+#     "H",
+#     "h",
+#     # Vertical LineTo (1) - draw a vertical line to the given y coordinate (x stays unchanged)
+#     "V",
+#     "v",
+#     # Cubic Bezier To (6) - draw a cubic Bézier curve with two control points and an endpoint (x,y)
+#     "C",
+#     "c",
+#     # Smooth cubic Bezier To (4) - Cubic curve to (x,y) using the reflection of the previous cubic control point
+#     "S",
+#     "s",
+#     # Quadratic Bezier To (4) - draw a quadratic Bézier curve with one control point and an endpoint (x,y)
+#     "Q",
+#     "q",
+#     # Smooth quadratic Bezier To (2) - Quadratic curve to (x,y) using the reflection of the previous control point
+#     "T",
+#     "t",
+#     # Arc (7) - draw an elliptical arc with parameters (rx ry x-axis-rotation large-arc-flag sweep-flag x y)
+#     "A",
+#     "a",
+#     # ClosePath (0) - close subpath by drawing a line from the current point to start point
+#     "Z",
+#     "z",
+# ]
+
 
 class AvSvgPath:
     """

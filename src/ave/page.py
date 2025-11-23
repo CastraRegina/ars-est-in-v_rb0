@@ -17,7 +17,7 @@ from svgwrite.extensions import Inkscape
 
 from ave.consts import Align
 from ave.fonttools import FontHelper
-from ave.glyph import AvFont, AvGlyph, AvGlyphFactory, AvLetter
+from ave.glyph import AvFont, AvFontProperties, AvGlyphFromTTFontFactory, AvLetter
 
 
 @dataclass
@@ -290,21 +290,23 @@ def main():
         True,
     )
 
-    # load a font and place letter L on lower left corner and letter T on upper right corner
-    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
-    ttfont_w400 = FontHelper.instantiate_ttfont(TTFont(font_filename), {"wght": 400})
-    avfont_w400 = AvFont(ttfont_w400, AvGlyphFactory())
-
     font_size = vb_scale * 3  # in mm
-    font_scale = font_size / avfont_w400.units_per_em
 
-    glyph: AvGlyph = avfont_w400.fetch_glyph("L")
-    letter = AvLetter(glyph, 0.0, 0.0, font_scale, Align.LEFT)
+    # load a font and place letter L on lower left corner and letter T on upper right corner
+    ttfont_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), {"wght": 400})
+    glyph_factory = AvGlyphFromTTFontFactory(ttfont)
+    avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))
+
+    glyph = avfont.get_glyph("L")
+    letter = AvLetter.from_font_size_units_per_em(glyph, 0.0, 0.0, font_size, avfont.props.units_per_em, Align.LEFT)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
-    glyph: AvGlyph = avfont_w400.fetch_glyph("T")
-    letter = AvLetter(glyph, 1.0, vb_scale * vb_height_mm, font_scale)
+    glyph = avfont.get_glyph("T")
+    letter = AvLetter.from_font_size_units_per_em(
+        glyph, 1.0, vb_scale * vb_height_mm, font_size, avfont.props.units_per_em, Align.RIGHT
+    )
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 

@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, List, Tuple
 
+import numpy as np
 from fontTools.pens.basePen import BasePen
 from fontTools.pens.recordingPen import RecordingPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
+from numpy.typing import NDArray
+
+from ave.consts import AvGlyphCmds
 
 
 class FontHelper:
@@ -48,9 +52,9 @@ class FontHelper:
         return instancer.instantiateVariableFont(variable_font, instantiate_axes_values)
 
 
-# =============================================================================
+###############################################################################
 # Pens
-# =============================================================================
+###############################################################################
 class AvPolylinePen(BasePen):
     """
     This pen is used to convert curves to line segments.
@@ -101,27 +105,76 @@ class AvPolylinePen(BasePen):
             y = (1 - t) ** 3 * pt0[1] + 3 * (1 - t) ** 2 * t * pt1[1] + 3 * (1 - t) * t**2 * pt2[1] + t**3 * pt3[1]
             self._lineTo((x, y))
 
-    # def draw(self, pen):
-    #     for command in self.recordingPen.value:
-    #         pen._callCommand(command)
 
-    # # TODO: for SVG-commands use fontTools.pens.svgPathPen.SVGPathPen
-    # def svg_commands(self):
-    #     """Return the SVG path string representation of the pen's movements."""
-    #     svg_path = []
+class AvGlyphPtsCmdsPen(BasePen):
+    """
+    Pen that records glyph drawing commands and their points in a compact
+    representation: a flat list of points and a parallel list of SVG command
+    letters. The points are recorded in the order the
+    commands supply them; consumers must know how many coordinates each
+    command consumes (e.g. 'C' consumes 3 points = 6 numbers).
+    Supports the commands: M, L, C, Q, Z (all absolute).
 
-    #     for command, points in self.recording_pen.value:
-    #         if command == "moveTo":
-    #             svg_path.append(f"M {points[0][0]} {points[0][1]}")
-    #         elif command == "lineTo":
-    #             svg_path.append(f"L {points[0][0]} {points[0][1]}")
-    #         elif command == "curveTo":
-    #             svg_path.append(
-    #                 f"C {points[0][0]} {points[0][1]} {points[1][0]} {points[1][1]} {points[2][0]} {points[2][1]}"
-    #             )
-    #         elif command == "qCurveTo":
-    #             svg_path.append(f"Q {points[0][0]} {points[0][1]} {points[1][0]} {points[1][1]}")
-    #         elif command == "closePath":
-    #             svg_path.append("Z")
+    After drawing a glyph with this pen, use the `.points` and `.commands`
+    properties to access the results.
+    """
 
-    #     return " ".join(svg_path)
+    def __init__(self, glyphSet):
+        super().__init__(glyphSet)
+        # numpy array of shape (n, 2) storing (x,y) points in the order they were emitted
+        self._points: NDArray[np.float64] = np.empty((0, 2), dtype=np.float64)
+        # list of command letters (M, L, C, Q, Z)
+        self._commands: List[AvGlyphCmds] = []
+
+    # BasePen callback methods -------------------------------------------------
+    def _moveTo(self, pt: Tuple[float, float]):
+        self._commands.append("M")
+        self._points = np.vstack([self._points, [[float(pt[0]), float(pt[1])]]])
+
+    def _lineTo(self, pt: Tuple[float, float]):
+        self._commands.append("L")
+        self._points = np.vstack([self._points, [[float(pt[0]), float(pt[1])]]])
+
+    def _curveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float], pt3: Tuple[float, float]):
+        # cubic bezier: two control points and an end point
+        self._commands.append("C")
+        self._points = np.vstack(
+            [
+                self._points,
+                [[float(pt1[0]), float(pt1[1])]],
+                [[float(pt2[0]), float(pt2[1])]],
+                [[float(pt3[0]), float(pt3[1])]],
+            ]
+        )
+
+    def _qCurveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float]):
+        # quadratic bezier: one control point and an end point
+        self._commands.append("Q")
+        self._points = np.vstack([self._points, [[float(pt1[0]), float(pt1[1])]], [[float(pt2[0]), float(pt2[1])]]])
+
+    def _closePath(self):
+        self._commands.append("Z")
+
+    def _endPath(self):
+        # treat endPath like closePath for command recording (no coordinates)
+        self._commands.append("Z")
+
+    # Public accessors ---------------------------------------------------------
+    @property
+    def commands(self) -> List[AvGlyphCmds]:
+        """Return the recorded commands as a list (uppercase commands)."""
+        return self._commands
+
+    @property
+    def points(self) -> NDArray[np.float64]:
+        """Return recorded points as an (n_points, 2) ndarray of float64."""
+        return self._points
+
+    def reset(self) -> None:
+        """Clear recorded commands and points."""
+        self._points = np.empty((0, 2), dtype=np.float64)
+        self._commands = []
+
+    def summary(self) -> str:
+        """Small debug helper summarizing the recorded data."""
+        return f"commands={self._commands}, points.shape={self.points.shape}"
