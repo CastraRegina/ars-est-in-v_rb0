@@ -11,7 +11,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from numpy.typing import NDArray
 
-from ave.consts import AvGlyphCmds
+from ave.common import AvGlyphCmds
 
 
 class FontHelper:
@@ -129,11 +129,11 @@ class AvGlyphPtsCmdsPen(BasePen):
     # BasePen callback methods -------------------------------------------------
     def _moveTo(self, pt: Tuple[float, float]):
         self._commands.append("M")
-        self._points = np.vstack([self._points, [[float(pt[0]), float(pt[1])]]])
+        self._points = np.vstack([self._points, [np.float64(pt[0]), np.float64(pt[1])]])
 
     def _lineTo(self, pt: Tuple[float, float]):
         self._commands.append("L")
-        self._points = np.vstack([self._points, [[float(pt[0]), float(pt[1])]]])
+        self._points = np.vstack([self._points, [np.float64(pt[0]), np.float64(pt[1])]])
 
     def _curveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float], pt3: Tuple[float, float]):
         # cubic bezier: two control points and an end point
@@ -141,16 +141,18 @@ class AvGlyphPtsCmdsPen(BasePen):
         self._points = np.vstack(
             [
                 self._points,
-                [[float(pt1[0]), float(pt1[1])]],
-                [[float(pt2[0]), float(pt2[1])]],
-                [[float(pt3[0]), float(pt3[1])]],
+                [np.float64(pt1[0]), np.float64(pt1[1])],
+                [np.float64(pt2[0]), np.float64(pt2[1])],
+                [np.float64(pt3[0]), np.float64(pt3[1])],
             ]
         )
 
     def _qCurveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float]):
         # quadratic bezier: one control point and an end point
         self._commands.append("Q")
-        self._points = np.vstack([self._points, [[float(pt1[0]), float(pt1[1])]], [[float(pt2[0]), float(pt2[1])]]])
+        self._points = np.vstack(
+            [self._points, [np.float64(pt1[0]), np.float64(pt1[1])], [np.float64(pt2[0]), np.float64(pt2[1])]]
+        )
 
     def _closePath(self):
         self._commands.append("Z")

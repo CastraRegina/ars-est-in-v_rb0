@@ -11,8 +11,8 @@ from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont
 from numpy.typing import NDArray
 
-import ave.consts
-from ave.consts import AvGlyphCmds
+import ave.common
+from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen, AvPolylinePen
 from ave.geom import AvBox
 
@@ -50,7 +50,7 @@ class AvGlyphABC(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def width(self, align: Optional[ave.consts.Align] = None) -> float:
+    def width(self, align: Optional[ave.common.Align] = None) -> float:
         """
         Returns the width calculated considering the alignment.
         Returns the official glyph_width of this glyph if align is None.
@@ -181,7 +181,7 @@ class AvGlyph(AvGlyphABC):
         """
         return self._commands
 
-    def width(self, align: Optional[ave.consts.Align] = None) -> float:
+    def width(self, align: Optional[ave.common.Align] = None) -> float:
         """
         Returns the width calculated considering the alignment.
         Returns the official glyph_width of this glyph if align is None.
@@ -196,11 +196,11 @@ class AvGlyph(AvGlyphABC):
         bounding_box = self.bounding_box()
         if align is None:
             return self._width
-        elif align == ave.consts.Align.LEFT:
+        elif align == ave.common.Align.LEFT:
             return self._width - bounding_box.xmin
-        elif align == ave.consts.Align.RIGHT:
+        elif align == ave.common.Align.RIGHT:
             return bounding_box.xmin + bounding_box.width
-        elif align == ave.consts.Align.BOTH:
+        elif align == ave.common.Align.BOTH:
             return bounding_box.width
         else:
             raise ValueError(f"Invalid align value: {align}")
@@ -331,10 +331,10 @@ class AvLetter:
     _ypos: float  # bottom-to-top
     _scale: float  # = font_size / units_per_em
     _glyph: AvGlyphABC
-    _align: Optional[ave.consts.Align] = None  # LEFT, RIGHT, BOTH. Defaults to None.
+    _align: Optional[ave.common.Align] = None  # LEFT, RIGHT, BOTH. Defaults to None.
 
     def __init__(
-        self, glyph: AvGlyphABC, xpos: float, ypos: float, scale: float, align: Optional[ave.consts.Align] = None
+        self, glyph: AvGlyphABC, xpos: float, ypos: float, scale: float, align: Optional[ave.common.Align] = None
     ) -> None:
         self._glyph = glyph
         self._xpos = xpos
@@ -350,7 +350,7 @@ class AvLetter:
         ypos: float,
         font_size: float,
         units_per_em: float,
-        align: Optional[ave.consts.Align] = None,
+        align: Optional[ave.common.Align] = None,
     ) -> AvLetter:
         """
         Factory method to create an AvLetter from font_size and units_per_em.
@@ -374,7 +374,7 @@ class AvLetter:
         return self._scale
 
     @property
-    def align(self) -> Optional[ave.consts.Align]:
+    def align(self) -> Optional[ave.common.Align]:
         """The alignment of the letter; None, LEFT, RIGHT, BOTH."""
         return self._align
 
@@ -384,7 +384,7 @@ class AvLetter:
         Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
         Returns: [scale, 0, 0, scale, xpos, ypos] or [scale, 0, 0, scale, xpos-lsb, ypos] if alignment is LEFT or BOTH.
         """
-        if self.align == ave.consts.Align.LEFT or self.align == ave.consts.Align.BOTH:
+        if self.align == ave.common.Align.LEFT or self.align == ave.common.Align.BOTH:
             lsb_scaled = self.scale * self._glyph.left_side_bearing
             return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled, self.ypos]
         return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
@@ -422,7 +422,7 @@ class AvLetter:
         """
         LSB: The horizontal space on the left side of the Letter taking alignment into account.
         """
-        if self.align == ave.consts.Align.LEFT or self.align == ave.consts.Align.BOTH:
+        if self.align == ave.common.Align.LEFT or self.align == ave.common.Align.BOTH:
             return 0
         return self.scale * self._glyph.left_side_bearing
 
@@ -431,7 +431,7 @@ class AvLetter:
         """
         RSB: The horizontal space on the right side of the Letter taking alignment into account.
         """
-        if self.align == ave.consts.Align.RIGHT or self.align == ave.consts.Align.BOTH:
+        if self.align == ave.common.Align.RIGHT or self.align == ave.common.Align.BOTH:
             return 0
         return self.scale * self._glyph.right_side_bearing
 

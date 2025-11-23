@@ -15,7 +15,7 @@ import svgwrite.elementfactory
 from fontTools.ttLib import TTFont
 from svgwrite.extensions import Inkscape
 
-from ave.consts import Align
+from ave.common import Align
 from ave.fonttools import FontHelper
 from ave.glyph import AvFont, AvFontProperties, AvGlyphFromTTFontFactory, AvLetter
 
