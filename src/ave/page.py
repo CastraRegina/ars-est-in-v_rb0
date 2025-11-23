@@ -299,14 +299,15 @@ def main():
     avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))
 
     glyph = avfont.get_glyph("L")
-    letter = AvLetter.from_font_size_units_per_em(glyph, 0.0, 0.0, font_size, avfont.props.units_per_em, Align.LEFT)
+    letter = AvLetter.from_font_size_units_per_em(glyph, font_size, avfont.props.units_per_em, 0.0, 0.0, Align.LEFT)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
     glyph = avfont.get_glyph("T")
-    letter = AvLetter.from_font_size_units_per_em(
-        glyph, 1.0, vb_scale * vb_height_mm, font_size, avfont.props.units_per_em, Align.RIGHT
-    )
+    letter = AvLetter.from_font_size_units_per_em(glyph, font_size, avfont.props.units_per_em, align=Align.RIGHT)
+    letter.xpos = 1.0 - letter.width
+    letter.ypos = vb_scale * vb_height_mm - letter.height
+
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 

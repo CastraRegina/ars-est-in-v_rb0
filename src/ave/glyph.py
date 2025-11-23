@@ -327,14 +327,19 @@ class AvLetter:
     A Letter is a Glyph which is scaled to real dimensions with a position and alignment.
     """
 
+    _glyph: AvGlyphABC
+    _scale: float  # = font_size / units_per_em
     _xpos: float  # left-to-right
     _ypos: float  # bottom-to-top
-    _scale: float  # = font_size / units_per_em
-    _glyph: AvGlyphABC
     _align: Optional[ave.common.Align] = None  # LEFT, RIGHT, BOTH. Defaults to None.
 
     def __init__(
-        self, glyph: AvGlyphABC, xpos: float, ypos: float, scale: float, align: Optional[ave.common.Align] = None
+        self,
+        glyph: AvGlyphABC,
+        scale: float,
+        xpos: float = 0.0,
+        ypos: float = 0.0,
+        align: Optional[ave.common.Align] = None,
     ) -> None:
         self._glyph = glyph
         self._xpos = xpos
@@ -346,27 +351,37 @@ class AvLetter:
     def from_font_size_units_per_em(
         cls,
         glyph: AvGlyphABC,
-        xpos: float,
-        ypos: float,
         font_size: float,
         units_per_em: float,
+        xpos: float = 0.0,
+        ypos: float = 0.0,
         align: Optional[ave.common.Align] = None,
     ) -> AvLetter:
         """
         Factory method to create an AvLetter from font_size and units_per_em.
         """
 
-        return cls(glyph, xpos, ypos, font_size / units_per_em, align)
+        return cls(glyph, font_size / units_per_em, xpos, ypos, align)
 
     @property
     def xpos(self) -> float:
         """The x position of the letter in real dimensions."""
         return self._xpos
 
+    @xpos.setter
+    def xpos(self, xpos: float) -> None:
+        """Sets the x position of the letter in real dimensions."""
+        self._xpos = xpos
+
     @property
     def ypos(self) -> float:
         """The y position of the letter in real dimensions."""
         return self._ypos
+
+    @ypos.setter
+    def ypos(self, ypos: float) -> None:
+        """Sets the y position of the letter in real dimensions."""
+        self._ypos = ypos
 
     @property
     def scale(self) -> float:
