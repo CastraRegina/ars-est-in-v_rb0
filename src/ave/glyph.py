@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 from fontTools.pens.boundsPen import BoundsPen
@@ -744,13 +744,19 @@ class AvFont:
 
     _glyph_factory: AvGlyphFactoryABC
     _font_properties: AvFontProperties = field(default_factory=AvFontProperties)
-    _glyphs: Dict[str, AvGlyphABC] = field(default_factory=lambda: {})
+    _glyphs: Dict[str, AvGlyphABC] = field(default_factory=dict)
 
-    def __init__(self, glyph_factory: AvGlyphFactoryABC, font_properties: AvFontProperties) -> None:
-        """Initialize the AvFont class."""
+    def __init__(
+        self,
+        glyph_factory: AvGlyphFactoryABC,
+        font_properties: AvFontProperties,
+        glyphs: Optional[Dict[str, AvGlyphABC]] = None,
+    ) -> None:
         self.glyph_factory = glyph_factory
         self._font_properties = font_properties
-        self._glyphs = {}
+        if glyphs is None:
+            glyphs = {}
+        self._glyphs = glyphs
 
     @property
     def props(self) -> AvFontProperties:
@@ -855,8 +861,10 @@ def main():
 
     font_props = AvFontProperties()
     serialized_font_properties = font_props.model_dump_json(indent=2)
+
     print("serialized_font_properties:")
     print(serialized_font_properties)
+    print(font_props.model_dump())
 
 
 if __name__ == "__main__":
