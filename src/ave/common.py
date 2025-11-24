@@ -11,8 +11,8 @@ from typing import Literal
 # Types
 ###############################################################################
 
-# Type-Definition for SvgPath-Commands used in AvGlyph
-AvGlyphCmds = Literal[
+
+AvGlyphCmds = Literal[  # Type-Definition for SvgPath-Commands used in AvGlyph
     # MoveTo (2) - start a new subpath and move the current point to (x,y)
     "M",
     # LineTo (2) - draw a straight line from the current point to (x,y)
@@ -39,6 +39,16 @@ class Align(Enum):
     LEFT = auto()
     RIGHT = auto()
     BOTH = auto()
+
+
+###############################################################################
+# Classes
+###############################################################################
+
+
+###############################################################################
+# Main
+###############################################################################
 
 
 def main():

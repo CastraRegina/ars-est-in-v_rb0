@@ -4,21 +4,22 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont
 from numpy.typing import NDArray
+from pydantic import BaseModel, Field, computed_field
 
 import ave.common
 from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen, AvPolylinePen
 from ave.geom import AvBox
 
-# ==============================================================================
-# Glyphs
-# ==============================================================================
+###############################################################################
+# Glyph
+###############################################################################
 
 
 class AvGlyphABC(ABC):
@@ -271,9 +272,9 @@ class AvGlyph(AvGlyphABC):
         return self._cache_bounding_box
 
 
-# ==============================================================================
-# Glyph factories
-# ==============================================================================
+###############################################################################
+# Glyph Factory
+###############################################################################
 
 
 class AvGlyphFactoryABC(ABC):
@@ -297,28 +298,28 @@ class AvGlyphFactoryABC(ABC):
 class AvGlyphFromTTFontFactory(AvGlyphFactoryABC):
     """Factory class for creating glyph instances."""
 
-    _font: TTFont
+    _ttfont: TTFont
 
     def __init__(self, font: TTFont) -> None:
         """
         Initializes the glyph factory.
         """
-        self._font = font
+        self._ttfont = font
 
     @property
-    def font(self) -> TTFont:
+    def ttfont(self) -> TTFont:
         """
         Returns the TTFont instance associated with this glyph factory.
         """
-        return self._font
+        return self._ttfont
 
     def create_glyph(self, character: str) -> AvGlyph:
-        return AvGlyph.from_ttfont_character(self._font, character)
+        return AvGlyph.from_ttfont_character(self._ttfont, character)
 
 
-# ==============================================================================
-# Letters
-# ==============================================================================
+###############################################################################
+# Letter
+###############################################################################
 
 
 @dataclass
@@ -550,63 +551,163 @@ class AvLetter:
         return " ".join(parts) if parts else "M 0 0"
 
 
-# ==============================================================================
-# Fonts
-# ==============================================================================
+###############################################################################
+# Font
+###############################################################################
+
+
 @dataclass
-class AvFontProperties:
+class AvFontProperties(BaseModel):
     """
-    Holds the basic properties of a font.
+    Represents the properties of a font.
+
+    The properties are as follows:
+
+    - `ascender`: The highest y-coordinate above the baseline (positive value).
+    - `descender`: The lowest y-coordinate below the baseline (negative value).
+    - `line_gap`: Additional spacing between lines.
+    - `x_height`: Height of lowercase 'x'.
+    - `cap_height`: Height of uppercase 'H'.
+    - `units_per_em`: Units per em.
+    - `family_name`: Font family name.
+    - `subfamily_name`: Style name (Regular, Bold, etc.).
+    - `full_name`: Full font name.
     """
 
-    ascender: float = 0  # Highest y-coordinate above the baseline (positive value).
-    descender: float = 0  # Lowest y-coordinate below the baseline (negative value).
-    line_gap: float = 0  # Additional spacing between lines of text.
-    line_height: float = 0  # = ascender - descender + line_gap
-    x_height: float = 0  # height of a lowercase "x".
-    cap_height: float = 0  # height of an uppercase "H".
-    units_per_em: float = 0  # Number of units per EM.
-    family_name: str = ""  # Family name.
-    subfamily_name: str = ""  # Subfamily name.
-    full_name: str = ""  # Full name.
-    license_description: str = ""  # License description.
-    # TODO: add dash_thickness: Return the thickness of a dash-line, e.g. as a reference value for stroke-width.
-    # TODO: add em_width: Return the width of an "em"
+    ascender: float = Field(default=0, ge=0, description="Highest y-coordinate above the baseline (positive value).")
+    descender: float = Field(default=0, le=0, description="Lowest y-coordinate below the baseline (negative value).")
+    line_gap: float = Field(default=0, ge=0, description="Additional spacing between lines.")
+
+    x_height: float = Field(default=0, ge=0, description="Height of lowercase 'x'.")
+    cap_height: float = Field(default=0, ge=0, description="Height of uppercase 'H'.")
+    units_per_em: float = Field(default=1000, gt=0, description="Units per em.")
+
+    family_name: str = Field(default="", description="Font family name.")
+    subfamily_name: str = Field(default="", description="Style name (Regular, Bold, etc.).")
+    full_name: str = Field(default="", description="Full font name.")
+    license_description: str = Field(default="", description="License text.")
+
+    @computed_field(description="ascender - descender + line_gap")
+    @property
+    def line_height(self) -> float:
+        """Computed line height of the font (ascender - descender + line_gap)."""
+        return self.ascender - self.descender + self.line_gap
+
+    def __init__(
+        self,
+        ascender: float = 0,
+        descender: float = 0,
+        line_gap: float = 0,
+        x_height: float = 0,
+        cap_height: float = 0,
+        units_per_em: float = 1000,
+        family_name: str = "",
+        subfamily_name: str = "",
+        full_name: str = "",
+        license_description: str = "",
+    ) -> None:
+        super().__init__()
+        self.ascender = ascender
+        self.descender = descender
+        self.line_gap = line_gap
+        self.x_height = x_height
+        self.cap_height = cap_height
+        self.units_per_em = units_per_em
+        self.family_name = family_name
+        self.subfamily_name = subfamily_name
+        self.full_name = full_name
+        self.license_description = license_description
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Private helpers
+    # ──────────────────────────────────────────────────────────────────────
 
     @classmethod
-    def calculate_glyph_height(cls, font: TTFont, character: str) -> float:
-        """
-        Calculate the height of a glyph in a font.
-        """
-        glyph_name = font.getBestCmap()[ord(character)]
+    def _glyph_visual_height(cls, font: TTFont, char: str) -> float:
+        """Return yMax - yMin of the glyph for `char`, or 0.0 if missing/empty."""
+        cmap = font.getBestCmap()
+        if not cmap or ord(char) not in cmap:
+            return 0.0
+
+        glyph_name = cmap[ord(char)]
         glyph_set = font.getGlyphSet()
-        bounds_pen = BoundsPen(glyph_set)
-        glyph_set[glyph_name].draw(bounds_pen)
-        if bounds_pen.bounds:
-            (_, _, _, height) = bounds_pen.bounds
-            return height
-        else:
-            return 0
+
+        pen = BoundsPen(glyph_set)
+        try:
+            glyph_set[glyph_name].draw(pen)
+        except KeyError:
+            return 0.0
+
+        if pen.bounds is None:
+            return 0.0
+
+        _, y_min, _, y_max = pen.bounds
+        return max(0.0, float(y_max - y_min))
 
     @classmethod
-    def from_ttfont(cls, font: TTFont) -> AvFontProperties:
+    def _get_name_safe(cls, name_table, name_id: int) -> str:
         """
-        Factory method to create an AvFontProperties object from a TTFont.
-        "Variable font" already configured with correct axes_values.
+        Extract a name string with multiple fallbacks.
+        This is the most robust way to read name records from real-world fonts.
         """
-        font_properties = cls()
-        font_properties.ascender = font["hhea"].ascender  # type: ignore
-        font_properties.descender = font["hhea"].descender  # type: ignore
-        font_properties.line_gap = font["hhea"].lineGap  # type: ignore
-        font_properties.line_height = font_properties.ascender - font_properties.descender + font_properties.line_gap
-        font_properties.x_height = cls.calculate_glyph_height(font, "x")
-        font_properties.cap_height = cls.calculate_glyph_height(font, "H")
-        font_properties.units_per_em = font["head"].unitsPerEm  # type: ignore
-        font_properties.family_name = font["name"].getDebugName(1)  # type: ignore
-        font_properties.subfamily_name = font["name"].getDebugName(2)  # type: ignore
-        font_properties.full_name = font["name"].getDebugName(4)  # type: ignore
-        font_properties.license_description = font["name"].getDebugName(13)  # type: ignore
-        return font_properties
+        # 1. Fast path – getDebugName handles most cases correctly
+        name = name_table.getDebugName(name_id)
+        if name is not None:
+            return name
+
+        # 2. Try Windows Unicode English (platform 3, encoding 1, lang 0x409)
+        record = name_table.getName(name_id, 3, 1, 0x409)
+        if record is not None:
+            try:
+                return record.toUnicode()
+            except (UnicodeDecodeError, ValueError):
+                pass
+
+        # 3. Any Windows record
+        record = name_table.getName(name_id, 3, 1)
+        if record is not None:
+            try:
+                return record.toUnicode()
+            except (UnicodeDecodeError, ValueError):
+                pass
+
+        # 4. Last resort: iterate all records manually
+        for record in name_table.names:
+            if record.nameID == name_id:
+                try:
+                    return record.toUnicode()
+                except (UnicodeDecodeError, ValueError, AttributeError):
+                    continue
+
+        return ""
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Public factory methods
+    # ──────────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def from_ttfont(cls, ttfont: TTFont) -> "AvFontProperties":
+        """
+        Create AvFontProperties from a fontTools TTFont object.
+        Works with static and variable fonts (as long as the correct variation is active).
+        """
+        hhea = ttfont["hhea"]
+        head = ttfont["head"]
+        name_table = ttfont["name"]
+
+        return cls(
+            ascender=float(hhea.ascender),  # type: ignore
+            descender=float(hhea.descender),  # type: ignore
+            line_gap=float(hhea.lineGap),  # type: ignore
+            # line_height is automatically computed via @computed_field
+            x_height=cls._glyph_visual_height(ttfont, "x"),
+            cap_height=cls._glyph_visual_height(ttfont, "H"),
+            units_per_em=float(head.unitsPerEm),  # type: ignore
+            family_name=cls._get_name_safe(name_table, 1),
+            subfamily_name=cls._get_name_safe(name_table, 2),
+            full_name=cls._get_name_safe(name_table, 4),
+            license_description=cls._get_name_safe(name_table, 13),
+        )
 
     def info_string(self) -> str:
         """
@@ -629,6 +730,9 @@ class AvFontProperties:
             f"license_description: {self.license_description}\n"
         )
         return info_string
+
+    def __repr__(self) -> str:
+        return f"AvFontProperties({self.family_name} {self.subfamily_name}, {self.units_per_em}upem)"
 
 
 @dataclass
@@ -691,6 +795,11 @@ class AvFont:
         return descender
 
 
+###############################################################################
+# Functions
+###############################################################################
+
+
 def polygonize_glyph(font_path, character, steps=10) -> AvPolylinePen:
     """
     Polygonizes a glyph from a font file into line segments.
@@ -708,36 +817,46 @@ def polygonize_glyph(font_path, character, steps=10) -> AvPolylinePen:
     return pen
 
 
+###############################################################################
+# Main
+###############################################################################
+
+
 def main():
     """Main"""
-    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    # font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
 
-    # avfont_w100 = AvFont.instantiate(TTFont(font_filename), {"wght": 100})
-    # glyph = avfont_w100.get_glyph("U")  # I
+    # # avfont_w100 = AvFont.instantiate(TTFont(font_filename), {"wght": 100})
+    # # glyph = avfont_w100.get_glyph("U")  # I
 
-    # Example usage:
-    glyph_name = "U"  # Replace with the desired glyph name
-    polyline_pen = polygonize_glyph(font_filename, glyph_name)
+    # # Example usage:
+    # glyph_name = "U"  # Replace with the desired glyph name
+    # polyline_pen = polygonize_glyph(font_filename, glyph_name)
 
-    recording_pen = polyline_pen.recording_pen
-    print(recording_pen.value)
+    # recording_pen = polyline_pen.recording_pen
+    # print(recording_pen.value)
 
-    # svg_pen = SVGPathPen(TTFont(font_filename).getGlyphSet())
-    # polyline_pen.drawPoints(svg_pen)
-    # svg_path_data = svg_pen.getCommands()
-    # print(svg_path_data)
+    # # svg_pen = SVGPathPen(TTFont(font_filename).getGlyphSet())
+    # # polyline_pen.drawPoints(svg_pen)
+    # # svg_path_data = svg_pen.getCommands()
+    # # print(svg_path_data)
 
-    # # Example usage with SVGPathPen:
-    # svg_pen = SVGPathPen(TTFont(font_filename).getGlyphSet())
-    # polyline_pen.draw(svg_pen)
-    # svg_path_data = svg_pen.getCommands()
-    # print(svg_path_data)
+    # # # Example usage with SVGPathPen:
+    # # svg_pen = SVGPathPen(TTFont(font_filename).getGlyphSet())
+    # # polyline_pen.draw(svg_pen)
+    # # svg_path_data = svg_pen.getCommands()
+    # # print(svg_path_data)
 
-    # # Create an instance of RecordingPen and pass the PolylinePen instance to it
-    # recording_pen = RecordingPen()
+    # # # Create an instance of RecordingPen and pass the PolylinePen instance to it
+    # # recording_pen = RecordingPen()
 
-    # # Draw the glyph using the RecordingPen
-    # glyph.draw(polyline_pen)
+    # # # Draw the glyph using the RecordingPen
+    # # glyph.draw(polyline_pen)
+
+    font_props = AvFontProperties()
+    serialized_font_properties = font_props.model_dump_json(indent=2)
+    print("serialized_font_properties:")
+    print(serialized_font_properties)
 
 
 if __name__ == "__main__":

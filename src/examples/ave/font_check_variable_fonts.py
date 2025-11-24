@@ -106,6 +106,8 @@ def main():
             setup_avfont(font_filename, {"wght": 1000.0}),
         ],
     )
+    font = setup_avfont(font_filename, {"wght": 400.0})
+    print(font.get_info_string())
 
     font_filename = "fonts/RobotoMono-VariableFont_wght.ttf"
     output_filename = "data/output/example/svg/ave/example_font_RobotoMono_variable.svgz"
