@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -10,7 +10,6 @@ import numpy as np
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field, computed_field
 
 import ave.common
 from ave.common import AvGlyphCmds
@@ -22,119 +21,29 @@ from ave.geom import AvBox
 ###############################################################################
 
 
-class AvGlyphABC(ABC):
-    """
-    Abstract base class for glyphs.
-
-    A glyph is a geometric shape that represents a character in a font.
-    It is composed of a set of points and a set of commands that define how to draw the shape.
-
-    Glyphs are used to render text in a page.
-    """
-
-    @property
-    @abstractmethod
-    def character(self) -> str:
-        """Returns the character which this Glyph represents."""
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def points(self) -> NDArray[np.float64]:
-        """Returns the points of the glyph as a numpy array of shape (n_points, 2)"""
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def commands(self) -> List[AvGlyphCmds]:
-        """Returns the commands of the glyph as a list of SvgPathCmds"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def width(self, align: Optional[ave.common.Align] = None) -> float:
-        """
-        Returns the width calculated considering the alignment.
-        Returns the official glyph_width of this glyph if align is None.
-
-        Args:
-            align (Optional[av.consts.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
-                None:  official glyph_width (i.e. including LSB and RSB)
-                LEFT:  official glyph_width - bounding_box.xmin == official width - LSB
-                RIGHT: bounding_box.width + bounding_box.xmin   == official width - RSB
-                BOTH:  bounding_box.width                       == official width - LSB - RSB
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def height(self) -> float:
-        """
-        The height of the glyph, i.e. the height of the bounding box.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def ascender(self) -> float:
-        """
-        The maximum distance above the baseline, i.e. the highest y-coordinate of a glyph (positive value).
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def descender(self) -> float:
-        """
-        The maximum distance below the baseline, i.e. the lowest y-coordinate of a glyph (negative value).
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def left_side_bearing(self) -> float:
-        """
-        LSB: The horizontal space on the left side of a glyph.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def right_side_bearing(self) -> float:
-        """
-        RSB: The horizontal space on the right side of a glyph.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def bounding_box(self) -> AvBox:
-        """Returns bounding box (tightest box around Glyph) as
-        (0:x_min, 1:y_min, 2:x_max, 3:y_max)
-        relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
-
-        Returns:
-            Tuple[float, float, float, float]: (0:x_min, 1:y_min, 2:x_max, 3:y_max)
-        """
-        raise NotImplementedError
-
-
 @dataclass
-class AvGlyph(AvGlyphABC):
+class AvGlyph:
     """
     Representation of a Glyph, i.e. a single character of a certain font.
     Uses dimensions in unitsPerEm, i.e. independent from font_size.
-    Provides
-    - geometric dimensions of the Glyph (bounding_box, ascender, descender, sidebearings, ...)
-    - svg_path_string (str): a SVG path representation of the Glyph
+    It is composed of a set of points and a set of commands that define how to draw the shape.
+    Glyphs are used to render text in a page.
     """
 
     _character: str
     _width: float
     _points: NDArray[np.float64]  # shape (n_points, 2)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
+    _bounding_box: Optional[AvBox] = None  # caching variable
 
-    _cache_bounding_box: AvBox = AvBox(0, 0, 0, 0)  # caching variable
-
-    def __init__(self, character: str, width: float, points: NDArray[np.float64], commands: List[AvGlyphCmds]) -> None:
+    def __init__(
+        self,
+        character: str,
+        width: float,
+        points: NDArray[np.float64],
+        commands: List[AvGlyphCmds],
+        bounding_box: Optional[AvBox] = None,
+    ) -> None:
         """
         Initialize an AvGlyph.
 
@@ -143,11 +52,14 @@ class AvGlyph(AvGlyphABC):
             width (float): The width of the glyph in unitsPerEm.
             points (NDArray[np.float64]): A numpy array of shape (n_points, 2) containing the points of the glyph.
             commands (List[AvGlyphCmds]): A list of SvgPathCmds containing the commands of the glyph.
+            bounding_box (Optional[AvBox], optional): The bounding box of the glyph. Defaults to None.
         """
+        super().__init__()
         self._character = character
         self._width = width
         self._points = points
         self._commands = commands
+        self._bounding_box = bounding_box
 
     @classmethod
     def from_ttfont_character(cls, ttfont: TTFont, character: str) -> AvGlyph:
@@ -209,53 +121,54 @@ class AvGlyph(AvGlyphABC):
     @property
     def height(self) -> float:
         """
-        The height of the glyph, i.e. the height of the bounding box.
+        The height of the glyph, i.e. the height of the bounding box (positive value).
         """
         return self.bounding_box().height
 
     @property
     def ascender(self) -> float:
         """
-        The maximum distance above the baseline, i.e. the highest y-coordinate of a glyph (positive value).
+        The maximum distance above the baseline, i.e. the highest y-coordinate of a glyph (mostly positive value).
         """
         return self.bounding_box().ymax
 
     @property
     def descender(self) -> float:
         """
-        The maximum distance below the baseline, i.e. the lowest y-coordinate of a glyph (negative value).
+        The maximum distance below the baseline, i.e. the lowest y-coordinate of a glyph (usually negative value).
         """
         return self.bounding_box().ymin
 
     @property
     def left_side_bearing(self) -> float:
         """
-        LSB: The horizontal space on the left side of a glyph.
+        LSB: The horizontal space on the left side of a glyph (sign varies +/-).
         """
         return self.bounding_box().xmin
 
     @property
     def right_side_bearing(self) -> float:
         """
-        RSB: The horizontal space on the right side of a glyph.
+        RSB: The horizontal space on the right side of a glyph (sign varies +/-).
         """
         return self._width - self.bounding_box().xmax
 
     def bounding_box(self) -> AvBox:
         """
-        The bounding box of the glyph.
-        A bounding box is a rectangle which fully contains a glyph.
-        The coordinates of the bounding box are relative to the baseline
-        (0,0) with orientation left-to-right, bottom-to-top.
+        Returns bounding box (tightest box around Glyph)
+        Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
         Uses dimensions in unitsPerEm.
         """
 
-        # TODO: calculate bounding box taking into account the curves and not the control points
+        if self._bounding_box is not None:
+            return self._bounding_box
 
-        # If there are no points, the bounding box is already set to its default value
-        # and there is no need to recalculate it.
+        # No points, so bounding box is set to size 0.
         if not self._points.size:
-            return self._cache_bounding_box
+            self._bounding_box = AvBox(0, 0, 0, 0)
+            return self._bounding_box
+
+        # TODO: calculate bounding box taking into account the curves and not the control points
 
         # TODO: check which one is faster:
         # x_min, y_min = self._points.min(axis=0)
@@ -268,8 +181,8 @@ class AvGlyph(AvGlyphABC):
         points_y = self._points[:, 1]
         x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
 
-        self._cache_bounding_box = AvBox(x_min, y_min, x_max, y_max)
-        return self._cache_bounding_box
+        self._bounding_box = AvBox(x_min, y_min, x_max, y_max)
+        return self._bounding_box
 
 
 ###############################################################################
@@ -277,14 +190,14 @@ class AvGlyph(AvGlyphABC):
 ###############################################################################
 
 
-class AvGlyphFactoryABC(ABC):
+class AvGlyphFactory:
     """
     Abstract base class for glyph factories.
     A glyph factory is responsible for creating glyph representations for a character.
     """
 
     @abstractmethod
-    def create_glyph(self, character: str) -> AvGlyphABC:
+    def create_glyph(self, character: str) -> AvGlyph:
         """
         Creates and returns a glyph representation for the specified character.
         Args:
@@ -295,16 +208,16 @@ class AvGlyphFactoryABC(ABC):
 
 
 @dataclass
-class AvGlyphFromTTFontFactory(AvGlyphFactoryABC):
+class AvGlyphFromTTFontFactory(AvGlyphFactory):
     """Factory class for creating glyph instances."""
 
     _ttfont: TTFont
 
-    def __init__(self, font: TTFont) -> None:
+    def __init__(self, ttfont: TTFont) -> None:
         """
         Initializes the glyph factory.
         """
-        self._ttfont = font
+        self._ttfont = ttfont
 
     @property
     def ttfont(self) -> TTFont:
@@ -328,7 +241,7 @@ class AvLetter:
     A Letter is a Glyph which is scaled to real dimensions with a position and alignment.
     """
 
-    _glyph: AvGlyphABC
+    _glyph: AvGlyph
     _scale: float  # = font_size / units_per_em
     _xpos: float  # left-to-right
     _ypos: float  # bottom-to-top
@@ -336,22 +249,22 @@ class AvLetter:
 
     def __init__(
         self,
-        glyph: AvGlyphABC,
+        glyph: AvGlyph,
         scale: float,
         xpos: float = 0.0,
         ypos: float = 0.0,
         align: Optional[ave.common.Align] = None,
     ) -> None:
         self._glyph = glyph
+        self._scale = scale
         self._xpos = xpos
         self._ypos = ypos
-        self._scale = scale
         self._align = align
 
     @classmethod
     def from_font_size_units_per_em(
         cls,
-        glyph: AvGlyphABC,
+        glyph: AvGlyph,
         font_size: float,
         units_per_em: float,
         xpos: float = 0.0,
@@ -453,11 +366,8 @@ class AvLetter:
 
     def bounding_box(self) -> AvBox:
         """
-        Returns the bounding box of the letter in real dimensions.
-        The bounding box of a letter is the smallest rectangle that completely
-        contains the letter's outline. The bounding box is aligned with the
-        baseline of the letter and its coordinates are relative to the baseline
-        origin (0,0) with orientation left-to-right, bottom-to-top.
+        Returns bounding box (tightest box around Letter) in real dimensions.
+        Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
         Returns:
             AvBox: The bounding box of the letter.
         """
@@ -557,14 +467,14 @@ class AvLetter:
 
 
 @dataclass
-class AvFontProperties(BaseModel):
+class AvFontProperties:
     """
     Represents the properties of a font.
 
     The properties are as follows:
 
-    - `ascender`: The highest y-coordinate above the baseline (positive value).
-    - `descender`: The lowest y-coordinate below the baseline (negative value).
+    - `ascender`: The highest y-coordinate above the baseline (mostly positive value).
+    - `descender`: The lowest y-coordinate below the baseline (usually negative value).
     - `line_gap`: Additional spacing between lines.
     - `x_height`: Height of lowercase 'x'.
     - `cap_height`: Height of uppercase 'H'.
@@ -572,22 +482,23 @@ class AvFontProperties(BaseModel):
     - `family_name`: Font family name.
     - `subfamily_name`: Style name (Regular, Bold, etc.).
     - `full_name`: Full font name.
+    - `license_description`: License text.
+    - `line_height`: Computed line height of the font (ascender - descender + line_gap).
     """
 
-    ascender: float = Field(default=0, ge=0, description="Highest y-coordinate above the baseline (positive value).")
-    descender: float = Field(default=0, le=0, description="Lowest y-coordinate below the baseline (negative value).")
-    line_gap: float = Field(default=0, ge=0, description="Additional spacing between lines.")
+    ascender: float
+    descender: float
+    line_gap: float
 
-    x_height: float = Field(default=0, ge=0, description="Height of lowercase 'x'.")
-    cap_height: float = Field(default=0, ge=0, description="Height of uppercase 'H'.")
-    units_per_em: float = Field(default=1000, gt=0, description="Units per em.")
+    x_height: float
+    cap_height: float
+    units_per_em: float
 
-    family_name: str = Field(default="", description="Font family name.")
-    subfamily_name: str = Field(default="", description="Style name (Regular, Bold, etc.).")
-    full_name: str = Field(default="", description="Full font name.")
-    license_description: str = Field(default="", description="License text.")
+    family_name: str
+    subfamily_name: str
+    full_name: str
+    license_description: str
 
-    @computed_field(description="ascender - descender + line_gap")
     @property
     def line_height(self) -> float:
         """Computed line height of the font (ascender - descender + line_gap)."""
@@ -617,10 +528,6 @@ class AvFontProperties(BaseModel):
         self.subfamily_name = subfamily_name
         self.full_name = full_name
         self.license_description = license_description
-
-    # ──────────────────────────────────────────────────────────────────────
-    # Private helpers
-    # ──────────────────────────────────────────────────────────────────────
 
     @classmethod
     def _glyph_visual_height(cls, font: TTFont, char: str) -> float:
@@ -681,10 +588,6 @@ class AvFontProperties(BaseModel):
 
         return ""
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Public factory methods
-    # ──────────────────────────────────────────────────────────────────────
-
     @classmethod
     def from_ttfont(cls, ttfont: TTFont) -> "AvFontProperties":
         """
@@ -742,17 +645,17 @@ class AvFont:
     Holds a Dictionary of glyphs which can be accessed by get_glyph().
     """
 
-    _glyph_factory: AvGlyphFactoryABC
+    _glyph_factory: AvGlyphFactory
     _font_properties: AvFontProperties = field(default_factory=AvFontProperties)
-    _glyphs: Dict[str, AvGlyphABC] = field(default_factory=dict)
+    _glyphs: Dict[str, AvGlyph] = field(default_factory=dict)
 
     def __init__(
         self,
-        glyph_factory: AvGlyphFactoryABC,
+        glyph_factory: AvGlyphFactory,
         font_properties: AvFontProperties,
-        glyphs: Optional[Dict[str, AvGlyphABC]] = None,
+        glyphs: Optional[Dict[str, AvGlyph]] = None,
     ) -> None:
-        self.glyph_factory = glyph_factory
+        self._glyph_factory = glyph_factory
         self._font_properties = font_properties
         if glyphs is None:
             glyphs = {}
@@ -763,10 +666,10 @@ class AvFont:
         """Returns the AvFontProperties object associated with this font."""
         return self._font_properties
 
-    def get_glyph(self, character: str) -> AvGlyphABC:
+    def get_glyph(self, character: str) -> AvGlyph:
         """Returns the AvGlyph for the given character from the caching dictionary."""
         if character not in self._glyphs:
-            self._glyphs[character] = self.glyph_factory.create_glyph(character)
+            self._glyphs[character] = self._glyph_factory.create_glyph(character)
         return self._glyphs[character]
 
     def get_info_string(self) -> str:
@@ -788,14 +691,14 @@ class AvFont:
 
     def actual_ascender(self):
         """Returns the overall maximum ascender by iterating over all glyphs in the cache (positive value)."""
-        ascender: float = 0
+        ascender: float = 0.0
         for glyph in self._glyphs.values():
             ascender = max(ascender, glyph.ascender)
         return ascender
 
     def actual_descender(self):
         """Returns the overall minimum descender by iterating over all glyphs in the cache (negative value)."""
-        descender: float = 0
+        descender: float = 0.0
         for glyph in self._glyphs.values():
             descender = min(descender, glyph.descender)
         return descender
@@ -858,13 +761,6 @@ def main():
 
     # # # Draw the glyph using the RecordingPen
     # # glyph.draw(polyline_pen)
-
-    font_props = AvFontProperties()
-    serialized_font_properties = font_props.model_dump_json(indent=2)
-
-    print("serialized_font_properties:")
-    print(serialized_font_properties)
-    print(font_props.model_dump())
 
 
 if __name__ == "__main__":
