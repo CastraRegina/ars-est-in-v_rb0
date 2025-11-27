@@ -215,103 +215,6 @@ class AVsvgPath:
         return ret_path_string
 
 
-# class AVGlyph:  # pylint: disable=function-redefined
-#     @staticmethod
-#     def svg_rect(
-#         dwg: svgwrite.Drawing,
-#         rect: Tuple[float, float, float, float],
-#         stroke: str,
-#         stroke_width: float,
-#         **svg_properties,
-#     ) -> svgwrite.elementfactory.ElementBuilder:
-#         pass
-
-#     @staticmethod
-#     def polygonize_path_string(path_string: str) -> str:
-#         pass
-
-#     def real_width(self, font_size: float, align: Align = None) -> float:
-#         pass
-
-#     def real_dash_thickness(self, font_size: float) -> float:
-#         pass
-
-#     def real_sidebearing_left(self, font_size: float) -> float:
-#         pass
-
-#     def real_sidebearing_right(self, font_size: float) -> float:
-#         pass
-
-#     def real_path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
-#         pass
-
-#     def svg_path(
-#         self,
-#         dwg: svgwrite.Drawing,
-#         x_pos: float,
-#         y_pos: float,
-#         font_size: float,
-#         **svg_properties,
-#     ) -> svgwrite.elementfactory.ElementBuilder:
-#         pass
-
-#     def svg_text(
-#         self,
-#         dwg: svgwrite.Drawing,
-#         x_pos: float,
-#         y_pos: float,
-#         font_size: float,
-#         **svg_properties,
-#     ) -> svgwrite.elementfactory.ElementBuilder:
-#         pass
-
-#     def rect_em(
-#         self,
-#         x_pos: float,
-#         y_pos: float,
-#         ascent: float,
-#         descent: float,
-#         real_width: float,
-#         font_size: float,
-#     ) -> Tuple[float, float, float, float]:
-#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-#         pass
-
-#     def rect_em_width(
-#         self,
-#         x_pos: float,
-#         y_pos: float,
-#         ascent: float,
-#         descent: float,
-#         font_size: float,
-#     ) -> Tuple[float, float, float, float]:
-#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-#         pass
-
-#     def rect_given_ascent_descent(
-#         self,
-#         x_pos: float,
-#         y_pos: float,
-#         ascent: float,
-#         descent: float,
-#         font_size: float,
-#     ) -> Tuple[float, float, float, float]:
-#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-#         pass
-
-#     def rect_font_ascent_descent(
-#         self, x_pos: float, y_pos: float, font_size: float
-#     ) -> Tuple[float, float, float, float]:
-#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-#         pass
-
-#     def rect_bounding_box(
-#         self, x_pos: float, y_pos: float, font_size: float
-#     ) -> Tuple[float, float, float, float]:
-#         # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-#         pass
-
-
 class AVFont:
     def __init__(self, ttfont: TTFont):
         # ttfont is already configured with the given axes_values
@@ -480,18 +383,18 @@ class AVPathPolygon:
 
     @staticmethod
     def rect_to_path(rect: Tuple[float, float, float, float]) -> str:
-        (x_pos, y_pos, width, height) = rect
-        (x00, y00) = (x_pos, y_pos)
-        (x10, y10) = (x_pos + width, y_pos)
-        (x11, y11) = (x_pos + width, y_pos + height)
-        (x01, y01) = (x_pos, y_pos + height)
+        (xpos, ypos, width, height) = rect
+        (x00, y00) = (xpos, ypos)
+        (x10, y10) = (xpos + width, ypos)
+        (x11, y11) = (xpos + width, ypos + height)
+        (x01, y01) = (xpos, ypos + height)
         ret_path = f"M{x00:g} {y00:g} " + f"L{x10:g} {y10:g} " + f"L{x11:g} {y11:g} " + f"L{x01:g} {y01:g} Z"
         return ret_path
 
     @staticmethod
     def circle_to_path(
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         radius: float,
         angle_degree: float = POLYGONIZE_ANGLE_MAX_DEG,
     ) -> str:
@@ -499,8 +402,8 @@ class AVPathPolygon:
         num_points = math.ceil(360 / angle_degree)
         for i in range(num_points):
             angle_rad = 2 * math.pi * i / num_points
-            x_circ = x_pos + radius * math.sin(angle_rad)
-            y_circ = y_pos + radius * math.cos(angle_rad)
+            x_circ = xpos + radius * math.sin(angle_rad)
+            y_circ = ypos + radius * math.cos(angle_rad)
             if i <= 0:
                 ret_path += f"M{x_circ:g} {y_circ:g} "
             else:
@@ -556,9 +459,9 @@ class AVGlyph:
         stroke_width: float,
         **svg_properties,
     ) -> svgwrite.elementfactory.ElementBuilder:
-        (x_pos, y_pos, width, height) = rect
+        (xpos, ypos, width, height) = rect
         rect_properties = {
-            "insert": (x_pos, y_pos),
+            "insert": (xpos, ypos),
             "size": (width, height),
             "stroke": stroke,  # color
             "stroke_width": stroke_width,
@@ -605,12 +508,12 @@ class AVGlyph:
         real_width = self.width * font_size / self._avfont.units_per_em
         if not align:
             return real_width
-        (bb_x_pos, _, bb_width, _) = self.rect_bounding_box(0, 0, font_size)
+        (bb_xpos, _, bb_width, _) = self.rect_bounding_box(0, 0, font_size)
 
         if align == Align.LEFT:
-            return real_width - bb_x_pos
+            return real_width - bb_xpos
         elif align == Align.RIGHT:
-            return bb_x_pos + bb_width
+            return bb_xpos + bb_width
         elif align == Align.BOTH:
             return bb_width
         else:
@@ -635,33 +538,33 @@ class AVGlyph:
             return sidebearing_right * font_size / self._avfont.units_per_em
         return 0.0
 
-    def real_path_string(self, x_pos: float, y_pos: float, font_size: float) -> str:
+    def real_path_string(self, xpos: float, ypos: float, font_size: float) -> str:
         scale = font_size / self._avfont.units_per_em
-        path_string = AVsvgPath.transform_path_string(self.polygonized_path_string, (scale, 0, 0, -scale, x_pos, y_pos))
+        path_string = AVsvgPath.transform_path_string(self.polygonized_path_string, (scale, 0, 0, -scale, xpos, ypos))
         return path_string
 
     def svg_path(
         self,
         dwg: svgwrite.Drawing,
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         font_size: float,
         **svg_properties,
     ) -> svgwrite.elementfactory.ElementBuilder:
-        path_string = self.real_path_string(x_pos, y_pos, font_size)
+        path_string = self.real_path_string(xpos, ypos, font_size)
         svg_path = dwg.path(path_string, **svg_properties)
         return svg_path
 
     def svg_text(
         self,
         dwg: svgwrite.Drawing,
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         font_size: float,
         **svg_properties,
     ) -> svgwrite.elementfactory.ElementBuilder:
         text_properties = {
-            "insert": (x_pos, y_pos),
+            "insert": (xpos, ypos),
             "font_family": self._avfont.family_name,
             "font_size": font_size,
         }
@@ -671,66 +574,64 @@ class AVGlyph:
 
     def rect_em(
         self,
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         ascent: float,
         descent: float,
         real_width: float,
         font_size: float,
     ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        # returns (xpos_left_corner, ypos_top_corner, width, height)
         units_per_em = self._avfont.units_per_em
         middle_of_em = 0.5 * (ascent + descent) * font_size / units_per_em
 
-        rect = (x_pos, y_pos - middle_of_em - 0.5 * font_size, real_width, font_size)
+        rect = (xpos, ypos - middle_of_em - 0.5 * font_size, real_width, font_size)
         return rect
 
     def rect_em_width(
         self,
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         ascent: float,
         descent: float,
         font_size: float,
     ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
-        return self.rect_em(x_pos, y_pos, ascent, descent, self.real_width(font_size), font_size)
+        # returns (xpos_left_corner, ypos_top_corner, width, height)
+        return self.rect_em(xpos, ypos, ascent, descent, self.real_width(font_size), font_size)
 
     def rect_given_ascent_descent(
         self,
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         ascent: float,
         descent: float,
         font_size: float,
     ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+        # returns (xpos_left_corner, ypos_top_corner, width, height)
         units_per_em = self._avfont.units_per_em
         rect = (
-            x_pos,
-            y_pos - ascent * font_size / units_per_em,
+            xpos,
+            ypos - ascent * font_size / units_per_em,
             self.real_width(font_size),
             font_size - descent * font_size / units_per_em,
         )
         return rect
 
-    def rect_font_ascent_descent(
-        self, x_pos: float, y_pos: float, font_size: float
-    ) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+    def rect_font_ascent_descent(self, xpos: float, ypos: float, font_size: float) -> Tuple[float, float, float, float]:
+        # returns (xpos_left_corner, ypos_top_corner, width, height)
         ascent = self._avfont.ascender
         descent = self._avfont.descender
-        return self.rect_given_ascent_descent(x_pos, y_pos, ascent, descent, font_size)
+        return self.rect_given_ascent_descent(xpos, ypos, ascent, descent, font_size)
 
-    def rect_bounding_box(self, x_pos: float, y_pos: float, font_size: float) -> Tuple[float, float, float, float]:
-        # returns (x_pos_left_corner, y_pos_top_corner, width, height)
+    def rect_bounding_box(self, xpos: float, ypos: float, font_size: float) -> Tuple[float, float, float, float]:
+        # returns (xpos_left_corner, ypos_top_corner, width, height)
         rect = (0.0, 0.0, 0.0, 0.0)
         if self.bounding_box:
             units_per_em = self._avfont.units_per_em
             (x_min, y_min, x_max, y_max) = self.bounding_box
             rect = (
-                x_pos + x_min * font_size / units_per_em,
-                y_pos - y_max * font_size / units_per_em,
+                xpos + x_min * font_size / units_per_em,
+                ypos - y_max * font_size / units_per_em,
                 (x_max - x_min) * font_size / units_per_em,
                 (y_max - y_min) * font_size / units_per_em,
             )
@@ -832,25 +733,25 @@ class SVGoutput:
         with open(filename, "wb") as svg_file:
             svg_file.write(output_data)
 
-    def add_glyph_sidebearing(self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
+    def add_glyph_sidebearing(self, glyph: AVGlyph, xpos: float, ypos: float, font_size: float):
         sb_left = glyph.real_sidebearing_left(font_size)
         sb_right = glyph.real_sidebearing_right(font_size)
 
-        rect_bb = glyph.rect_bounding_box(x_pos, y_pos, font_size)
-        rect = (x_pos, rect_bb[1], sb_left, rect_bb[3])
+        rect_bb = glyph.rect_bounding_box(xpos, ypos, font_size)
+        rect = (xpos, rect_bb[1], sb_left, rect_bb[3])
         self.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="yellow"))
 
         rect = (
-            x_pos + glyph.real_width(font_size) - sb_right,
+            xpos + glyph.real_width(font_size) - sb_right,
             rect_bb[1],
             sb_right,
             rect_bb[3],
         )
         self.layer_debug_glyph_sidebearing.add(AVGlyph.svg_rect(self.drawing, rect, "none", 0, fill="orange"))
 
-    def add_glyph_font_ascent_descent(self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
+    def add_glyph_font_ascent_descent(self, glyph: AVGlyph, xpos: float, ypos: float, font_size: float):
         stroke_width = glyph.real_dash_thickness(font_size)
-        rect = glyph.rect_font_ascent_descent(x_pos, y_pos, font_size)
+        rect = glyph.rect_font_ascent_descent(xpos, ypos, font_size)
         self.layer_debug_glyph_font_ascent_descent.add(
             AVGlyph.svg_rect(self.drawing, rect, "green", 0.3 * stroke_width)
         )
@@ -858,36 +759,36 @@ class SVGoutput:
     def add_glyph_em_width(
         self,
         glyph: AVGlyph,
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         font_size: float,
         ascent: float,
         descent: float,
     ):
         stroke_width = glyph.real_dash_thickness(font_size)
-        rect = glyph.rect_em_width(x_pos, y_pos, ascent, descent, font_size)
+        rect = glyph.rect_em_width(xpos, ypos, ascent, descent, font_size)
         self.layer_debug_glyph_em_width.add(AVGlyph.svg_rect(self.drawing, rect, "blue", 0.2 * stroke_width))
 
-    def add_glyph_bounding_box(self, glyph: AVGlyph, x_pos: float, y_pos: float, font_size: float):
+    def add_glyph_bounding_box(self, glyph: AVGlyph, xpos: float, ypos: float, font_size: float):
         stroke_width = glyph.real_dash_thickness(font_size)
-        rect = glyph.rect_bounding_box(x_pos, y_pos, font_size)
+        rect = glyph.rect_bounding_box(xpos, ypos, font_size)
         self.layer_debug_glyph_bounding_box.add(AVGlyph.svg_rect(self.drawing, rect, "red", 0.1 * stroke_width))
 
     def add_glyph(
         self,
         glyph: AVGlyph,
-        x_pos: float,
-        y_pos: float,
+        xpos: float,
+        ypos: float,
         font_size: float,
         ascent: float = None,
         descent: float = None,
     ):
         if ascent and descent:
-            self.add_glyph_em_width(glyph, x_pos, y_pos, font_size, ascent, descent)
-        self.add_glyph_sidebearing(glyph, x_pos, y_pos, font_size)
-        self.add_glyph_font_ascent_descent(glyph, x_pos, y_pos, font_size)
-        self.add_glyph_bounding_box(glyph, x_pos, y_pos, font_size)
-        self.add(glyph.svg_path(self.drawing, x_pos, y_pos, font_size))
+            self.add_glyph_em_width(glyph, xpos, ypos, font_size, ascent, descent)
+        self.add_glyph_sidebearing(glyph, xpos, ypos, font_size)
+        self.add_glyph_font_ascent_descent(glyph, xpos, ypos, font_size)
+        self.add_glyph_bounding_box(glyph, xpos, ypos, font_size)
+        self.add(glyph.svg_path(self.drawing, xpos, ypos, font_size))
 
     def add(self, element: svgwrite.base.BaseElement):
         return self.layer_main.add(element)
@@ -923,20 +824,20 @@ class SimpleLineLayouter:
         self.font_size = font_size
 
     def end_pos_text(self, x_left: float, text: str) -> float:
-        x_pos = x_left
+        xpos = x_left
         for index, character in enumerate(text):
             if character.isspace():
                 character = " "
             glyph = self.avfont.glyph(character)
             if not index:  # first character:
-                x_pos += glyph.real_width(self.font_size, Align.LEFT)
+                xpos += glyph.real_width(self.font_size, Align.LEFT)
             elif index < len(text) - 1:  # "middle" character:
-                x_pos += glyph.real_width(self.font_size)
+                xpos += glyph.real_width(self.font_size)
             else:  # last character:
-                x_pos += glyph.real_width(self.font_size, Align.RIGHT)
-        return x_pos
+                xpos += glyph.real_width(self.font_size, Align.RIGHT)
+        return xpos
 
-    def layout_line(self, y_pos: float, x_left: float, x_right: float, text: str) -> str:
+    def layout_line(self, ypos: float, x_left: float, x_right: float, text: str) -> str:
         line_text = text
         ret_text = ""
         index_last_space = 0
@@ -956,18 +857,18 @@ class SimpleLineLayouter:
         # print(f"delta= _{(x_right - line_end_pos)}_")
 
         # do the layout:
-        x_pos = x_left
+        xpos = x_left
         for index, character in enumerate(line_text):
             glyph = self.avfont.glyph(character)
             if not index:  # first character:
                 x_sb = glyph.real_sidebearing_left(self.font_size)
-                self.svg_output.add_glyph(glyph, x_pos - x_sb, y_pos, self.font_size)
-                x_pos += glyph.real_width(self.font_size, Align.LEFT)
+                self.svg_output.add_glyph(glyph, xpos - x_sb, ypos, self.font_size)
+                xpos += glyph.real_width(self.font_size, Align.LEFT)
             else:
-                self.svg_output.add_glyph(glyph, x_pos, y_pos, self.font_size)
-                x_pos += glyph.real_width(self.font_size)
-            x_pos += each_delta
-        # circ_path = AVPathPolygon.circle_to_path(x_pos, y_pos,
+                self.svg_output.add_glyph(glyph, xpos, ypos, self.font_size)
+                xpos += glyph.real_width(self.font_size)
+            xpos += each_delta
+        # circ_path = AVPathPolygon.circle_to_path(xpos, ypos,
         #                                          0.5*VB_RATIO, 2)
         # svg_path = self.svg_output.draw_path(circ_path, stroke="red",
         #                                      stroke_width=0.01 * VB_RATIO,
@@ -1002,8 +903,8 @@ def main():
     ttfont = TTFont(FONT_FILENAME)
     avfont = AVFont(ttfont)
 
-    # x_pos = VB_RATIO * 10  # in mm
-    # y_pos = VB_RATIO * 10  # in mm
+    # xpos = VB_RATIO * 10  # in mm
+    # ypos = VB_RATIO * 10  # in mm
 
     # text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ " + \
     #        "abcdefghijklmnopqrstuvwxyz " + \
@@ -1014,34 +915,34 @@ def main():
     #     "ABCDEFGHIJKLMNOPQRSTUVWXYZ " +
     #     "abcdefghijklmnopqrstuvwxyz ")
 
-    # c_x_pos = x_pos
-    # c_y_pos = y_pos
+    # c_xpos = xpos
+    # c_ypos = ypos
     # for character in text:
     #     glyph = avfont.glyph(character)
-    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
+    #     svg_output.add_glyph(glyph, c_xpos, c_ypos, FONT_SIZE,
     #                          ascent, descent)
-    #     c_x_pos += glyph.real_width(FONT_SIZE)
+    #     c_xpos += glyph.real_width(FONT_SIZE)
 
-    # c_x_pos = x_pos
-    # c_y_pos = y_pos - FONT_SIZE
+    # c_xpos = xpos
+    # c_ypos = ypos - FONT_SIZE
     # for character in text:
     #     glyph = avfont.glyph(character)
-    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
-    #     c_x_pos += glyph.real_width(FONT_SIZE)
+    #     svg_output.add_glyph(glyph, c_xpos, c_ypos, FONT_SIZE)
+    #     c_xpos += glyph.real_width(FONT_SIZE)
 
-    # c_x_pos = x_pos
-    # c_y_pos = y_pos + FONT_SIZE
+    # c_xpos = xpos
+    # c_ypos = ypos + FONT_SIZE
     # for character in text:
     #     glyph = avfont.glyph(character)
-    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
-    #     c_x_pos += glyph.real_width(FONT_SIZE)
+    #     svg_output.add_glyph(glyph, c_xpos, c_ypos, FONT_SIZE)
+    #     c_xpos += glyph.real_width(FONT_SIZE)
 
-    # c_x_pos = x_pos
-    # c_y_pos = y_pos + 3 * FONT_SIZE
+    # c_xpos = xpos
+    # c_ypos = ypos + 3 * FONT_SIZE
     # for character in text:
     #     glyph = avfont.glyph(character)
-    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE)
-    #     c_x_pos += glyph.real_width(FONT_SIZE)
+    #     svg_output.add_glyph(glyph, c_xpos, c_ypos, FONT_SIZE)
+    #     c_xpos += glyph.real_width(FONT_SIZE)
 
     # circ_path = AVPathPolygon.circle_to_path(
     #     20*VB_RATIO, 20*VB_RATIO, 15*VB_RATIO, 2)
@@ -1058,13 +959,13 @@ def main():
     # axes_values.update({"wght": 700, "wdth": 25, "GRAD": 100})
     # ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
     # font = AVFont(ttfont)
-    # c_x_pos = x_pos
-    # c_y_pos = y_pos + 4 * FONT_SIZE
+    # c_xpos = xpos
+    # c_ypos = ypos + 4 * FONT_SIZE
     # for character in text:
     #     glyph = font.glyph(character)
-    #     svg_output.add_glyph(glyph, c_x_pos, c_y_pos, FONT_SIZE,
+    #     svg_output.add_glyph(glyph, c_xpos, c_ypos, FONT_SIZE,
     #                          ascent, descent)
-    #     c_x_pos += glyph.real_width(FONT_SIZE)
+    #     c_xpos += glyph.real_width(FONT_SIZE)
 
     # -------------------------------------------------------------------------
     # # Take a look on Ä:
@@ -1084,7 +985,7 @@ def main():
         ttfont = instancer.instantiateVariableFont(ttfont, axes_values)
         return AVFont(ttfont)
 
-    y_pos = VB_RATIO * -0.7 + 1 * FONT_SIZE  # in mm
+    ypos = VB_RATIO * -0.7 + 1 * FONT_SIZE  # in mm
     x_left = 0
     x_right = 1
     font_weight = 100
@@ -1093,17 +994,17 @@ def main():
         lorem_ipsum = file.read()
         # lorem_ipsum = lorem_ipsum[:400]
         # print(f"input-text: _{lorem_ipsum}_")
-        # y_pos = y_pos + 6 * FONT_SIZE
+        # ypos = ypos + 6 * FONT_SIZE
         text = lorem_ipsum
-        while y_pos < (RECT_HEIGHT * VB_RATIO):
-            print(y_pos, font_weight)
+        while ypos < (RECT_HEIGHT * VB_RATIO):
+            print(ypos, font_weight)
             avfont = instantiate_font(ttfont, {"wght": font_weight})
             layouter = SimpleLineLayouter(svg_output, avfont, FONT_SIZE)
-            text = layouter.layout_line(y_pos, x_left, x_right, text)
+            text = layouter.layout_line(ypos, x_left, x_right, text)
             # print(f"remaining-text: _{text}_")
             if not text:
                 break
-            y_pos += 1 * FONT_SIZE
+            ypos += 1 * FONT_SIZE
             font_weight += font_weight_delta
             font_weight = min(font_weight, 1000)
 

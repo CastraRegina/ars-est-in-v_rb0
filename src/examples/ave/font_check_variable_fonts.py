@@ -77,15 +77,15 @@ def print_font_example_page(output_filename: str, avfonts: List[AvFont]) -> None
         False,
     )
 
-    x_pos = 0.0
-    y_pos = 0.01
+    xpos = 0.0
+    ypos = 0.01
     for font in avfonts:
-        print_text_on_page(svg_page, x_pos, y_pos, CHARACTERS, font, font_size)
-        y_pos += 0.05
+        print_text_on_page(svg_page, xpos, ypos, CHARACTERS, font, font_size)
+        ypos += 0.05
 
-    x_pos = -0.04
-    for y_pos in [round(i * 0.1, 1) for i in range(7)]:
-        print_text_on_page(svg_page, x_pos, y_pos, str(y_pos), avfonts[0], font_size)
+    xpos = -0.04
+    for ypos in [round(i * 0.1, 1) for i in range(7)]:
+        print_text_on_page(svg_page, xpos, ypos, str(ypos), avfonts[0], font_size)
 
     # Save the SVG file
     print(f"save file {output_filename} ...")
