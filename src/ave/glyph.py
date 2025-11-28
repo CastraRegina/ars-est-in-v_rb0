@@ -418,11 +418,8 @@ class AvLetter:
             str: The SVG path string (absolute coordinates) representing the glyph.
                     Returns "M 0 0" if there are no points.
         """
-        # Apply the scale and translation to the points
-        points_transformed = points[:, :2]  # only (x, y)
-        points_transformed = points_transformed * scale
-        points_transformed[:, 0] += translate_x
-        points_transformed[:, 1] += translate_y
+        # Apply scale and translation to the points, make points to be 2 dimensions (x, y)
+        points_transformed = points[:, :2] * scale + (translate_x, translate_y)
 
         parts: List[str] = []
         p_idx = 0
