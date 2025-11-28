@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple, cast
 
 import numpy as np
 from fontTools.pens.basePen import BasePen
@@ -117,18 +117,19 @@ class AvPolylinePen(BasePen):
 @dataclass
 class AvGlyphPtsCmdsPen(BasePen):
     """
-    Pen that records glyph drawing commands and their points in a compact
-    representation: a flat list of points and a parallel list of SVG command
-    letters. The points are recorded in the order the
-    commands supply them; consumers must know how many coordinates each
-    command consumes (e.g. 'C' consumes 3 points = 6 numbers).
-    Supports the commands: M, L, C, Q, Z (all absolute).
+    Records glyph drawing commands and their points in a compact representation.
+    The points are recorded in the order the commands supply them.
+    Input points are supposed to be Tuple[float, float]
+    while the result points are NDArray[np.float64] of shape (n, 3).
 
-    After drawing a glyph with this pen, use the `.points` and `.commands`
-    properties to access the results.
+    Supports the commands: M, L, C, Q, Z (all absolute).
+    Points ".points" dimension is 3: (x, y, type).
+    Type is 0.0 for start/end point, 2.0 for quadratic, 3.0 for cubic curve point.
+
+    Access the results via `.points` and `.commands` after drawing a glyph with this pen.
     """
 
-    _points: NDArray[np.float64]
+    _points: NDArray[np.float64]  # numpy array of shape (n, 3) = (x, y, type)
     _commands: List[AvGlyphCmds]
     _polygonize_steps: int
 
@@ -142,47 +143,66 @@ class AvGlyphPtsCmdsPen(BasePen):
             Defaults to 0 = no polygonization.
 
         Notes:
-            If polygonize_steps is 0, then the points array will have a shape of (n, 2)
-            If polygonize_steps is greater than 0, then the points array will have a shape of (n, 3)
+            If polygonize_steps is 0 the commands could contain also curves
+            If polygonize_steps is greater than 0, then curves will be polygonized
         """
         super().__init__(glyphSet)
         self._polygonize_steps = polygonize_steps
-        if self._polygonize_steps == 0:
-            pts_dimension = 2
-        else:
-            pts_dimension = 3
-        # numpy array of shape (n, pts_dimension) storing (x,y) points in the order they were emitted
-        self._points: NDArray[np.float64] = np.empty((0, pts_dimension), dtype=np.float64)
+        # numpy array of shape (n, 3) storing (x,y,type) points in the order they were emitted
+        self._points: NDArray[np.float64] = np.empty((0, 3), dtype=np.float64)
         # list of command letters (M, L, C, Q, Z)
         self._commands: List[AvGlyphCmds] = []
 
     # BasePen callback methods -------------------------------------------------
     def _moveTo(self, pt: Tuple[float, float]):
         self._commands.append("M")
-        self._points = np.vstack([self._points, [np.float64(pt[0]), np.float64(pt[1])]])
-
-    def _lineTo(self, pt: Tuple[float, float]):
-        self._commands.append("L")
-        self._points = np.vstack([self._points, [np.float64(pt[0]), np.float64(pt[1])]])
-
-    def _qCurveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float]):
-        # quadratic bezier: one control point and an end point
-        self._commands.append("Q")
-        self._points = np.vstack(
-            [self._points, [np.float64(pt1[0]), np.float64(pt1[1])], [np.float64(pt2[0]), np.float64(pt2[1])]]
-        )
-
-    def _curveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float], pt3: Tuple[float, float]):
-        # cubic bezier: two control points and an end point
-        self._commands.append("C")
         self._points = np.vstack(
             [
                 self._points,
-                [np.float64(pt1[0]), np.float64(pt1[1])],
-                [np.float64(pt2[0]), np.float64(pt2[1])],
-                [np.float64(pt3[0]), np.float64(pt3[1])],
-            ]
+                [np.float64(pt[0]), np.float64(pt[1]), np.float64(0.0)],
+            ],
         )
+
+    def _line_to_with_type(self, pt: Tuple[float, float], point_type: float):
+        self._commands.append("L")
+        self._points = np.vstack(
+            [
+                self._points,
+                [np.float64(pt[0]), np.float64(pt[1]), np.float64(point_type)],
+            ],
+        )
+
+    def _lineTo(self, pt: Tuple[float, float]):
+        self._line_to_with_type(pt, 0.0)
+
+    def _qCurveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float]):
+        # quadratic bezier: one control point and an end point
+        if self._polygonize_steps > 0:
+            self._polygonize_quadratic_bezier([self._getCurrentPoint(), pt1, pt2])
+        else:
+            self._commands.append("Q")
+            self._points = np.vstack(
+                [
+                    self._points,
+                    [np.float64(pt1[0]), np.float64(pt1[1]), np.float64(2.0)],
+                    [np.float64(pt2[0]), np.float64(pt2[1]), np.float64(0.0)],
+                ]
+            )
+
+    def _curveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float], pt3: Tuple[float, float]):
+        # cubic bezier: two control points and an end point
+        if self._polygonize_steps > 0:
+            self._polygonize_cubic_bezier([self._getCurrentPoint(), pt1, pt2, pt3])
+        else:
+            self._commands.append("C")
+            self._points = np.vstack(
+                [
+                    self._points,
+                    [np.float64(pt1[0]), np.float64(pt1[1]), np.float64(3.0)],
+                    [np.float64(pt2[0]), np.float64(pt2[1]), np.float64(3.0)],
+                    [np.float64(pt3[0]), np.float64(pt3[1]), np.float64(0.0)],
+                ]
+            )
 
     def _closePath(self):
         self._commands.append("Z")
@@ -191,7 +211,69 @@ class AvGlyphPtsCmdsPen(BasePen):
         # treat endPath like closePath for command recording (no coordinates)
         self._commands.append("Z")
 
-    # Public accessors ---------------------------------------------------------
+    def _getCurrentPoint(self) -> Tuple[float, float]:
+        pt = super()._getCurrentPoint()
+        # if the point is a tuple of two floats (or ints), return it
+        if isinstance(pt, tuple) and len(pt) == 2 and all(isinstance(x, (int, float, np.float64)) for x in pt):
+            return pt
+        raise ValueError(f"Invalid point {pt} in _getCurrentPoint")
+
+    def _polygonize_quadratic_bezier(self, points: Sequence[Tuple[float, float]]):
+        pt0, pt1, pt2 = points
+        steps = self._polygonize_steps
+
+        if steps <= 150:
+            # Ultra-fast pure Python path
+            inv_steps = 1.0 / steps
+            for i in range(1, steps + 1):
+                t = i * inv_steps
+                omt = 1.0 - t
+                omt2 = omt * omt
+                t2 = t * t
+                x = omt2 * pt0[0] + 2 * omt * t * pt1[0] + t2 * pt2[0]
+                y = omt2 * pt0[1] + 2 * omt * t * pt1[1] + t2 * pt2[1]
+                self._line_to_with_type((x, y), 2.0)
+        else:
+            # fast NumPy path
+            t = np.arange(1, steps + 1) / steps
+            omt = 1 - t
+            x = omt**2 * pt0[0] + 2 * omt * t * pt1[0] + t**2 * pt2[0]
+            y = omt**2 * pt0[1] + 2 * omt * t * pt1[1] + t**2 * pt2[1]
+            # for x, y in zip(x, y):
+            #     self._line_to_type((x, y), 2.0)
+            new_points = np.column_stack([x, y, np.full(steps, 2.0, dtype=np.float64)])
+            self._points = np.vstack([self._points, new_points])
+            self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
+
+    def _polygonize_cubic_bezier(self, points: Sequence[Tuple[float, float]]):
+        pt0, pt1, pt2, pt3 = points
+        steps = self._polygonize_steps
+
+        if steps <= 75:
+            # Ultra-fast pure Python path
+            inv_steps = 1.0 / steps
+            for i in range(1, steps + 1):
+                t = i * inv_steps
+                omt = 1.0 - t
+                omt2 = omt * omt
+                omt3 = omt2 * omt
+                t2 = t * t
+                t3 = t2 * t
+                x = omt3 * pt0[0] + 3 * omt2 * t * pt1[0] + 3 * omt * t2 * pt2[0] + t3 * pt3[0]
+                y = omt3 * pt0[1] + 3 * omt2 * t * pt1[1] + 3 * omt * t2 * pt2[1] + t3 * pt3[1]
+                self._line_to_with_type((x, y), 3.0)
+        else:
+            # fast NumPy path
+            t = np.arange(1, steps + 1) / steps  # t from 1/N to 1
+            omt = 1.0 - t
+            x = omt**3 * pt0[0] + 3 * omt**2 * t * pt1[0] + 3 * omt * t**2 * pt2[0] + t**3 * pt3[0]
+            y = omt**3 * pt0[1] + 3 * omt**2 * t * pt1[1] + 3 * omt * t**2 * pt2[1] + t**3 * pt3[1]
+            # for px, py in zip(x, y):
+            #     self._line_to_type((px, py), 3.0)
+            new_points = np.column_stack([x, y, np.full(steps, 3.0, dtype=np.float64)])
+            self._points = np.vstack([self._points, new_points])
+            self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
+
     @property
     def commands(self) -> List[AvGlyphCmds]:
         """Return the recorded commands as a list (uppercase commands)."""
@@ -199,14 +281,10 @@ class AvGlyphPtsCmdsPen(BasePen):
 
     @property
     def points(self) -> NDArray[np.float64]:
-        """Return recorded points as an (n_points, 2) ndarray of float64."""
+        """Return recorded points as an (n_points, 3) ndarray of float64."""
         return self._points
 
     def reset(self) -> None:
         """Clear recorded commands and points."""
-        self._points = np.empty((0, 2), dtype=np.float64)
+        self._points = np.empty((0, 3), dtype=np.float64)
         self._commands = []
-
-    def summary(self) -> str:
-        """Small debug helper summarizing the recorded data."""
-        return f"commands={self._commands}, points.shape={self.points.shape}"

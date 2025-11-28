@@ -32,7 +32,7 @@ class AvGlyph:
 
     _character: str
     _width: float
-    _points: NDArray[np.float64]  # shape (n_points, 2)
+    _points: NDArray[np.float64]  # shape (n_points, 3)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _bounding_box: Optional[AvBox] = None  # caching variable
 
@@ -50,7 +50,7 @@ class AvGlyph:
         Args:
             character (str): A single character.
             width (float): The width of the glyph in unitsPerEm.
-            points (NDArray[np.float64]): A numpy array of shape (n_points, 2) containing the points of the glyph.
+            points (NDArray[np.float64]): A numpy array of shape (n_points, 3) containing the points of the glyph.
             commands (List[AvGlyphCmds]): A list of SvgPathCmds containing the commands of the glyph.
             bounding_box (Optional[AvBox], optional): The bounding box of the glyph. Defaults to None.
         """
@@ -83,7 +83,7 @@ class AvGlyph:
     @property
     def points(self) -> NDArray[np.float64]:
         """
-        The points of this glyph as a numpy array of shape (n_points, 2).
+        The points of this glyph as a numpy array of shape (n_points, 3).
         """
         return self._points
 
@@ -419,7 +419,8 @@ class AvLetter:
                     Returns "M 0 0" if there are no points.
         """
         # Apply the scale and translation to the points
-        points_transformed = points * scale
+        points_transformed = points[:, :2]  # only (x, y)
+        points_transformed = points_transformed * scale
         points_transformed[:, 0] += translate_x
         points_transformed[:, 1] += translate_y
 
