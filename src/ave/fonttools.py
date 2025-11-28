@@ -140,7 +140,7 @@ class AvGlyphPtsCmdsPen(BasePen):
         Parameters:
             glyphSet (GlyphSet): The glyph set to use.
             polygonize_steps (int, optional): The number of steps to use for polygonization.
-            Defaults to 0 = no polygonization.
+                Defaults to 0 = no polygonization. Steps = number of segments (lines) the curve will be divided into.
 
         Notes:
             If polygonize_steps is 0 the commands could contain also curves

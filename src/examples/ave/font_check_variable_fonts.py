@@ -5,7 +5,12 @@ from typing import Dict, List, Optional
 from fontTools.ttLib import TTFont
 
 from ave.fonttools import FontHelper
-from ave.glyph import AvFont, AvFontProperties, AvGlyphFromTTFontFactory, AvLetter
+from ave.glyph import (
+    AvFont,
+    AvFontProperties,
+    AvLetter,
+    AvPolylineGlyphFromTTFontFactory,
+)
 from ave.page import AvSvgPage
 
 CHARACTERS = (
@@ -25,7 +30,9 @@ def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] =
         ttfont = TTFont(ttfont_filename)
     else:
         ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), axes_values)
-    glyph_factory = AvGlyphFromTTFontFactory(ttfont)
+    # glyph_factory = AvGlyphFromTTFontFactory(ttfont)
+    glyph_factory = AvPolylineGlyphFromTTFontFactory(ttfont)
+
     avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))
 
     return avfont

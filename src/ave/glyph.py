@@ -62,13 +62,23 @@ class AvGlyph:
         self._bounding_box = bounding_box
 
     @classmethod
-    def from_ttfont_character(cls, ttfont: TTFont, character: str) -> AvGlyph:
+    def from_ttfont_character(cls, ttfont: TTFont, character: str, polygonize_steps: int = 0) -> AvGlyph:
         """
         Factory method to create an AvGlyph from a TTFont and character.
+
+        Parameters:
+            ttfont (TTFont): The TTFont to use.
+            character (str): The character to use.
+            polygonize_steps (int, optional): The number of steps to use for polygonization.
+                Defaults to 0 = no polygonization.
+
+        Notes:
+            If polygonize_steps is 0 the commands could contain also curves
+            If polygonize_steps is greater than 0, then curves will be polygonized
         """
         glyph_name = ttfont.getBestCmap()[ord(character)]
         glyph_set = ttfont.getGlyphSet()
-        pen = AvGlyphPtsCmdsPen(glyph_set)
+        pen = AvGlyphPtsCmdsPen(glyph_set, polygonize_steps=polygonize_steps)
         glyph_set[glyph_name].draw(pen)
         width = glyph_set[glyph_name].width
         return cls(character, width, pen.points, pen.commands)
@@ -170,13 +180,13 @@ class AvGlyph:
 
         # TODO: calculate bounding box taking into account the curves and not the control points
 
-        # TODO: check which one is faster:
+        # Check which one is faster:
         # x_min, y_min = self._points.min(axis=0)
         # x_max, y_max = self._points.max(axis=0)
         # ---------------------------------------------------------------------
         # x_min, x_max = self._points[:, 0].min(), self._points[:, 0].max()
         # y_min, y_max = self._points[:, 1].min(), self._points[:, 1].max()
-        # (my check so far: the sliced version is faster):
+        # (my check so far: the 2nd, sliced version is faster):
         points_x = self._points[:, 0]
         points_y = self._points[:, 1]
         x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
@@ -228,6 +238,37 @@ class AvGlyphFromTTFontFactory(AvGlyphFactory):
 
     def create_glyph(self, character: str) -> AvGlyph:
         return AvGlyph.from_ttfont_character(self._ttfont, character)
+
+
+@dataclass
+class AvPolylineGlyphFromTTFontFactory(AvGlyphFromTTFontFactory):
+    """
+    A factory class for creating glyph instances which polygonizes the curves.
+    """
+
+    _polygonize_steps: int
+
+    def __init__(self, ttfont: TTFont, polygonize_steps: int = 50) -> None:
+        """
+        Initializes the glyph factory.
+
+        Parameters:
+            ttfont (TTFont): The TTFont to use.
+            polygonize_steps (int, optional): The number of steps to use for polygonization.
+                Defaults to 0 = no polygonization.
+        """
+        super().__init__(ttfont)
+        self._polygonize_steps = polygonize_steps
+
+    @property
+    def polygonize_steps(self) -> int:
+        """
+        The number of steps used for polygonization when creating glyphs.
+        """
+        return self._polygonize_steps
+
+    def create_glyph(self, character: str) -> AvGlyph:
+        return AvGlyph.from_ttfont_character(self._ttfont, character, self._polygonize_steps)
 
 
 ###############################################################################
