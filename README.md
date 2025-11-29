@@ -1,3 +1,5 @@
+<!-- markdownlint-disable-file -->
+
 # ars-est-in-v_rb0
 This site is for family and friends only.
 
