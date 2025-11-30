@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple, cast
+from typing import Dict, List, Sequence, Tuple, Union, cast
 
 import numpy as np
 from fontTools.pens.basePen import BasePen
-from fontTools.pens.recordingPen import RecordingPen
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from numpy.typing import NDArray
 
 from ave.common import AvGlyphCmds
+from ave.geom import BezierCurve
+
+# from fontTools.pens.recordingPen import RecordingPen
 
 
 class FontHelper:
@@ -56,62 +58,62 @@ class FontHelper:
 ###############################################################################
 # Pens
 ###############################################################################
-class AvPolylinePen(BasePen):
-    """
-    This pen is used to convert curves to line segments.
-    It records the curve as a sequence of line segments.
-    """
+# class AvPolylinePen(BasePen):
+#     """
+#     This pen is used to convert curves to line segments.
+#     It records the curve as a sequence of line segments.
+#     """
 
-    def __init__(self, glyphSet, steps=10):
-        """
-        Initializes a new instance of the class.
+#     def __init__(self, glyphSet, steps=10):
+#         """
+#         Initializes a new instance of the class.
 
-        Args:
-            glyphSet (GlyphSet): The glyph set to use.
-            steps (int, optional): The number of steps to use for polygonization. Defaults to 10.
-        """
-        super().__init__(glyphSet)
-        self.steps = steps
-        self.recording_pen = RecordingPen()
+#         Args:
+#             glyphSet (GlyphSet): The glyph set to use.
+#             steps (int, optional): The number of steps to use for polygonization. Defaults to 10.
+#         """
+#         super().__init__(glyphSet)
+#         self.steps = steps
+#         self.recording_pen = RecordingPen()
 
-    def _moveTo(self, pt: Tuple[float, float]):
-        self.recording_pen.moveTo(pt)
+#     def _moveTo(self, pt: Tuple[float, float]):
+#         self.recording_pen.moveTo(pt)
 
-    def _lineTo(self, pt: Tuple[float, float]):
-        self.recording_pen.lineTo(pt)
+#     def _lineTo(self, pt: Tuple[float, float]):
+#         self.recording_pen.lineTo(pt)
 
-    def _getCurrentPoint(self) -> Tuple[float, float]:
-        pt = super()._getCurrentPoint()
-        # if the point is a tuple of two floats (or ints), return it
-        if isinstance(pt, tuple) and len(pt) == 2 and all(isinstance(x, (int, float, np.float64)) for x in pt):
-            return pt
-        raise ValueError(f"Invalid point {pt} in _getCurrentPoint")
+#     def _getCurrentPoint(self) -> Tuple[float, float]:
+#         pt = super()._getCurrentPoint()
+#         # if the point is a tuple of two floats (or ints), return it
+#         if isinstance(pt, tuple) and len(pt) == 2 and all(isinstance(x, (int, float, np.float64)) for x in pt):
+#             return pt
+#         raise ValueError(f"Invalid point {pt} in _getCurrentPoint")
 
-    def _curveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float], pt3: Tuple[float, float]):
-        self._polygonize_cubic_bezier([self._getCurrentPoint(), pt1, pt2, pt3])
+#     def _curveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float], pt3: Tuple[float, float]):
+#         self._polygonize_cubic_bezier([self._getCurrentPoint(), pt1, pt2, pt3])
 
-    def _qCurveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float]):
-        self._polygonize_quadratic_bezier([self._getCurrentPoint(), pt1, pt2])
+#     def _qCurveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float]):
+#         self._polygonize_quadratic_bezier([self._getCurrentPoint(), pt1, pt2])
 
-    def _closePath(self):
-        self.recording_pen.closePath()
+#     def _closePath(self):
+#         self.recording_pen.closePath()
 
-    def _endPath(self):
-        self.recording_pen.endPath()
+#     def _endPath(self):
+#         self.recording_pen.endPath()
 
-    def _polygonize_quadratic_bezier(self, points: Sequence[Tuple[float, float]]):
-        pt0, pt1, pt2 = points
-        for t in [i / self.steps for i in range(1, self.steps + 1)]:
-            x = (1 - t) ** 2 * pt0[0] + 2 * (1 - t) * t * pt1[0] + t**2 * pt2[0]
-            y = (1 - t) ** 2 * pt0[1] + 2 * (1 - t) * t * pt1[1] + t**2 * pt2[1]
-            self._lineTo((x, y))
+#     def _polygonize_quadratic_bezier(self, points: Sequence[Tuple[float, float]]):
+#         pt0, pt1, pt2 = points
+#         for t in [i / self.steps for i in range(1, self.steps + 1)]:
+#             x = (1 - t) ** 2 * pt0[0] + 2 * (1 - t) * t * pt1[0] + t**2 * pt2[0]
+#             y = (1 - t) ** 2 * pt0[1] + 2 * (1 - t) * t * pt1[1] + t**2 * pt2[1]
+#             self._lineTo((x, y))
 
-    def _polygonize_cubic_bezier(self, points: Sequence[Tuple[float, float]]):
-        pt0, pt1, pt2, pt3 = points
-        for t in [i / self.steps for i in range(1, self.steps + 1)]:
-            x = (1 - t) ** 3 * pt0[0] + 3 * (1 - t) ** 2 * t * pt1[0] + 3 * (1 - t) * t**2 * pt2[0] + t**3 * pt3[0]
-            y = (1 - t) ** 3 * pt0[1] + 3 * (1 - t) ** 2 * t * pt1[1] + 3 * (1 - t) * t**2 * pt2[1] + t**3 * pt3[1]
-            self._lineTo((x, y))
+#     def _polygonize_cubic_bezier(self, points: Sequence[Tuple[float, float]]):
+#         pt0, pt1, pt2, pt3 = points
+#         for t in [i / self.steps for i in range(1, self.steps + 1)]:
+#             x = (1 - t) ** 3 * pt0[0] + 3 * (1 - t) ** 2 * t * pt1[0] + 3 * (1 - t) * t**2 * pt2[0] + t**3 * pt3[0]
+#             y = (1 - t) ** 3 * pt0[1] + 3 * (1 - t) ** 2 * t * pt1[1] + 3 * (1 - t) * t**2 * pt2[1] + t**3 * pt3[1]
+#             self._lineTo((x, y))
 
 
 @dataclass
@@ -218,61 +220,65 @@ class AvGlyphPtsCmdsPen(BasePen):
             return pt
         raise ValueError(f"Invalid point {pt} in _getCurrentPoint")
 
-    def _polygonize_quadratic_bezier(self, points: Sequence[Tuple[float, float]]):
-        pt0, pt1, pt2 = points
-        steps = self._polygonize_steps
+    def _polygonize_quadratic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
+        new_points = BezierCurve.polygonize_quadratic_bezier(points, self._polygonize_steps)
+        self._points = np.vstack([self._points, new_points])
+        self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
 
-        if steps <= 150:
-            # Ultra-fast pure Python path
-            inv_steps = 1.0 / steps
-            for i in range(1, steps + 1):
-                t = i * inv_steps
-                omt = 1.0 - t
-                omt2 = omt * omt
-                t2 = t * t
-                x = omt2 * pt0[0] + 2 * omt * t * pt1[0] + t2 * pt2[0]
-                y = omt2 * pt0[1] + 2 * omt * t * pt1[1] + t2 * pt2[1]
-                self._line_to_with_type((x, y), 2.0)
-        else:
-            # fast NumPy path
-            t = np.arange(1, steps + 1) / steps
-            omt = 1 - t
-            x = omt**2 * pt0[0] + 2 * omt * t * pt1[0] + t**2 * pt2[0]
-            y = omt**2 * pt0[1] + 2 * omt * t * pt1[1] + t**2 * pt2[1]
-            # for x, y in zip(x, y):
-            #     self._line_to_type((x, y), 2.0)
-            new_points = np.column_stack([x, y, np.full(steps, 2.0, dtype=np.float64)])
-            self._points = np.vstack([self._points, new_points])
-            self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
+        # pt0, pt1, pt2 = points
+        # steps = self._polygonize_steps
 
-    def _polygonize_cubic_bezier(self, points: Sequence[Tuple[float, float]]):
-        pt0, pt1, pt2, pt3 = points
-        steps = self._polygonize_steps
+        # if steps <= 150:
+        #     # Ultra-fast pure Python path
+        #     inv_steps = 1.0 / steps
+        #     for i in range(1, steps + 1):
+        #         t = i * inv_steps
+        #         omt = 1.0 - t
+        #         omt2 = omt * omt
+        #         t2 = t * t
+        #         x = omt2 * pt0[0] + 2 * omt * t * pt1[0] + t2 * pt2[0]
+        #         y = omt2 * pt0[1] + 2 * omt * t * pt1[1] + t2 * pt2[1]
+        #         self._line_to_with_type((x, y), 2.0)
+        # else:
+        #     # fast NumPy path
+        #     t = np.arange(1, steps + 1) / steps
+        #     omt = 1 - t
+        #     x = omt**2 * pt0[0] + 2 * omt * t * pt1[0] + t**2 * pt2[0]
+        #     y = omt**2 * pt0[1] + 2 * omt * t * pt1[1] + t**2 * pt2[1]
+        #     new_points = np.column_stack([x, y, np.full(steps, 2.0, dtype=np.float64)])
+        #     self._points = np.vstack([self._points, new_points])
+        #     self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
 
-        if steps <= 75:
-            # Ultra-fast pure Python path
-            inv_steps = 1.0 / steps
-            for i in range(1, steps + 1):
-                t = i * inv_steps
-                omt = 1.0 - t
-                omt2 = omt * omt
-                omt3 = omt2 * omt
-                t2 = t * t
-                t3 = t2 * t
-                x = omt3 * pt0[0] + 3 * omt2 * t * pt1[0] + 3 * omt * t2 * pt2[0] + t3 * pt3[0]
-                y = omt3 * pt0[1] + 3 * omt2 * t * pt1[1] + 3 * omt * t2 * pt2[1] + t3 * pt3[1]
-                self._line_to_with_type((x, y), 3.0)
-        else:
-            # fast NumPy path
-            t = np.arange(1, steps + 1) / steps  # t from 1/N to 1
-            omt = 1.0 - t
-            x = omt**3 * pt0[0] + 3 * omt**2 * t * pt1[0] + 3 * omt * t**2 * pt2[0] + t**3 * pt3[0]
-            y = omt**3 * pt0[1] + 3 * omt**2 * t * pt1[1] + 3 * omt * t**2 * pt2[1] + t**3 * pt3[1]
-            # for px, py in zip(x, y):
-            #     self._line_to_type((px, py), 3.0)
-            new_points = np.column_stack([x, y, np.full(steps, 3.0, dtype=np.float64)])
-            self._points = np.vstack([self._points, new_points])
-            self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
+    def _polygonize_cubic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
+        new_points = BezierCurve.polygonize_cubic_bezier(points, self._polygonize_steps)
+        self._points = np.vstack([self._points, new_points])
+        self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
+
+        # pt0, pt1, pt2, pt3 = points
+        # steps = self._polygonize_steps
+
+        # if steps <= 75:
+        #     # Ultra-fast pure Python path
+        #     inv_steps = 1.0 / steps
+        #     for i in range(1, steps + 1):
+        #         t = i * inv_steps
+        #         omt = 1.0 - t
+        #         omt2 = omt * omt
+        #         omt3 = omt2 * omt
+        #         t2 = t * t
+        #         t3 = t2 * t
+        #         x = omt3 * pt0[0] + 3 * omt2 * t * pt1[0] + 3 * omt * t2 * pt2[0] + t3 * pt3[0]
+        #         y = omt3 * pt0[1] + 3 * omt2 * t * pt1[1] + 3 * omt * t2 * pt2[1] + t3 * pt3[1]
+        #         self._line_to_with_type((x, y), 3.0)
+        # else:
+        #     # fast NumPy path
+        #     t = np.arange(1, steps + 1) / steps  # t from 1/N to 1
+        #     omt = 1.0 - t
+        #     x = omt**3 * pt0[0] + 3 * omt**2 * t * pt1[0] + 3 * omt * t**2 * pt2[0] + t**3 * pt3[0]
+        #     y = omt**3 * pt0[1] + 3 * omt**2 * t * pt1[1] + 3 * omt * t**2 * pt2[1] + t**3 * pt3[1]
+        #     new_points = np.column_stack([x, y, np.full(steps, 3.0, dtype=np.float64)])
+        #     self._points = np.vstack([self._points, new_points])
+        #     self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
 
     @property
     def commands(self) -> List[AvGlyphCmds]:

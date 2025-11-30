@@ -2,10 +2,298 @@
 
 from __future__ import annotations
 
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
+
+import numpy as np
+from numpy.typing import NDArray
+
+from ave.common import AvGlyphCmds
 
 
-class GeomHelper:
+###############################################################################
+# BezierCurve
+###############################################################################
+class BezierCurve:
+    """Class to represent a Bezier curve."""
+
+    @classmethod
+    def polygonize_quadratic_bezier_python(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a quadratic Bézier curve into line segments using pure Python.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+                    Must contain exactly 3 points: start, control, end
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=2.0)
+        """
+        # Extract control points - works for both numpy arrays and sequences
+        pt0, pt1, pt2 = points
+
+        # Direct coordinate extraction for minimal overhead
+        p0x, p0y = pt0[0], pt0[1]
+        p1x, p1y = pt1[0], pt1[1]
+        p2x, p2y = pt2[0], pt2[1]
+
+        inv_steps = 1.0 / steps
+
+        # Create NumPy array with correct size (empty for max performance)
+        result = np.empty((steps, 3), dtype=np.float64)
+
+        # Fill NumPy array directly during iteration
+        for i in range(steps):
+            t = (i + 1) * inv_steps
+            omt = 1.0 - t
+            omt2 = omt * omt
+            t2 = t * t
+
+            x = omt2 * p0x + 2.0 * omt * t * p1x + t2 * p2x
+            y = omt2 * p0y + 2.0 * omt * t * p1y + t2 * p2y
+
+            # Direct assignment to NumPy array
+            result[i, 0] = x
+            result[i, 1] = y
+            result[i, 2] = 2.0
+
+        return result
+
+    @classmethod
+    def polygonize_quadratic_bezier_numpy(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a quadratic Bézier curve into line segments using NumPy.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+                    Must contain exactly 3 points: start, control, end
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=2.0)
+        """
+        # Extract control points - works for both numpy arrays and sequences
+        pt0, pt1, pt2 = points
+
+        # Simple and efficient approach
+        t = np.arange(1, steps + 1) / steps
+        omt = 1.0 - t
+        x = omt**2 * pt0[0] + 2.0 * omt * t * pt1[0] + t**2 * pt2[0]
+        y = omt**2 * pt0[1] + 2.0 * omt * t * pt1[1] + t**2 * pt2[1]
+        return np.column_stack([x, y, np.full(steps, 2.0, dtype=np.float64)])
+
+    @classmethod
+    def polygonize_quadratic_bezier(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a quadratic Bézier curve into line segments.
+        Uses pure Python for small step counts, NumPy for larger ones.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=2.0)
+        """
+        if steps < 50:
+            return cls.polygonize_quadratic_bezier_python(points, steps)
+        else:
+            return cls.polygonize_quadratic_bezier_numpy(points, steps)
+
+    @classmethod
+    def polygonize_cubic_bezier_python(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a cubic Bézier curve into line segments using pure Python.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+                    Must contain exactly 4 points: start, control1, control2, end
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=3.0)
+        """
+        # Extract control points - works for both numpy arrays and sequences
+        pt0, pt1, pt2, pt3 = points
+
+        # Direct coordinate extraction for minimal overhead
+        p0x, p0y = pt0[0], pt0[1]
+        p1x, p1y = pt1[0], pt1[1]
+        p2x, p2y = pt2[0], pt2[1]
+        p3x, p3y = pt3[0], pt3[1]
+
+        inv_steps = 1.0 / steps
+
+        # Create NumPy array with correct size (empty for max performance)
+        result = np.empty((steps, 3), dtype=np.float64)
+
+        # Fill NumPy array directly during iteration
+        for i in range(steps):
+            t = (i + 1) * inv_steps
+            omt = 1.0 - t
+            omt2 = omt * omt
+            omt3 = omt2 * omt
+            t2 = t * t
+            t3 = t2 * t
+
+            x = omt3 * p0x + 3.0 * omt2 * t * p1x + 3.0 * omt * t2 * p2x + t3 * p3x
+            y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
+
+            # Direct assignment to NumPy array
+            result[i, 0] = x
+            result[i, 1] = y
+            result[i, 2] = 3.0
+
+        return result
+
+    @classmethod
+    def polygonize_cubic_bezier_numpy(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a cubic Bézier curve into line segments using NumPy.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+                    Must contain exactly 4 points: start, control1, control2, end
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=3.0)
+        """
+        # Extract control points - works for both numpy arrays and sequences
+        pt0, pt1, pt2, pt3 = points
+
+        # Simple and efficient approach
+        t = np.arange(1, steps + 1) / steps
+        omt = 1.0 - t
+        x = omt**3 * pt0[0] + 3.0 * omt**2 * t * pt1[0] + 3.0 * omt * t**2 * pt2[0] + t**3 * pt3[0]
+        y = omt**3 * pt0[1] + 3.0 * omt**2 * t * pt1[1] + 3.0 * omt * t**2 * pt2[1] + t**3 * pt3[1]
+        return np.column_stack([x, y, np.full(steps, 3.0, dtype=np.float64)])
+
+    @classmethod
+    def polygonize_cubic_bezier(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a cubic Bézier curve into line segments.
+        Uses pure Python for small step counts, NumPy for larger ones.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+                    Must contain exactly 4 points: start, control1, control2, end
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=3.0)
+        """
+        if steps < 50:
+            return cls.polygonize_cubic_bezier_python(points, steps)
+        else:
+            return cls.polygonize_cubic_bezier_numpy(points, steps)
+
+    @staticmethod
+    def polygonize_path(
+        points: NDArray[np.float64], commands: List[AvGlyphCmds], steps: int
+    ) -> Tuple[NDArray[np.float64], List[AvGlyphCmds]]:
+        """
+        Polygonize a path by converting curve commands (C, Q) to line segments.
+
+        Args:
+            points: Array of points with shape (n, 3) containing (x, y, type)
+            commands: List of path commands (M, L, C, Q, Z)
+            polygonize_steps: Number of segments to use for curve polygonization
+
+        Returns:
+            Tuple of (new_points, new_commands) where curves are replaced by line segments
+        """
+        if len(points) != len(commands):
+            raise ValueError(f"Points ({len(points)}) and commands ({len(commands)}) must have same length")
+
+        new_points_list = []
+        new_commands_list = []
+
+        i = 0
+        while i < len(commands):
+            cmd = commands[i]
+            pt = points[i]
+
+            if cmd == "M":  # MoveTo
+                new_points_list.append(pt)
+                new_commands_list.append(cmd)
+                i += 1
+
+            elif cmd == "L":  # LineTo
+                new_points_list.append(pt)
+                new_commands_list.append(cmd)
+                i += 1
+
+            elif cmd == "Q":  # Quadratic Bezier To
+                if i + 2 >= len(points):
+                    raise ValueError(f"Quadratic Bezier command at index {i} needs 3 points, got {len(points) - i}")
+
+                # Get control points: current point, control point, end point
+                if len(new_points_list) == 0:
+                    raise ValueError(f"Quadratic Bezier at index {i} has no starting point")
+
+                # Extract all control points using NumPy slicing for better performance
+                # Get start point (previous point) + control, end points
+                control_points = points[i - 1 : i + 2, :2]  # Get start, control, end points (x, y only)
+
+                # Polygonize the quadratic bezier
+                curve_points = BezierCurve.polygonize_quadratic_bezier(control_points, steps)
+
+                # Add all polygonized points as line segments
+                new_points_list.extend(curve_points)
+                new_commands_list.extend(["L"] * len(curve_points))
+
+                i += 2  # Skip control and end points (they're now polygonized)
+
+            elif cmd == "C":  # Cubic Bezier To
+                if i + 3 >= len(points):
+                    raise ValueError(f"Cubic Bezier command at index {i} needs 4 points, got {len(points) - i}")
+
+                # Get control points: current point, control1, control2, end point
+                if len(new_points_list) == 0:
+                    raise ValueError(f"Cubic Bezier at index {i} has no starting point")
+
+                # Extract all control points using NumPy slicing for better performance
+                # Get start point (previous point) + control1, control2, end points
+                control_points = points[i - 1 : i + 3, :2]  # Get start, control1, control2, end points (x, y only)
+
+                # Polygonize the cubic bezier
+                curve_points = BezierCurve.polygonize_cubic_bezier(control_points, steps)
+
+                # Add all polygonized points as line segments
+                new_points_list.extend(curve_points)
+                new_commands_list.extend(["L"] * len(curve_points))
+
+                i += 3  # Skip control1, control2, and end points (they're now polygonized)
+
+            elif cmd == "Z":  # ClosePath
+                new_points_list.append(pt)
+                new_commands_list.append(cmd)
+                i += 1
+
+            else:
+                raise ValueError(f"Unknown command '{cmd}' at index {i}")
+
+        new_points = np.array(new_points_list, dtype=np.float64)
+        return new_points, new_commands_list
+
+
+###############################################################################
+# GeomMath
+###############################################################################
+class GeomMath:
     """Class to provide various static methods related to geometry handling."""
 
     @staticmethod
@@ -36,9 +324,9 @@ class GeomHelper:
         return (x_new, y_new)
 
 
-# =============================================================================
-# Box
-# =============================================================================
+###############################################################################
+# AvBox
+###############################################################################
 class AvBox:
     """
     Represents a rectangular box with coordinates and dimensions.
@@ -143,8 +431,8 @@ class AvBox:
             AvBox: The transformed box
         """
         (xmin, ymin, xmax, ymax) = self.extent
-        (x0, y0) = GeomHelper.transform_point(affine_trafo, (xmin, ymin))
-        (x1, y1) = GeomHelper.transform_point(affine_trafo, (xmax, ymax))
+        (x0, y0) = GeomMath.transform_point(affine_trafo, (xmin, ymin))
+        (x1, y1) = GeomMath.transform_point(affine_trafo, (xmax, ymax))
         return AvBox(xmin=x0, ymin=y0, xmax=x1, ymax=y1)
 
     def transform_scale_translate(self, scale_factor: float, translate_x: float, translate_y: float) -> AvBox:
