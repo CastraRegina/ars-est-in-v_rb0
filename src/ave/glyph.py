@@ -13,7 +13,7 @@ from numpy.typing import NDArray
 
 import ave.common
 from ave.common import AvGlyphCmds
-from ave.fonttools import AvGlyphPtsCmdsPen, AvPolylinePen
+from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
 
 ###############################################################################
@@ -748,21 +748,21 @@ class AvFont:
 ###############################################################################
 
 
-def polygonize_glyph(font_path, character, steps=10) -> AvPolylinePen:
-    """
-    Polygonizes a glyph from a font file into line segments.
-    """
-    font = TTFont(font_path)
-    glyph_set = font.getGlyphSet()
-    glyph_name = font.getBestCmap()[ord(character)]
-    pen = AvPolylinePen(glyph_set, steps)
-    glyph_set[glyph_name].draw(pen)
-    print(type(glyph_set[glyph_name]))
-    print(dir(glyph_set[glyph_name]))
-    print(glyph_set[glyph_name].glyphSet)
-    print(dir(glyph_set[glyph_name].glyphSet))
+# def polygonize_glyph(font_path, character, steps=10) -> AvPolylinePen:
+#     """
+#     Polygonizes a glyph from a font file into line segments.
+#     """
+#     font = TTFont(font_path)
+#     glyph_set = font.getGlyphSet()
+#     glyph_name = font.getBestCmap()[ord(character)]
+#     pen = AvPolylinePen(glyph_set, steps)
+#     glyph_set[glyph_name].draw(pen)
+#     print(type(glyph_set[glyph_name]))
+#     print(dir(glyph_set[glyph_name]))
+#     print(glyph_set[glyph_name].glyphSet)
+#     print(dir(glyph_set[glyph_name].glyphSet))
 
-    return pen
+#     return pen
 
 
 ###############################################################################
