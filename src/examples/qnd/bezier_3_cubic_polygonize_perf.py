@@ -71,9 +71,9 @@ def verify_correctness():
         auto_result = test_auto_method(steps)
 
         # Check shapes
-        assert python_result.shape == (steps, 3), f"Python wrong shape: {python_result.shape}"
-        assert numpy_result.shape == (steps, 3), f"NumPy wrong shape: {numpy_result.shape}"
-        assert auto_result.shape == (steps, 3), f"Auto wrong shape: {auto_result.shape}"
+        assert python_result.shape == (steps + 1, 3), f"Python wrong shape: {python_result.shape}"
+        assert numpy_result.shape == (steps + 1, 3), f"NumPy wrong shape: {numpy_result.shape}"
+        assert auto_result.shape == (steps + 1, 3), f"Auto wrong shape: {auto_result.shape}"
 
         # Check values (with tolerance for floating point differences)
         assert np.allclose(python_result, numpy_result, rtol=1e-12), f"Mismatch Python vs NumPy for steps={steps}"

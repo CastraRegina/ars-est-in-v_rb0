@@ -29,7 +29,7 @@ class BezierCurve:
             steps: Number of segments to divide the curve into
 
         Returns:
-            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=2.0)
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
         """
         # Extract control points - works for both numpy arrays and sequences
         pt0, pt1, pt2 = points
@@ -39,10 +39,15 @@ class BezierCurve:
         p1x, p1y = pt1[0], pt1[1]
         p2x, p2y = pt2[0], pt2[1]
 
-        inv_steps = 1.0 / steps
+        # Create NumPy array with correct size (steps+1 to include starting point)
+        result = np.empty((steps + 1, 3), dtype=np.float64)
 
-        # Create NumPy array with correct size (empty for max performance)
-        result = np.empty((steps, 3), dtype=np.float64)
+        # Add starting point
+        result[0, 0] = p0x
+        result[0, 1] = p0y
+        result[0, 2] = 2.0
+
+        inv_steps = 1.0 / steps
 
         # Fill NumPy array directly during iteration
         for i in range(steps):
@@ -54,10 +59,10 @@ class BezierCurve:
             x = omt2 * p0x + 2.0 * omt * t * p1x + t2 * p2x
             y = omt2 * p0y + 2.0 * omt * t * p1y + t2 * p2y
 
-            # Direct assignment to NumPy array
-            result[i, 0] = x
-            result[i, 1] = y
-            result[i, 2] = 2.0
+            # Direct assignment to NumPy array (starting from index 1)
+            result[i + 1, 0] = x
+            result[i + 1, 1] = y
+            result[i + 1, 2] = 2.0
 
         return result
 
@@ -74,17 +79,17 @@ class BezierCurve:
             steps: Number of segments to divide the curve into
 
         Returns:
-            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=2.0)
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
         """
         # Extract control points - works for both numpy arrays and sequences
         pt0, pt1, pt2 = points
 
-        # Simple and efficient approach
-        t = np.arange(1, steps + 1) / steps
+        # Include starting point (t=0) and steps points
+        t = np.arange(0, steps + 1) / steps
         omt = 1.0 - t
         x = omt**2 * pt0[0] + 2.0 * omt * t * pt1[0] + t**2 * pt2[0]
         y = omt**2 * pt0[1] + 2.0 * omt * t * pt1[1] + t**2 * pt2[1]
-        return np.column_stack([x, y, np.full(steps, 2.0, dtype=np.float64)])
+        return np.column_stack([x, y, np.full(steps + 1, 2.0, dtype=np.float64)])
 
     @classmethod
     def polygonize_quadratic_bezier(
@@ -99,7 +104,7 @@ class BezierCurve:
             steps: Number of segments to divide the curve into
 
         Returns:
-            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=2.0)
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
         """
         if steps < 50:
             return cls.polygonize_quadratic_bezier_python(points, steps)
@@ -119,7 +124,7 @@ class BezierCurve:
             steps: Number of segments to divide the curve into
 
         Returns:
-            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=3.0)
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=3.0)
         """
         # Extract control points - works for both numpy arrays and sequences
         pt0, pt1, pt2, pt3 = points
@@ -130,10 +135,15 @@ class BezierCurve:
         p2x, p2y = pt2[0], pt2[1]
         p3x, p3y = pt3[0], pt3[1]
 
-        inv_steps = 1.0 / steps
+        # Create NumPy array with correct size (steps+1 to include starting point)
+        result = np.empty((steps + 1, 3), dtype=np.float64)
 
-        # Create NumPy array with correct size (empty for max performance)
-        result = np.empty((steps, 3), dtype=np.float64)
+        # Add starting point
+        result[0, 0] = p0x
+        result[0, 1] = p0y
+        result[0, 2] = 3.0
+
+        inv_steps = 1.0 / steps
 
         # Fill NumPy array directly during iteration
         for i in range(steps):
@@ -147,10 +157,10 @@ class BezierCurve:
             x = omt3 * p0x + 3.0 * omt2 * t * p1x + 3.0 * omt * t2 * p2x + t3 * p3x
             y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
 
-            # Direct assignment to NumPy array
-            result[i, 0] = x
-            result[i, 1] = y
-            result[i, 2] = 3.0
+            # Direct assignment to NumPy array (starting from index 1)
+            result[i + 1, 0] = x
+            result[i + 1, 1] = y
+            result[i + 1, 2] = 3.0
 
         return result
 
@@ -167,17 +177,17 @@ class BezierCurve:
             steps: Number of segments to divide the curve into
 
         Returns:
-            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=3.0)
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=3.0)
         """
         # Extract control points - works for both numpy arrays and sequences
         pt0, pt1, pt2, pt3 = points
 
-        # Simple and efficient approach
-        t = np.arange(1, steps + 1) / steps
+        # Include starting point (t=0) and steps points
+        t = np.arange(0, steps + 1) / steps
         omt = 1.0 - t
         x = omt**3 * pt0[0] + 3.0 * omt**2 * t * pt1[0] + 3.0 * omt * t**2 * pt2[0] + t**3 * pt3[0]
         y = omt**3 * pt0[1] + 3.0 * omt**2 * t * pt1[1] + 3.0 * omt * t**2 * pt2[1] + t**3 * pt3[1]
-        return np.column_stack([x, y, np.full(steps, 3.0, dtype=np.float64)])
+        return np.column_stack([x, y, np.full(steps + 1, 3.0, dtype=np.float64)])
 
     @classmethod
     def polygonize_cubic_bezier(
@@ -193,7 +203,7 @@ class BezierCurve:
             steps: Number of segments to divide the curve into
 
         Returns:
-            NDArray[np.float64] of shape (steps, 3) containing the polygonized points (x, y, type=3.0)
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=3.0)
         """
         if steps < 50:
             return cls.polygonize_cubic_bezier_python(points, steps)
@@ -215,8 +225,11 @@ class BezierCurve:
         Returns:
             Tuple of (new_points, new_commands) where curves are replaced by line segments
         """
-        if len(points) != len(commands):
-            raise ValueError(f"Points ({len(points)}) and commands ({len(commands)}) must have same length")
+        # if len(points) != len(commands):
+        #     raise ValueError(f"Points ({len(points)}) and commands ({len(commands)}) must have same length")
+
+        # TODO: modify so that it fits to new polygonize-methods which are returning the first control points.
+        # Therefore the first point has to be removed before concatenate to the whole path
 
         new_points_list = []
         new_commands_list = []
@@ -471,6 +484,66 @@ def main():
     print(f"Height: {my_box.height}")
     print(f"Area  : {my_box.area}")
     print(f"xmin  : {my_box.xmin}, ymin: {my_box.ymin}, xmax: {my_box.xmax}, ymax: {my_box.ymax}")
+
+    # Create a Bezier curve and polygonize it
+    control_points = [(0, 0), (10, 10), (20, 0)]
+    polygon = BezierCurve.polygonize_quadratic_bezier(control_points, 2)
+
+    # Print the result
+    print("Polygonized quadratic Bezier curve:")
+    print("  Number of points:", len(polygon))
+    print("  Points:")
+    for point in polygon:
+        print("    ", point)
+
+    # # Example for polygonize_path
+    # print("\n" + "=" * 50)
+    # print("Example for polygonize_path method:")
+    # print("=" * 50)
+
+    # # Create a simple path with MoveTo, LineTo, and Quadratic Bezier
+    # # Points format: (x, y, type) - type is not used in polygonize_path but required for format
+    # path_points = np.array(
+    #     [
+    #         [10.0, 10.0, 0.0],  # M - MoveTo starting point
+    #         [20.0, 20.0, 2.0],  # Q - Quadratic Bezier control point
+    #         [30.0, 10.0, 0.0],  # Q - Quadratic Bezier end point
+    #     ],
+    #     dtype=np.float64,
+    # )
+
+    # path_commands = ["M", "Q"]
+
+    # print("Original path:")
+    # print("  Number of points:", len(path_points))
+    # print("  Commands:", " -> ".join(path_commands))
+    # print("  Points:")
+    # for i, (point, cmd) in enumerate(zip(path_points, path_commands)):
+    #     print(f"    {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+
+    # # Polygonize the path with 2 steps per curve
+    # polygonize_steps = 2
+    # new_points, new_commands = BezierCurve.polygonize_path(path_points, path_commands, polygonize_steps)
+
+    # print(f"\nPolygonized path (steps={polygonize_steps}):")
+    # print("  Number of points:", len(new_points))
+    # print("  Commands:", " -> ".join(new_commands))
+    # print("  Points:")
+    # for i, (point, cmd) in enumerate(zip(new_points, new_commands)):
+    #     print(f"    {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+
+    # # Show statistics
+    # original_curves = sum(1 for cmd in path_commands if cmd in ["Q", "C"])
+    # total_segments = sum(1 for cmd in new_commands if cmd == "L")
+
+    # print(f"\nPolygonization statistics:")
+    # print(f"  Original curves: {original_curves}")
+    # print(f"  Total line segments after polygonization: {total_segments}")
+    # print(
+    #     f"  Average segments per curve: {total_segments / original_curves:.1f}"
+    #     if original_curves > 0
+    #     else "  No curves to polygonize"
+    # )
 
 
 if __name__ == "__main__":

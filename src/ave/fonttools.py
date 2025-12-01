@@ -222,7 +222,8 @@ class AvGlyphPtsCmdsPen(BasePen):
 
     def _polygonize_quadratic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
         new_points = BezierCurve.polygonize_quadratic_bezier(points, self._polygonize_steps)
-        self._points = np.vstack([self._points, new_points])
+        # Skip the first point since it's the starting point (already in the path)
+        self._points = np.vstack([self._points, new_points[1:]])
         self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
 
         # pt0, pt1, pt2 = points
@@ -251,7 +252,8 @@ class AvGlyphPtsCmdsPen(BasePen):
 
     def _polygonize_cubic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
         new_points = BezierCurve.polygonize_cubic_bezier(points, self._polygonize_steps)
-        self._points = np.vstack([self._points, new_points])
+        # Skip the first point since it's the starting point (already in the path)
+        self._points = np.vstack([self._points, new_points[1:]])
         self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
 
         # pt0, pt1, pt2, pt3 = points
