@@ -24,17 +24,17 @@ STEPS_LIST = [10, 20, 30, 35, 40, 50, 60, 70, 80, 90, 100, 150, 200, 300, 500, 7
 
 def test_python_method(steps: int):
     """Test the pure Python implementation"""
-    return BezierCurve.polygonize_cubic_bezier_python(POINTS, steps)
+    return BezierCurve.polygonize_cubic_curve_python(POINTS, steps)
 
 
 def test_numpy_method(steps: int):
     """Test the NumPy implementation"""
-    return BezierCurve.polygonize_cubic_bezier_numpy(POINTS, steps)
+    return BezierCurve.polygonize_cubic_curve_numpy(POINTS, steps)
 
 
 def test_auto_method(steps: int):
     """Test the auto implementation (chooses between Python and NumPy)"""
-    return BezierCurve.polygonize_cubic_bezier(POINTS, steps)
+    return BezierCurve.polygonize_cubic_curve(POINTS, steps)
 
 
 def run_performance_tests():
@@ -95,14 +95,14 @@ def test_different_input_formats():
 
     steps = 100
 
-    python_tuple = BezierCurve.polygonize_cubic_bezier_python(tuple_points, steps)
-    python_numpy = BezierCurve.polygonize_cubic_bezier_python(numpy_points, steps)
+    python_tuple = BezierCurve.polygonize_cubic_curve_python(tuple_points, steps)
+    python_numpy = BezierCurve.polygonize_cubic_curve_python(numpy_points, steps)
 
-    numpy_tuple = BezierCurve.polygonize_cubic_bezier_numpy(tuple_points, steps)
-    numpy_numpy = BezierCurve.polygonize_cubic_bezier_numpy(numpy_points, steps)
+    numpy_tuple = BezierCurve.polygonize_cubic_curve_numpy(tuple_points, steps)
+    numpy_numpy = BezierCurve.polygonize_cubic_curve_numpy(numpy_points, steps)
 
-    auto_tuple = BezierCurve.polygonize_cubic_bezier(tuple_points, steps)
-    auto_numpy = BezierCurve.polygonize_cubic_bezier(numpy_points, steps)
+    auto_tuple = BezierCurve.polygonize_cubic_curve(tuple_points, steps)
+    auto_numpy = BezierCurve.polygonize_cubic_curve(numpy_points, steps)
 
     # Test input format compatibility
     assert np.allclose(python_tuple, python_numpy), "Python method: tuple vs numpy input mismatch"

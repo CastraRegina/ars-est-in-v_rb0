@@ -221,66 +221,16 @@ class AvGlyphPtsCmdsPen(BasePen):
         raise ValueError(f"Invalid point {pt} in _getCurrentPoint")
 
     def _polygonize_quadratic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
-        new_points = BezierCurve.polygonize_quadratic_bezier(points, self._polygonize_steps)
+        new_points = BezierCurve.polygonize_quadratic_curve(points, self._polygonize_steps)
         # Skip the first point since it's the starting point (already in the path)
         self._points = np.vstack([self._points, new_points[1:]])
         self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
-
-        # pt0, pt1, pt2 = points
-        # steps = self._polygonize_steps
-
-        # if steps <= 150:
-        #     # Ultra-fast pure Python path
-        #     inv_steps = 1.0 / steps
-        #     for i in range(1, steps + 1):
-        #         t = i * inv_steps
-        #         omt = 1.0 - t
-        #         omt2 = omt * omt
-        #         t2 = t * t
-        #         x = omt2 * pt0[0] + 2 * omt * t * pt1[0] + t2 * pt2[0]
-        #         y = omt2 * pt0[1] + 2 * omt * t * pt1[1] + t2 * pt2[1]
-        #         self._line_to_with_type((x, y), 2.0)
-        # else:
-        #     # fast NumPy path
-        #     t = np.arange(1, steps + 1) / steps
-        #     omt = 1 - t
-        #     x = omt**2 * pt0[0] + 2 * omt * t * pt1[0] + t**2 * pt2[0]
-        #     y = omt**2 * pt0[1] + 2 * omt * t * pt1[1] + t**2 * pt2[1]
-        #     new_points = np.column_stack([x, y, np.full(steps, 2.0, dtype=np.float64)])
-        #     self._points = np.vstack([self._points, new_points])
-        #     self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
 
     def _polygonize_cubic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
-        new_points = BezierCurve.polygonize_cubic_bezier(points, self._polygonize_steps)
+        new_points = BezierCurve.polygonize_cubic_curve(points, self._polygonize_steps)
         # Skip the first point since it's the starting point (already in the path)
         self._points = np.vstack([self._points, new_points[1:]])
         self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
-
-        # pt0, pt1, pt2, pt3 = points
-        # steps = self._polygonize_steps
-
-        # if steps <= 75:
-        #     # Ultra-fast pure Python path
-        #     inv_steps = 1.0 / steps
-        #     for i in range(1, steps + 1):
-        #         t = i * inv_steps
-        #         omt = 1.0 - t
-        #         omt2 = omt * omt
-        #         omt3 = omt2 * omt
-        #         t2 = t * t
-        #         t3 = t2 * t
-        #         x = omt3 * pt0[0] + 3 * omt2 * t * pt1[0] + 3 * omt * t2 * pt2[0] + t3 * pt3[0]
-        #         y = omt3 * pt0[1] + 3 * omt2 * t * pt1[1] + 3 * omt * t2 * pt2[1] + t3 * pt3[1]
-        #         self._line_to_with_type((x, y), 3.0)
-        # else:
-        #     # fast NumPy path
-        #     t = np.arange(1, steps + 1) / steps  # t from 1/N to 1
-        #     omt = 1.0 - t
-        #     x = omt**3 * pt0[0] + 3 * omt**2 * t * pt1[0] + 3 * omt * t**2 * pt2[0] + t**3 * pt3[0]
-        #     y = omt**3 * pt0[1] + 3 * omt**2 * t * pt1[1] + 3 * omt * t**2 * pt2[1] + t**3 * pt3[1]
-        #     new_points = np.column_stack([x, y, np.full(steps, 3.0, dtype=np.float64)])
-        #     self._points = np.vstack([self._points, new_points])
-        #     self._commands.extend(cast(List[AvGlyphCmds], ["L"] * steps))
 
     @property
     def commands(self) -> List[AvGlyphCmds]:

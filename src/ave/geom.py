@@ -17,7 +17,7 @@ class BezierCurve:
     """Class to represent a Bezier curve."""
 
     @classmethod
-    def polygonize_quadratic_bezier_python(
+    def polygonize_quadratic_curve_python(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
         """
@@ -45,7 +45,7 @@ class BezierCurve:
         # Add starting point
         result[0, 0] = p0x
         result[0, 1] = p0y
-        result[0, 2] = 2.0
+        result[0, 2] = 0.0
 
         inv_steps = 1.0 / steps
 
@@ -64,55 +64,13 @@ class BezierCurve:
             result[i + 1, 1] = y
             result[i + 1, 2] = 2.0
 
+        # Set last point type to 0.0
+        result[steps, 2] = 0.0
+
         return result
 
     @classmethod
-    def polygonize_quadratic_bezier_numpy(
-        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
-    ) -> NDArray[np.float64]:
-        """
-        Polygonize a quadratic Bézier curve into line segments using NumPy.
-
-        Args:
-            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
-                    Must contain exactly 3 points: start, control, end
-            steps: Number of segments to divide the curve into
-
-        Returns:
-            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
-        """
-        # Extract control points - works for both numpy arrays and sequences
-        pt0, pt1, pt2 = points
-
-        # Include starting point (t=0) and steps points
-        t = np.arange(0, steps + 1) / steps
-        omt = 1.0 - t
-        x = omt**2 * pt0[0] + 2.0 * omt * t * pt1[0] + t**2 * pt2[0]
-        y = omt**2 * pt0[1] + 2.0 * omt * t * pt1[1] + t**2 * pt2[1]
-        return np.column_stack([x, y, np.full(steps + 1, 2.0, dtype=np.float64)])
-
-    @classmethod
-    def polygonize_quadratic_bezier(
-        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
-    ) -> NDArray[np.float64]:
-        """
-        Polygonize a quadratic Bézier curve into line segments.
-        Uses pure Python for small step counts, NumPy for larger ones.
-
-        Args:
-            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
-            steps: Number of segments to divide the curve into
-
-        Returns:
-            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
-        """
-        if steps < 50:
-            return cls.polygonize_quadratic_bezier_python(points, steps)
-        else:
-            return cls.polygonize_quadratic_bezier_numpy(points, steps)
-
-    @classmethod
-    def polygonize_cubic_bezier_python(
+    def polygonize_cubic_curve_python(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
         """
@@ -141,7 +99,7 @@ class BezierCurve:
         # Add starting point
         result[0, 0] = p0x
         result[0, 1] = p0y
-        result[0, 2] = 3.0
+        result[0, 2] = 0.0
 
         inv_steps = 1.0 / steps
 
@@ -162,10 +120,44 @@ class BezierCurve:
             result[i + 1, 1] = y
             result[i + 1, 2] = 3.0
 
+        # Set last point type to 0.0
+        result[steps, 2] = 0.0
+
         return result
 
     @classmethod
-    def polygonize_cubic_bezier_numpy(
+    def polygonize_quadratic_curve_numpy(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a quadratic Bézier curve into line segments using NumPy.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+                    Must contain exactly 3 points: start, control, end
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
+        """
+        # Extract control points - works for both numpy arrays and sequences
+        pt0, pt1, pt2 = points
+
+        # Include starting point (t=0) and steps points
+        t = np.arange(0, steps + 1) / steps
+        omt = 1.0 - t
+        x = omt**2 * pt0[0] + 2.0 * omt * t * pt1[0] + t**2 * pt2[0]
+        y = omt**2 * pt0[1] + 2.0 * omt * t * pt1[1] + t**2 * pt2[1]
+
+        # Create types array with first and last points as 0.0, others as 2.0
+        types = np.full(steps + 1, 2.0, dtype=np.float64)
+        types[0] = 0.0
+        types[-1] = 0.0
+
+        return np.column_stack([x, y, types])
+
+    @classmethod
+    def polygonize_cubic_curve_numpy(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
         """
@@ -187,10 +179,36 @@ class BezierCurve:
         omt = 1.0 - t
         x = omt**3 * pt0[0] + 3.0 * omt**2 * t * pt1[0] + 3.0 * omt * t**2 * pt2[0] + t**3 * pt3[0]
         y = omt**3 * pt0[1] + 3.0 * omt**2 * t * pt1[1] + 3.0 * omt * t**2 * pt2[1] + t**3 * pt3[1]
-        return np.column_stack([x, y, np.full(steps + 1, 3.0, dtype=np.float64)])
+
+        # Create types array with first and last points as 0.0, others as 3.0
+        types = np.full(steps + 1, 3.0, dtype=np.float64)
+        types[0] = 0.0
+        types[-1] = 0.0
+
+        return np.column_stack([x, y, types])
 
     @classmethod
-    def polygonize_cubic_bezier(
+    def polygonize_quadratic_curve(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
+    ) -> NDArray[np.float64]:
+        """
+        Polygonize a quadratic Bézier curve into line segments.
+        Uses pure Python for small step counts, NumPy for larger ones.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+            steps: Number of segments to divide the curve into
+
+        Returns:
+            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
+        """
+        if steps < 50:
+            return cls.polygonize_quadratic_curve_python(points, steps)
+        else:
+            return cls.polygonize_quadratic_curve_numpy(points, steps)
+
+    @classmethod
+    def polygonize_cubic_curve(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
         """
@@ -206,10 +224,11 @@ class BezierCurve:
             NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=3.0)
         """
         if steps < 50:
-            return cls.polygonize_cubic_bezier_python(points, steps)
+            return cls.polygonize_cubic_curve_python(points, steps)
         else:
-            return cls.polygonize_cubic_bezier_numpy(points, steps)
+            return cls.polygonize_cubic_curve_numpy(points, steps)
 
+    # TODO: check and correct the function
     @staticmethod
     def polygonize_path(
         points: NDArray[np.float64], commands: List[AvGlyphCmds], steps: int
@@ -262,7 +281,7 @@ class BezierCurve:
                 control_points = points[i - 1 : i + 2, :2]  # Get start, control, end points (x, y only)
 
                 # Polygonize the quadratic bezier
-                curve_points = BezierCurve.polygonize_quadratic_bezier(control_points, steps)
+                curve_points = BezierCurve.polygonize_quadratic_curve(control_points, steps)
 
                 # Add all polygonized points as line segments
                 new_points_list.extend(curve_points)
@@ -283,7 +302,7 @@ class BezierCurve:
                 control_points = points[i - 1 : i + 3, :2]  # Get start, control1, control2, end points (x, y only)
 
                 # Polygonize the cubic bezier
-                curve_points = BezierCurve.polygonize_cubic_bezier(control_points, steps)
+                curve_points = BezierCurve.polygonize_cubic_curve(control_points, steps)
 
                 # Add all polygonized points as line segments
                 new_points_list.extend(curve_points)
@@ -487,7 +506,7 @@ def main():
 
     # Create a Bezier curve and polygonize it
     control_points = [(0, 0), (10, 10), (20, 0)]
-    polygon = BezierCurve.polygonize_quadratic_bezier(control_points, 2)
+    polygon = BezierCurve.polygonize_quadratic_curve(control_points, 2)
 
     # Print the result
     print("Polygonized quadratic Bezier curve:")
