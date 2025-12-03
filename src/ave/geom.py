@@ -228,7 +228,6 @@ class BezierCurve:
         else:
             return cls.polygonize_cubic_curve_numpy(points, steps)
 
-    # TODO: check and correct the function
     @staticmethod
     def polygonize_path(
         points: NDArray[np.float64], commands: List[AvGlyphCmds], steps: int
@@ -239,84 +238,98 @@ class BezierCurve:
         Args:
             points: Array of points with shape (n, 3) containing (x, y, type)
             commands: List of path commands (M, L, C, Q, Z)
-            polygonize_steps: Number of segments to use for curve polygonization
+            steps: Number of segments to use for curve polygonization
 
         Returns:
             Tuple of (new_points, new_commands) where curves are replaced by line segments
         """
-        # if len(points) != len(commands):
-        #     raise ValueError(f"Points ({len(points)}) and commands ({len(commands)}) must have same length")
-
-        # TODO: modify so that it fits to new polygonize-methods which are returning the first control points.
-        # Therefore the first point has to be removed before concatenate to the whole path
-
         new_points_list = []
         new_commands_list = []
 
-        i = 0
-        while i < len(commands):
-            cmd = commands[i]
-            pt = points[i]
+        point_index = 0
 
-            if cmd == "M":  # MoveTo
+        for cmd in commands:
+            if cmd == "M":  # MoveTo - uses 1 point
+                if point_index >= len(points):
+                    raise ValueError(f"MoveTo command needs 1 point, got {len(points) - point_index}")
+
+                pt = points[point_index]
                 new_points_list.append(pt)
                 new_commands_list.append(cmd)
-                i += 1
+                point_index += 1
 
-            elif cmd == "L":  # LineTo
+            elif cmd == "L":  # LineTo - uses 1 point
+                if point_index >= len(points):
+                    raise ValueError(f"LineTo command needs 1 point, got {len(points) - point_index}")
+
+                pt = points[point_index]
                 new_points_list.append(pt)
                 new_commands_list.append(cmd)
-                i += 1
+                point_index += 1
 
-            elif cmd == "Q":  # Quadratic Bezier To
-                if i + 2 >= len(points):
-                    raise ValueError(f"Quadratic Bezier command at index {i} needs 3 points, got {len(points) - i}")
+            elif cmd == "Q":  # Quadratic Bezier To - uses 2 points (control, end)
+                if point_index + 1 >= len(points):
+                    raise ValueError(f"Quadratic Bezier command needs 2 points, got {len(points) - point_index}")
 
-                # Get control points: current point, control point, end point
                 if len(new_points_list) == 0:
-                    raise ValueError(f"Quadratic Bezier at index {i} has no starting point")
+                    raise ValueError("Quadratic Bezier command has no starting point")
 
-                # Extract all control points using NumPy slicing for better performance
-                # Get start point (previous point) + control, end points
-                control_points = points[i - 1 : i + 2, :2]  # Get start, control, end points (x, y only)
+                # Get start point (last point in new_points_list) + control and end points
+                start_point = new_points_list[-1][:2]  # Get x,y from last point
+                control_point = points[point_index][:2]
+                end_point = points[point_index + 1][:2]
+
+                control_points = np.array([start_point, control_point, end_point], dtype=np.float64)
 
                 # Polygonize the quadratic bezier
                 curve_points = BezierCurve.polygonize_quadratic_curve(control_points, steps)
 
-                # Add all polygonized points as line segments
+                # Remove first point since it's the same as start_point to avoid duplication
+                curve_points = curve_points[1:]
+
+                # Add polygonized points as line segments
                 new_points_list.extend(curve_points)
                 new_commands_list.extend(["L"] * len(curve_points))
 
-                i += 2  # Skip control and end points (they're now polygonized)
+                point_index += 2  # Skip control and end points
 
-            elif cmd == "C":  # Cubic Bezier To
-                if i + 3 >= len(points):
-                    raise ValueError(f"Cubic Bezier command at index {i} needs 4 points, got {len(points) - i}")
+            elif cmd == "C":  # Cubic Bezier To - uses 3 points (control1, control2, end)
+                if point_index + 2 >= len(points):
+                    raise ValueError(f"Cubic Bezier command needs 3 points, got {len(points) - point_index}")
 
-                # Get control points: current point, control1, control2, end point
                 if len(new_points_list) == 0:
-                    raise ValueError(f"Cubic Bezier at index {i} has no starting point")
+                    raise ValueError("Cubic Bezier command has no starting point")
 
-                # Extract all control points using NumPy slicing for better performance
-                # Get start point (previous point) + control1, control2, end points
-                control_points = points[i - 1 : i + 3, :2]  # Get start, control1, control2, end points (x, y only)
+                # Get start point (last point in new_points_list) + control1, control2, and end points
+                start_point = new_points_list[-1][:2]  # Get x,y from last point
+                control1_point = points[point_index][:2]
+                control2_point = points[point_index + 1][:2]
+                end_point = points[point_index + 2][:2]
+
+                control_points = np.array([start_point, control1_point, control2_point, end_point], dtype=np.float64)
 
                 # Polygonize the cubic bezier
                 curve_points = BezierCurve.polygonize_cubic_curve(control_points, steps)
 
-                # Add all polygonized points as line segments
+                # Remove first point since it's the same as start_point to avoid duplication
+                curve_points = curve_points[1:]
+
+                # Add polygonized points as line segments
                 new_points_list.extend(curve_points)
                 new_commands_list.extend(["L"] * len(curve_points))
 
-                i += 3  # Skip control1, control2, and end points (they're now polygonized)
+                point_index += 3  # Skip control1, control2, and end points
 
-            elif cmd == "Z":  # ClosePath
-                new_points_list.append(pt)
+            elif cmd == "Z":  # ClosePath - uses 0 points, no point data in SVG
+                if len(new_points_list) == 0:
+                    raise ValueError("ClosePath command has no starting point")
+
+                # Z command doesn't add a new point, it just closes the path
+                # The closing line is implicit from current point to first MoveTo point
                 new_commands_list.append(cmd)
-                i += 1
 
             else:
-                raise ValueError(f"Unknown command '{cmd}' at index {i}")
+                raise ValueError(f"Unknown command '{cmd}'")
 
         new_points = np.array(new_points_list, dtype=np.float64)
         return new_points, new_commands_list
@@ -515,54 +528,159 @@ def main():
     for point in polygon:
         print("    ", point)
 
-    # # Example for polygonize_path
-    # print("\n" + "=" * 50)
-    # print("Example for polygonize_path method:")
-    # print("=" * 50)
+    ###########################################################################
+    # Example path_points and path_commands containing only a Move followed by one Quadratic Bezier curve
+    path_points = np.array(
+        [
+            [10.0, 10.0, 0.0],  # M - MoveTo destination point
+            [20.0, 20.0, 2.0],  # Q - Quadratic Bezier control point
+            [30.0, 10.0, 0.0],  # Q - Quadratic Bezier end point
+        ],
+        dtype=np.float64,
+    )
 
-    # # Create a simple path with MoveTo, LineTo, and Quadratic Bezier
-    # # Points format: (x, y, type) - type is not used in polygonize_path but required for format
-    # path_points = np.array(
-    #     [
-    #         [10.0, 10.0, 0.0],  # M - MoveTo starting point
-    #         [20.0, 20.0, 2.0],  # Q - Quadratic Bezier control point
-    #         [30.0, 10.0, 0.0],  # Q - Quadratic Bezier end point
-    #     ],
-    #     dtype=np.float64,
-    # )
+    path_commands = ["M", "Q"]  # M uses 1 point, Q uses 2 points
+    print("\n" + "=" * 50)
+    print("Example path_points and path_commands:")
+    print("=" * 50)
+    print("  Number of points:", len(path_points))
+    print("  Number of commands:", len(path_commands))
+    print("  Points:")
+    for point in path_points:
+        print("    ", (point[0], point[1], point[2]))
+    print("  Commands:")
+    for cmd in path_commands:
+        print("    ", cmd)
 
-    # path_commands = ["M", "Q"]
+    ###########################################################################
+    # Example for MoveTo followed by Cubic Bezier
+    path_points_mc = np.array(
+        [
+            [10.0, 10.0, 0.0],  # M - MoveTo destination point
+            [10.0, 30.0, 3.0],  # C - Cubic Bezier control point 1
+            [30.0, 30.0, 3.0],  # C - Cubic Bezier control point 2
+            [30.0, 10.0, 0.0],  # C - Cubic Bezier end point
+        ],
+        dtype=np.float64,
+    )
 
-    # print("Original path:")
-    # print("  Number of points:", len(path_points))
-    # print("  Commands:", " -> ".join(path_commands))
-    # print("  Points:")
-    # for i, (point, cmd) in enumerate(zip(path_points, path_commands)):
-    #     print(f"    {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+    path_commands_mc = ["M", "C"]  # M uses 1 point, C uses 3 points
+    print("\n" + "=" * 50)
+    print("Example M,C path_points and path_commands:")
+    print("=" * 50)
+    print("  Number of points:", len(path_points_mc))
+    print("  Number of commands:", len(path_commands_mc))
+    print("  Points:")
+    for point in path_points_mc:
+        print("    ", (point[0], point[1], point[2]))
+    print("  Commands:")
+    for cmd in path_commands_mc:
+        print("    ", cmd)
 
-    # # Polygonize the path with 2 steps per curve
-    # polygonize_steps = 2
-    # new_points, new_commands = BezierCurve.polygonize_path(path_points, path_commands, polygonize_steps)
+    ###########################################################################
+    ###########################################################################
+    # Test the corrected polygonize_path method with both examples
 
-    # print(f"\nPolygonized path (steps={polygonize_steps}):")
-    # print("  Number of points:", len(new_points))
-    # print("  Commands:", " -> ".join(new_commands))
-    # print("  Points:")
-    # for i, (point, cmd) in enumerate(zip(new_points, new_commands)):
-    #     print(f"    {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+    polygonize_steps = 5
+    print("\n" + "=" * 50)
+    print("Testing polygonize_path method:")
+    print("=" * 50)
 
-    # # Show statistics
-    # original_curves = sum(1 for cmd in path_commands if cmd in ["Q", "C"])
-    # total_segments = sum(1 for cmd in new_commands if cmd == "L")
+    ###########################################################################
+    # Test M,Q example
+    print("\nTesting M,Q example:")
+    new_points_q, new_commands_q = BezierCurve.polygonize_path(path_points, path_commands, polygonize_steps)
 
-    # print(f"\nPolygonization statistics:")
-    # print(f"  Original curves: {original_curves}")
-    # print(f"  Total line segments after polygonization: {total_segments}")
-    # print(
-    #     f"  Average segments per curve: {total_segments / original_curves:.1f}"
-    #     if original_curves > 0
-    #     else "  No curves to polygonize"
-    # )
+    print(f"Original: {len(path_points)} points, {len(path_commands)} commands")
+    print(f"Polygonized: {len(new_points_q)} points, {len(new_commands_q)} commands")
+    print("Polygonized points:")
+    for i, (point, cmd) in enumerate(zip(new_points_q, new_commands_q)):
+        print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+
+    ###########################################################################
+    # Test M,C example
+    print("\nTesting M,C example:")
+    new_points_c, new_commands_c = BezierCurve.polygonize_path(path_points_mc, path_commands_mc, polygonize_steps)
+
+    print(f"Original: {len(path_points_mc)} points, {len(path_commands_mc)} commands")
+    print(f"Polygonized: {len(new_points_c)} points, {len(new_commands_c)} commands")
+    print("Polygonized points:")
+    for i, (point, cmd) in enumerate(zip(new_points_c, new_commands_c)):
+        if cmd == "Z":
+            print(f"  {i:2d}: {cmd} (close path - no point data)")
+        else:
+            print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+
+    ###########################################################################
+    # Complex path example with multiple command types
+    print("\n" + "=" * 50)
+    print("Complex path example with multiple command types:")
+    print("=" * 50)
+
+    # Create a complex path: M -> L -> Q -> L -> C -> L -> Z
+    complex_path_points = np.array(
+        [
+            # M - MoveTo starting point
+            [10.0, 10.0, 0.0],
+            # L - LineTo
+            [30.0, 10.0, 0.0],
+            # Q - Quadratic Bezier (control point, end point)
+            [40.0, 20.0, 2.0],  # Control point
+            [50.0, 10.0, 0.0],  # End point
+            # L - LineTo
+            [70.0, 10.0, 0.0],
+            # C - Cubic Bezier (control1, control2, end point)
+            [80.0, 20.0, 3.0],  # Control point 1
+            [90.0, 20.0, 3.0],  # Control point 2
+            [100.0, 10.0, 0.0],  # End point
+            # L - LineTo
+            [100.0, 30.0, 0.0],
+        ],
+        dtype=np.float64,
+    )
+
+    complex_path_commands = ["M", "L", "Q", "L", "C", "L", "Z"]  # Z uses 0 points
+
+    print("Complex path:")
+    print("  Number of points:", len(complex_path_points))
+    print("  Number of commands:", len(complex_path_commands))
+    print("  Points:")
+    for point in complex_path_points:
+        print("    ", (point[0], point[1], point[2]))
+    print("  Commands:")
+    for cmd in complex_path_commands:
+        print("    ", cmd)
+
+    # Test the complex path
+    print("\nTesting complex path:")
+    new_points_complex, new_commands_complex = BezierCurve.polygonize_path(
+        complex_path_points, complex_path_commands, polygonize_steps
+    )
+
+    print(f"Original: {len(complex_path_points)} points, {len(complex_path_commands)} commands")
+    print(f"Polygonized: {len(new_points_complex)} points, {len(new_commands_complex)} commands")
+    print("Polygonized points:")
+    for i, cmd in enumerate(new_commands_complex):
+        if cmd == "Z":
+            print(f"  {i:2d}: {cmd} (close path - no point data)")
+        else:
+            point = new_points_complex[i]
+            print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+
+    # Show statistics
+    original_curves = sum(1 for cmd in complex_path_commands if cmd in ["Q", "C"])
+    original_lines = sum(1 for cmd in complex_path_commands if cmd in ["L"])
+    total_segments = sum(1 for cmd in new_commands_complex if cmd == "L")
+
+    print("\nPolygonization statistics:")
+    print(f"  Original curves: {original_curves}")
+    print(f"  Original lines: {original_lines}")
+    print(f"  Total line segments after polygonization: {total_segments}")
+    print(
+        f"  Average segments per curve: {total_segments / original_curves:.1f}"
+        if original_curves > 0
+        else "  No curves to polygonize"
+    )
 
 
 if __name__ == "__main__":
