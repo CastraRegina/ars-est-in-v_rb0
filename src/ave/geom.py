@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from typing import List, Sequence, Tuple, Union
 
 import numpy as np
@@ -571,6 +570,17 @@ class AvBox:
             f"AvBox(xmin={self._xmin}, ymin={self._ymin}, "
             f"      xmax={self._xmax}, ymax={self._ymax}, "
             f"      width={self.width}, height={self.height})"
+        )
+
+    def __eq__(self, other):
+        """Check if two AvBox instances are equal."""
+        if not isinstance(other, AvBox):
+            return False
+        return (
+            self._xmin == other._xmin
+            and self._ymin == other._ymin
+            and self._xmax == other._xmax
+            and self._ymax == other._ymax
         )
 
     def transform_affine(self, affine_trafo: Sequence[Union[int, float]]) -> AvBox:
