@@ -24,12 +24,16 @@ STEPS_LIST = [10, 20, 30, 35, 40, 50, 60, 70, 80, 90, 100, 150, 200, 300, 500, 7
 
 def test_python_method(steps: int):
     """Test the pure Python implementation"""
-    return BezierCurve.polygonize_quadratic_curve_python(POINTS, steps)
+    result = np.empty((steps + 1, 3), dtype=np.float64)
+    BezierCurve.polygonize_quadratic_curve_python_inplace(POINTS, steps, result, start_index=0, skip_first=False)
+    return result
 
 
 def test_numpy_method(steps: int):
     """Test the NumPy implementation"""
-    return BezierCurve.polygonize_quadratic_curve_numpy(POINTS, steps)
+    result = np.empty((steps + 1, 3), dtype=np.float64)
+    BezierCurve.polygonize_quadratic_curve_numpy_inplace(POINTS, steps, result, start_index=0, skip_first=False)
+    return result
 
 
 def test_auto_method(steps: int):
@@ -95,11 +99,26 @@ def test_different_input_formats():
 
     steps = 100
 
-    python_tuple = BezierCurve.polygonize_quadratic_curve_python(tuple_points, steps)
-    python_numpy = BezierCurve.polygonize_quadratic_curve_python(numpy_points, steps)
+    # Allocate buffers for in-place computations
+    python_tuple = np.empty((steps + 1, 3), dtype=np.float64)
+    python_numpy = np.empty((steps + 1, 3), dtype=np.float64)
+    numpy_tuple = np.empty((steps + 1, 3), dtype=np.float64)
+    numpy_numpy = np.empty((steps + 1, 3), dtype=np.float64)
 
-    numpy_tuple = BezierCurve.polygonize_quadratic_curve_numpy(tuple_points, steps)
-    numpy_numpy = BezierCurve.polygonize_quadratic_curve_numpy(numpy_points, steps)
+    # Use the in-place implementations from geom.py
+    BezierCurve.polygonize_quadratic_curve_python_inplace(
+        tuple_points, steps, python_tuple, start_index=0, skip_first=False
+    )
+    BezierCurve.polygonize_quadratic_curve_python_inplace(
+        numpy_points, steps, python_numpy, start_index=0, skip_first=False
+    )
+
+    BezierCurve.polygonize_quadratic_curve_numpy_inplace(
+        tuple_points, steps, numpy_tuple, start_index=0, skip_first=False
+    )
+    BezierCurve.polygonize_quadratic_curve_numpy_inplace(
+        numpy_points, steps, numpy_numpy, start_index=0, skip_first=False
+    )
 
     auto_tuple = BezierCurve.polygonize_quadratic_curve(tuple_points, steps)
     auto_numpy = BezierCurve.polygonize_quadratic_curve(numpy_points, steps)

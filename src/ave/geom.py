@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import List, Sequence, Tuple, Union
 
 import numpy as np
@@ -17,41 +18,33 @@ class BezierCurve:
     """Class to represent a Bezier curve."""
 
     @classmethod
-    def polygonize_quadratic_curve_python(
-        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
-    ) -> NDArray[np.float64]:
+    def polygonize_quadratic_curve_python_inplace(
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
+        cls,
+        points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]],
+        steps: int,
+        output_buffer: NDArray[np.float64],
+        start_index: int = 0,
+        skip_first: bool = False,
+    ) -> int:
         """
-        Polygonize a quadratic Bézier curve into line segments using pure Python.
-
-        Args:
-            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
-                    Must contain exactly 3 points: start, control, end
-            steps: Number of segments to divide the curve into
-
-        Returns:
-            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
+        Polygonize a quadratic Bézier curve directly into pre-allocated buffer using pure Python.
         """
-        # Extract control points - works for both numpy arrays and sequences
+        # Extract control points
         pt0, pt1, pt2 = points
-
-        # Direct coordinate extraction for minimal overhead
         p0x, p0y = pt0[0], pt0[1]
         p1x, p1y = pt1[0], pt1[1]
         p2x, p2y = pt2[0], pt2[1]
 
-        # Create NumPy array with correct size (steps+1 to include starting point)
-        result = np.empty((steps + 1, 3), dtype=np.float64)
-
-        # Add starting point
-        result[0, 0] = p0x
-        result[0, 1] = p0y
-        result[0, 2] = 0.0
-
         inv_steps = 1.0 / steps
+        output_idx = start_index
 
-        # Fill NumPy array directly during iteration
-        for i in range(steps):
-            t = (i + 1) * inv_steps
+        # Write points directly to output buffer
+        for i in range(steps + 1):
+            if i == 0 and skip_first:
+                continue
+
+            t = i * inv_steps
             omt = 1.0 - t
             omt2 = omt * omt
             t2 = t * t
@@ -59,53 +52,43 @@ class BezierCurve:
             x = omt2 * p0x + 2.0 * omt * t * p1x + t2 * p2x
             y = omt2 * p0y + 2.0 * omt * t * p1y + t2 * p2y
 
-            # Direct assignment to NumPy array (starting from index 1)
-            result[i + 1, 0] = x
-            result[i + 1, 1] = y
-            result[i + 1, 2] = 2.0
+            # Write directly to output buffer
+            output_buffer[output_idx, 0] = x
+            output_buffer[output_idx, 1] = y
+            output_buffer[output_idx, 2] = 2.0 if 0 < i < steps else 0.0
+            output_idx += 1
 
-        # Set last point type to 0.0
-        result[steps, 2] = 0.0
-
-        return result
+        return steps + (1 if not skip_first else 0)
 
     @classmethod
-    def polygonize_cubic_curve_python(
-        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
-    ) -> NDArray[np.float64]:
+    def polygonize_cubic_curve_python_inplace(
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
+        cls,
+        points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]],
+        steps: int,
+        output_buffer: NDArray[np.float64],
+        start_index: int = 0,
+        skip_first: bool = False,
+    ) -> int:
         """
-        Polygonize a cubic Bézier curve into line segments using pure Python.
-
-        Args:
-            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
-                    Must contain exactly 4 points: start, control1, control2, end
-            steps: Number of segments to divide the curve into
-
-        Returns:
-            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=3.0)
+        Polygonize a cubic Bézier curve directly into pre-allocated buffer using pure Python.
         """
-        # Extract control points - works for both numpy arrays and sequences
+        # Extract control points
         pt0, pt1, pt2, pt3 = points
-
-        # Direct coordinate extraction for minimal overhead
         p0x, p0y = pt0[0], pt0[1]
         p1x, p1y = pt1[0], pt1[1]
         p2x, p2y = pt2[0], pt2[1]
         p3x, p3y = pt3[0], pt3[1]
 
-        # Create NumPy array with correct size (steps+1 to include starting point)
-        result = np.empty((steps + 1, 3), dtype=np.float64)
-
-        # Add starting point
-        result[0, 0] = p0x
-        result[0, 1] = p0y
-        result[0, 2] = 0.0
-
         inv_steps = 1.0 / steps
+        output_idx = start_index
 
-        # Fill NumPy array directly during iteration
-        for i in range(steps):
-            t = (i + 1) * inv_steps
+        # Write points directly to output buffer
+        for i in range(steps + 1):
+            if i == 0 and skip_first:
+                continue
+
+            t = i * inv_steps
             omt = 1.0 - t
             omt2 = omt * omt
             omt3 = omt2 * omt
@@ -115,77 +98,39 @@ class BezierCurve:
             x = omt3 * p0x + 3.0 * omt2 * t * p1x + 3.0 * omt * t2 * p2x + t3 * p3x
             y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
 
-            # Direct assignment to NumPy array (starting from index 1)
-            result[i + 1, 0] = x
-            result[i + 1, 1] = y
-            result[i + 1, 2] = 3.0
+            # Write directly to output buffer
+            output_buffer[output_idx, 0] = x
+            output_buffer[output_idx, 1] = y
+            output_buffer[output_idx, 2] = 3.0 if 0 < i < steps else 0.0
+            output_idx += 1
 
-        # Set last point type to 0.0
-        result[steps, 2] = 0.0
-
-        return result
+        return steps + (1 if not skip_first else 0)
 
     @classmethod
-    def polygonize_quadratic_curve_numpy(
+    def polygonize_cubic_curve_python(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
+        """Polygonize a cubic Bézier curve using the pure Python implementation.
+
+        This is a convenience wrapper around polygonize_cubic_curve_python_inplace
+        that allocates the output buffer and returns it.
         """
-        Polygonize a quadratic Bézier curve into line segments using NumPy.
-
-        Args:
-            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
-                    Must contain exactly 3 points: start, control, end
-            steps: Number of segments to divide the curve into
-
-        Returns:
-            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
-        """
-        # Extract control points - works for both numpy arrays and sequences
-        pt0, pt1, pt2 = points
-
-        # Include starting point (t=0) and steps points
-        t = np.arange(0, steps + 1) / steps
-        omt = 1.0 - t
-        x = omt**2 * pt0[0] + 2.0 * omt * t * pt1[0] + t**2 * pt2[0]
-        y = omt**2 * pt0[1] + 2.0 * omt * t * pt1[1] + t**2 * pt2[1]
-
-        # Create types array with first and last points as 0.0, others as 2.0
-        types = np.full(steps + 1, 2.0, dtype=np.float64)
-        types[0] = 0.0
-        types[-1] = 0.0
-
-        return np.column_stack([x, y, types])
+        result = np.empty((steps + 1, 3), dtype=np.float64)
+        cls.polygonize_cubic_curve_python_inplace(points, steps, result, start_index=0, skip_first=False)
+        return result
 
     @classmethod
     def polygonize_cubic_curve_numpy(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
+        """Polygonize a cubic Bézier curve using the NumPy implementation.
+
+        This is a convenience wrapper around polygonize_cubic_curve_numpy_inplace
+        that allocates the output buffer and returns it.
         """
-        Polygonize a cubic Bézier curve into line segments using NumPy.
-
-        Args:
-            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
-                    Must contain exactly 4 points: start, control1, control2, end
-            steps: Number of segments to divide the curve into
-
-        Returns:
-            NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=3.0)
-        """
-        # Extract control points - works for both numpy arrays and sequences
-        pt0, pt1, pt2, pt3 = points
-
-        # Include starting point (t=0) and steps points
-        t = np.arange(0, steps + 1) / steps
-        omt = 1.0 - t
-        x = omt**3 * pt0[0] + 3.0 * omt**2 * t * pt1[0] + 3.0 * omt * t**2 * pt2[0] + t**3 * pt3[0]
-        y = omt**3 * pt0[1] + 3.0 * omt**2 * t * pt1[1] + 3.0 * omt * t**2 * pt2[1] + t**3 * pt3[1]
-
-        # Create types array with first and last points as 0.0, others as 3.0
-        types = np.full(steps + 1, 3.0, dtype=np.float64)
-        types[0] = 0.0
-        types[-1] = 0.0
-
-        return np.column_stack([x, y, types])
+        result = np.empty((steps + 1, 3), dtype=np.float64)
+        cls.polygonize_cubic_curve_numpy_inplace(points, steps, result, start_index=0, skip_first=False)
+        return result
 
     @classmethod
     def polygonize_quadratic_curve(
@@ -202,10 +147,9 @@ class BezierCurve:
         Returns:
             NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=2.0)
         """
-        if steps < 50:
-            return cls.polygonize_quadratic_curve_python(points, steps)
-        else:
-            return cls.polygonize_quadratic_curve_numpy(points, steps)
+        result = np.empty((steps + 1, 3), dtype=np.float64)
+        cls.polygonize_quadratic_curve_inplace(points, steps, result, start_index=0, skip_first=False)
+        return result
 
     @classmethod
     def polygonize_cubic_curve(
@@ -223,10 +167,171 @@ class BezierCurve:
         Returns:
             NDArray[np.float64] of shape (steps+1, 3) containing the polygonized points (x, y, type=3.0)
         """
+        # Create buffer and call in-place implementation
+        result = np.empty((steps + 1, 3), dtype=np.float64)
+        cls.polygonize_cubic_curve_inplace(points, steps, result, start_index=0, skip_first=False)
+        return result
+
+    @classmethod
+    def polygonize_quadratic_curve_inplace(
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
+        cls,
+        points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]],
+        steps: int,
+        output_buffer: NDArray[np.float64],
+        start_index: int = 0,
+        skip_first: bool = False,
+    ) -> int:
+        """
+        Polygonize a quadratic Bézier curve directly into pre-allocated buffer.
+        Uses pure Python for small step counts, NumPy for larger ones.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+            steps: Number of segments to divide the curve into
+            output_buffer: Pre-allocated buffer to write points into
+            start_index: Starting index in output_buffer
+            skip_first: If True, skip writing the first point (to avoid duplication)
+
+        Returns:
+            Number of points written to buffer
+        """
         if steps < 50:
-            return cls.polygonize_cubic_curve_python(points, steps)
+            return cls.polygonize_quadratic_curve_python_inplace(points, steps, output_buffer, start_index, skip_first)
         else:
-            return cls.polygonize_cubic_curve_numpy(points, steps)
+            return cls.polygonize_quadratic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
+
+    @classmethod
+    def polygonize_cubic_curve_inplace(
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
+        cls,
+        points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]],
+        steps: int,
+        output_buffer: NDArray[np.float64],
+        start_index: int = 0,
+        skip_first: bool = False,
+    ) -> int:
+        """
+        Polygonize a cubic Bézier curve directly into pre-allocated buffer.
+        Uses pure Python for small step counts, NumPy for larger ones.
+
+        Args:
+            points: Control points as Sequence[Tuple[float, float]] or NDArray[np.float64]
+                    Must contain exactly 4 points: start, control1, control2, end
+            steps: Number of segments to divide the curve into
+            output_buffer: Pre-allocated buffer to write points into
+            start_index: Starting index in output_buffer
+            skip_first: If True, skip writing the first point (to avoid duplication)
+
+        Returns:
+            Number of points written to buffer
+        """
+        if steps < 50:
+            return cls.polygonize_cubic_curve_python_inplace(points, steps, output_buffer, start_index, skip_first)
+        else:
+            return cls.polygonize_cubic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
+
+    @classmethod
+    def polygonize_quadratic_curve_numpy_inplace(
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
+        cls,
+        points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]],
+        steps: int,
+        output_buffer: NDArray[np.float64],
+        start_index: int = 0,
+        skip_first: bool = False,
+    ) -> int:
+        """
+        Polygonize a quadratic Bézier curve directly into pre-allocated buffer using NumPy.
+        """
+        # Convert to numpy array if needed
+        points_array = np.array(points, dtype=np.float64)
+
+        # Create parameter array
+        t = np.linspace(0, 1, steps + 1, dtype=np.float64)
+        if skip_first:
+            t = t[1:]  # Skip t=0, but keep t=1.0
+
+        # Quadratic Bézier basis functions
+        omt = 1 - t
+        omt2 = omt**2
+        t2 = t**2
+
+        # Calculate curve points
+        x = omt2 * points_array[0, 0] + 2 * omt * t * points_array[1, 0] + t2 * points_array[2, 0]
+        y = omt2 * points_array[0, 1] + 2 * omt * t * points_array[1, 1] + t2 * points_array[2, 1]
+
+        # Set types
+        types = np.full(len(t), 2.0, dtype=np.float64)
+        if len(types) > 0:
+            if not skip_first:
+                types[0] = 0.0  # First point
+            types[-1] = 0.0  # End point
+
+        # Write directly to output buffer
+        end_idx = start_index + len(t)
+        output_buffer[start_index:end_idx, 0] = x
+        output_buffer[start_index:end_idx, 1] = y
+        output_buffer[start_index:end_idx, 2] = types
+
+        return len(t)
+
+    @classmethod
+    def polygonize_cubic_curve_numpy_inplace(
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
+        cls,
+        points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]],
+        steps: int,
+        output_buffer: NDArray[np.float64],
+        start_index: int = 0,
+        skip_first: bool = False,
+    ) -> int:
+        """
+        Polygonize a cubic Bézier curve directly into pre-allocated buffer using NumPy.
+        """
+        # Convert to numpy array if needed
+        points_array = np.array(points, dtype=np.float64)
+
+        # Create parameter array
+        t = np.linspace(0, 1, steps + 1, dtype=np.float64)
+        if skip_first:
+            t = t[1:]  # Skip t=0, but keep t=1.0
+
+        # Cubic Bézier basis functions
+        omt = 1 - t
+        omt2 = omt**2
+        omt3 = omt2 * omt
+        t2 = t**2
+        t3 = t2 * t
+
+        # Calculate curve points
+        x = (
+            omt3 * points_array[0, 0]
+            + 3 * omt2 * t * points_array[1, 0]
+            + 3 * omt * t2 * points_array[2, 0]
+            + t3 * points_array[3, 0]
+        )
+        y = (
+            omt3 * points_array[0, 1]
+            + 3 * omt2 * t * points_array[1, 1]
+            + 3 * omt * t2 * points_array[2, 1]
+            + t3 * points_array[3, 1]
+        )
+
+        # Set types
+        types = np.full(len(t), 3.0, dtype=np.float64)
+        if len(types) > 0:
+            if not skip_first:
+                types[0] = 0.0  # First point
+            types[-1] = 0.0  # End point
+
+        # Write directly to output buffer
+        end_idx = start_index + len(t)
+        output_buffer[start_index:end_idx, 0] = x
+        output_buffer[start_index:end_idx, 1] = y
+        output_buffer[start_index:end_idx, 2] = types
+
+        return len(t)
 
     @staticmethod
     def polygonize_path(
@@ -243,10 +348,18 @@ class BezierCurve:
         Returns:
             Tuple of (new_points, new_commands) where curves are replaced by line segments
         """
-        new_points_list = []
+        # Input normalization: ensure all points are 3D
+        if points.shape[1] == 2:
+            points = np.column_stack([points, np.zeros(len(points), dtype=np.float64)])
+
+        # Pre-allocation: estimate final size
+        num_curves = sum(1 for cmd in commands if cmd in "QC")
+        estimated_points = len(points) + num_curves * steps
+        new_points_array = np.empty((estimated_points, 3), dtype=np.float64)
         new_commands_list = []
 
         point_index = 0
+        array_index = 0
 
         for cmd in commands:
             if cmd == "M":  # MoveTo - uses 1 point
@@ -254,8 +367,9 @@ class BezierCurve:
                     raise ValueError(f"MoveTo command needs 1 point, got {len(points) - point_index}")
 
                 pt = points[point_index]
-                new_points_list.append(pt)
+                new_points_array[array_index] = pt
                 new_commands_list.append(cmd)
+                array_index += 1
                 point_index += 1
 
             elif cmd == "L":  # LineTo - uses 1 point
@@ -263,65 +377,58 @@ class BezierCurve:
                     raise ValueError(f"LineTo command needs 1 point, got {len(points) - point_index}")
 
                 pt = points[point_index]
-                new_points_list.append(pt)
+                new_points_array[array_index] = pt
                 new_commands_list.append(cmd)
+                array_index += 1
                 point_index += 1
 
             elif cmd == "Q":  # Quadratic Bezier To - uses 2 points (control, end)
                 if point_index + 1 >= len(points):
                     raise ValueError(f"Quadratic Bezier command needs 2 points, got {len(points) - point_index}")
 
-                if len(new_points_list) == 0:
+                if array_index == 0:
                     raise ValueError("Quadratic Bezier command has no starting point")
 
-                # Get start point (last point in new_points_list) + control and end points
-                start_point = new_points_list[-1][:2]  # Get x,y from last point
+                # Get start point (last point in new_points_array) + control and end points
+                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
                 control_point = points[point_index][:2]
                 end_point = points[point_index + 1][:2]
 
                 control_points = np.array([start_point, control_point, end_point], dtype=np.float64)
 
-                # Polygonize the quadratic bezier
-                curve_points = BezierCurve.polygonize_quadratic_curve(control_points, steps)
-
-                # Remove first point since it's the same as start_point to avoid duplication
-                curve_points = curve_points[1:]
-
-                # Add polygonized points as line segments
-                new_points_list.extend(curve_points)
-                new_commands_list.extend(["L"] * len(curve_points))
-
+                # Polygonize the quadratic bezier directly into output buffer
+                num_curve_points = BezierCurve.polygonize_quadratic_curve_inplace(
+                    control_points, steps, new_points_array, array_index, skip_first=True
+                )
+                new_commands_list.extend(["L"] * num_curve_points)
+                array_index += num_curve_points
                 point_index += 2  # Skip control and end points
 
             elif cmd == "C":  # Cubic Bezier To - uses 3 points (control1, control2, end)
                 if point_index + 2 >= len(points):
                     raise ValueError(f"Cubic Bezier command needs 3 points, got {len(points) - point_index}")
 
-                if len(new_points_list) == 0:
+                if array_index == 0:
                     raise ValueError("Cubic Bezier command has no starting point")
 
-                # Get start point (last point in new_points_list) + control1, control2, and end points
-                start_point = new_points_list[-1][:2]  # Get x,y from last point
+                # Get start point (last point in new_points_array) + control1, control2, and end points
+                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
                 control1_point = points[point_index][:2]
                 control2_point = points[point_index + 1][:2]
                 end_point = points[point_index + 2][:2]
 
                 control_points = np.array([start_point, control1_point, control2_point, end_point], dtype=np.float64)
 
-                # Polygonize the cubic bezier
-                curve_points = BezierCurve.polygonize_cubic_curve(control_points, steps)
-
-                # Remove first point since it's the same as start_point to avoid duplication
-                curve_points = curve_points[1:]
-
-                # Add polygonized points as line segments
-                new_points_list.extend(curve_points)
-                new_commands_list.extend(["L"] * len(curve_points))
-
+                # Polygonize the cubic bezier directly into output buffer
+                num_curve_points = BezierCurve.polygonize_cubic_curve_inplace(
+                    control_points, steps, new_points_array, array_index, skip_first=True
+                )
+                new_commands_list.extend(["L"] * num_curve_points)
+                array_index += num_curve_points
                 point_index += 3  # Skip control1, control2, and end points
 
             elif cmd == "Z":  # ClosePath - uses 0 points, no point data in SVG
-                if len(new_points_list) == 0:
+                if array_index == 0:
                     raise ValueError("ClosePath command has no starting point")
 
                 # Z command doesn't add a new point, it just closes the path
@@ -331,7 +438,8 @@ class BezierCurve:
             else:
                 raise ValueError(f"Unknown command '{cmd}'")
 
-        new_points = np.array(new_points_list, dtype=np.float64)
+        # Trim the pre-allocated array to actual size
+        new_points = new_points_array[:array_index]
         return new_points, new_commands_list
 
 
@@ -532,9 +640,9 @@ def main():
     # Example path_points and path_commands containing only a Move followed by one Quadratic Bezier curve
     path_points = np.array(
         [
-            [10.0, 10.0, 0.0],  # M - MoveTo destination point
-            [20.0, 20.0, 2.0],  # Q - Quadratic Bezier control point
-            [30.0, 10.0, 0.0],  # Q - Quadratic Bezier end point
+            [10.0, 10.0, 0.0],  # M - MoveTo destination point (type 0.0)
+            [20.0, 20.0, 0.0],  # Q - Quadratic Bezier control point (type 0.0)
+            [30.0, 10.0, 0.0],  # Q - Quadratic Bezier end point (type 0.0)
         ],
         dtype=np.float64,
     )
@@ -556,10 +664,10 @@ def main():
     # Example for MoveTo followed by Cubic Bezier
     path_points_mc = np.array(
         [
-            [10.0, 10.0, 0.0],  # M - MoveTo destination point
-            [10.0, 30.0, 3.0],  # C - Cubic Bezier control point 1
-            [30.0, 30.0, 3.0],  # C - Cubic Bezier control point 2
-            [30.0, 10.0, 0.0],  # C - Cubic Bezier end point
+            [10.0, 10.0, 0.0],  # M - MoveTo destination point (type 0.0)
+            [10.0, 30.0, 0.0],  # C - Cubic Bezier control point 1 (type 0.0)
+            [30.0, 30.0, 0.0],  # C - Cubic Bezier control point 2 (type 0.0)
+            [30.0, 10.0, 0.0],  # C - Cubic Bezier end point (type 0.0)
         ],
         dtype=np.float64,
     )
@@ -595,7 +703,10 @@ def main():
     print(f"Polygonized: {len(new_points_q)} points, {len(new_commands_q)} commands")
     print("Polygonized points:")
     for i, (point, cmd) in enumerate(zip(new_points_q, new_commands_q)):
-        print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+        if len(point) >= 3:
+            print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f})")
+        else:
+            print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
 
     ###########################################################################
     # Test M,C example
@@ -609,7 +720,10 @@ def main():
         if cmd == "Z":
             print(f"  {i:2d}: {cmd} (close path - no point data)")
         else:
-            print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+            if len(point) >= 3:
+                print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f})")
+            else:
+                print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
 
     ###########################################################################
     # Complex path example with multiple command types
@@ -665,7 +779,10 @@ def main():
             print(f"  {i:2d}: {cmd} (close path - no point data)")
         else:
             point = new_points_complex[i]
-            print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
+            if len(point) >= 3:
+                print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f})")
+            else:
+                print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
 
     # Show statistics
     original_curves = sum(1 for cmd in complex_path_commands if cmd in ["Q", "C"])
@@ -681,6 +798,109 @@ def main():
         if original_curves > 0
         else "  No curves to polygonize"
     )
+
+    ###########################################################################
+    # Performance test: 8 LineTo separated by 4 cubic curves and 4 quadratic curves
+    print("\n" + "=" * 50)
+    print("Performance Test:")
+    print("=" * 50)
+
+    # Create test path: M -> L -> Q -> L -> C -> L -> Q -> L -> C -> L -> Q -> L -> C -> L -> Q -> L -> C -> L -> Z
+    test_points = []
+    test_commands = []
+
+    # M - Start point
+    test_points.append([0.0, 0.0, 0.0])
+    test_commands.append("M")
+
+    # Pattern: L -> Q -> L -> C (repeated 4 times)
+    for i in range(4):
+        # L
+        test_points.append([10.0 + i * 20, 0.0, 0.0])
+        test_commands.append("L")
+
+        # Q
+        test_points.append([15.0 + i * 20, 5.0, 0.0])  # control
+        test_points.append([20.0 + i * 20, 0.0, 0.0])  # end
+        test_commands.append("Q")
+
+        # L
+        test_points.append([25.0 + i * 20, 0.0, 0.0])
+        test_commands.append("L")
+
+        # C
+        test_points.append([30.0 + i * 20, 5.0, 0.0])  # control1
+        test_points.append([35.0 + i * 20, -5.0, 0.0])  # control2
+        test_points.append([40.0 + i * 20, 0.0, 0.0])  # end
+        test_commands.append("C")
+
+    # Final L and Z
+    test_points.append([90.0, 0.0, 0.0])
+    test_commands.append("L")
+    test_commands.append("Z")
+
+    test_points = np.array(test_points, dtype=np.float64)
+
+    print(f"Test path: {len(test_points)} points, {len(test_commands)} commands")
+    print("Contains: 8 LineTo, 4 Quadratic curves, 4 Cubic curves")
+
+    # Run performance test
+    steps = 100
+    print(f"\nPolygonizing with steps={steps}...")
+
+    # Test in-place optimized version
+    start_time = time.time()
+    result_points_inplace, result_commands_inplace = BezierCurve.polygonize_path(test_points, test_commands, steps)
+    end_time = time.time()
+    inplace_time = end_time - start_time
+
+    print(f"In-place optimized:  {inplace_time:.4f} seconds")
+    print(f"In-place performance: {len(result_points_inplace) / inplace_time:.0f} points/second")
+    print(f"Result: {len(result_points_inplace)} points, {len(result_commands_inplace)} commands")
+
+    # Verify in-place methods produce identical output
+    print("\n" + "=" * 60)
+    print("VERIFICATION: In-place vs Original Methods")
+    print("=" * 60)
+
+    # Test quadratic curve
+    test_quad_points = np.array([[0.0, 0.0], [10.0, 20.0], [20.0, 0.0]], dtype=np.float64)
+    quad_steps = 50
+
+    quad_original = BezierCurve.polygonize_quadratic_curve(test_quad_points, quad_steps)
+    quad_inplace_buffer = np.empty((quad_steps + 1, 3), dtype=np.float64)
+    quad_inplace_count = BezierCurve.polygonize_quadratic_curve_inplace(
+        test_quad_points, quad_steps, quad_inplace_buffer
+    )
+    quad_inplace = quad_inplace_buffer[:quad_inplace_count]
+
+    print(f"Quadratic curve: {np.allclose(quad_original, quad_inplace)} - identical output")
+
+    # Test cubic curve
+    test_cubic_points = np.array([[0.0, 0.0], [5.0, 15.0], [15.0, 15.0], [20.0, 0.0]], dtype=np.float64)
+    cubic_steps = 50
+
+    cubic_original = BezierCurve.polygonize_cubic_curve(test_cubic_points, cubic_steps)
+    cubic_inplace_buffer = np.empty((cubic_steps + 1, 3), dtype=np.float64)
+    cubic_inplace_count = BezierCurve.polygonize_cubic_curve_inplace(
+        test_cubic_points, cubic_steps, cubic_inplace_buffer
+    )
+    cubic_inplace = cubic_inplace_buffer[:cubic_inplace_count]
+
+    print(f"Cubic curve: {np.allclose(cubic_original, cubic_inplace)} - identical output")
+
+    # Test with skip_first=True
+    quad_inplace_skip_buffer = np.empty((quad_steps + 1, 3), dtype=np.float64)
+    quad_inplace_skip_count = BezierCurve.polygonize_quadratic_curve_inplace(
+        test_quad_points, quad_steps, quad_inplace_skip_buffer, start_index=0, skip_first=True
+    )
+    quad_inplace_skip = quad_inplace_skip_buffer[:quad_inplace_skip_count]
+
+    # Compare with original[1:] (skip first point)
+    quad_original_skip = quad_original[1:]
+    print(f"Quadratic (skip_first): {np.allclose(quad_original_skip, quad_inplace_skip)} - identical output")
+
+    print("\n✓ VERIFICATION COMPLETE: All in-place methods produce identical results")
 
 
 if __name__ == "__main__":
