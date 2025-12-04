@@ -14,7 +14,7 @@ from numpy.typing import NDArray
 import ave.common
 from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen
-from ave.geom import AvBox
+from ave.geom import AvBox, BezierCurve
 
 ###############################################################################
 # Glyph
@@ -35,6 +35,9 @@ class AvGlyph:
     _points: NDArray[np.float64]  # shape (n_points, 3)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _bounding_box: Optional[AvBox] = None  # caching variable
+
+    # Number of steps to use when polygonizing curves for bounding box calculation
+    POLYGONIZE_STEPS_BOUNDING_BOX: int = 100  # pylint: disable=invalid-name
 
     def __init__(
         self,
@@ -175,21 +178,32 @@ class AvGlyph:
 
         # No points, so bounding box is set to size 0.
         if not self._points.size:
-            self._bounding_box = AvBox(0, 0, 0, 0)
+            self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
             return self._bounding_box
 
-        # TODO: calculate bounding box taking into account the curves and not the control points
+        # Check if path contains curves that need polygonization for accurate bounding box
+        has_curves = any(cmd in ["Q", "C"] for cmd in self._commands)
 
-        # Check which one is faster:
-        # x_min, y_min = self._points.min(axis=0)
-        # x_max, y_max = self._points.max(axis=0)
-        # ---------------------------------------------------------------------
-        # x_min, x_max = self._points[:, 0].min(), self._points[:, 0].max()
-        # y_min, y_max = self._points[:, 1].min(), self._points[:, 1].max()
-        # (my check so far: the 2nd, sliced version is faster):
-        points_x = self._points[:, 0]
-        points_y = self._points[:, 1]
-        x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
+        if not has_curves:
+            # No curves, use simple min/max calculation on existing points
+            points_x = self._points[:, 0]
+            points_y = self._points[:, 1]
+            x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
+        else:
+            # Has curves, polygonize temporarily to get accurate bounding box
+            # Use a reasonable number of steps for curve approximation
+            polygonized_points, _ = BezierCurve.polygonize_path(
+                self._points, self._commands, self.POLYGONIZE_STEPS_BOUNDING_BOX
+            )
+
+            if polygonized_points.size == 0:
+                self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
+                return self._bounding_box
+
+            # Calculate bounding box from polygonized points
+            points_x = polygonized_points[:, 0]
+            points_y = polygonized_points[:, 1]
+            x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
 
         self._bounding_box = AvBox(x_min, y_min, x_max, y_max)
         return self._bounding_box
@@ -596,7 +610,7 @@ class AvFontProperties:
         Extract a name string with multiple fallbacks.
         This is the most robust way to read name records from real-world fonts.
         """
-        # 1. Fast path – getDebugName handles most cases correctly
+        # 1. Fast path - getDebugName handles most cases correctly
         name = name_table.getDebugName(name_id)
         if name is not None:
             return name
