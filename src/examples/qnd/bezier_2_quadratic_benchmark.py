@@ -8,7 +8,7 @@ import numpy as np
 
 
 class DummyDrawer:
-    """Minimal mock — only used to make the call overhead identical"""
+    """Minimal mock - only used to make the call overhead identical"""
 
     def _line_to_type(self, point: Tuple[float, float], width: float):
         pass  # Replace with `blackhole = point` if you want to prevent optimization
@@ -52,7 +52,7 @@ def version2_python_loop(steps: int):
 
 def version3_numpy_fast(steps: int):
     drawer._polygonize_steps = steps
-    t = np.linspace(0, 1, steps + 1)[1:]  # from 1/steps → 1
+    t = np.linspace(0, 1, steps + 1)[1:]  # from 1/steps -> 1
     a = (1 - t) ** 2
     b = 2 * (1 - t) * t
     c = t**2
@@ -67,7 +67,7 @@ versions = {
     "NumPy fast": version3_numpy_fast,
 }
 
-print("Quadratic Bézier polygonization benchmark (lower = better)")
+print("Quadratic Bezier polygonization benchmark (lower = better)")
 print("Steps   |   NumPy (orig)   |   Python loop    |    NumPy fast    | Fastest")
 print("-" * 78)
 
@@ -105,12 +105,12 @@ for steps in STEPS_LIST:
     if time < overall_time:
         overall_time = time
         overall_fastest = best
-    print(f"{steps:6} steps → fastest: {best} ({results[steps][best]:.3f} ms)")
+    print(f"{steps:6} steps -> fastest: {best} ({results[steps][best]:.3f} ms)")
 
 print(f"\nOn your machine the overall fastest version is: {overall_fastest}")
 if overall_fastest == "NumPy fast":
-    print("→ Use version3_numpy_fast when polygonize_steps ≥ 100 (up to ~2.5× faster at 10k steps)")
+    print("-> Use version3_numpy_fast when polygonize_steps >= 100 (up to ~2.5x faster at 10k steps)")
 elif overall_fastest == "NumPy (original)":
-    print("→ Your current NumPy version is excellent — keep it!")
+    print("-> Your current NumPy version is excellent - keep it!")
 else:
-    print("→ Surprisingly, pure Python loop wins on your system for these step counts!")
+    print("-> Surprisingly, pure Python loop wins on your system for these step counts!")

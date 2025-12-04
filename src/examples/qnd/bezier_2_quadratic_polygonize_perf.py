@@ -6,7 +6,7 @@
 Performance Test for polygonize_quadratic_bezier methods
 
 Tests and compares the performance of pure Python vs NumPy implementations
-for quadratic Bézier curve polygonization.
+for quadratic Bezier curve polygonization.
 """
 
 import timeit
@@ -15,7 +15,7 @@ import numpy as np
 
 from ave.geom import BezierCurve
 
-# Test points for quadratic Bézier curve
+# Test points for quadratic Bezier curve
 POINTS = ((0.0, 0.0), (50.0, 200.0), (200.0, 0.0))
 
 # Test step counts

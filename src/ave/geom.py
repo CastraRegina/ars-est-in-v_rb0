@@ -27,7 +27,7 @@ class BezierCurve:
         skip_first: bool = False,
     ) -> int:
         """
-        Polygonize a quadratic Bézier curve directly into pre-allocated buffer using pure Python.
+        Polygonize a quadratic Bezier curve directly into pre-allocated buffer using pure Python.
         """
         # Extract control points
         pt0, pt1, pt2 = points
@@ -70,7 +70,7 @@ class BezierCurve:
         skip_first: bool = False,
     ) -> int:
         """
-        Polygonize a cubic Bézier curve directly into pre-allocated buffer using pure Python.
+        Polygonize a cubic Bezier curve directly into pre-allocated buffer using pure Python.
         """
         # Extract control points
         pt0, pt1, pt2, pt3 = points
@@ -109,7 +109,7 @@ class BezierCurve:
     def polygonize_cubic_curve_python(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
-        """Polygonize a cubic Bézier curve using the pure Python implementation.
+        """Polygonize a cubic Bezier curve using the pure Python implementation.
 
         This is a convenience wrapper around polygonize_cubic_curve_python_inplace
         that allocates the output buffer and returns it.
@@ -122,7 +122,7 @@ class BezierCurve:
     def polygonize_cubic_curve_numpy(
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
-        """Polygonize a cubic Bézier curve using the NumPy implementation.
+        """Polygonize a cubic Bezier curve using the NumPy implementation.
 
         This is a convenience wrapper around polygonize_cubic_curve_numpy_inplace
         that allocates the output buffer and returns it.
@@ -136,7 +136,7 @@ class BezierCurve:
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
         """
-        Polygonize a quadratic Bézier curve into line segments.
+        Polygonize a quadratic Bezier curve into line segments.
         Uses pure Python for small step counts, NumPy for larger ones.
 
         Args:
@@ -155,7 +155,7 @@ class BezierCurve:
         cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]], steps: int
     ) -> NDArray[np.float64]:
         """
-        Polygonize a cubic Bézier curve into line segments.
+        Polygonize a cubic Bezier curve into line segments.
         Uses pure Python for small step counts, NumPy for larger ones.
 
         Args:
@@ -182,7 +182,7 @@ class BezierCurve:
         skip_first: bool = False,
     ) -> int:
         """
-        Polygonize a quadratic Bézier curve directly into pre-allocated buffer.
+        Polygonize a quadratic Bezier curve directly into pre-allocated buffer.
         Uses pure Python for small step counts, NumPy for larger ones.
 
         Args:
@@ -211,7 +211,7 @@ class BezierCurve:
         skip_first: bool = False,
     ) -> int:
         """
-        Polygonize a cubic Bézier curve directly into pre-allocated buffer.
+        Polygonize a cubic Bezier curve directly into pre-allocated buffer.
         Uses pure Python for small step counts, NumPy for larger ones.
 
         Args:
@@ -241,7 +241,7 @@ class BezierCurve:
         skip_first: bool = False,
     ) -> int:
         """
-        Polygonize a quadratic Bézier curve directly into pre-allocated buffer using NumPy.
+        Polygonize a quadratic Bezier curve directly into pre-allocated buffer using NumPy.
         """
         # Convert to numpy array if needed
         points_array = np.array(points, dtype=np.float64)
@@ -251,7 +251,7 @@ class BezierCurve:
         if skip_first:
             t = t[1:]  # Skip t=0, but keep t=1.0
 
-        # Quadratic Bézier basis functions
+        # Quadratic Bezier basis functions
         omt = 1 - t
         omt2 = omt**2
         t2 = t**2
@@ -286,7 +286,7 @@ class BezierCurve:
         skip_first: bool = False,
     ) -> int:
         """
-        Polygonize a cubic Bézier curve directly into pre-allocated buffer using NumPy.
+        Polygonize a cubic Bezier curve directly into pre-allocated buffer using NumPy.
         """
         # Convert to numpy array if needed
         points_array = np.array(points, dtype=np.float64)
@@ -296,7 +296,7 @@ class BezierCurve:
         if skip_first:
             t = t[1:]  # Skip t=0, but keep t=1.0
 
-        # Cubic Bézier basis functions
+        # Cubic Bezier basis functions
         omt = 1 - t
         omt2 = omt**2
         omt3 = omt2 * omt

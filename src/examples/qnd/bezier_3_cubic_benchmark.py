@@ -14,7 +14,7 @@ class DummyDrawer:
 
 drawer = DummyDrawer()
 
-# Test cubic Bézier: a nice "S" shape
+# Test cubic Bezier: a nice "S" shape
 POINTS = ((0.0, 0.0), (100.0, 200.0), (0.0, -200.0), (200.0, 0.0))
 pt0, pt1, pt2, pt3 = POINTS
 
@@ -58,7 +58,7 @@ def numpy_original(steps: int):
 # Version 3: Ultra-optimized NumPy (Bernstein form + minimal temps)
 def numpy_fast(steps: int):
     drawer._polygonize_steps = steps
-    t = np.linspace(0, 1, steps + 1)[1:]  # 1/steps → 1.0
+    t = np.linspace(0, 1, steps + 1)[1:]  # 1/steps -> 1.0
     omt = 1.0 - t
 
     # Bernstein polynomial weights (very cache-friendly)
@@ -80,7 +80,7 @@ versions = {
     "NumPy fast": numpy_fast,
 }
 
-print("Cubic Bézier Polygonization Benchmark (lower = better)")
+print("Cubic Bezier Polygonization Benchmark (lower = better)")
 print("Steps   |   Python loop    |  NumPy (orig)    |   NumPy fast     | Fastest")
 print("-" * 82)
 
@@ -104,22 +104,22 @@ for steps in STEPS_LIST:
 
 # Final recommendation
 print("\n" + "=" * 82)
-print("RECOMMENDATION FOR CUBIC BÉZIER".center(82))
+print("RECOMMENDATION FOR CUBIC BEZIER".center(82))
 print("=" * 82)
 
 crossover = None
 for steps in sorted(results.keys()):
     best = min(results[steps], key=results[steps].get)
     time = results[steps][best]
-    print(f"{steps:6} steps → fastest: {best.ljust(18)} ({time:6.3f} ms)")
+    print(f"{steps:6} steps -> fastest: {best.ljust(18)} ({time:6.3f} ms)")
 
     if crossover is None and best.startswith("NumPy"):
         crossover = steps
 
 if crossover:
-    print(f"\nCrossover point on your machine: ~{crossover} steps")
-    print("→ Use pure Python loop when steps <", crossover)
-    print("→ Use NumPy (either version) when steps >=", crossover)
+    print("\nSummary:")
+    print(f"-> Use pure Python loop when steps < {crossover}")
+    print(f"-> Use NumPy (either version) when steps >= {crossover}")
 else:
     print("\nPure Python loop wins at all tested step counts!")
 

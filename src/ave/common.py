@@ -17,9 +17,9 @@ AvGlyphCmds = Literal[  # Type-Definition for SvgPath-Commands used in AvGlyph
     "M",
     # LineTo (2) - draw a straight line from the current point to (x,y)
     "L",
-    # Cubic Bezier To (6) - draw a cubic Bézier curve with two control points and an endpoint (x,y)
+    # Cubic Bezier To (6) - draw a cubic Bezier curve with two control points and an endpoint (x,y)
     "C",
-    # Quadratic Bezier To (4) - draw a quadratic Bézier curve with one control point and an endpoint (x,y)
+    # Quadratic Bezier To (4) - draw a quadratic Bezier curve with one control point and an endpoint (x,y)
     "Q",
     # ClosePath (0) - close subpath by drawing a line from the current point to start point
     "Z",

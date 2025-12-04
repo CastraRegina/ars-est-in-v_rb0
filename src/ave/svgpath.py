@@ -19,13 +19,13 @@ from typing import Callable, ClassVar, Optional, Sequence, Tuple, Union
 #     # Vertical LineTo (1) - draw a vertical line to the given y coordinate (x stays unchanged)
 #     "V",
 #     "v",
-#     # Cubic Bezier To (6) - draw a cubic Bézier curve with two control points and an endpoint (x,y)
+#     # Cubic Bezier To (6) - draw a cubic Bezier curve with two control points and an endpoint (x,y)
 #     "C",
 #     "c",
 #     # Smooth cubic Bezier To (4) - Cubic curve to (x,y) using the reflection of the previous cubic control point
 #     "S",
 #     "s",
-#     # Quadratic Bezier To (4) - draw a quadratic Bézier curve with one control point and an endpoint (x,y)
+#     # Quadratic Bezier To (4) - draw a quadratic Bezier curve with one control point and an endpoint (x,y)
 #     "Q",
 #     "q",
 #     # Smooth quadratic Bezier To (2) - Quadratic curve to (x,y) using the reflection of the previous control point

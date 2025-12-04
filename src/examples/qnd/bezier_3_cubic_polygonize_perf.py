@@ -6,7 +6,7 @@
 Performance Test for polygonize_cubic_bezier methods
 
 Tests and compares the performance of pure Python vs NumPy implementations
-for cubic Bézier curve polygonization.
+for cubic Bezier curve polygonization.
 """
 
 import timeit
@@ -15,7 +15,7 @@ import numpy as np
 
 from ave.geom import BezierCurve
 
-# Test points for cubic Bézier curve
+# Test points for cubic Bezier curve
 POINTS = ((0.0, 0.0), (50.0, 200.0), (150.0, -100.0), (200.0, 0.0))
 
 # Test step counts
