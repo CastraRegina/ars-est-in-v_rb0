@@ -685,12 +685,23 @@ def main():
     for cmd in path_commands_mc:
         print("    ", cmd)
 
+    #
+    #
+    #
+    #
+    #
+    #
+    #
     ###########################################################################
     ###########################################################################
     # Test the corrected polygonize_path method with both examples
 
-    polygonize_steps = 5
+    polygonize_steps = 3
+
     print("\n" + "=" * 50)
+    print("=" * 50)
+    print("=" * 50)
+    print("=" * 50)
     print("Testing polygonize_path method:")
     print("=" * 50)
 
@@ -699,7 +710,14 @@ def main():
     print("\nTesting M,Q example:")
     new_points_q, new_commands_q = BezierCurve.polygonize_path(path_points, path_commands, polygonize_steps)
 
-    print(f"Original: {len(path_points)} points, {len(path_commands)} commands")
+    print(f"Original points: {len(path_points)} points, {len(path_commands)} commands")
+    for i, point in enumerate(path_points):
+        if len(point) >= 3:
+            print(f"  {i:2d}: M({point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f})")
+        else:
+            print(f"  {i:2d}: M({point[0]:6.1f}, {point[1]:6.1f})")
+    print(f"Original commands: {path_commands}")
+
     print(f"Polygonized: {len(new_points_q)} points, {len(new_commands_q)} commands")
     print("Polygonized points:")
     for i, (point, cmd) in enumerate(zip(new_points_q, new_commands_q)):
@@ -713,7 +731,14 @@ def main():
     print("\nTesting M,C example:")
     new_points_c, new_commands_c = BezierCurve.polygonize_path(path_points_mc, path_commands_mc, polygonize_steps)
 
-    print(f"Original: {len(path_points_mc)} points, {len(path_commands_mc)} commands")
+    print(f"Original points: {len(path_points_mc)} points, {len(path_commands_mc)} commands")
+    for i, point in enumerate(path_points_mc):
+        if len(point) >= 3:
+            print(f"  {i:2d}: M({point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f})")
+        else:
+            print(f"  {i:2d}: M({point[0]:6.1f}, {point[1]:6.1f})")
+    print(f"Original commands: {path_commands_mc}")
+
     print(f"Polygonized: {len(new_points_c)} points, {len(new_commands_c)} commands")
     print("Polygonized points:")
     for i, (point, cmd) in enumerate(zip(new_points_c, new_commands_c)):
@@ -725,9 +750,19 @@ def main():
             else:
                 print(f"  {i:2d}: {cmd} ({point[0]:6.1f}, {point[1]:6.1f})")
 
+    #
+    #
+    #
+    #
+    #
+    #
+    #
     ###########################################################################
     # Complex path example with multiple command types
     print("\n" + "=" * 50)
+    print("=" * 50)
+    print("=" * 50)
+    print("=" * 50)
     print("Complex path example with multiple command types:")
     print("=" * 50)
 
@@ -759,8 +794,11 @@ def main():
     print("  Number of points:", len(complex_path_points))
     print("  Number of commands:", len(complex_path_commands))
     print("  Points:")
-    for point in complex_path_points:
-        print("    ", (point[0], point[1], point[2]))
+    for i, point in enumerate(complex_path_points):
+        if len(point) >= 3:
+            print(f"    {i:2d}: {point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f}")
+        else:
+            print(f"    {i:2d}: {point[0]:6.1f}, {point[1]:6.1f}")
     print("  Commands:")
     for cmd in complex_path_commands:
         print("    ", cmd)
@@ -798,109 +836,6 @@ def main():
         if original_curves > 0
         else "  No curves to polygonize"
     )
-
-    ###########################################################################
-    # Performance test: 8 LineTo separated by 4 cubic curves and 4 quadratic curves
-    print("\n" + "=" * 50)
-    print("Performance Test:")
-    print("=" * 50)
-
-    # Create test path: M -> L -> Q -> L -> C -> L -> Q -> L -> C -> L -> Q -> L -> C -> L -> Q -> L -> C -> L -> Z
-    test_points = []
-    test_commands = []
-
-    # M - Start point
-    test_points.append([0.0, 0.0, 0.0])
-    test_commands.append("M")
-
-    # Pattern: L -> Q -> L -> C (repeated 4 times)
-    for i in range(4):
-        # L
-        test_points.append([10.0 + i * 20, 0.0, 0.0])
-        test_commands.append("L")
-
-        # Q
-        test_points.append([15.0 + i * 20, 5.0, 0.0])  # control
-        test_points.append([20.0 + i * 20, 0.0, 0.0])  # end
-        test_commands.append("Q")
-
-        # L
-        test_points.append([25.0 + i * 20, 0.0, 0.0])
-        test_commands.append("L")
-
-        # C
-        test_points.append([30.0 + i * 20, 5.0, 0.0])  # control1
-        test_points.append([35.0 + i * 20, -5.0, 0.0])  # control2
-        test_points.append([40.0 + i * 20, 0.0, 0.0])  # end
-        test_commands.append("C")
-
-    # Final L and Z
-    test_points.append([90.0, 0.0, 0.0])
-    test_commands.append("L")
-    test_commands.append("Z")
-
-    test_points = np.array(test_points, dtype=np.float64)
-
-    print(f"Test path: {len(test_points)} points, {len(test_commands)} commands")
-    print("Contains: 8 LineTo, 4 Quadratic curves, 4 Cubic curves")
-
-    # Run performance test
-    steps = 100
-    print(f"\nPolygonizing with steps={steps}...")
-
-    # Test in-place optimized version
-    start_time = time.time()
-    result_points_inplace, result_commands_inplace = BezierCurve.polygonize_path(test_points, test_commands, steps)
-    end_time = time.time()
-    inplace_time = end_time - start_time
-
-    print(f"In-place optimized:  {inplace_time:.4f} seconds")
-    print(f"In-place performance: {len(result_points_inplace) / inplace_time:.0f} points/second")
-    print(f"Result: {len(result_points_inplace)} points, {len(result_commands_inplace)} commands")
-
-    # Verify in-place methods produce identical output
-    print("\n" + "=" * 60)
-    print("VERIFICATION: In-place vs Original Methods")
-    print("=" * 60)
-
-    # Test quadratic curve
-    test_quad_points = np.array([[0.0, 0.0], [10.0, 20.0], [20.0, 0.0]], dtype=np.float64)
-    quad_steps = 50
-
-    quad_original = BezierCurve.polygonize_quadratic_curve(test_quad_points, quad_steps)
-    quad_inplace_buffer = np.empty((quad_steps + 1, 3), dtype=np.float64)
-    quad_inplace_count = BezierCurve.polygonize_quadratic_curve_inplace(
-        test_quad_points, quad_steps, quad_inplace_buffer
-    )
-    quad_inplace = quad_inplace_buffer[:quad_inplace_count]
-
-    print(f"Quadratic curve: {np.allclose(quad_original, quad_inplace)} - identical output")
-
-    # Test cubic curve
-    test_cubic_points = np.array([[0.0, 0.0], [5.0, 15.0], [15.0, 15.0], [20.0, 0.0]], dtype=np.float64)
-    cubic_steps = 50
-
-    cubic_original = BezierCurve.polygonize_cubic_curve(test_cubic_points, cubic_steps)
-    cubic_inplace_buffer = np.empty((cubic_steps + 1, 3), dtype=np.float64)
-    cubic_inplace_count = BezierCurve.polygonize_cubic_curve_inplace(
-        test_cubic_points, cubic_steps, cubic_inplace_buffer
-    )
-    cubic_inplace = cubic_inplace_buffer[:cubic_inplace_count]
-
-    print(f"Cubic curve: {np.allclose(cubic_original, cubic_inplace)} - identical output")
-
-    # Test with skip_first=True
-    quad_inplace_skip_buffer = np.empty((quad_steps + 1, 3), dtype=np.float64)
-    quad_inplace_skip_count = BezierCurve.polygonize_quadratic_curve_inplace(
-        test_quad_points, quad_steps, quad_inplace_skip_buffer, start_index=0, skip_first=True
-    )
-    quad_inplace_skip = quad_inplace_skip_buffer[:quad_inplace_skip_count]
-
-    # Compare with original[1:] (skip first point)
-    quad_original_skip = quad_original[1:]
-    print(f"Quadratic (skip_first): {np.allclose(quad_original_skip, quad_inplace_skip)} - identical output")
-
-    print("\n✓ VERIFICATION COMPLETE: All in-place methods produce identical results")
 
 
 if __name__ == "__main__":
