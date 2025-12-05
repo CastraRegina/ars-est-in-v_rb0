@@ -8,7 +8,7 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
-from ave.geom import AvBox, BezierCurve, GeomMath
+from ave.geom import AvBox, AvPath, BezierCurve, GeomMath
 
 ###############################################################################
 # GeomMath Tests
@@ -218,6 +218,36 @@ class TestAvBox:
             box.ymax = 45.0
 
 
+class TestAvBoxSerialization:
+    """Tests for AvBox.to_dict and AvBox.from_dict."""
+
+    def test_avbox_to_from_dict_roundtrip(self):
+        """Round-trip AvBox through to_dict and from_dict."""
+        box = AvBox(10.0, 20.0, 30.0, 40.0)
+
+        data = box.to_dict()
+        restored = AvBox.from_dict(data)
+
+        assert isinstance(data, dict)
+        assert data == {"xmin": 10.0, "ymin": 20.0, "xmax": 30.0, "ymax": 40.0}
+        assert restored.xmin == box.xmin
+        assert restored.ymin == box.ymin
+        assert restored.xmax == box.xmax
+        assert restored.ymax == box.ymax
+
+    def test_avbox_from_dict_missing_keys_defaults_to_zero(self):
+        """from_dict should default missing values to 0.0."""
+        data = {"xmin": 1.0}
+
+        box = AvBox.from_dict(data)
+
+        # Note: AvBox constructor reorders coordinates, so xmin=1.0, xmax=0.0 becomes xmin=0.0, xmax=1.0
+        assert box.xmin == 0.0  # min(1.0, 0.0) = 0.0
+        assert box.ymin == 0.0  # min(0.0, 0.0) = 0.0
+        assert box.xmax == 1.0  # max(1.0, 0.0) = 1.0
+        assert box.ymax == 0.0  # max(0.0, 0.0) = 0.0
+
+
 ###############################################################################
 # Integration Tests
 ###############################################################################
@@ -247,3 +277,151 @@ class TestIntegration:
         # Verify transformation
         assert transformed_box.width == box.width * 2.0
         assert transformed_box.height == box.height * 2.0
+
+
+###############################################################################
+# AvPath Tests
+###############################################################################
+
+
+class TestAvPath:
+    """Test class for AvPath functionality."""
+
+    def test_avpath_init_2d_points_linear(self):
+        """Test AvPath initialization with 2D points and linear commands."""
+        points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 5.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+
+        path = AvPath(points_2d, commands)
+
+        # Points should be converted to 3D with type column
+        assert path.points.shape == (3, 3)
+        np.testing.assert_allclose(path.points[:, :2], points_2d)  # x,y coordinates should match
+
+        # Type column should be all 0.0 for linear commands
+        expected_types = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+        np.testing.assert_allclose(path.points[:, 2], expected_types)
+
+        assert path.commands == commands
+
+    def test_avpath_init_2d_points_with_curves(self):
+        """Test AvPath initialization with 2D points and curve commands."""
+        points_2d = np.array(
+            [[0.0, 0.0], [5.0, 10.0], [10.0, 0.0], [15.0, 5.0], [20.0, 5.0], [25.0, 0.0]], dtype=np.float64
+        )
+        commands = ["M", "Q", "C"]
+
+        path = AvPath(points_2d, commands)
+
+        # Points should be converted to 3D with type column
+        assert path.points.shape == (6, 3)
+        np.testing.assert_allclose(path.points[:, :2], points_2d)  # x,y coordinates should match
+
+        # Type column should reflect command types:
+        # M: 1 point -> 0.0
+        # Q: 2 points -> 2.0 (control), 0.0 (end)
+        # C: 3 points -> 3.0, 3.0, 0.0
+        expected_types = np.array([0.0, 2.0, 0.0, 3.0, 3.0, 0.0], dtype=np.float64)
+        np.testing.assert_allclose(path.points[:, 2], expected_types)
+
+        assert path.commands == commands
+
+    def test_avpath_init_3d_points_passthrough(self):
+        """Test AvPath initialization with 3D points (should pass through unchanged)."""
+        points_3d = np.array([[0.0, 0.0, 1.0], [10.0, 0.0, 2.0], [10.0, 5.0, 3.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+
+        path = AvPath(points_3d, commands)
+
+        # Points should remain exactly as provided
+        assert path.points.shape == (3, 3)
+        np.testing.assert_allclose(path.points, points_3d)  # Should be identical
+
+        assert path.commands == commands
+
+    def test_avpath_init_empty_points(self):
+        """Test AvPath initialization with empty points."""
+        points_empty = np.array([], dtype=np.float64).reshape(0, 2)
+        commands = []
+
+        path = AvPath(points_empty, commands)
+
+        assert path.points.shape == (0, 3)
+        assert path.commands == []
+
+    def test_avpath_init_3d_points_empty(self):
+        """Test AvPath initialization with empty 3D points."""
+        points_empty = np.array([], dtype=np.float64).reshape(0, 3)
+        commands = []
+
+        path = AvPath(points_empty, commands)
+
+        assert path.points.shape == (0, 3)
+        assert path.commands == []
+
+
+###############################################################################
+# AvPath Serialization Tests
+###############################################################################
+
+
+class TestAvPathSerialization:
+    """Tests for AvPath.to_dict and AvPath.from_dict."""
+
+    def test_avpath_serialization_without_cached_bounding_box(self):
+        """AvPath serialization when bounding_box has not been computed yet."""
+        points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 5.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+
+        path = AvPath(points_2d, commands)
+
+        # Ensure bounding box has not been computed/cached yet
+        # pylint: disable=protected-access
+        assert path._bounding_box is None
+
+        data = path.to_dict()
+
+        # Points must be 3D and serialized as list
+        assert isinstance(data["points"], list)
+        arr = np.asarray(data["points"], dtype=np.float64)
+        assert arr.shape == (3, 3)
+
+        # Commands round-trip as strings
+        assert data["commands"] == commands
+
+        # No bounding box cached yet -> None
+        assert data["bounding_box"] is None
+
+        restored = AvPath.from_dict(data)
+
+        np.testing.assert_allclose(restored.points, path.points)
+        assert restored.commands == path.commands
+        # pylint: disable=protected-access
+        assert restored._bounding_box is None
+
+    def test_avpath_serialization_with_cached_bounding_box(self):
+        """AvPath serialization when bounding_box has been computed and cached."""
+        points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 5.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+
+        path = AvPath(points_2d, commands)
+
+        # Trigger bounding box computation to populate cache
+        bbox = path.bounding_box()
+
+        data = path.to_dict()
+
+        assert isinstance(data["bounding_box"], dict)
+        assert data["bounding_box"] == bbox.to_dict()
+
+        restored = AvPath.from_dict(data)
+
+        np.testing.assert_allclose(restored.points, path.points)
+        assert restored.commands == path.commands
+
+        # Restored path should have an equivalent bounding box
+        restored_bbox = restored.bounding_box()
+        assert restored_bbox.xmin == bbox.xmin
+        assert restored_bbox.ymin == bbox.ymin
+        assert restored_bbox.xmax == bbox.xmax
+        assert restored_bbox.ymax == bbox.ymax
