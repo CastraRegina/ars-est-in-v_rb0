@@ -14,7 +14,8 @@ from numpy.typing import NDArray
 import ave.common
 from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen
-from ave.geom import AvBox, BezierCurve
+from ave.geom import AvBox
+from ave.geom_bezier import BezierCurve
 
 ###############################################################################
 # Glyph
@@ -581,6 +582,37 @@ class AvFontProperties:
         self.subfamily_name = subfamily_name
         self.full_name = full_name
         self.license_description = license_description
+
+    @classmethod
+    def from_dict(cls, data: dict) -> AvFontProperties:
+        """Create an AvFontProperties instance from a dictionary."""
+        return cls(
+            ascender=data.get("ascender", 0),
+            descender=data.get("descender", 0),
+            line_gap=data.get("line_gap", 0),
+            x_height=data.get("x_height", 0),
+            cap_height=data.get("cap_height", 0),
+            units_per_em=data.get("units_per_em", 1000),
+            family_name=data.get("family_name", ""),
+            subfamily_name=data.get("subfamily_name", ""),
+            full_name=data.get("full_name", ""),
+            license_description=data.get("license_description", ""),
+        )
+
+    def to_dict(self) -> dict:
+        """Convert the AvFontProperties instance to a dictionary."""
+        return {
+            "ascender": self.ascender,
+            "descender": self.descender,
+            "line_gap": self.line_gap,
+            "x_height": self.x_height,
+            "cap_height": self.cap_height,
+            "units_per_em": self.units_per_em,
+            "family_name": self.family_name,
+            "subfamily_name": self.subfamily_name,
+            "full_name": self.full_name,
+            "license_description": self.license_description,
+        }
 
     @classmethod
     def _glyph_visual_height(cls, font: TTFont, char: str) -> float:

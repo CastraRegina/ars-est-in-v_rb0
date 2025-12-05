@@ -13,7 +13,7 @@ import timeit
 
 import numpy as np
 
-from ave.geom import BezierCurve
+from ave.geom_bezier import BezierCurve
 
 # Test points for quadratic Bezier curve
 POINTS = ((0.0, 0.0), (50.0, 200.0), (200.0, 0.0))

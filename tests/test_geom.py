@@ -8,7 +8,8 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
-from ave.geom import AvBox, AvPath, BezierCurve, GeomMath
+from ave.geom import AvBox, AvPath, GeomMath
+from ave.geom_bezier import BezierCurve
 
 ###############################################################################
 # GeomMath Tests

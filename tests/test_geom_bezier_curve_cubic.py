@@ -8,7 +8,7 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
-from ave.geom import BezierCurve
+from ave.geom_bezier import BezierCurve
 
 ###############################################################################
 # Cubic In-place Tests

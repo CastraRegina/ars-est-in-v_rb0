@@ -12,7 +12,7 @@ from fontTools.varLib import instancer
 from numpy.typing import NDArray
 
 from ave.common import AvGlyphCmds
-from ave.geom import BezierCurve
+from ave.geom_bezier import BezierCurve
 
 # from fontTools.pens.recordingPen import RecordingPen
 

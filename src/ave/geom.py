@@ -9,8 +9,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ave.common import AvGlyphCmds
-
-# Re-export BezierCurve for backward compatibility
 from ave.geom_bezier import BezierCurve
 
 
