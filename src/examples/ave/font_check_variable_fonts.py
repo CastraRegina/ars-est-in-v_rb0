@@ -8,6 +8,7 @@ from ave.fonttools import FontHelper
 from ave.glyph import (
     AvFont,
     AvFontProperties,
+    AvGlyphFromTTFontFactory,
     AvLetter,
     AvPolylineGlyphFromTTFontFactory,
 )
@@ -30,8 +31,9 @@ def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] =
         ttfont = TTFont(ttfont_filename)
     else:
         ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), axes_values)
-    # glyph_factory = AvGlyphFromTTFontFactory(ttfont)
-    glyph_factory = AvPolylineGlyphFromTTFontFactory(ttfont)
+
+    # polygonize_steps=0 => no polygonization
+    glyph_factory = AvPolylineGlyphFromTTFontFactory(ttfont, polygonize_steps=0)
 
     avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))
 
