@@ -307,9 +307,10 @@ class TestBezierPolygonizationAccuracy:
         assert np.allclose(result_numpy[0, :2], control_points[0]), "NumPy implementation start accuracy"
         assert np.allclose(result_numpy[-1, :2], control_points[3]), "NumPy implementation end accuracy"
 
-        # Results should be very close to each other
+        # Results should be mathematically equivalent within realistic tolerance
+        # Python uses forward differencing, NumPy uses direct evaluation
         assert np.allclose(
-            result_python, result_numpy, rtol=1e-12, atol=1e-12
+            result_python, result_numpy, rtol=1e-9, atol=1e-9
         ), "Python and NumPy results should be consistent"
 
 

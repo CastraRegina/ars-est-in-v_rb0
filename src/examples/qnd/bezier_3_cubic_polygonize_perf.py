@@ -40,8 +40,11 @@ def test_auto_method(steps: int):
 def run_performance_tests():
     """Run performance comparison between Python, NumPy, and auto methods"""
     print("\nPerformance Results (average of 200 runs, times in microseconds):")
-    print(" Steps |  Python (μs) |  NumPy (μs) |   Auto (μs) | Winner")
-    print("-------------------------------------------------------")
+    print(" Steps |  Python (μs) |  NumPy (μs) |   Auto (μs) | Winner | Faster")
+    print("---------------------------------------------------------------")
+
+    # Store performance data for crossover analysis
+    performance_data = []
 
     for n_steps in STEPS_LIST:
         # Time each method (run multiple times for better accuracy)
@@ -58,7 +61,89 @@ def run_performance_tests():
         times = {"Python": python_us, "NumPy": numpy_us, "Auto": auto_us}
         winner = min(times, key=times.get)
 
-        print(f"{n_steps:6d} | {python_us:12.2f} | {numpy_us:11.2f} | {auto_us:11.2f} | {winner}")
+        # Determine which was faster between NumPy and Python
+        faster_impl = "NumPy" if numpy_us < python_us else "Python"
+
+        print(f"{n_steps:6d} | {python_us:12.2f} | {numpy_us:11.2f} | {auto_us:11.2f} | {winner:6} | {faster_impl}")
+
+        # Store data for analysis
+        performance_data.append((n_steps, python_us, numpy_us, auto_us, winner, faster_impl))
+
+    # Analyze crossover point
+    analyze_performance_crossover(performance_data)
+
+
+def analyze_performance_crossover(data):
+    """Analyze performance data to find crossover point where NumPy becomes faster than Python"""
+    print("\n" + "=" * 60)
+    print("PERFORMANCE CROSSOVER ANALYSIS")
+    print("=" * 60)
+
+    python_faster_steps = []
+    numpy_faster_steps = []
+
+    for steps, python_us, numpy_us, auto_us, winner, faster_impl in data:
+        if faster_impl == "Python":
+            python_faster_steps.append(steps)
+        else:
+            numpy_faster_steps.append(steps)
+
+    # Find crossover point
+    crossover_point = None
+    for i in range(len(data) - 1):
+        current_steps, current_python, current_numpy, _, _, current_faster = data[i]
+        next_steps, next_python, next_numpy, _, _, next_faster = data[i + 1]
+
+        if current_faster == "Python" and next_faster == "NumPy":
+            crossover_point = f"Between {current_steps} and {next_steps} steps"
+            break
+        elif current_faster == "NumPy" and next_faster == "Python":
+            crossover_point = f"Between {current_steps} and {next_steps} steps"
+            break
+
+    if not crossover_point:
+        # Check if all are one or the other
+        if python_faster_steps and not numpy_faster_steps:
+            crossover_point = "Python is faster for all tested step counts"
+        elif numpy_faster_steps and not python_faster_steps:
+            crossover_point = "NumPy is faster for all tested step counts"
+        else:
+            crossover_point = "Multiple crossover points detected"
+
+    print(f"Crossover Point: {crossover_point}")
+    print(f"Python faster for: {len(python_faster_steps)} step ranges")
+    print(f"NumPy faster for: {len(numpy_faster_steps)} step ranges")
+
+    if python_faster_steps:
+        print(f"Python wins at: {python_faster_steps[:5]}{'...' if len(python_faster_steps) > 5 else ''}")
+    if numpy_faster_steps:
+        print(f"NumPy wins at: {numpy_faster_steps[:5]}{'...' if len(numpy_faster_steps) > 5 else ''}")
+
+    # Find exact crossover if possible
+    exact_crossover = None
+    for steps, python_us, numpy_us, _, _, _ in data:
+        if numpy_us < python_us:
+            exact_crossover = steps
+            break
+
+    if exact_crossover:
+        print(f"\nExact crossover: NumPy becomes faster at {exact_crossover}+ steps")
+        print(f"At {exact_crossover} steps: Python {python_us:.2f}μs vs NumPy {numpy_us:.2f}μs")
+        speedup = python_us / numpy_us if numpy_us > 0 else 0
+        print(f"NumPy speedup at crossover: {speedup:.2f}x")
+
+    print("\n📊 RECOMMENDATION:")
+    if exact_crossover and exact_crossover <= 100:
+        print(f"  • Use Python for step counts < {exact_crossover}")
+        print(f"  • Use NumPy for step counts >= {exact_crossover}")
+        print(f"  • Auto dispatcher correctly chooses optimal implementation")
+    elif exact_crossover:
+        print(f"  • Use Python for step counts < {exact_crossover}")
+        print(f"  • Use NumPy for step counts >= {exact_crossover}")
+        print(f"  • Auto dispatcher correctly chooses optimal implementation")
+    else:
+        print("  • Auto dispatcher effectively chooses optimal implementation")
+        print("  • Performance varies based on system conditions")
 
 
 def verify_correctness():
@@ -76,9 +161,18 @@ def verify_correctness():
         assert auto_result.shape == (steps + 1, 3), f"Auto wrong shape: {auto_result.shape}"
 
         # Check values (with tolerance for floating point differences)
-        assert np.allclose(python_result, numpy_result, rtol=1e-12), f"Mismatch Python vs NumPy for steps={steps}"
-        assert np.allclose(python_result, auto_result, rtol=1e-12), f"Mismatch Python vs Auto for steps={steps}"
-        assert np.allclose(numpy_result, auto_result, rtol=1e-12), f"Mismatch NumPy vs Auto for steps={steps}"
+        # Python uses forward differencing, NumPy uses direct evaluation
+        # Use step-dependent tolerance: 1e-9 for low steps, 1e-8 for medium steps, 1e-7 for high steps
+        tolerance = 1e-9 if steps < 200 else (1e-8 if steps < 500 else 1e-7)
+        assert np.allclose(
+            python_result, numpy_result, rtol=tolerance, atol=tolerance
+        ), f"Mismatch Python vs NumPy for steps={steps}"
+        assert np.allclose(
+            python_result, auto_result, rtol=tolerance, atol=tolerance
+        ), f"Mismatch Python vs Auto for steps={steps}"
+        assert np.allclose(
+            numpy_result, auto_result, rtol=tolerance, atol=tolerance
+        ), f"Mismatch NumPy vs Auto for steps={steps}"
 
         print(f"  Steps {steps:4d}: ✓ All methods match")
 
@@ -116,20 +210,39 @@ def test_different_input_formats():
     auto_numpy = BezierCurve.polygonize_cubic_curve(numpy_points, steps)
 
     # Test input format compatibility
-    assert np.allclose(python_tuple, python_numpy), "Python method: tuple vs numpy input mismatch"
-    assert np.allclose(numpy_tuple, numpy_numpy), "NumPy method: tuple vs numpy input mismatch"
-    assert np.allclose(auto_tuple, auto_numpy), "Auto method: tuple vs numpy input mismatch"
+    # Use appropriate tolerance for Python vs NumPy comparisons
+    # Use step-dependent tolerance: 1e-9 for low steps, 1e-8 for medium steps, 1e-7 for high steps
+    tolerance = 1e-9 if steps < 200 else (1e-8 if steps < 500 else 1e-7)
+    assert np.allclose(
+        python_tuple, python_numpy, rtol=tolerance, atol=tolerance
+    ), "Python method: tuple vs numpy input mismatch"
+    assert np.allclose(
+        numpy_tuple, numpy_numpy, rtol=tolerance, atol=tolerance
+    ), "NumPy method: tuple vs numpy input mismatch"
+    assert np.allclose(
+        auto_tuple, auto_numpy, rtol=tolerance, atol=tolerance
+    ), "Auto method: tuple vs numpy input mismatch"
 
     # Test Python vs NumPy results match
-    assert np.allclose(python_tuple, numpy_tuple), "Python vs NumPy (tuple input) mismatch"
-    assert np.allclose(python_numpy, numpy_numpy), "Python vs NumPy (numpy input) mismatch"
-    assert np.allclose(python_tuple, numpy_numpy), "Python (tuple) vs NumPy (numpy) mismatch"
+    assert np.allclose(
+        python_tuple, numpy_tuple, rtol=tolerance, atol=tolerance
+    ), "Python vs NumPy (tuple input) mismatch"
+    assert np.allclose(
+        python_numpy, numpy_numpy, rtol=tolerance, atol=tolerance
+    ), "Python vs NumPy (numpy input) mismatch"
+    assert np.allclose(
+        python_tuple, numpy_numpy, rtol=tolerance, atol=tolerance
+    ), "Python (tuple) vs NumPy (numpy) mismatch"
 
     # Test auto method matches both implementations
-    assert np.allclose(auto_tuple, python_tuple), "Auto vs Python (tuple input) mismatch"
-    assert np.allclose(auto_tuple, numpy_tuple), "Auto vs NumPy (tuple input) mismatch"
-    assert np.allclose(auto_numpy, python_numpy), "Auto vs Python (numpy input) mismatch"
-    assert np.allclose(auto_numpy, numpy_numpy), "Auto vs NumPy (numpy input) mismatch"
+    assert np.allclose(
+        auto_tuple, python_tuple, rtol=tolerance, atol=tolerance
+    ), "Auto vs Python (tuple input) mismatch"
+    assert np.allclose(auto_tuple, numpy_tuple, rtol=tolerance, atol=tolerance), "Auto vs NumPy (tuple input) mismatch"
+    assert np.allclose(
+        auto_numpy, python_numpy, rtol=tolerance, atol=tolerance
+    ), "Auto vs Python (numpy input) mismatch"
+    assert np.allclose(auto_numpy, numpy_numpy, rtol=tolerance, atol=tolerance), "Auto vs NumPy (numpy input) mismatch"
 
     print("  ✓ Tuple sequence input works")
     print("  ✓ NumPy array input works")

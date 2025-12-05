@@ -28,6 +28,7 @@ class BezierCurve:
     ) -> int:
         """
         Polygonize a quadratic Bezier curve directly into pre-allocated buffer using pure Python.
+        Optimized using forward differencing for O(1) per point computation.
         """
         # Extract control points
         pt0, pt1, pt2 = points
@@ -35,26 +36,55 @@ class BezierCurve:
         p1x, p1y = pt1[0], pt1[1]
         p2x, p2y = pt2[0], pt2[1]
 
+        # Precompute Bezier coefficients using forward differencing
+        # B(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
+        # Expanding: B(t) = P0 + 2*t*(P1-P0) + t^2*(P0-2*P1+P2)
         inv_steps = 1.0 / steps
+        inv_steps_sq = inv_steps * inv_steps
+
+        # First point (t=0)
+        x = p0x
+        y = p0y
+
+        # Second differences (d^2*B/dt^2 * inv_steps^2) - constant for quadratic
+        # Second derivative of B(t) is 2*(P0-2*P1+P2), scaled by inv_steps^2
+        dx_second = 2.0 * inv_steps_sq * (p0x - 2.0 * p1x + p2x)
+        dy_second = 2.0 * inv_steps_sq * (p0y - 2.0 * p1y + p2y)
+
+        # Initialize first differences with midpoint correction
+        # First derivative at t=0: B'(0) = 2*(P1-P0), scaled by inv_steps
+        # Plus half second difference for midpoint correction (since we update position before derivatives)
+        dx_first = 2.0 * inv_steps * (p1x - p0x) + 0.5 * dx_second
+        dy_first = 2.0 * inv_steps * (p1y - p0y) + 0.5 * dy_second
+
         output_idx = start_index
 
-        # Write points directly to output buffer
-        for i in range(steps + 1):
-            if i == 0 and skip_first:
-                continue
+        # Handle skip_first by adjusting loop bounds
+        start_i = 1  # Always start at 1 since first point is handled separately
+        end_i = steps + 1
 
-            t = i * inv_steps
-            omt = 1.0 - t
-            omt2 = omt * omt
-            t2 = t * t
-
-            x = omt2 * p0x + 2.0 * omt * t * p1x + t2 * p2x
-            y = omt2 * p0y + 2.0 * omt * t * p1y + t2 * p2y
-
-            # Write directly to output buffer
+        # Write first point if not skipped
+        if not skip_first:
             output_buffer[output_idx, 0] = x
             output_buffer[output_idx, 1] = y
-            output_buffer[output_idx, 2] = 2.0 if 0 < i < steps else 0.0
+            output_buffer[output_idx, 2] = 0.0
+            output_idx += 1
+
+        # Use forward differencing: B(t+dt) = B(t) + dB(t) + d^2*B
+        # where dB(t+dt) = dB(t) + d^2*B (constant second difference)
+        for i in range(start_i, end_i):
+            # Update position first using current derivatives
+            x += dx_first
+            y += dy_first
+
+            # Then update derivatives for next iteration
+            dx_first += dx_second
+            dy_first += dy_second
+
+            # Write to buffer
+            output_buffer[output_idx, 0] = x
+            output_buffer[output_idx, 1] = y
+            output_buffer[output_idx, 2] = 2.0 if i < steps else 0.0
             output_idx += 1
 
         return steps + (1 if not skip_first else 0)
@@ -71,6 +101,7 @@ class BezierCurve:
     ) -> int:
         """
         Polygonize a cubic Bezier curve directly into pre-allocated buffer using pure Python.
+        Optimized using forward differencing for O(1) per point computation.
         """
         # Extract control points
         pt0, pt1, pt2, pt3 = points
@@ -79,28 +110,94 @@ class BezierCurve:
         p2x, p2y = pt2[0], pt2[1]
         p3x, p3y = pt3[0], pt3[1]
 
+        # Precompute Bezier coefficients using forward differencing
+        # B(t) = (1-t)^3*P0 + 3*(1-t)^2*t*P1 + 3*(1-t)*t^2*P2 + t^3*P3
         inv_steps = 1.0 / steps
+
+        # First point (t=0)
+        x = p0x
+        y = p0y
+
+        # Compute discrete differences directly from curve points for exact forward differencing
+        # Calculate first 4 points using Bezier formula to derive exact differences
+        h = inv_steps  # step size
+
+        # B(0) = P0
+        b0_x, b0_y = p0x, p0y
+
+        # B(h) using Bezier formula
+        t = h
+        omt = 1.0 - t
+        omt2 = omt * omt
+        omt3 = omt2 * omt
+        t2 = t * t
+        t3 = t2 * t
+        b1_x = omt3 * p0x + 3.0 * omt2 * t * p1x + 3.0 * omt * t2 * p2x + t3 * p3x
+        b1_y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
+
+        # B(2h) using Bezier formula
+        t = 2.0 * h
+        omt = 1.0 - t
+        omt2 = omt * omt
+        omt3 = omt2 * omt
+        t2 = t * t
+        t3 = t2 * t
+        b2_x = omt3 * p0x + 3.0 * omt2 * t * p1x + 3.0 * omt * t2 * p2x + t3 * p3x
+        b2_y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
+
+        # B(3h) using Bezier formula
+        t = 3.0 * h
+        omt = 1.0 - t
+        omt2 = omt * omt
+        omt3 = omt2 * omt
+        t2 = t * t
+        t3 = t2 * t
+        b3_x = omt3 * p0x + 3.0 * omt2 * t * p1x + 3.0 * omt * t2 * p2x + t3 * p3x
+        b3_y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
+
+        # Derive discrete differences from actual curve points
+        # First differences: ΔB = B(h) - B(0)
+        dx_first = b1_x - b0_x
+        dy_first = b1_y - b0_y
+
+        # Second differences: Δ²B = B(2h) - 2*B(h) + B(0)
+        dx_second = b2_x - 2.0 * b1_x + b0_x
+        dy_second = b2_y - 2.0 * b1_y + b0_y
+
+        # Third differences: Δ³B = B(3h) - 3*B(2h) + 3*B(h) - B(0) (constant for cubic)
+        dx_third = b3_x - 3.0 * b2_x + 3.0 * b1_x - b0_x
+        dy_third = b3_y - 3.0 * b2_y + 3.0 * b1_y - b0_y
+
         output_idx = start_index
 
-        # Write points directly to output buffer
-        for i in range(steps + 1):
-            if i == 0 and skip_first:
-                continue
+        # Handle skip_first by adjusting loop bounds
+        start_i = 1  # Always start at 1 since first point is handled separately
+        end_i = steps + 1
 
-            t = i * inv_steps
-            omt = 1.0 - t
-            omt2 = omt * omt
-            omt3 = omt2 * omt
-            t2 = t * t
-            t3 = t2 * t
-
-            x = omt3 * p0x + 3.0 * omt2 * t * p1x + 3.0 * omt * t2 * p2x + t3 * p3x
-            y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
-
-            # Write directly to output buffer
+        # Write first point if not skipped
+        if not skip_first:
             output_buffer[output_idx, 0] = x
             output_buffer[output_idx, 1] = y
-            output_buffer[output_idx, 2] = 3.0 if 0 < i < steps else 0.0
+            output_buffer[output_idx, 2] = 0.0
+            output_idx += 1
+
+        # Use forward differencing: B(t+dt) = B(t) + dB(t) + d^2*B(t) + d^3*B
+        # where d^3*B is constant for cubic curves
+        for i in range(start_i, end_i):
+            # Update position first using current derivatives
+            x += dx_first
+            y += dy_first
+
+            # Then update derivatives for next iteration
+            dx_first += dx_second
+            dy_first += dy_second
+            dx_second += dx_third
+            dy_second += dy_third
+
+            # Write to buffer
+            output_buffer[output_idx, 0] = x
+            output_buffer[output_idx, 1] = y
+            output_buffer[output_idx, 2] = 3.0 if i < steps else 0.0
             output_idx += 1
 
         return steps + (1 if not skip_first else 0)
@@ -195,7 +292,7 @@ class BezierCurve:
         Returns:
             Number of points written to buffer
         """
-        if steps < 50:
+        if steps < 70:
             return cls.polygonize_quadratic_curve_python_inplace(points, steps, output_buffer, start_index, skip_first)
         else:
             return cls.polygonize_quadratic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
@@ -225,7 +322,7 @@ class BezierCurve:
         Returns:
             Number of points written to buffer
         """
-        if steps < 50:
+        if steps < 70:
             return cls.polygonize_cubic_curve_python_inplace(points, steps, output_buffer, start_index, skip_first)
         else:
             return cls.polygonize_cubic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
@@ -242,6 +339,7 @@ class BezierCurve:
     ) -> int:
         """
         Polygonize a quadratic Bezier curve directly into pre-allocated buffer using NumPy.
+        Uses direct evaluation with vectorized operations for optimal NumPy performance.
         """
         # Convert to numpy array if needed
         points_array = np.array(points, dtype=np.float64)
@@ -264,8 +362,8 @@ class BezierCurve:
         types = np.full(len(t), 2.0, dtype=np.float64)
         if len(types) > 0:
             if not skip_first:
-                types[0] = 0.0  # First point
-            types[-1] = 0.0  # End point
+                types[0] = 0.0  # First point is start point when not skipping
+            types[-1] = 0.0  # End point is always 0.0
 
         # Write directly to output buffer
         end_idx = start_index + len(t)
@@ -287,6 +385,7 @@ class BezierCurve:
     ) -> int:
         """
         Polygonize a cubic Bezier curve directly into pre-allocated buffer using NumPy.
+        Uses direct evaluation with vectorized operations for optimal NumPy performance.
         """
         # Convert to numpy array if needed
         points_array = np.array(points, dtype=np.float64)
@@ -321,8 +420,8 @@ class BezierCurve:
         types = np.full(len(t), 3.0, dtype=np.float64)
         if len(types) > 0:
             if not skip_first:
-                types[0] = 0.0  # First point
-            types[-1] = 0.0  # End point
+                types[0] = 0.0  # First point is start point when not skipping
+            types[-1] = 0.0  # End point is always 0.0
 
         # Write directly to output buffer
         end_idx = start_index + len(t)

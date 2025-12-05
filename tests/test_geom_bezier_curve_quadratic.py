@@ -387,7 +387,7 @@ class TestQuadraticInplaceDebugging:
 
         # Results should be very close
         assert np.allclose(
-            buffer_python[:count_python], buffer_numpy[:count_numpy], rtol=1e-12, atol=1e-12
+            buffer_python[:count_python], buffer_numpy[:count_numpy], rtol=1e-9, atol=1e-9
         ), "Python and NumPy results should be consistent"
 
         # Both should end at correct point
@@ -556,10 +556,10 @@ class TestQuadraticBezierCurve:
 
             # Results should be identical
             assert count_python == count_numpy, f"Count mismatch for steps={steps}"
-            assert np.allclose(result_python, result_numpy, rtol=1e-12, atol=1e-12), f"Results differ for steps={steps}"
+            assert np.allclose(result_python, result_numpy, rtol=1e-9, atol=1e-9), f"Results differ for steps={steps}"
 
             # Verify specific points match exactly
             for i in range(steps + 1):
                 assert np.allclose(
-                    result_python[i], result_numpy[i], rtol=1e-12, atol=1e-12
+                    result_python[i], result_numpy[i], rtol=1e-9, atol=1e-9
                 ), f"Point {i} differs for steps={steps}"

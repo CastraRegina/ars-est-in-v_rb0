@@ -65,9 +65,9 @@ class TestAvGlyph:
 
         # The actual quadratic curve should not reach y=20 (control point)
         # With 100 steps, the max y should be around 10.0 (midpoint of curve)
-        assert bbox.xmin == 0.0
-        assert bbox.xmax == 20.0
-        assert bbox.ymin == 0.0
+        assert np.isclose(bbox.xmin, 0.0)
+        assert np.isclose(bbox.xmax, 20.0)
+        assert np.isclose(bbox.ymin, 0.0, atol=1e-12)  # Allow tiny negative due to floating point
         assert bbox.ymax < 20.0  # Should not include control point
         assert bbox.ymax > 5.0  # Should be higher than endpoints
 
@@ -89,9 +89,9 @@ class TestAvGlyph:
         bbox = glyph.bounding_box()
 
         # The actual cubic curve should not reach y=25 (control points)
-        assert bbox.xmin == 0.0
-        assert bbox.xmax == 20.0
-        assert bbox.ymin == 0.0
+        assert np.isclose(bbox.xmin, 0.0)
+        assert np.isclose(bbox.xmax, 20.0)
+        assert np.isclose(bbox.ymin, 0.0)
         assert bbox.ymax < 25.0  # Should not include control points
         assert bbox.ymax > 10.0  # Should be higher than endpoints
 
@@ -115,9 +115,9 @@ class TestAvGlyph:
         glyph = AvGlyph(character="M", width=40, points=points, commands=commands)
         bbox = glyph.bounding_box()
 
-        assert bbox.xmin == 0.0
-        assert bbox.xmax == 40.0
-        assert bbox.ymin == 0.0
+        assert np.isclose(bbox.xmin, 0.0)
+        assert np.isclose(bbox.xmax, 40.0)
+        assert np.isclose(bbox.ymin, 0.0)
         assert bbox.ymax < 20.0  # Should not include highest control point
 
     def test_bounding_box_caching(self):
@@ -160,7 +160,7 @@ class TestAvGlyph:
         rsb = glyph.right_side_bearing
 
         # Width=12, bbox xmax should be 10.0, so RSB should be 2.0
-        assert rsb == 2.0
+        assert np.isclose(rsb, 2.0)
 
     def test_bounding_box_accuracy_comparison(self):
         """Test that polygonized bounding box is more accurate than control point box"""
@@ -221,9 +221,9 @@ class TestAvGlyph:
         glyph = AvGlyph(character="N", width=20, points=points, commands=commands)
         bbox = glyph.bounding_box()
 
-        assert bbox.xmin == -10.0
-        assert bbox.xmax == 10.0
-        assert bbox.ymin == -5.0
+        assert np.isclose(bbox.xmin, -10.0)
+        assert np.isclose(bbox.xmax, 10.0)
+        assert np.isclose(bbox.ymin, -5.0)
         assert bbox.ymax < 10.0  # Should not include control point
         assert bbox.ymax > -5.0  # Should be higher than endpoints
 
