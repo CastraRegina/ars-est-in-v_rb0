@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from ave.geom import AvBox
+from ave.geom import AvBox, AvPath
 from ave.glyph import AvGlyph
 
 
@@ -14,13 +14,14 @@ class TestAvGlyph:
         """Test basic glyph initialization"""
         points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
         commands = ["M", "L"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="A", width=10, points=points, commands=commands)
+        glyph = AvGlyph(character="A", width=10, path=path)
 
         assert glyph.character == "A"
         assert glyph.width() == 10
-        np.testing.assert_array_equal(glyph.points, points)
-        assert glyph.commands == commands
+        np.testing.assert_array_equal(glyph.path.points, points)
+        assert glyph.path.commands == commands
         # Test that bounding box calculation works (public interface)
         bbox = glyph.bounding_box()
         assert bbox is not None
@@ -29,8 +30,9 @@ class TestAvGlyph:
         """Test bounding box with empty points"""
         points = np.array([], dtype=np.float64).reshape(0, 3)
         commands = []
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character=" ", width=0, points=points, commands=commands)
+        glyph = AvGlyph(character=" ", width=0, path=path)
         bbox = glyph.bounding_box()
 
         expected = AvBox(0.0, 0.0, 0.0, 0.0)
@@ -40,8 +42,9 @@ class TestAvGlyph:
         """Test bounding box with linear path (no curves)"""
         points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 5.0, 0.0], [0.0, 5.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "L", "L"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="L", width=10, points=points, commands=commands)
+        glyph = AvGlyph(character="L", width=10, path=path)
         bbox = glyph.bounding_box()
 
         expected = AvBox(0.0, 0.0, 10.0, 5.0)
@@ -59,8 +62,9 @@ class TestAvGlyph:
             dtype=np.float64,
         )
         commands = ["M", "Q"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="Q", width=20, points=points, commands=commands)
+        glyph = AvGlyph(character="Q", width=20, path=path)
         bbox = glyph.bounding_box()
 
         # The actual quadratic curve should not reach y=20 (control point)
@@ -84,8 +88,9 @@ class TestAvGlyph:
             dtype=np.float64,
         )
         commands = ["M", "C"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="C", width=20, points=points, commands=commands)
+        glyph = AvGlyph(character="C", width=20, path=path)
         bbox = glyph.bounding_box()
 
         # The actual cubic curve should not reach y=25 (control points)
@@ -111,8 +116,9 @@ class TestAvGlyph:
             dtype=np.float64,
         )
         commands = ["M", "L", "Q", "L", "C"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="M", width=40, points=points, commands=commands)
+        glyph = AvGlyph(character="M", width=40, path=path)
         bbox = glyph.bounding_box()
 
         assert np.isclose(bbox.xmin, 0.0)
@@ -124,28 +130,30 @@ class TestAvGlyph:
         """Test that bounding box is cached after first calculation"""
         points = np.array([[0.0, 0.0, 0.0], [10.0, 20.0, 0.0], [20.0, 0.0, 0.0]], dtype=np.float64)
         commands = ["M", "Q"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="Q", width=20, points=points, commands=commands)
+        glyph = AvGlyph(character="Q", width=20, path=path)
 
         # First call should calculate and cache
         bbox1 = glyph.bounding_box()
-        # Check that bounding box is cached (internal testing)
+        # Check that bounding box is cached in AvPath (internal testing)
         # pylint: disable=protected-access
-        assert glyph._bounding_box is not None
+        assert glyph._path._bounding_box is not None
 
         # Second call should return cached result
         bbox2 = glyph.bounding_box()
         assert bbox1 == bbox2
         # Verify the cached value is the same (internal testing)
         # pylint: disable=protected-access
-        assert glyph._bounding_box == bbox1
+        assert glyph._path._bounding_box == bbox1
 
     def test_right_side_bearing(self):
         """Test right side bearing calculation"""
         points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0], [0.0, 10.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "L", "L"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="R", width=15, points=points, commands=commands)
+        glyph = AvGlyph(character="R", width=15, path=path)
         rsb = glyph.right_side_bearing
 
         # Width=15, bbox xmax=10, so RSB should be 5
@@ -155,8 +163,9 @@ class TestAvGlyph:
         """Test right side bearing with curves"""
         points = np.array([[0.0, 0.0, 0.0], [5.0, 15.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
         commands = ["M", "Q"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="S", width=12, points=points, commands=commands)
+        glyph = AvGlyph(character="S", width=12, path=path)
         rsb = glyph.right_side_bearing
 
         # Width=12, bbox xmax should be 10.0, so RSB should be 2.0
@@ -170,8 +179,9 @@ class TestAvGlyph:
             dtype=np.float64,
         )
         commands = ["M", "Q"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="T", width=20, points=points, commands=commands)
+        glyph = AvGlyph(character="T", width=20, path=path)
 
         # Get accurate bounding box using polygonization
         accurate_bbox = glyph.bounding_box()
@@ -201,8 +211,9 @@ class TestAvGlyph:
             dtype=np.float64,
         )
         commands = ["M", "L", "Q", "L"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="A", width=40, points=points, commands=commands)
+        glyph = AvGlyph(character="A", width=40, path=path)
         bbox = glyph.bounding_box()
 
         assert bbox.xmin == 10.0
@@ -217,8 +228,9 @@ class TestAvGlyph:
             [[-10.0, -5.0, 0.0], [0.0, 10.0, 0.0], [10.0, -5.0, 0.0]], dtype=np.float64  # start  # control point  # end
         )
         commands = ["M", "Q"]
+        path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="N", width=20, points=points, commands=commands)
+        glyph = AvGlyph(character="N", width=20, path=path)
         bbox = glyph.bounding_box()
 
         assert np.isclose(bbox.xmin, -10.0)

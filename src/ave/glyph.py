@@ -14,8 +14,7 @@ from numpy.typing import NDArray
 import ave.common
 from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen
-from ave.geom import AvBox
-from ave.geom_bezier import BezierCurve
+from ave.geom import AvBox, AvPath
 
 ###############################################################################
 # Glyph
@@ -33,20 +32,13 @@ class AvGlyph:
 
     _character: str
     _width: float
-    _points: NDArray[np.float64]  # shape (n_points, 3)
-    _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
-    _bounding_box: Optional[AvBox] = None  # caching variable
-
-    # Number of steps to use when polygonizing curves for bounding box calculation
-    POLYGONIZE_STEPS_BOUNDING_BOX: int = 100  # pylint: disable=invalid-name
+    _path: AvPath
 
     def __init__(
         self,
         character: str,
         width: float,
-        points: NDArray[np.float64],
-        commands: List[AvGlyphCmds],
-        bounding_box: Optional[AvBox] = None,
+        path: AvPath,
     ) -> None:
         """
         Initialize an AvGlyph.
@@ -54,16 +46,12 @@ class AvGlyph:
         Args:
             character (str): A single character.
             width (float): The width of the glyph in unitsPerEm.
-            points (NDArray[np.float64]): A numpy array of shape (n_points, 3) containing the points of the glyph.
-            commands (List[AvGlyphCmds]): A list of SvgPathCmds containing the commands of the glyph.
-            bounding_box (Optional[AvBox], optional): The bounding box of the glyph. Defaults to None.
+            path (AvPath): The path object containing points and commands for the glyph.
         """
         super().__init__()
         self._character = character
         self._width = width
-        self._points = points
-        self._commands = commands
-        self._bounding_box = bounding_box
+        self._path = path
 
     @classmethod
     def from_ttfont_character(cls, ttfont: TTFont, character: str, polygonize_steps: int = 0) -> AvGlyph:
@@ -85,7 +73,9 @@ class AvGlyph:
         pen = AvGlyphPtsCmdsPen(glyph_set, polygonize_steps=polygonize_steps)
         glyph_set[glyph_name].draw(pen)
         width = glyph_set[glyph_name].width
-        return cls(character, width, pen.points, pen.commands)
+        # Create AvPath first, then create AvGlyph
+        path = AvPath(pen.points, pen.commands)
+        return cls(character, width, path)
 
     @property
     def character(self) -> str:
@@ -95,18 +85,11 @@ class AvGlyph:
         return self._character
 
     @property
-    def points(self) -> NDArray[np.float64]:
+    def path(self) -> AvPath:
         """
-        The points of this glyph as a numpy array of shape (n_points, 3).
+        The path object of this glyph containing points and commands.
         """
-        return self._points
-
-    @property
-    def commands(self) -> List[AvGlyphCmds]:
-        """
-        The commands of this glyph as a list of SVG path commands.
-        """
-        return self._commands
+        return self._path
 
     def width(self, align: Optional[ave.common.Align] = None) -> float:
         """
@@ -173,41 +156,8 @@ class AvGlyph:
         Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
         Uses dimensions in unitsPerEm.
         """
-
-        if self._bounding_box is not None:
-            return self._bounding_box
-
-        # No points, so bounding box is set to size 0.
-        if not self._points.size:
-            self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
-            return self._bounding_box
-
-        # Check if path contains curves that need polygonization for accurate bounding box
-        has_curves = any(cmd in ["Q", "C"] for cmd in self._commands)
-
-        if not has_curves:
-            # No curves, use simple min/max calculation on existing points
-            points_x = self._points[:, 0]
-            points_y = self._points[:, 1]
-            x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
-        else:
-            # Has curves, polygonize temporarily to get accurate bounding box
-            # Use a reasonable number of steps for curve approximation
-            polygonized_points, _ = BezierCurve.polygonize_path(
-                self._points, self._commands, self.POLYGONIZE_STEPS_BOUNDING_BOX
-            )
-
-            if polygonized_points.size == 0:
-                self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
-                return self._bounding_box
-
-            # Calculate bounding box from polygonized points
-            points_x = polygonized_points[:, 0]
-            points_y = polygonized_points[:, 1]
-            x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
-
-        self._bounding_box = AvBox(x_min, y_min, x_max, y_max)
-        return self._bounding_box
+        # Delegate entirely to AvPath's bounding box implementation
+        return self._path.bounding_box()
 
 
 ###############################################################################
@@ -438,8 +388,8 @@ class AvLetter:
         Returns:
             str: The SVG path string representing the letter.
         """
-        points = self._glyph.points
-        commands = self._glyph.commands
+        points = self._glyph.path.points
+        commands = self._glyph.path.commands
         scale, _, _, _, translate_x, translate_y = self.trafo
         return AvLetter._svg_path_string(points, commands, scale, translate_x, translate_y)
 
