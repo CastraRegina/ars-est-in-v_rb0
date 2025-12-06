@@ -54,6 +54,31 @@ class AvGlyph:
         self._path = path
 
     @classmethod
+    def from_dict(cls, data: dict) -> AvGlyph:
+        """Create an AvGlyph instance from a dictionary."""
+
+        path_dict = data.get("path")
+        if path_dict is None:
+            path = AvPath()
+        else:
+            path = AvPath.from_dict(path_dict)
+
+        return cls(
+            character=data.get("character", ""),
+            width=data.get("width", 0.0),
+            path=path,
+        )
+
+    def to_dict(self) -> dict:
+        """Convert the AvGlyph instance to a dictionary."""
+
+        return {
+            "character": self._character,
+            "width": self._width,
+            "path": self._path.to_dict(),
+        }
+
+    @classmethod
     def from_ttfont_character(cls, ttfont: TTFont, character: str, polygonize_steps: int = 0) -> AvGlyph:
         """
         Factory method to create an AvGlyph from a TTFont and character.

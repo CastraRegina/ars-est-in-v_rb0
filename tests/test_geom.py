@@ -360,6 +360,14 @@ class TestAvPath:
         assert path.points.shape == (0, 3)
         assert path.commands == []
 
+    def test_avpath_init_default_empty(self):
+        """Test AvPath default initialization with no arguments."""
+
+        path = AvPath()
+
+        assert path.points.shape == (0, 3)
+        assert path.commands == []
+
 
 ###############################################################################
 # AvPath Serialization Tests
@@ -397,6 +405,25 @@ class TestAvPathSerialization:
 
         np.testing.assert_allclose(restored.points, path.points)
         assert restored.commands == path.commands
+        # pylint: disable=protected-access
+        assert restored._bounding_box is None
+
+    def test_avpath_serialization_empty_path(self):
+        path = AvPath()
+
+        # pylint: disable=protected-access
+        assert path._bounding_box is None
+
+        data = path.to_dict()
+
+        assert data["points"] == []
+        assert data["commands"] == []
+        assert data["bounding_box"] is None
+
+        restored = AvPath.from_dict(data)
+
+        assert restored.points.shape == (0, 3)
+        assert restored.commands == []
         # pylint: disable=protected-access
         assert restored._bounding_box is None
 
