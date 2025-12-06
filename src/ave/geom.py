@@ -224,8 +224,14 @@ class AvPath:
 
     def __init__(
         self,
-        points: Union[Sequence[Tuple[float, float]], Sequence[Tuple[float, float, float]], NDArray[np.float64]],
-        commands: List[AvGlyphCmds],
+        points: Optional[
+            Union[
+                Sequence[Tuple[float, float]],
+                Sequence[Tuple[float, float, float]],
+                NDArray[np.float64],
+            ]
+        ] = None,
+        commands: Optional[List[AvGlyphCmds]] = None,
     ):
         """
         Initialize an AvPath from 2D points.
@@ -234,7 +240,9 @@ class AvPath:
             points: a sequence of (x, y) or (x, y, type).
             commands: List of drawing commands corresponding to the points.
         """
-        if isinstance(points, np.ndarray):
+        if points is None:
+            arr = np.empty((0, 3), dtype=np.float64)
+        elif isinstance(points, np.ndarray):
             arr = points.astype(np.float64, copy=False)
         else:
             arr = np.asarray(points, dtype=np.float64)
@@ -242,12 +250,14 @@ class AvPath:
         if arr.ndim != 2:
             raise ValueError(f"points must have 2 dimensions, got {arr.ndim}")
 
+        commands_list = [] if commands is None else list(commands)
+
         if arr.shape[1] == 2:
             # Generate type column based on commands
             type_column = np.zeros(arr.shape[0], dtype=np.float64)
             point_idx = 0
 
-            for cmd in commands:
+            for cmd in commands_list:
                 if cmd == "M":  # MoveTo - 1 point
                     type_column[point_idx] = 0.0
                     point_idx += 1
@@ -272,7 +282,7 @@ class AvPath:
         else:
             raise ValueError(f"points must have shape (n, 2) or (n, 3), got {arr.shape}")
 
-        self._commands = list(commands)
+        self._commands = commands_list
         self._bounding_box = None
 
     @property
@@ -334,12 +344,14 @@ class AvPath:
     @classmethod
     def from_dict(cls, data: dict) -> AvPath:
         """Create an AvPath instance from a dictionary."""
-        # Convert numpy array back from list
-        points = (
-            np.array(data["points"], dtype=np.float64)
-            if "points" in data
-            else np.array([], dtype=np.float64).reshape(0, 3)
-        )
+        raw_points = data.get("points", None)
+        if "points" in data:
+            if raw_points:
+                points = np.array(raw_points, dtype=np.float64)
+            else:
+                points = None
+        else:
+            points = None
 
         # Convert commands back from strings to enums
         commands = [cmd for cmd in data.get("commands", [])]
