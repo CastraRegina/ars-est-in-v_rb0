@@ -265,7 +265,7 @@ class TestIntegration:
         commands = ["M", "Q"]
 
         # Polygonize path
-        new_points, _ = BezierCurve.polygonize_path(points, commands, 5)
+        new_points, _ = AvPath.polygonize_path(points, commands, 5)
 
         # Create bounding box from polygonized points
         x_coords = new_points[:, 0]

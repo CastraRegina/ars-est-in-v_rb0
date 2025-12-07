@@ -325,7 +325,7 @@ class AvPath:
         else:
             # Has curves, polygonize temporarily to get accurate bounding box
             # Use a reasonable number of steps for curve approximation
-            polygonized_points, _ = BezierCurve.polygonize_path(
+            polygonized_points, _ = AvPath.polygonize_path(
                 self._points, self._commands, self.POLYGONIZE_STEPS_BOUNDING_BOX
             )
 
@@ -384,6 +384,115 @@ class AvPath:
             "commands": commands_list,
             "bounding_box": bbox_dict,
         }
+
+    @staticmethod
+    def polygonize_path(
+        points: NDArray[np.float64], commands: List[AvGlyphCmds], steps: int
+    ) -> Tuple[NDArray[np.float64], List[AvGlyphCmds]]:
+        """
+        Polygonize a path by converting curve commands (C, Q) to line segments.
+
+        Args:
+            points: Array of points with shape (n, 3) containing (x, y, type)
+            commands: List of path commands (M, L, C, Q, Z)
+            steps: Number of segments to use for curve polygonization
+
+        Returns:
+            Tuple of (new_points, new_commands) where curves are replaced by line segments
+        """
+        # Input normalization: ensure all points are 3D
+        if points.shape[1] == 2:
+            points = np.column_stack([points, np.zeros(len(points), dtype=np.float64)])
+
+        # Pre-allocation: estimate final size
+        num_curves = sum(1 for cmd in commands if cmd in "QC")
+        estimated_points = len(points) + num_curves * steps
+        new_points_array = np.empty((estimated_points, 3), dtype=np.float64)
+        new_commands_list = []
+
+        point_index = 0
+        array_index = 0
+
+        for cmd in commands:
+            if cmd == "M":  # MoveTo - uses 1 point
+                if point_index >= len(points):
+                    raise ValueError(f"MoveTo command needs 1 point, got {len(points) - point_index}")
+
+                pt = points[point_index]
+                new_points_array[array_index] = pt
+                new_commands_list.append(cmd)
+                array_index += 1
+                point_index += 1
+
+            elif cmd == "L":  # LineTo - uses 1 point
+                if point_index >= len(points):
+                    raise ValueError(f"LineTo command needs 1 point, got {len(points) - point_index}")
+
+                pt = points[point_index]
+                new_points_array[array_index] = pt
+                new_commands_list.append(cmd)
+                array_index += 1
+                point_index += 1
+
+            elif cmd == "Q":  # Quadratic Bezier To - uses 2 points (control, end)
+                if point_index + 1 >= len(points):
+                    raise ValueError(f"Quadratic Bezier command needs 2 points, got {len(points) - point_index}")
+
+                if array_index == 0:
+                    raise ValueError("Quadratic Bezier command has no starting point")
+
+                # Get start point (last point in new_points_array) + control and end points
+                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
+                control_point = points[point_index][:2]
+                end_point = points[point_index + 1][:2]
+
+                control_points = np.array([start_point, control_point, end_point], dtype=np.float64)
+
+                # Polygonize the quadratic bezier directly into output buffer
+                num_curve_points = BezierCurve.polygonize_quadratic_curve_inplace(
+                    control_points, steps, new_points_array, array_index, skip_first=True
+                )
+                new_commands_list.extend(["L"] * num_curve_points)
+                array_index += num_curve_points
+                point_index += 2  # Skip control and end points
+
+            elif cmd == "C":  # Cubic Bezier To - uses 3 points (control1, control2, end)
+                if point_index + 2 >= len(points):
+                    raise ValueError(f"Cubic Bezier command needs 3 points, got {len(points) - point_index}")
+
+                if array_index == 0:
+                    raise ValueError("Cubic Bezier command has no starting point")
+
+                # Get start point (last point in new_points_array) + control1, control2, and end points
+                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
+                control1_point = points[point_index][:2]
+                control2_point = points[point_index + 1][:2]
+                end_point = points[point_index + 2][:2]
+
+                control_points = np.array([start_point, control1_point, control2_point, end_point], dtype=np.float64)
+
+                # Polygonize the cubic bezier directly into output buffer
+                num_curve_points = BezierCurve.polygonize_cubic_curve_inplace(
+                    control_points, steps, new_points_array, array_index, skip_first=True
+                )
+                new_commands_list.extend(["L"] * num_curve_points)
+                array_index += num_curve_points
+                point_index += 3  # Skip control1, control2, and end points
+
+            elif cmd == "Z":  # ClosePath - uses 0 points, no point data in SVG
+                if array_index == 0:
+                    raise ValueError("ClosePath command has no starting point")
+
+                # Z command doesn't add a new point, it just closes the path
+                # The closing line is implicit from current point to first MoveTo point
+                new_commands_list.append(cmd)
+
+            else:
+                raise ValueError(f"Unknown command '{cmd}'")
+
+        # Trim the pre-allocated array to actual size
+        new_points = new_points_array[:array_index]
+        return new_points, new_commands_list
 
 
 def main():
@@ -491,7 +600,7 @@ def main():
     ###########################################################################
     # Test M,Q example
     print("\nTesting M,Q example:")
-    new_points_q, new_commands_q = BezierCurve.polygonize_path(path_points, path_commands, polygonize_steps)
+    new_points_q, new_commands_q = AvPath.polygonize_path(path_points, path_commands, polygonize_steps)
 
     print(f"Original points: {len(path_points)} points, {len(path_commands)} commands")
     for i, point in enumerate(path_points):
@@ -512,7 +621,7 @@ def main():
     ###########################################################################
     # Test M,C example
     print("\nTesting M,C example:")
-    new_points_c, new_commands_c = BezierCurve.polygonize_path(path_points_mc, path_commands_mc, polygonize_steps)
+    new_points_c, new_commands_c = AvPath.polygonize_path(path_points_mc, path_commands_mc, polygonize_steps)
 
     print(f"Original points: {len(path_points_mc)} points, {len(path_commands_mc)} commands")
     for i, point in enumerate(path_points_mc):
@@ -588,7 +697,7 @@ def main():
 
     # Test the complex path
     print("\nTesting complex path:")
-    new_points_complex, new_commands_complex = BezierCurve.polygonize_path(
+    new_points_complex, new_commands_complex = AvPath.polygonize_path(
         complex_path_points, complex_path_commands, polygonize_steps
     )
 

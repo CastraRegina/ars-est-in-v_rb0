@@ -8,6 +8,7 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
+from ave.geom import AvPath
 from ave.geom_bezier import BezierCurve
 
 ###############################################################################
@@ -81,7 +82,7 @@ class TestQuadraticPathPolygonization:
         commands = ["M", "Q"]
         steps = 10
 
-        result_points, _ = BezierCurve.polygonize_path(points, commands, steps)
+        result_points, _ = AvPath.polygonize_path(points, commands, steps)
 
         # Check that curve goes upward (y > 0) in the middle
         middle_y_values = result_points[1:-1, 1]  # Exclude start and end
@@ -105,7 +106,7 @@ class TestQuadraticPathPolygonization:
         commands = ["M", "Q"]
 
         for steps in [1, 2, 5, 10, 20]:
-            result_points, result_commands = BezierCurve.polygonize_path(points, commands, steps)
+            result_points, result_commands = AvPath.polygonize_path(points, commands, steps)
 
             # Should always have: 1 M + steps Q points
             expected_points = 1 + steps

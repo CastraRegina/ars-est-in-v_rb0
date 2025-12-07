@@ -8,6 +8,7 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
+from ave.geom import AvPath
 from ave.geom_bezier import BezierCurve
 
 ###############################################################################
@@ -245,7 +246,7 @@ class TestCubicBezierCurve:
         commands = ["M", "C"]
         steps = 5
 
-        new_points, new_commands = BezierCurve.polygonize_path(points, commands, steps)
+        new_points, new_commands = AvPath.polygonize_path(points, commands, steps)
 
         assert len(new_points) == steps + 1
         assert len(new_commands) == steps + 1
