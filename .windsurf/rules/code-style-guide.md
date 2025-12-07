@@ -29,7 +29,7 @@ Always adhere strictly to these rules in all responses, code generations, and su
 ## Project-Specific Topics and Modules
 
 - Core domains: SVG handling, variable OpenType fonts, 2D geometry (quadratic/cubic Bézier curves, SVG paths, polygons), polygonization, polygon clipping, boolean operations on polygons.
-- Primary libraries: numpy (numerics), fontTools (fonts), shapely (geometry). Import only what is needed; do not add heavy new dependencies without strong justification.
+- Primary libraries: numpy (numerics), fontTools (fonts), shapely (geometry), svgwrite (SVG). Import only what is needed; do not add heavy new dependencies without strong justification.
 
 ## API Development Rules
 
