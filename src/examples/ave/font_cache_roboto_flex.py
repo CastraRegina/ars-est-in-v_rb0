@@ -16,6 +16,7 @@ Run with:
 from __future__ import annotations
 
 import json
+import zipfile
 from pathlib import Path
 from typing import Dict
 
@@ -29,12 +30,11 @@ from ave.glyph import (
     AvGlyphPolygonizeFactory,
 )
 
-ROBOTO_FLEX_FILENAME = (
-    "fonts/" "RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC," "YTUC,opsz,slnt,wdth,wght.ttf"
-)
+ROBOTO_FLEX_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
 
-CACHE_DIR = Path("fonts/cache")
-CACHE_FILE = CACHE_DIR / "RobotoFlex_variable_font_cache.json"
+CACHE_DIR: Path = Path("fonts/cache")
+CACHE_FILE: Path = CACHE_DIR / "RobotoFlex_variable_font_cache.json"
+ZIP_CACHE_FILE: Path = CACHE_DIR / "RobotoFlex_variable_font_cache_example.json.zip"
 
 
 def build_avfont(font_path: str, axes_values: Dict[str, float]) -> AvFont:
@@ -84,17 +84,44 @@ def save_font_cache(avfont: AvFont, cache_path: Path) -> None:
         json.dump(cache_dict, file, ensure_ascii=True, indent=2)
 
 
+def zip_font_cache(cache_path: Path, zip_path: Path) -> None:
+    """Create a zip archive containing the given cache JSON file.
+
+    Args:
+        cache_path: Path to the JSON cache file.
+        zip_path: Path to the resulting zip file.
+    """
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.write(cache_path, arcname=cache_path.name)
+
+
 def load_font_cache(cache_path: Path) -> AvFont:
     """Load a font cache from cache_path and return an AvFont.
 
+    The cache file can be either a plain JSON file or a .zip archive
+    containing a single JSON file created by save_font_cache.
+
     Args:
-        cache_path: Path to a JSON file created by save_font_cache.
+        cache_path: Path to a JSON or .zip file created by save_font_cache
+            and optionally zipped by zip_font_cache.
 
     Returns:
         AvFont instance reconstructed from the cache.
     """
-    with cache_path.open("r", encoding="utf-8") as file:
-        cache_dict = json.load(file)
+    if cache_path.suffix == ".zip":
+        with zipfile.ZipFile(cache_path, "r") as zip_file:
+            names = zip_file.namelist()
+            if not names:
+                raise ValueError("Zip cache file is empty")
+            inner_name = names[0]
+            with zip_file.open(inner_name) as file:
+                cache_bytes = file.read()
+        cache_dict = json.loads(cache_bytes.decode("utf-8"))
+    else:
+        with cache_path.open("r", encoding="utf-8") as file:
+            cache_dict = json.load(file)
+
     return AvFont.from_cache_dict(cache_dict)
 
 
@@ -112,8 +139,18 @@ def main() -> None:
     print(f"Saving font cache to {CACHE_FILE} ...")
     save_font_cache(avfont, CACHE_FILE)
 
-    print("Loading font cache again ...")
-    cached_font = load_font_cache(CACHE_FILE)
+    print(f"Saving zipped font cache to {ZIP_CACHE_FILE} ...")
+    zip_font_cache(CACHE_FILE, ZIP_CACHE_FILE)
+
+    print("Loading font cache again from zip file ...")
+    cached_font = load_font_cache(ZIP_CACHE_FILE)
+
+    if cached_font.props.to_dict() != avfont.props.to_dict():
+        raise RuntimeError("Cached font properties do not match original")
+
+    for character in text:
+        if avfont.get_glyph(character).to_dict() != cached_font.get_glyph(character).to_dict():
+            raise RuntimeError(f"Cached glyph for {character!r} does not match original")
 
     print("Font info from cached font:")
     print(cached_font.get_info_string())
