@@ -9,8 +9,8 @@ from ave.glyph import (
     AvFont,
     AvFontProperties,
     AvGlyphFromTTFontFactory,
+    AvGlyphPolygonizeFactory,
     AvLetter,
-    AvPolylineGlyphFromTTFontFactory,
 )
 from ave.page import AvSvgPage
 
@@ -33,9 +33,11 @@ def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] =
         ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), axes_values)
 
     # polygonize_steps=0 => no polygonization
-    glyph_factory = AvPolylineGlyphFromTTFontFactory(ttfont, polygonize_steps=0)
+    polygonize_steps = 0
+    glyph_factory_ttfont = AvGlyphFromTTFontFactory(ttfont)
+    glpyh_factory_polygonized = AvGlyphPolygonizeFactory(glyph_factory_ttfont, polygonize_steps)
 
-    avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))
+    avfont = AvFont(glpyh_factory_polygonized, AvFontProperties.from_ttfont(ttfont))
 
     return avfont
 

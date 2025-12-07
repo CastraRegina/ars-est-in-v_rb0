@@ -385,6 +385,22 @@ class AvPath:
             "bounding_box": bbox_dict,
         }
 
+    def polygonize(self, steps: int) -> "AvPath":
+        """Return a polygonized copy of this path.
+
+        Args:
+            steps: Number of segments used to approximate curve segments.
+                If 0, the original path is returned unchanged.
+
+        Returns:
+            AvPath: New path with curves replaced by line segments.
+        """
+        if steps == 0:
+            return self
+
+        new_points, new_commands = AvPath.polygonize_path(self._points, self._commands, steps)
+        return AvPath(new_points, new_commands)
+
     @staticmethod
     def polygonize_path(
         points: NDArray[np.float64], commands: List[AvGlyphCmds], steps: int

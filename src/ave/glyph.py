@@ -280,34 +280,74 @@ class AvGlyphFromTTFontFactory(AvGlyphFactory):
 
 
 @dataclass
-class AvPolylineGlyphFromTTFontFactory(AvGlyphFromTTFontFactory):
+class AvGlyphPolygonizeFactory(AvGlyphFactory):
     """
-    A factory class for creating glyph instances which polygonizes the curves.
+    A glyph factory wrapper that polygonizes glyphs from another factory.
+
+    It retrieves glyphs from a source factory, polygonizes their paths,
+    and returns new AvGlyph instances with polygonized paths.
     """
 
+    _source_factory: AvGlyphFactory
     _polygonize_steps: int
 
-    def __init__(self, ttfont: TTFont, polygonize_steps: int = 50) -> None:
+    def __init__(
+        self,
+        source_factory: AvGlyphFactory,
+        polygonize_steps: int = 50,
+    ) -> None:
         """
-        Initializes the glyph factory.
+        Initialize the polygonizing factory.
 
         Parameters:
-            ttfont (TTFont): The TTFont to use.
-            polygonize_steps (int, optional): The number of steps to use for polygonization.
-                Defaults to 0 = no polygonization.
+            source_factory (AvGlyphFactory): The factory to retrieve glyphs from.
+            polygonize_steps (int, optional): Number of steps for polygonization.
+                Defaults to 50. 0 = no polygonization
         """
-        super().__init__(ttfont)
+        self._source_factory = source_factory
         self._polygonize_steps = polygonize_steps
 
     @property
+    def source_factory(self) -> AvGlyphFactory:
+        """Return the underlying source glyph factory."""
+        return self._source_factory
+
+    @property
     def polygonize_steps(self) -> int:
-        """
-        The number of steps used for polygonization when creating glyphs.
-        """
+        """Number of steps used for polygonization."""
         return self._polygonize_steps
 
+    @source_factory.setter
+    def source_factory(self, source_factory: AvGlyphFactory) -> None:
+        self._source_factory = source_factory
+
+    @polygonize_steps.setter
+    def polygonize_steps(self, polygonize_steps: int) -> None:
+        self._polygonize_steps = polygonize_steps
+
     def get_glyph(self, character: str) -> AvGlyph:
-        return AvGlyph.from_ttfont_character(self._ttfont, character, self._polygonize_steps)
+        """
+        Retrieve a glyph from the source factory, polygonize its path,
+        and return a new AvGlyph with the polygonized path.
+
+        Args:
+            character (str): The character to create a polygonized glyph for.
+
+        Returns:
+            AvGlyph: A new glyph instance with a polygonized path.
+        """
+        # Retrieve the original glyph from the source factory
+        original_glyph = self._source_factory.get_glyph(character)
+
+        # Polygonize the path
+        polygonized_path = original_glyph.path.polygonize(self._polygonize_steps)
+
+        # Return a new AvGlyph with the polygonized path
+        return AvGlyph(
+            character=original_glyph.character,
+            width=original_glyph.width(),
+            path=polygonized_path,
+        )
 
 
 ###############################################################################
