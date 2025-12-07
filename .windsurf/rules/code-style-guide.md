@@ -44,6 +44,12 @@ When implementing new features:
 - Add at least one usage example in src/examples/
 - Add a corresponding test in tests/ that verifies the new behavior
 
+### AI-Generated Verification and Check Files
+- Place all AI-generated verification, check, and temporary test files in `src/examples/qndai/`
+- Examples: `verify_refactoring.py`, `check_functionality.py`, `compare_performance.py`, `test_new_feature.py`
+- This keeps the project root clean and organizes AI-generated content
+- Use descriptive filenames that clearly indicate the purpose (e.g., `verify_[feature].py`, `check_[component].py`)
+
 ## Performance Improvements
 
 Never suggest optimizations without measurement:
@@ -55,20 +61,39 @@ Never suggest optimizations without measurement:
 
 ## Developer Workflows & Commands
 
+### Environment Setup (CRITICAL)
+⚠️ **ALL commands below assume the virtual environment is activated first!**
+
+**Required setup (run once):**
 ```bash
-# Setup
 python3 -m venv venv
-. venv/bin/activate
+source venv/bin/activate
 python3 -m pip install -r requirements.txt
+```
+
+
+### Development Commands
+Before running ANY command, ensure venv is active:
+```bash
+source venv/bin/activate  # You should see (venv) prefix in your prompt
+```
+
+```bash
+# Ensure venv is active first: source venv/bin/activate
+source venv/bin/activate  # You should see (venv) prefix in your prompt
 
 # Required for running code / tests
 export PYTHONPATH=./src
 
-# Run tests
-pytest -q
+# Run tests (venv must be active)
+(venv) $ pytest -q
+
+# Run specific test file
+(venv) $ pytest tests/test_geom.py -v
 
 # Run the demo app
-PYTHONPATH=./src python3 -m main_app
+(venv) $ PYTHONPATH=./src python3 -m main_app
 
 # Run an example
-PYTHONPATH=./src python3 -m examples.ave.font_check_roboto_flex
+(venv) $ PYTHONPATH=./src python3 -m examples.ave.font_check_roboto_flex
+```
