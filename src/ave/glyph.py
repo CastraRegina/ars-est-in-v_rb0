@@ -819,6 +819,41 @@ class AvFont:
         """Returns the AvFontProperties object associated with this font."""
         return self._font_properties
 
+    def to_cache_dict(self) -> dict:
+        """Return a dictionary representing a font cache snapshot.
+
+        The cache contains the font properties and all cached glyphs.
+
+        Returns:
+            dict: Cache dictionary suitable for JSON serialization.
+        """
+        glyphs_dict: Dict[str, dict] = {
+            character: glyph.to_dict() for character, glyph in self._glyph_factory.glyphs.items()
+        }
+        return {
+            "format_version": 1,
+            "font_properties": self._font_properties.to_dict(),
+            "glyphs": glyphs_dict,
+        }
+
+    @classmethod
+    def from_cache_dict(cls, data: dict) -> "AvFont":
+        """Create an AvFont instance from a cache dictionary.
+
+        Args:
+            data: Cache dictionary created by to_cache_dict.
+
+        Returns:
+            AvFont: Font instance backed by a cached glyph factory.
+        """
+        font_properties = AvFontProperties.from_dict(data.get("font_properties", {}))
+        glyph_entries = data.get("glyphs", {})
+        glyphs: Dict[str, AvGlyph] = {
+            character: AvGlyph.from_dict(glyph_data) for character, glyph_data in glyph_entries.items()
+        }
+        glyph_factory = AvGlyphCachedFactory(glyphs=glyphs, source_factory=None)
+        return cls(glyph_factory=glyph_factory, font_properties=font_properties)
+
     def get_glyph(self, character: str) -> AvGlyph:
         """Returns the AvGlyph for the given character from the factory."""
         return self._glyph_factory.get_glyph(character)

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from ave.geom import AvBox, AvPath
-from ave.glyph import AvGlyph
+from ave.glyph import AvFont, AvFontProperties, AvGlyph, AvGlyphCachedFactory
 
 
 class TestAvGlyph:
@@ -238,6 +238,70 @@ class TestAvGlyph:
         assert np.isclose(bbox.ymin, -5.0)
         assert bbox.ymax < 10.0  # Should not include control point
         assert bbox.ymax > -5.0  # Should be higher than endpoints
+
+
+class TestAvFontCache:
+    """Tests for AvFont cache serialization helpers."""
+
+    def test_font_cache_roundtrip_in_memory(self):
+        """Test AvFont.to_cache_dict and AvFont.from_cache_dict round-trip.
+
+        This test uses a minimal in-memory font setup without touching the
+        examples package or external font files.
+        """
+
+        # Create a simple glyph
+        points = np.array(
+            [[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "L"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=10.0, path=path)
+
+        # Create a cached glyph factory with one glyph
+        glyphs = {"A": glyph}
+        glyph_factory = AvGlyphCachedFactory(glyphs=glyphs, source_factory=None)
+
+        # Minimal font properties
+        font_props = AvFontProperties(
+            ascender=800.0,
+            descender=-200.0,
+            line_gap=0.0,
+            x_height=400.0,
+            cap_height=700.0,
+            units_per_em=1000.0,
+            family_name="TestFamily",
+            subfamily_name="Regular",
+            full_name="TestFamily Regular",
+            license_description="Test license",
+        )
+
+        avfont = AvFont(glyph_factory=glyph_factory, font_properties=font_props)
+
+        # Serialize to cache dict and reconstruct
+        cache_dict = avfont.to_cache_dict()
+        avfont_restored = AvFont.from_cache_dict(cache_dict)
+
+        # Basic properties
+        assert avfont_restored.props.family_name == avfont.props.family_name
+        assert avfont_restored.props.units_per_em == avfont.props.units_per_em
+        assert avfont_restored.props.ascender == avfont.props.ascender
+        assert avfont_restored.props.descender == avfont.props.descender
+
+        # Glyphs in cache
+        glyph_restored = avfont_restored.get_glyph("A")
+
+        assert glyph_restored.character == glyph.character
+        assert glyph_restored.width() == glyph.width()
+
+        np.testing.assert_allclose(
+            glyph_restored.path.points,
+            glyph.path.points,
+            rtol=1e-12,
+            atol=1e-12,
+        )
+        assert glyph_restored.path.commands == glyph.path.commands
 
 
 if __name__ == "__main__":
