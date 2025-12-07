@@ -197,7 +197,7 @@ class AvGlyphFactory:
     """
 
     @abstractmethod
-    def create_glyph(self, character: str) -> AvGlyph:
+    def get_glyph(self, character: str) -> AvGlyph:
         """
         Creates and returns a glyph representation for the specified character.
         Args:
@@ -205,6 +205,55 @@ class AvGlyphFactory:
         Returns:
             AvGlyph: An instance representing the glyph of the specified character.
         """
+
+
+@dataclass
+class AvGlyphCachedFactory(AvGlyphFactory):
+    """Glyph factory backed by an in-memory glyph dictionary with optional fallback.
+
+    The factory first tries to return a glyph from its internal ``_glyphs`` cache.
+    If the glyph is not present and a ``_source_factory`` is configured, it will
+    delegate creation to that factory, cache the result, and return it.
+    """
+
+    _glyphs: Dict[str, AvGlyph] = field(default_factory=dict)
+    _source_factory: Optional[AvGlyphFactory] = None
+
+    def __init__(
+        self,
+        glyphs: Optional[Dict[str, AvGlyph]] = None,
+        source_factory: Optional[AvGlyphFactory] = None,
+    ) -> None:
+        """Initialize the factory with an optional glyph cache and source factory."""
+        if glyphs is None:
+            glyphs = {}
+        self._glyphs = glyphs
+        self._source_factory = source_factory
+
+    @property
+    def glyphs(self) -> Dict[str, AvGlyph]:
+        """Return the internal glyph cache mapping characters to glyph instances."""
+        return self._glyphs
+
+    @property
+    def source_factory(self) -> Optional[AvGlyphFactory]:
+        """Return the optional backing glyph factory used as a cache miss source."""
+        return self._source_factory
+
+    @source_factory.setter
+    def source_factory(self, source_factory: Optional[AvGlyphFactory]) -> None:
+        self._source_factory = source_factory
+
+    def get_glyph(self, character: str) -> AvGlyph:
+        if character in self._glyphs:
+            return self._glyphs[character]
+
+        if self._source_factory is None:
+            raise KeyError(f"Glyph for character {character!r} not found and no source_factory provided.")
+
+        glyph = self._source_factory.get_glyph(character)
+        self._glyphs[character] = glyph
+        return glyph
 
 
 @dataclass
@@ -226,7 +275,7 @@ class AvGlyphFromTTFontFactory(AvGlyphFactory):
         """
         return self._ttfont
 
-    def create_glyph(self, character: str) -> AvGlyph:
+    def get_glyph(self, character: str) -> AvGlyph:
         return AvGlyph.from_ttfont_character(self._ttfont, character)
 
 
@@ -257,7 +306,7 @@ class AvPolylineGlyphFromTTFontFactory(AvGlyphFromTTFontFactory):
         """
         return self._polygonize_steps
 
-    def create_glyph(self, character: str) -> AvGlyph:
+    def get_glyph(self, character: str) -> AvGlyph:
         return AvGlyph.from_ttfont_character(self._ttfont, character, self._polygonize_steps)
 
 
@@ -700,26 +749,30 @@ class AvFontProperties:
 
 @dataclass
 class AvFont:
-    """
-    Representation of a Font.
-    Holds a Dictionary of glyphs which can be accessed by get_glyph().
+    """Font abstraction with cached glyph access and font metrics.
+
+    Wraps an AvGlyphFactory in AvGlyphCachedFactory and stores the
+    corresponding AvFontProperties for the underlying font.
     """
 
-    _glyph_factory: AvGlyphFactory
+    _glyph_factory: AvGlyphCachedFactory
     _font_properties: AvFontProperties = field(default_factory=AvFontProperties)
-    _glyphs: Dict[str, AvGlyph] = field(default_factory=dict)
 
     def __init__(
         self,
         glyph_factory: AvGlyphFactory,
         font_properties: AvFontProperties,
-        glyphs: Optional[Dict[str, AvGlyph]] = None,
     ) -> None:
-        self._glyph_factory = glyph_factory
+        if isinstance(glyph_factory, AvGlyphCachedFactory):
+            self._glyph_factory = glyph_factory
+        else:
+            self._glyph_factory = AvGlyphCachedFactory(source_factory=glyph_factory)
         self._font_properties = font_properties
-        if glyphs is None:
-            glyphs = {}
-        self._glyphs = glyphs
+
+    @property
+    def glyph_factory(self) -> AvGlyphCachedFactory:
+        """Returns the glyph factory used by this font."""
+        return self._glyph_factory
 
     @property
     def props(self) -> AvFontProperties:
@@ -727,10 +780,8 @@ class AvFont:
         return self._font_properties
 
     def get_glyph(self, character: str) -> AvGlyph:
-        """Returns the AvGlyph for the given character from the caching dictionary."""
-        if character not in self._glyphs:
-            self._glyphs[character] = self._glyph_factory.create_glyph(character)
-        return self._glyphs[character]
+        """Returns the AvGlyph for the given character from the factory."""
+        return self._glyph_factory.get_glyph(character)
 
     def get_info_string(self) -> str:
         """
@@ -740,7 +791,7 @@ class AvFont:
         font_info_string = self._font_properties.info_string()
         font_info_string += "-----Glyphs in cache:-----\n"
         glyph_count = 0
-        for glyph_character in self._glyphs:
+        for glyph_character in self._glyph_factory.glyphs:
             glyph_count += 1
             font_info_string += f"{glyph_character}"
             if glyph_count % 20 == 0:
@@ -752,14 +803,14 @@ class AvFont:
     def actual_ascender(self):
         """Returns the overall maximum ascender by iterating over all glyphs in the cache (positive value)."""
         ascender: float = 0.0
-        for glyph in self._glyphs.values():
+        for glyph in self._glyph_factory.glyphs.values():
             ascender = max(ascender, glyph.ascender)
         return ascender
 
     def actual_descender(self):
         """Returns the overall minimum descender by iterating over all glyphs in the cache (negative value)."""
         descender: float = 0.0
-        for glyph in self._glyphs.values():
+        for glyph in self._glyph_factory.glyphs.values():
             descender = min(descender, glyph.descender)
         return descender
 
