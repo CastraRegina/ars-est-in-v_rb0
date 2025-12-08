@@ -132,7 +132,7 @@ def main() -> None:
     axes_values: Dict[str, float] = {"wght": 400.0}
     avfont = build_avfont(ROBOTO_FLEX_FILENAME, axes_values)
 
-    text = "Roboto Flex cache example text 0123456789"
+    text = "I Roboto Flex cache example text 0123456789"
     print("Warming up glyph cache ...")
     warm_up_cache(avfont, text)
 
