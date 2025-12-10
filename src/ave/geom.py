@@ -375,7 +375,8 @@ class AvPath:
             x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
         else:
             # Has curves, polygonize temporarily to get accurate bounding box
-            polygonized_points, _ = AvPath.polygonize_path(self._points, self._commands, self.POLYGONIZE_STEPS_INTERNAL)
+            polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
+            polygonized_points = polygonized_path.points
 
             if polygonized_points.size == 0:
                 self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
@@ -576,24 +577,9 @@ class AvPath:
         if steps == 0:
             return self
 
-        new_points, new_commands = AvPath.polygonize_path(self._points, self._commands, steps)
-        return AvPath(new_points, new_commands)
+        points = self._points
+        commands = self._commands
 
-    @staticmethod
-    def polygonize_path(
-        points: NDArray[np.float64], commands: List[AvGlyphCmds], steps: int
-    ) -> Tuple[NDArray[np.float64], List[AvGlyphCmds]]:
-        """
-        Polygonize a path by converting curve commands (C, Q) to line segments.
-
-        Args:
-            points: Array of points with shape (n, 3) containing (x, y, type)
-            commands: List of path commands (M, L, C, Q, Z)
-            steps: Number of segments to use for curve polygonization
-
-        Returns:
-            Tuple of (new_points, new_commands) where curves are replaced by line segments
-        """
         # Input normalization: ensure all points are 3D
         if points.shape[1] == 2:
             points = np.column_stack([points, np.zeros(len(points), dtype=np.float64)])
@@ -686,7 +672,7 @@ class AvPath:
 
         # Trim the pre-allocated array to actual size
         new_points = new_points_array[:array_index]
-        return new_points, new_commands_list
+        return AvPath(new_points, new_commands_list)
 
     @classmethod
     def split_into_single_paths(cls, path: AvPath) -> List[AvSinglePath]:
@@ -1009,7 +995,9 @@ def main():
     ###########################################################################
     # Test M,Q example
     print("\nTesting M,Q example:")
-    new_points_q, new_commands_q = AvPath.polygonize_path(path_points, path_commands, polygonize_steps)
+    path_q = AvPath(path_points, path_commands)
+    polygonized_q = path_q.polygonize(polygonize_steps)
+    new_points_q, new_commands_q = polygonized_q.points, polygonized_q.commands
 
     print(f"Original points: {len(path_points)} points, {len(path_commands)} commands")
     for i, point in enumerate(path_points):
@@ -1030,7 +1018,9 @@ def main():
     ###########################################################################
     # Test M,C example
     print("\nTesting M,C example:")
-    new_points_c, new_commands_c = AvPath.polygonize_path(path_points_mc, path_commands_mc, polygonize_steps)
+    path_c = AvPath(path_points_mc, path_commands_mc)
+    polygonized_c = path_c.polygonize(polygonize_steps)
+    new_points_c, new_commands_c = polygonized_c.points, polygonized_c.commands
 
     print(f"Original points: {len(path_points_mc)} points, {len(path_commands_mc)} commands")
     for i, point in enumerate(path_points_mc):
@@ -1106,9 +1096,9 @@ def main():
 
     # Test the complex path
     print("\nTesting complex path:")
-    new_points_complex, new_commands_complex = AvPath.polygonize_path(
-        complex_path_points, complex_path_commands, polygonize_steps
-    )
+    path_complex = AvPath(complex_path_points, complex_path_commands)
+    polygonized_complex = path_complex.polygonize(polygonize_steps)
+    new_points_complex, new_commands_complex = polygonized_complex.points, polygonized_complex.commands
 
     print(f"Original: {len(complex_path_points)} points, {len(complex_path_commands)} commands")
     print(f"Polygonized: {len(new_points_complex)} points, {len(new_commands_complex)} commands")

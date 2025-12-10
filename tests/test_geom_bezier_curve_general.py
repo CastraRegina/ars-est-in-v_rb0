@@ -43,7 +43,8 @@ class TestBezierIntegration:
         commands = ["M", "Q"]
 
         # Polygonize path
-        new_points, _ = AvPath.polygonize_path(points, commands, 5)
+        path = AvPath(points, commands)
+        new_points = path.polygonize(5).points
 
         # Create bounding box from polygonized points
         x_coords = new_points[:, 0]
@@ -70,7 +71,6 @@ class TestBezierIntegration:
         assert callable(BezierCurve.polygonize_cubic_curve_numpy_inplace)
         assert callable(BezierCurve.polygonize_cubic_curve_python)
         assert callable(BezierCurve.polygonize_cubic_curve_numpy)
-        assert callable(AvPath.polygonize_path)
 
     def test_return_type_consistency(self):
         """Test that return types are consistent across methods."""
@@ -109,7 +109,9 @@ class TestBezierPathPolygonization:
         commands = ["M", "Q", "C"]
         steps = 10
 
-        result_points, result_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        result_points, result_commands = result.points, result.commands
 
         # Verify structure
         assert len(result_points) == 21  # 1 M + 10 Q + 10 C points
@@ -188,7 +190,9 @@ class TestBezierPathPolygonization:
         commands = ["M", "L", "Q", "L", "C", "L", "Z"]
         steps = 5
 
-        result_points, result_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        result_points, result_commands = result.points, result.commands
 
         # Count expected points:
         # M: 1, L: 1, Q: 5, L: 1, C: 5, L: 1, Z: 1 = 15 points/commands
@@ -219,7 +223,8 @@ class TestBezierPathPolygonization:
         commands = ["M", "Q"]
         steps = 3
 
-        result_points, _ = AvPath.polygonize_path(points_2d, commands, steps)
+        path = AvPath(points_2d, commands)
+        result_points = path.polygonize(steps).points
 
         # Output should be 3D
         assert result_points.shape[1] == 3
@@ -257,7 +262,9 @@ class TestBezierPolygonizationAccuracy:
         commands = ["M", "Q", "C"]
         steps = 10
 
-        result_points, result_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        result_points, result_commands = result.points, result.commands
 
         # Verify start point matches M point exactly
         assert np.allclose(result_points[0, :2], points[0, :2]), "Start point should match M point"
@@ -329,7 +336,9 @@ class TestBezierCurve:
         commands = ["M", "L"]
         steps = 5
 
-        new_points, new_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        new_points, new_commands = result.points, result.commands
 
         assert len(new_points) == 2
         assert len(new_commands) == 2
@@ -342,7 +351,9 @@ class TestBezierCurve:
         commands = ["M", "Q"]
         steps = 5
 
-        new_points, new_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        new_points, new_commands = result.points, result.commands
 
         assert len(new_points) == steps + 1
         assert len(new_commands) == steps + 1
@@ -367,7 +378,9 @@ class TestBezierCurve:
         commands = ["M", "L", "Q", "L", "C"]
         steps = 5
 
-        new_points, new_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        new_points, new_commands = result.points, result.commands
 
         # Should have: M + L + (Q->5L) + L + (C->5L)
         expected_points = 1 + 1 + steps + 1 + steps
@@ -383,7 +396,9 @@ class TestBezierCurve:
         commands = ["M", "L", "Z"]
         steps = 5
 
-        new_points, new_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        new_points, new_commands = result.points, result.commands
 
         assert len(new_points) == 2
         assert len(new_commands) == 3
@@ -395,7 +410,9 @@ class TestBezierCurve:
         commands = ["M", "L"]
         steps = 5
 
-        new_points, new_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        new_points, new_commands = result.points, result.commands
 
         assert new_points.shape[1] == 3  # Should be 3D
         assert np.allclose(new_points[:, :2], points)  # First 2D should match input
@@ -410,7 +427,8 @@ class TestBezierCurve:
         steps = 5
 
         with pytest.raises((ValueError, IndexError)):
-            AvPath.polygonize_path(points, commands, steps)
+            path = AvPath(points, commands)
+            path.polygonize(steps)
 
         # Test invalid command
         points = np.array([[10.0, 10.0, 0.0], [20.0, 20.0, 0.0]], dtype=np.float64)
@@ -418,7 +436,8 @@ class TestBezierCurve:
         steps = 5
 
         with pytest.raises((ValueError, IndexError)):
-            AvPath.polygonize_path(points, commands, steps)
+            path = AvPath(points, commands)
+            path.polygonize(steps)
 
     def test_complex_path_with_multiple_commands(self):
         """Test complex path with multiple command types as shown in main function."""
@@ -448,7 +467,9 @@ class TestBezierCurve:
 
         # Test polygonization
         polygonize_steps = 5
-        new_points, new_commands = AvPath.polygonize_path(complex_path_points, complex_path_commands, polygonize_steps)
+        path = AvPath(complex_path_points, complex_path_commands)
+        result = path.polygonize(polygonize_steps)
+        new_points, new_commands = result.points, result.commands
 
         # Verify structure
         original_curves = sum(1 for cmd in complex_path_commands if cmd in ["Q", "C"])
@@ -509,7 +530,9 @@ class TestBezierCurve:
 
         # Test polygonization
         polygonize_steps = 10
-        new_points, new_commands = AvPath.polygonize_path(test_points, test_commands, polygonize_steps)
+        path = AvPath(test_points, test_commands)
+        result = path.polygonize(polygonize_steps)
+        new_points, new_commands = result.points, result.commands
 
         # Should have significantly more points after polygonization
         assert len(new_points) > len(test_points), "Should have more points after polygonization"
@@ -538,7 +561,9 @@ class TestBezierCurve:
         path_commands = ["M", "Q", "C"]
         steps = 5
 
-        result_points, result_commands = AvPath.polygonize_path(path_points, path_commands, steps)
+        path = AvPath(path_points, path_commands)
+        result = path.polygonize(steps)
+        result_points, result_commands = result.points, result.commands
 
         # Verify structure
         assert len(result_points) == 1 + steps + steps  # M + Q(5) + C(5)

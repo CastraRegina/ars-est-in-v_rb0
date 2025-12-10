@@ -82,7 +82,8 @@ class TestQuadraticPathPolygonization:
         commands = ["M", "Q"]
         steps = 10
 
-        result_points, _ = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result_points = path.polygonize(steps).points
 
         # Check that curve goes upward (y > 0) in the middle
         middle_y_values = result_points[1:-1, 1]  # Exclude start and end
@@ -106,7 +107,9 @@ class TestQuadraticPathPolygonization:
         commands = ["M", "Q"]
 
         for steps in [1, 2, 5, 10, 20]:
-            result_points, result_commands = AvPath.polygonize_path(points, commands, steps)
+            path = AvPath(points, commands)
+            result = path.polygonize(steps)
+            result_points, result_commands = result.points, result.commands
 
             # Should always have: 1 M + steps Q points
             expected_points = 1 + steps

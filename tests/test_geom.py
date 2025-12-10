@@ -265,7 +265,8 @@ class TestIntegration:
         commands = ["M", "Q"]
 
         # Polygonize path
-        new_points, _ = AvPath.polygonize_path(points, commands, 5)
+        path = AvPath(points, commands)
+        new_points = path.polygonize(5).points
 
         # Create bounding box from polygonized points
         x_coords = new_points[:, 0]

@@ -246,7 +246,9 @@ class TestCubicBezierCurve:
         commands = ["M", "C"]
         steps = 5
 
-        new_points, new_commands = AvPath.polygonize_path(points, commands, steps)
+        path = AvPath(points, commands)
+        result = path.polygonize(steps)
+        new_points, new_commands = result.points, result.commands
 
         assert len(new_points) == steps + 1
         assert len(new_commands) == steps + 1
