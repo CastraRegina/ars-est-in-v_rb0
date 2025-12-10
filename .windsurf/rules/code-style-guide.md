@@ -11,7 +11,7 @@ Always adhere strictly to these rules in all responses, code generations, and su
 ## Language and Character Set
 
 - Respond exclusively in English. All code, comments, docstrings, variable names, and explanations must be in English only.
-- Use only standard US-ASCII characters (codes 0-127). Never use non-ASCII symbols, including umlauts, eszett (use "ss" instead of "ß"), accents, emojis, smart quotes (" " ' '), em-dashes (—), or any other special characters. Use straight quotes " and ' and hyphens - instead.
+- Use only standard US-ASCII characters (codes 0-127). Never use non-ASCII symbols, including umlauts, eszett (use "ss" instead of "ß"), accents, ticks, check marks, emojis, smart quotes (" " ' '), em-dashes (—), or any other special characters. Use straight quotes " and ' and hyphens - instead.
 
 ## Code Style and Conventions
 
@@ -58,6 +58,15 @@ Never suggest optimizations without measurement:
 2. Show before and after code
 3. Provide timeit (or equivalent) results
 4. State the exact percentage improvement
+
+## Reviews
+You are a senior Python expert and code reviewer.
+Review the given Python code. Your task is to:
+
+1. Check if the implementation **exactly matches** the function/class docstring and any type hints.
+2. Verify that the **logic is correct** and handles all edge cases described (or obviously required).
+3. Identify any bugs, off-by-one errors, incorrect assumptions, or violated preconditions/postconditions.
+4. Suggest improvements for clarity, performance, or Pythonic style — but only after confirming correctness.
 
 ## Developer Workflows & Commands
 
