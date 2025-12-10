@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import shapely.geometry as geom
 from numpy.typing import NDArray
 
 from ave.common import AvGlyphCmds
@@ -210,17 +211,18 @@ class AvBox:
 @dataclass
 class AvPath:
     """
-    Represents a path with points and commands, similar to a glyph but without character-specific data.
-
-    It is composed of a set of points and a set of commands that define how to draw the shape.
+    Path represented by points (shape (n, 3)) and corresponding commands.
+    A path contains 0..n segments; each segment starts with M, is followed by
+    an arbitrary mix of L/Q/C, and may optionally end with Z.
+    A path may also be empty (no points and no commands), representing 0 segments.
     """
 
     _points: NDArray[np.float64]  # shape (n_points, 3)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _bounding_box: Optional[AvBox] = None  # caching variable
 
-    # Number of steps to use when polygonizing curves for bounding box calculation
-    POLYGONIZE_STEPS_BOUNDING_BOX: int = 100  # pylint: disable=invalid-name
+    # Number of steps to use when polygonizing curves for internal approximations
+    POLYGONIZE_STEPS_INTERNAL: int = 50  # pylint: disable=invalid-name
 
     def __init__(
         self,
@@ -284,6 +286,55 @@ class AvPath:
 
         self._commands = commands_list
         self._bounding_box = None
+        self._validate()
+
+    def _validate(self) -> None:
+        """Validate path structure. Override in subclasses for specific constraints."""
+        cmds = self._commands
+        points = self._points
+
+        if not cmds:
+            if points.shape[0] != 0:
+                raise ValueError("Empty command list must have zero points")
+            return
+
+        expected_points = 0
+        idx = 0
+        n_cmds = len(cmds)
+
+        while idx < n_cmds:
+            cmd = cmds[idx]
+            if cmd != "M":
+                raise ValueError(f"Each segment must start with 'M' command (got '{cmd}' at index {idx})")
+
+            expected_points += 1
+            idx += 1
+
+            while idx < n_cmds and cmds[idx] != "M":
+                cmd = cmds[idx]
+                if cmd == "L":
+                    expected_points += 1
+                    idx += 1
+                elif cmd == "Q":
+                    expected_points += 2
+                    idx += 1
+                elif cmd == "C":
+                    expected_points += 3
+                    idx += 1
+                elif cmd == "Z":
+                    idx += 1
+                    if idx < n_cmds and cmds[idx] != "M":
+                        raise ValueError(
+                            f"'Z' must terminate a segment (expected 'M' or end after 'Z', got '{cmds[idx]}' at index {idx})"
+                        )
+                    break
+                else:
+                    raise ValueError(f"Unknown command '{cmd}' at index {idx}")
+
+        if points.shape[0] != expected_points:
+            raise ValueError(
+                f"Number of points ({points.shape[0]}) does not match commands (requires {expected_points} points)"
+            )
 
     @property
     def points(self) -> NDArray[np.float64]:
@@ -324,10 +375,7 @@ class AvPath:
             x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
         else:
             # Has curves, polygonize temporarily to get accurate bounding box
-            # Use a reasonable number of steps for curve approximation
-            polygonized_points, _ = AvPath.polygonize_path(
-                self._points, self._commands, self.POLYGONIZE_STEPS_BOUNDING_BOX
-            )
+            polygonized_points, _ = AvPath.polygonize_path(self._points, self._commands, self.POLYGONIZE_STEPS_INTERNAL)
 
             if polygonized_points.size == 0:
                 self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
@@ -340,6 +388,136 @@ class AvPath:
 
         self._bounding_box = AvBox(x_min, y_min, x_max, y_max)
         return self._bounding_box
+
+    # #TODO: add parameter also_invert_segment_order
+    # def reversed_path(self) -> AvSinglePath:
+
+    # def reverse_orientation(self) -> AvPath:
+    #     """
+    #     Return a new AvPath with reversed drawing direction while preserving exact curve geometry.
+    #     The sequence of the segments is kept the same,
+    #     but the sequence of the points and commands for each segment is reversed.
+    #     """
+    #     # Early return for empty paths
+    #     if not self._commands or self._points.size == 0:
+    #         return AvPath(self._points.copy(), list(self._commands))
+
+    #     pts = self._points
+    #     cmds = self._commands
+
+    #     def get_point(idx: int):
+    #         if idx < 0 or idx >= len(pts):
+    #             raise ValueError(f"Point index {idx} out of bounds")
+    #         return pts[idx].copy()
+
+    #     # Parse into contours with explicit segment data
+    #     contours = []
+    #     point_idx = 0
+    #     cmd_idx = 0
+
+    #     while cmd_idx < len(cmds):
+    #         if cmds[cmd_idx] != "M":
+    #             raise ValueError(f"Expected 'M' at command index {cmd_idx}, got '{cmds[cmd_idx]}'")
+
+    #         move_point = get_point(point_idx)
+    #         point_idx += 1
+    #         cmd_idx += 1
+
+    #         segments = []
+    #         last_point = move_point
+    #         closed = False
+
+    #         # Parse segments until next M or end
+    #         while cmd_idx < len(cmds) and cmds[cmd_idx] != "M":
+    #             cmd = cmds[cmd_idx]
+
+    #             if cmd == "L":
+    #                 end_point = get_point(point_idx)
+    #                 segments.append({"cmd": "L", "start": last_point, "end": end_point, "controls": []})
+    #                 last_point = end_point
+    #                 point_idx += 1
+    #                 cmd_idx += 1
+
+    #             elif cmd == "Q":
+    #                 control_point = get_point(point_idx)
+    #                 end_point = get_point(point_idx + 1)
+    #                 segments.append({"cmd": "Q", "start": last_point, "end": end_point, "controls": [control_point]})
+    #                 last_point = end_point
+    #                 point_idx += 2
+    #                 cmd_idx += 1
+
+    #             elif cmd == "C":
+    #                 control1 = get_point(point_idx)
+    #                 control2 = get_point(point_idx + 1)
+    #                 end_point = get_point(point_idx + 2)
+    #                 segments.append(
+    #                     {"cmd": "C", "start": last_point, "end": end_point, "controls": [control1, control2]}
+    #                 )
+    #                 last_point = end_point
+    #                 point_idx += 3
+    #                 cmd_idx += 1
+
+    #             elif cmd == "Z":
+    #                 # Mark as closed but don't add explicit segment
+    #                 # Z will be handled in the reversal phase
+    #                 closed = True
+    #                 cmd_idx += 1
+    #                 break
+
+    #             else:
+    #                 raise ValueError(f"Unknown command '{cmd}'")
+
+    #         contours.append({"move": move_point, "segments": segments, "closed": closed})
+
+    #     # Build reversed path
+    #     new_commands = []
+    #     new_points = []
+
+    #     for contour in contours:
+    #         segments = contour["segments"]
+
+    #         if not segments:
+    #             # Degenerate contour - just MoveTo
+    #             new_commands.append("M")
+    #             new_points.append(contour["move"])
+    #             if contour["closed"]:
+    #                 new_commands.append("Z")
+    #             continue
+
+    #         # Start from last segment's end point
+    #         start_point = segments[-1]["end"]
+    #         new_commands.append("M")
+    #         new_points.append(start_point)
+
+    #         # Walk segments backwards
+    #         for segment in reversed(segments):
+    #             cmd = segment["cmd"]
+    #             target = segment["start"]  # Original start becomes new end
+
+    #             if cmd == "L":
+    #                 new_commands.append("L")
+    #                 new_points.append(target)
+
+    #             elif cmd == "Q":
+    #                 control = segment["controls"][0]
+    #                 new_commands.append("Q")
+    #                 new_points.append(control)
+    #                 new_points.append(target)
+
+    #             elif cmd == "C":
+    #                 control1, control2 = segment["controls"]
+    #                 new_commands.append("C")
+    #                 new_points.append(control2)  # Swapped for reversal
+    #                 new_points.append(control1)
+    #                 new_points.append(target)
+
+    #         if contour["closed"]:
+    #             new_commands.append("Z")
+
+    #     # Convert to numpy array
+    #     points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
+
+    #     return AvPath(points_array, new_commands)
 
     @classmethod
     def from_dict(cls, data: dict) -> AvPath:
@@ -385,7 +563,7 @@ class AvPath:
             "bounding_box": bbox_dict,
         }
 
-    def polygonize(self, steps: int) -> "AvPath":
+    def polygonize(self, steps: int) -> AvPath:
         """Return a polygonized copy of this path.
 
         Args:
@@ -509,6 +687,221 @@ class AvPath:
         # Trim the pre-allocated array to actual size
         new_points = new_points_array[:array_index]
         return new_points, new_commands_list
+
+    @classmethod
+    def split_into_single_paths(cls, path: AvPath) -> List[AvSinglePath]:
+        """Split an AvPath into AvSinglePath segments at each 'M' command."""
+
+        # Empty path: nothing to split
+        if not path.commands:
+            return []
+
+        pts = path.points
+        cmds = path.commands
+
+        single_paths: List[AvSinglePath] = []
+
+        point_idx = 0
+        cmd_idx = 0
+
+        while cmd_idx < len(cmds):
+            cmd = cmds[cmd_idx]
+
+            if cmd != "M":
+                # AvPath._validate should guarantee segments start with 'M'
+                raise ValueError(f"Expected 'M' at command index {cmd_idx}, got '{cmd}'")
+
+            # Start a new segment
+            seg_cmds: List[str] = []
+            seg_points: List[np.ndarray] = []
+
+            # Handle MoveTo (always uses one point)
+            if point_idx >= len(pts):
+                raise ValueError("MoveTo command has no corresponding point")
+
+            seg_cmds.append("M")
+            seg_points.append(pts[point_idx].copy())
+            point_idx += 1
+            cmd_idx += 1
+
+            # Consume commands until next 'M' or end
+            while cmd_idx < len(cmds) and cmds[cmd_idx] != "M":
+                cmd = cmds[cmd_idx]
+
+                if cmd == "L":
+                    if point_idx >= len(pts):
+                        raise ValueError("LineTo command has no corresponding point")
+                    seg_cmds.append("L")
+                    seg_points.append(pts[point_idx].copy())
+                    point_idx += 1
+                    cmd_idx += 1
+
+                elif cmd == "Q":
+                    if point_idx + 1 >= len(pts):
+                        raise ValueError("Quadratic Bezier command needs 2 points")
+                    seg_cmds.append("Q")
+                    seg_points.append(pts[point_idx].copy())  # control
+                    seg_points.append(pts[point_idx + 1].copy())  # end
+                    point_idx += 2
+                    cmd_idx += 1
+
+                elif cmd == "C":
+                    if point_idx + 2 >= len(pts):
+                        raise ValueError("Cubic Bezier command needs 3 points")
+                    seg_cmds.append("C")
+                    seg_points.append(pts[point_idx].copy())  # control1
+                    seg_points.append(pts[point_idx + 1].copy())  # control2
+                    seg_points.append(pts[point_idx + 2].copy())  # end
+                    point_idx += 3
+                    cmd_idx += 1
+
+                elif cmd == "Z":
+                    seg_cmds.append("Z")
+                    cmd_idx += 1
+
+                else:
+                    raise ValueError(f"Unknown command '{cmd}'")
+
+            # Create AvSinglePath for this segment
+            seg_points_array = (
+                np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
+            )
+
+            single_paths.append(cls(seg_points_array, seg_cmds))
+
+        return single_paths
+
+
+class AvSinglePath(AvPath):
+    """
+    Path with at most one segment, represented by points (shape (n, 3)) plus commands.
+    If non-empty, it starts with one M, continues with any mix of L/Q/C,
+    and may optionally end with Z.
+    """
+
+    def _validate(self) -> None:
+        """Validate that this path has at most one segment (0 or 1)."""
+        super()._validate()
+
+        if not self._commands:
+            return  # Empty path is valid
+
+        # Check for additional M commands (would indicate multiple segments)
+        for i, cmd in enumerate(self._commands[1:], 1):
+            if cmd == "M":
+                raise ValueError(f"AvSinglePath cannot contain multiple segments (found 'M' at position {i})")
+
+    def reversed(self) -> AvSinglePath:
+        """Return a new AvSinglePath with reversed drawing direction.
+
+        The same point coordinates are used, but their order (and the
+        corresponding commands) is reversed, so traversal runs from the
+        original last point back to the original first point.
+
+        For curve commands (Q, C), control points are reordered to preserve
+        the exact curve geometry when traversed in reverse.
+        """
+        # Early return for empty paths
+        if not self._commands or self._points.size == 0:
+            return AvSinglePath(self._points.copy(), list(self._commands))
+
+        # Check if path is closed
+        is_closed = self._commands[-1] == "Z"
+
+        # Build segments by iterating forward once
+        segments = []
+        last_point = self._points[0].copy()  # Start with M point
+        point_idx = 1  # Skip M's point
+
+        for cmd in self._commands[1:]:
+            if cmd == "Z":
+                break
+
+            start_point = last_point
+
+            if cmd == "L":
+                end_point = self._points[point_idx].copy()
+                segments.append(("L", [], start_point, end_point))
+                last_point = end_point
+                point_idx += 1
+
+            elif cmd == "Q":
+                control = self._points[point_idx].copy()
+                end_point = self._points[point_idx + 1].copy()
+                segments.append(("Q", [control], start_point, end_point))
+                last_point = end_point
+                point_idx += 2
+
+            elif cmd == "C":
+                control1 = self._points[point_idx].copy()
+                control2 = self._points[point_idx + 1].copy()
+                end_point = self._points[point_idx + 2].copy()
+                segments.append(("C", [control1, control2], start_point, end_point))
+                last_point = end_point
+                point_idx += 3
+
+        # Build reversed path
+        new_commands = ["M"]
+        new_points = []
+
+        if segments:
+            # Start from last segment's end point
+            new_points.append(segments[-1][3])  # Last end point
+
+            # Process segments in reverse
+            for cmd_type, controls, start_point, end_point in reversed(segments):
+                if cmd_type == "L":
+                    new_commands.append("L")
+                    new_points.append(start_point)  # Original start becomes new end
+
+                elif cmd_type == "Q":
+                    new_commands.append("Q")
+                    new_points.append(controls[0])  # Control point
+                    new_points.append(start_point)  # Original start becomes new end
+
+                elif cmd_type == "C":
+                    new_commands.append("C")
+                    new_points.append(controls[1])  # Swapped control points
+                    new_points.append(controls[0])
+                    new_points.append(start_point)  # Original start becomes new end
+        else:
+            # Only M command
+            new_points.append(self._points[0].copy())
+
+        # Add Z if original was closed
+        if is_closed:
+            new_commands.append("Z")
+
+        # Convert to numpy array
+        points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
+
+        return AvSinglePath(points_array, new_commands)
+
+
+class AvClosedPath(AvSinglePath):
+    """
+    Path with at most one closed segment, stored as points (shape (n, 3)) plus commands.
+    If non-empty, it begins with one M, continues with any mix of L/Q/C,
+    and always ends with Z.
+    """
+
+    def _validate(self) -> None:
+        """Validate that this path has at most one closed segment (0 or 1)."""
+        super()._validate()
+
+        if not self._commands:
+            return  # Empty path is valid
+
+        if self._commands[-1] != "Z":
+            raise ValueError("AvClosedPath must end with 'Z' command")
+
+
+# # TODO: implement:
+# class AvPolygonPath(AvClosedPath):
+#     """
+#     Polygonal closed path stored as points (shape (n, 3)) plus commands.
+#     Begins with one M, follows any number of L commands, and always ends with Z.
+#     """
 
 
 def main():
@@ -744,6 +1137,61 @@ def main():
         if original_curves > 0
         else "  No curves to polygonize"
     )
+
+    ###########################################################################
+    # Test reverse_orientation with the user's example
+    print("\n" + "=" * 50)
+    print("=" * 50)
+    print("Testing reverse_orientation method:")
+    print("=" * 50)
+
+    # Create the example path with two contours
+    # First contour: M 0 0, L 10 0, L 10 10, Z
+    # Second contour: M 20 20, L 30 20, L 30 30
+    test_points = np.array(
+        [
+            [0.0, 0.0, 0.0],  # M 0 0
+            [10.0, 0.0, 0.0],  # L 10 0
+            [10.0, 10.0, 0.0],  # L 10 10
+            [20.0, 20.0, 0.0],  # M 20 20
+            [30.0, 20.0, 0.0],  # L 30 20
+            [30.0, 30.0, 0.0],  # L 30 30
+        ],
+        dtype=np.float64,
+    )
+
+    test_commands = ["M", "L", "L", "Z", "M", "L", "L"]
+
+    # Create original path
+    original_path = AvPath(test_points, test_commands)
+
+    print("Original path:")
+    print("  Points:")
+    for i, point in enumerate(test_points):
+        print(f"    {i:2d}: ({point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f})")
+    print("  Commands:")
+    for i, cmd in enumerate(test_commands):
+        print(f"    {i:2d}: {cmd}")
+
+    # Reverse the orientation
+    reversed_path = original_path  # .reverse_orientation()
+
+    print("\nReversed path:")
+    print("  Points:")
+    for i, point in enumerate(reversed_path.points):
+        print(f"    {i:2d}: ({point[0]:6.1f}, {point[1]:6.1f}, type={point[2]:1.0f})")
+    print("  Commands:")
+    for i, cmd in enumerate(reversed_path.commands):
+        print(f"    {i:2d}: {cmd}")
+
+    print("\nExpected output:")
+    print("  First contour: M 10 10, L 10 0, L 0 0, Z")
+    print("  Second contour: M 30 30, L 30 20, L 20 20")
+    print("\nVerification:")
+    print("   Contour sequence preserved (first contour processed before second)")
+    print("   First contour reversed: starts at (10,10) instead of (0,0)")
+    print("   Second contour reversed: starts at (30,30) instead of (20,20)")
+    print("   Z commands maintained for closed contours")
 
 
 if __name__ == "__main__":

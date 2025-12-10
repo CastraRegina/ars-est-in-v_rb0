@@ -8,7 +8,7 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
-from ave.geom import AvBox, AvPath, GeomMath
+from ave.geom import AvBox, AvPath, AvSinglePath, GeomMath
 from ave.geom_bezier import BezierCurve
 
 ###############################################################################
@@ -368,6 +368,50 @@ class TestAvPath:
         assert path.points.shape == (0, 3)
         assert path.commands == []
 
+    def test_avpath_bounding_box_empty(self):
+        """Bounding box for an empty path should be zero-sized at origin."""
+        path = AvPath()
+
+        bbox = path.bounding_box()
+
+        assert bbox.xmin == 0.0
+        assert bbox.ymin == 0.0
+        assert bbox.xmax == 0.0
+        assert bbox.ymax == 0.0
+
+    def test_avpath_polygonize_empty(self):
+        """Polygonizing an empty path should return an empty path."""
+        path = AvPath()
+
+        poly = path.polygonize(steps=5)
+
+        assert poly.points.shape == (0, 3)
+        assert poly.commands == []
+
+    def test_avpath_validate_requires_segment_start_with_move(self):
+        """Segments must start with an 'M' command."""
+        points_2d = np.array([[0.0, 0.0]], dtype=np.float64)
+        commands = ["L"]
+
+        with pytest.raises(ValueError):
+            AvPath(points_2d, commands)
+
+    def test_avpath_validate_z_must_terminate_segment(self):
+        """'Z' must terminate a segment and be followed only by 'M' or end."""
+        points_2d = np.array([[0.0, 0.0], [10.0, 0.0]], dtype=np.float64)
+        commands = ["M", "Z", "L"]
+
+        with pytest.raises(ValueError):
+            AvPath(points_2d, commands)
+
+    def test_avpath_validate_points_commands_mismatch(self):
+        """Number of points must match what commands require."""
+        points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [20.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L"]
+
+        with pytest.raises(ValueError):
+            AvPath(points_2d, commands)
+
 
 ###############################################################################
 # AvPath Serialization Tests
@@ -453,3 +497,182 @@ class TestAvPathSerialization:
         assert restored_bbox.ymin == bbox.ymin
         assert restored_bbox.xmax == bbox.xmax
         assert restored_bbox.ymax == bbox.ymax
+
+
+###############################################################################
+# AvSinglePath Tests
+###############################################################################
+
+
+class TestAvSinglePath:
+    """Tests for AvSinglePath behavior."""
+
+    def test_avsinglepath_empty(self):
+        """Empty AvSinglePath should behave like an empty AvPath."""
+        path = AvSinglePath()
+
+        assert path.points.shape == (0, 3)
+        assert path.commands == []
+
+    def test_avsinglepath_single_segment_ok(self):
+        """Single-segment AvSinglePath with M and L commands is valid."""
+        points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 5.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+
+        path = AvSinglePath(points_2d, commands)
+
+        assert path.points.shape == (3, 3)
+        assert path.commands == commands
+
+    def test_avsinglepath_multiple_segments_raises(self):
+        """AvSinglePath must not contain more than one segment."""
+        points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [20.0, 0.0], [30.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "M", "L"]
+
+        with pytest.raises(ValueError):
+            AvSinglePath(points_2d, commands)
+
+    def test_avsinglepath_reversed_path_empty(self):
+        """Test reversed_path on empty path returns equivalent empty path."""
+        path = AvSinglePath()
+        reversed_path = path.reversed()
+
+        assert len(reversed_path.points) == 0
+        assert reversed_path.commands == []
+
+    def test_avsinglepath_reversed_path_move_only(self):
+        """Test reversed_path on path with only M command."""
+        points = np.array([[5.0, 10.0, 0.0]], dtype=np.float64)
+        commands = ["M"]
+
+        path = AvSinglePath(points, commands)
+        reversed_path = path.reversed()
+
+        np.testing.assert_array_equal(reversed_path.points, points)
+        assert reversed_path.commands == commands
+
+    def test_avsinglepath_reversed_path_line_segment(self):
+        """Test reversed_path on simple line segment."""
+        points = np.array([[0.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L"]
+
+        path = AvSinglePath(points, commands)
+        reversed_path = path.reversed()
+
+        # Expected: start from end point, draw to start point
+        expected_points = np.array([[10.0, 10.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L"]
+
+        np.testing.assert_array_equal(reversed_path.points, expected_points)
+        assert reversed_path.commands == expected_commands
+
+    def test_avsinglepath_reversed_path_multiple_lines(self):
+        """Test reversed_path on multiple line segments."""
+        points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+
+        path = AvSinglePath(points, commands)
+        reversed_path = path.reversed()
+
+        # Expected: start from last point, draw backwards
+        expected_points = np.array([[10.0, 10.0, 0.0], [10.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L", "L"]
+
+        np.testing.assert_array_equal(reversed_path.points, expected_points)
+        assert reversed_path.commands == expected_commands
+
+    def test_avsinglepath_reversed_path_quadratic_bezier(self):
+        """Test reversed_path on quadratic bezier curve."""
+        points = np.array([[0.0, 0.0, 0.0], [5.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "Q"]
+
+        path = AvSinglePath(points, commands)
+        reversed_path = path.reversed()
+
+        # Expected: start from end point, use same control point, end at start
+        expected_points = np.array([[10.0, 0.0, 0.0], [5.0, 10.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "Q"]
+
+        np.testing.assert_array_equal(reversed_path.points, expected_points)
+        assert reversed_path.commands == expected_commands
+
+    def test_avsinglepath_reversed_path_cubic_bezier(self):
+        """Test reversed_path on cubic bezier curve."""
+        points = np.array([[0.0, 0.0, 0.0], [3.0, 10.0, 0.0], [7.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "C"]
+
+        path = AvSinglePath(points, commands)
+        reversed_path = path.reversed()
+
+        # Expected: start from end point, control points swapped, end at start
+        expected_points = np.array(
+            [[10.0, 0.0, 0.0], [7.0, 10.0, 0.0], [3.0, 10.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64
+        )
+        expected_commands = ["M", "C"]
+
+        np.testing.assert_array_equal(reversed_path.points, expected_points)
+        assert reversed_path.commands == expected_commands
+
+    def test_avsinglepath_reversed_path_closed_triangle(self):
+        """Test reversed_path on closed triangle."""
+        points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L", "Z"]
+
+        path = AvSinglePath(points, commands)
+        reversed_path = path.reversed()
+
+        # Expected: start from last point, draw backwards, close
+        expected_points = np.array([[10.0, 10.0, 0.0], [10.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L", "L", "Z"]
+
+        np.testing.assert_array_equal(reversed_path.points, expected_points)
+        assert reversed_path.commands == expected_commands
+
+    def test_avsinglepath_reversed_path_mixed_commands(self):
+        """Test reversed_path on mixed commands (lines and curves)."""
+        points = np.array(
+            [
+                [0.0, 0.0, 0.0],  # M
+                [5.0, 0.0, 0.0],  # L
+                [7.5, 5.0, 0.0],  # Q control
+                [10.0, 0.0, 0.0],  # Q end
+                [12.0, 2.0, 0.0],  # C control1
+                [13.0, 8.0, 0.0],  # C control2
+                [15.0, 0.0, 0.0],  # C end
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "Q", "C"]
+
+        path = AvSinglePath(points, commands)
+        reversed_path = path.reversed()
+
+        # Expected: start from last point, process commands in reverse
+        expected_points = np.array(
+            [
+                [15.0, 0.0, 0.0],  # M (original C end)
+                [13.0, 8.0, 0.0],  # C control2 (swapped)
+                [12.0, 2.0, 0.0],  # C control1 (swapped)
+                [10.0, 0.0, 0.0],  # C end (original Q end)
+                [7.5, 5.0, 0.0],  # Q control
+                [5.0, 0.0, 0.0],  # Q end (original L end)
+                [0.0, 0.0, 0.0],  # L end (original M point)
+            ],
+            dtype=np.float64,
+        )
+        expected_commands = ["M", "C", "Q", "L"]
+
+        np.testing.assert_array_equal(reversed_path.points, expected_points)
+        assert reversed_path.commands == expected_commands
+
+    def test_avsinglepath_reversed_path_twice_returns_original(self):
+        """Test that reversing twice returns to the original path."""
+        points = np.array([[0.0, 0.0, 0.0], [5.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "Q"]
+
+        original_path = AvSinglePath(points, commands)
+        reversed_once = original_path.reversed()
+        reversed_twice = reversed_once.reversed()
+
+        np.testing.assert_array_equal(reversed_twice.points, original_path.points)
+        assert reversed_twice.commands == original_path.commands
