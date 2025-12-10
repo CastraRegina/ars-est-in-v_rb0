@@ -674,16 +674,15 @@ class AvPath:
         new_points = new_points_array[:array_index]
         return AvPath(new_points, new_commands_list)
 
-    @classmethod
-    def split_into_single_paths(cls, path: AvPath) -> List[AvSinglePath]:
+    def split_into_single_paths(self) -> List[AvSinglePath]:
         """Split an AvPath into AvSinglePath segments at each 'M' command."""
 
         # Empty path: nothing to split
-        if not path.commands:
+        if not self.commands:
             return []
 
-        pts = path.points
-        cmds = path.commands
+        pts = self.points
+        cmds = self.commands
 
         single_paths: List[AvSinglePath] = []
 
@@ -753,7 +752,7 @@ class AvPath:
                 np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
             )
 
-            single_paths.append(cls(seg_points_array, seg_cmds))
+            single_paths.append(AvSinglePath(seg_points_array, seg_cmds))
 
         return single_paths
 
