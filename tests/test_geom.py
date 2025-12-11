@@ -351,6 +351,96 @@ class TestAvPath:
         assert path.points.shape == (0, 3)
         assert path.commands == []
 
+    def test_avpath_split_and_join_roundtrip(self):
+        """Splitting into single paths and joining should reproduce the original path."""
+
+        # Create a path with two segments
+        points_2d = np.array(
+            [
+                [0.0, 0.0],  # First segment M
+                [10.0, 0.0],  # L
+                [10.0, 10.0],  # L
+                [20.0, 20.0],  # Second segment M
+                [30.0, 20.0],  # L
+                [30.0, 30.0],  # L
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "L", "Z", "M", "L", "L"]
+
+        original_path = AvPath(points_2d, commands)
+
+        # Split into single-segment paths and join again
+        single_paths = original_path.split_into_single_paths()
+
+        # Join back using the first segment as the base path
+        if len(single_paths) == 1:
+            joined_path = single_paths[0]
+        else:
+            joined_path = single_paths[0].append(single_paths[1:])
+
+        np.testing.assert_allclose(joined_path.points, original_path.points)
+        assert joined_path.commands == original_path.commands
+
+    def test_avpath_append_varargs_and_sequence(self):
+        """append should handle varargs and sequence inputs equivalently."""
+
+        # Three simple one-segment paths
+        p1 = AvPath(np.array([[0.0, 0.0], [10.0, 0.0]], dtype=np.float64), ["M", "L"])
+        p2 = AvPath(np.array([[20.0, 0.0], [30.0, 0.0]], dtype=np.float64), ["M", "L"])
+        p3 = AvPath(np.array([[40.0, 0.0], [50.0, 0.0]], dtype=np.float64), ["M", "L"])
+
+        joined_varargs = p1.append(p2, p3)
+        joined_seq = p1.append([p2, p3])
+
+        expected_points = np.concatenate([p1.points, p2.points, p3.points], axis=0)
+        expected_commands = p1.commands + p2.commands + p3.commands
+
+        np.testing.assert_allclose(joined_varargs.points, expected_points)
+        assert joined_varargs.commands == expected_commands
+
+        np.testing.assert_allclose(joined_seq.points, expected_points)
+        assert joined_seq.commands == expected_commands
+
+    def test_avpath_append_empty_base(self):
+        """append on an empty base path should return the other path unchanged."""
+
+        empty = AvPath()
+        other_points = np.array([[0.0, 0.0], [10.0, 10.0]], dtype=np.float64)
+        other_commands = ["M", "L"]
+        other = AvPath(other_points, other_commands)
+
+        joined = empty.append(other)
+
+        np.testing.assert_allclose(joined.points, other.points)
+        assert joined.commands == other.commands
+
+    def test_avpath_join_paths_various_inputs(self):
+        """join_paths should support varargs and sequence inputs."""
+
+        p1 = AvPath(np.array([[0.0, 0.0], [10.0, 0.0]], dtype=np.float64), ["M", "L"])
+        p2 = AvPath(np.array([[10.0, 0.0], [20.0, 0.0]], dtype=np.float64), ["M", "L"])
+
+        joined_varargs = AvPath.join_paths(p1, p2)
+        joined_seq = AvPath.join_paths([p1, p2])
+
+        expected_points = np.concatenate([p1.points, p2.points], axis=0)
+        expected_commands = p1.commands + p2.commands
+
+        np.testing.assert_allclose(joined_varargs.points, expected_points)
+        assert joined_varargs.commands == expected_commands
+
+        np.testing.assert_allclose(joined_seq.points, expected_points)
+        assert joined_seq.commands == expected_commands
+
+    def test_avpath_join_paths_empty_input(self):
+        """join_paths with no arguments should return an empty path."""
+
+        joined = AvPath.join_paths()
+
+        assert joined.points.shape == (0, 3)
+        assert joined.commands == []
+
     def test_avpath_init_3d_points_empty(self):
         """Test AvPath initialization with empty 3D points."""
         points_empty = np.array([], dtype=np.float64).reshape(0, 3)
@@ -412,6 +502,218 @@ class TestAvPath:
 
         with pytest.raises(ValueError):
             AvPath(points_2d, commands)
+
+    def test_avpath_reversed_test_cases(self):
+        """AvPath.reversed should match expected commands and 2D coords for multiple scenarios."""
+
+        test_cases = [
+            # SIMPLE 1 — Open polyline (L only)
+            dict(
+                name="simple_line",
+                commands=["M", "L", "L"],
+                coords=[(0, 0), (10, 0), (10, 10)],
+                exp_commands=["M", "L", "L"],
+                exp_coords=[(10, 10), (10, 0), (0, 0)],
+            ),
+            # SIMPLE 2 — Closed polygon (with Z)
+            dict(
+                name="simple_closed_square",
+                commands=["M", "L", "L", "L", "Z"],
+                coords=[(0, 0), (10, 0), (10, 10), (0, 10)],
+                exp_commands=["M", "L", "L", "L", "Z"],
+                exp_coords=[(0, 10), (10, 10), (10, 0), (0, 0)],
+            ),
+            # SIMPLE 3 — Quadratic curve
+            dict(
+                name="simple_quad",
+                commands=["M", "Q"],
+                coords=[(0, 0), (5, 10), (10, 0)],
+                exp_commands=["M", "Q"],
+                exp_coords=[(10, 0), (5, 10), (0, 0)],
+            ),
+            # SIMPLE 4 — Cubic curve
+            dict(
+                name="simple_cubic",
+                commands=["M", "C"],
+                coords=[(0, 0), (5, 10), (10, 10), (15, 0)],
+                exp_commands=["M", "C"],
+                exp_coords=[(15, 0), (10, 10), (5, 10), (0, 0)],
+            ),
+            # SIMPLE 5 — Mixed Q + L + C
+            dict(
+                name="mixed_simple",
+                commands=["M", "Q", "L", "C"],
+                coords=[
+                    (0, 0),  # M
+                    (5, 10),
+                    (10, 0),  # Q control + end
+                    (20, 0),  # L
+                    (25, 10),
+                    (30, 10),
+                    (35, 0),  # C c1, c2, end
+                ],
+                exp_commands=["M", "C", "L", "Q"],
+                exp_coords=[
+                    (35, 0),
+                    (30, 10),
+                    (25, 10),
+                    (20, 0),
+                    (10, 0),
+                    (5, 10),
+                    (0, 0),
+                ],
+            ),
+            # MULTI 1 — Two contours, quadratic only
+            dict(
+                name="multi_quad",
+                commands=["M", "Q", "Q", "Z", "M", "Q", "L"],
+                coords=[
+                    (0, 0),
+                    (5, 10),
+                    (10, 0),
+                    (15, 10),
+                    (20, 0),  # first contour
+                    (30, 0),
+                    (35, 10),
+                    (40, 0),
+                    (50, 0),  # second contour
+                ],
+                exp_commands=["M", "Q", "Q", "Z", "M", "L", "Q"],
+                exp_coords=[
+                    (20, 0),
+                    (15, 10),
+                    (10, 0),
+                    (5, 10),
+                    (0, 0),
+                    (50, 0),
+                    (40, 0),
+                    (35, 10),
+                    (30, 0),
+                ],
+            ),
+            # MULTI 2 — Two contours mixing C and Q
+            dict(
+                name="multi_cq",
+                commands=["M", "C", "Q", "Z", "M", "C"],
+                coords=[
+                    (0, 0),
+                    (5, 10),
+                    (10, 10),
+                    (15, 0),
+                    (20, 10),
+                    (25, 0),  # first contour
+                    (40, 0),
+                    (45, 10),
+                    (50, 10),
+                    (55, 0),  # second contour
+                ],
+                exp_commands=["M", "Q", "C", "Z", "M", "C"],
+                exp_coords=[
+                    (25, 0),
+                    (20, 10),
+                    (15, 0),
+                    (10, 10),
+                    (5, 10),
+                    (0, 0),
+                    (55, 0),
+                    (50, 10),
+                    (45, 10),
+                    (40, 0),
+                ],
+            ),
+            # MULTI 3 — Open + closed, mixed commands
+            dict(
+                name="multi_mixed_three",
+                commands=["M", "L", "Q", "M", "C", "L", "Z", "M", "Q", "C"],
+                coords=[
+                    (0, 0),
+                    (10, 0),
+                    (15, 10),
+                    (20, 0),  # contour 1 open
+                    (30, 0),
+                    (35, 10),
+                    (40, 10),
+                    (45, 0),
+                    (50, 0),  # contour 2 closed
+                    (100, 100),
+                    (110, 120),
+                    (120, 100),
+                    (130, 110),
+                    (140, 110),
+                    (150, 100),  # contour 3
+                ],
+                # Corrected expected commands to match AvPath.reversed semantics
+                exp_commands=["M", "Q", "L", "M", "L", "C", "Z", "M", "C", "Q"],
+                exp_coords=[
+                    (20, 0),
+                    (15, 10),
+                    (10, 0),
+                    (0, 0),
+                    (50, 0),
+                    (45, 0),
+                    (40, 10),
+                    (35, 10),
+                    (30, 0),
+                    (150, 100),
+                    (140, 110),
+                    (130, 110),
+                    (120, 100),
+                    (110, 120),
+                    (100, 100),
+                ],
+            ),
+            # MULTI 4 — Z then open contour with Q + C
+            dict(
+                name="multi_z_plus_open",
+                commands=["M", "L", "C", "Z", "M", "Q", "C", "L"],
+                coords=[
+                    (0, 0),
+                    (20, 0),
+                    (25, 10),
+                    (30, 10),
+                    (35, 0),  # first closed
+                    (50, 0),
+                    (55, 10),
+                    (60, 0),
+                    (65, 10),
+                    (70, 10),
+                    (75, 0),
+                    (80, 0),  # second open
+                ],
+                exp_commands=["M", "C", "L", "Z", "M", "L", "C", "Q"],
+                exp_coords=[
+                    (35, 0),
+                    (30, 10),
+                    (25, 10),
+                    (20, 0),
+                    (0, 0),
+                    (80, 0),
+                    (75, 0),
+                    (70, 10),
+                    (65, 10),
+                    (60, 0),
+                    (55, 10),
+                    (50, 0),
+                ],
+            ),
+        ]
+
+        for case in test_cases:
+            commands = case["commands"]
+            coords_2d = np.array(case["coords"], dtype=np.float64)
+
+            path = AvPath(coords_2d, commands)
+            reversed_path = path.reverse()
+
+            exp_coords_2d = np.array(case["exp_coords"], dtype=np.float64)
+
+            # Check commands and 2D coordinates; the 3rd column encodes internal types.
+            assert reversed_path.commands == case["exp_commands"], case["name"]
+            np.testing.assert_allclose(
+                reversed_path.points[:, :2],
+                exp_coords_2d,
+                err_msg=case["name"],
+            )
 
 
 ###############################################################################
@@ -536,7 +838,7 @@ class TestAvSinglePath:
     def test_avsinglepath_reversed_path_empty(self):
         """Test reversed_path on empty path returns equivalent empty path."""
         path = AvSinglePath()
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         assert len(reversed_path.points) == 0
         assert reversed_path.commands == []
@@ -547,7 +849,7 @@ class TestAvSinglePath:
         commands = ["M"]
 
         path = AvSinglePath(points, commands)
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         np.testing.assert_array_equal(reversed_path.points, points)
         assert reversed_path.commands == commands
@@ -558,7 +860,7 @@ class TestAvSinglePath:
         commands = ["M", "L"]
 
         path = AvSinglePath(points, commands)
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         # Expected: start from end point, draw to start point
         expected_points = np.array([[10.0, 10.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
@@ -573,7 +875,7 @@ class TestAvSinglePath:
         commands = ["M", "L", "L"]
 
         path = AvSinglePath(points, commands)
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         # Expected: start from last point, draw backwards
         expected_points = np.array([[10.0, 10.0, 0.0], [10.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
@@ -588,7 +890,7 @@ class TestAvSinglePath:
         commands = ["M", "Q"]
 
         path = AvSinglePath(points, commands)
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         # Expected: start from end point, use same control point, end at start
         expected_points = np.array([[10.0, 0.0, 0.0], [5.0, 10.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
@@ -603,7 +905,7 @@ class TestAvSinglePath:
         commands = ["M", "C"]
 
         path = AvSinglePath(points, commands)
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         # Expected: start from end point, control points swapped, end at start
         expected_points = np.array(
@@ -620,7 +922,7 @@ class TestAvSinglePath:
         commands = ["M", "L", "L", "Z"]
 
         path = AvSinglePath(points, commands)
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         # Expected: start from last point, draw backwards, close
         expected_points = np.array([[10.0, 10.0, 0.0], [10.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
@@ -646,7 +948,7 @@ class TestAvSinglePath:
         commands = ["M", "L", "Q", "C"]
 
         path = AvSinglePath(points, commands)
-        reversed_path = path.reversed()
+        reversed_path = path.reverse()
 
         # Expected: start from last point, process commands in reverse
         expected_points = np.array(
@@ -672,8 +974,8 @@ class TestAvSinglePath:
         commands = ["M", "Q"]
 
         original_path = AvSinglePath(points, commands)
-        reversed_once = original_path.reversed()
-        reversed_twice = reversed_once.reversed()
+        reversed_once = original_path.reverse()
+        reversed_twice = reversed_once.reverse()
 
         np.testing.assert_array_equal(reversed_twice.points, original_path.points)
         assert reversed_twice.commands == original_path.commands
