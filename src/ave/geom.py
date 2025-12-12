@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -219,6 +220,7 @@ class AvPath:
     _points: NDArray[np.float64]  # shape (n_points, 3)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _bounding_box: Optional[AvBox] = None  # caching variable
+    _polygonized_path: Optional[AvPolylinesPath] = None  # caching variable
 
     # Number of steps to use when polygonizing curves for internal approximations
     POLYGONIZE_STEPS_INTERNAL: int = 50  # pylint: disable=invalid-name
@@ -285,6 +287,7 @@ class AvPath:
 
         self._commands = commands_list
         self._bounding_box = None
+        self._polygonized_path = None
         self._validate()
 
     def _validate(self) -> None:
@@ -375,7 +378,7 @@ class AvPath:
             x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
         else:
             # Has curves, polygonize temporarily to get accurate bounding box
-            polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
+            polygonized_path = self.polygonized_path()
             polygonized_points = polygonized_path.points
 
             if polygonized_points.size == 0:
@@ -434,7 +437,13 @@ class AvPath:
             "bounding_box": bbox_dict,
         }
 
-    def polygonize(self, steps: int) -> AvPath:
+    def polygonized_path(self) -> AvPolylinesPath:
+        """Return the polygonized path."""
+        if self._polygonized_path is None:
+            self._polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
+        return self._polygonized_path
+
+    def polygonize(self, steps: int) -> AvPolylinesPath:
         """Return a polygonized copy of this path.
 
         Args:
@@ -442,9 +451,14 @@ class AvPath:
                 If 0, the original path is returned unchanged.
 
         Returns:
-            AvPath: New path with curves replaced by line segments.
+            AvPolylinesPath: New path with curves replaced by line segments.
+                If this instance is already an AvPolylinesPath, it is returned
+                unchanged.
         """
         if steps == 0:
+            return self
+
+        if isinstance(self, AvPolylinesPath):
             return self
 
         points = self._points
@@ -542,7 +556,7 @@ class AvPath:
 
         # Trim the pre-allocated array to actual size
         new_points = new_points_array[:array_index]
-        return AvPath(new_points, new_commands_list)
+        return AvPolylinesPath(new_points, new_commands_list)
 
     def split_into_single_paths(self) -> List[AvSinglePath]:
         """Split an AvPath into AvSinglePath segments at each 'M' command."""
@@ -705,7 +719,6 @@ class AvPath:
 
         return base.append(flat_paths[1:])
 
-    # TODO: maybe add parameter also_invert_segment_order
     def reverse(self) -> AvPath:
         """Return a new AvPath with reversed drawing direction.
 
@@ -724,6 +737,23 @@ class AvPath:
 
         reversed_segments = [segment.reverse() for segment in single_paths]
         return AvPath.join_paths(reversed_segments)
+
+
+class AvPolylinesPath(AvPath):
+    """
+    Path represented by points (shape (n, 3)) and corresponding commands.
+    A path contains 0..n segments; each segment starts with M, is followed by
+    an arbitrary number of L commands, and may optionally end with Z.
+    A path may also be empty (no points and no commands), representing 0 segments.
+    """
+
+    def _validate(self) -> None:
+        """Validate that this path contains only polyline (M/L/Z) commands."""
+        super()._validate()
+
+        for i, cmd in enumerate(self._commands):
+            if cmd not in ("M", "L", "Z"):
+                raise ValueError(f"AvPolylinesPath cannot contain curve commands (found '{cmd}' at position {i})")
 
 
 class AvSinglePath(AvPath):
@@ -839,8 +869,6 @@ class AvClosedPath(AvSinglePath):
     and always ends with Z.
     """
 
-    # TODO: add cache variable for polygonized path (check if parent would fit better)
-
     def _validate(self) -> None:
         """Validate that this path has at most one closed segment (0 or 1)."""
         super()._validate()
@@ -851,17 +879,110 @@ class AvClosedPath(AvSinglePath):
         if self._commands[-1] != "Z":
             raise ValueError("AvClosedPath must end with 'Z' command")
 
-    # TODO: implement area()
-    # TODO: implement centroid()
-    # TODO: implement is_ccw()
+    def polygonized_path(self) -> AvPolygonPath:
+        """
+        Return a polygonized path as a proxy for the ClosedPath.
+        """
+        polygonized_path = super().polygonized_path()
+        return AvPolygonPath(polygonized_path.points, polygonized_path.commands)
+
+    @property
+    def area(self) -> float:
+        """
+        Return the area of the ClosedPath using a polygonized path as a proxy.
+        """
+        return self.polygonized_path().area
+
+    @property
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Return the centroid of the ClosedPath using a polygonized path as proxy.
+
+        Returns:
+            Tuple[float, float]: The x and y coordinates of the centroid.
+        """
+        return self.polygonized_path().centroid
+
+    @property
+    def is_ccw(self) -> bool:
+        """
+        Return True if the ClosedPath is running counter-clockwise.
+        """
+        return self.polygonized_path().is_ccw
 
 
-# # TODO: implement:
-# class AvPolygonPath(AvClosedPath):
-#     """
-#     Polygonal closed path stored as points (shape (n, 3)) plus commands.
-#     Begins with one M, follows any number of L commands, and always ends with Z.
-#     """
+class AvPolygonPath(AvClosedPath, AvPolylinesPath):
+    """
+    Polygonal closed path stored as points (shape (n, 3)) plus commands.
+    Begins with one M, follows any number of L commands, and always ends with Z.
+    """
+
+    def _validate(self) -> None:
+        AvClosedPath._validate(self)
+        AvPolylinesPath._validate(self)
+
+    @cached_property
+    def area(self) -> float:
+        """Return the area of the polygon using the shoelace formula."""
+        pts = self.points
+        if pts.shape[0] < 3:
+            return 0.0
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            return 0.0
+        return float(0.5 * abs(cross_sum))
+
+    @cached_property
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Return the centroid of the polygon.
+
+        For polygons with fewer than three points or near-zero area, the
+        centroid is calculated as the arithmetic mean of the vertices.
+
+        Returns:
+            A tuple of two floats representing the x and y coordinates of the
+            centroid.
+        """
+        pts = self.points
+        if pts.shape[0] == 0:
+            return (0.0, 0.0)
+        if pts.shape[0] < 3:
+            x_mean = float(pts[:, 0].mean())
+            y_mean = float(pts[:, 1].mean())
+            return (x_mean, y_mean)
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            x_mean = float(x.mean())
+            y_mean = float(y.mean())
+            return (x_mean, y_mean)
+        factor = 1.0 / (3.0 * cross_sum)
+        cx = float(((x + x_next) * cross).sum() * factor)
+        cy = float(((y + y_next) * cross).sum() * factor)
+        return (cx, cy)
+
+    @cached_property
+    def is_ccw(self) -> bool:
+        """Return True if the polygon vertices are ordered counter-clockwise."""
+        pts = self.points
+        if pts.shape[0] < 3:
+            return False
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        return bool(cross.sum() > 0.0)
 
 
 def main():
