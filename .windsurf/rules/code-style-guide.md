@@ -17,7 +17,7 @@ Always adhere strictly to these rules in all responses, code generations, and su
 
 - Strictly follow PEP 8 with these specifics:
   - Indentation: 4 spaces (no tabs)
-  - Maximum line length: 79 characters (100 only when justified, prefer 79)
+  - Maximum line length: 120 characters (120 only when justified, prefer 79)
   - Imports: standard library → third-party (numpy, fontTools, shapely) → local; use absolute imports where possible
   - Naming: snake_case for variables/functions/modules, CamelCase for classes, UPPER_CASE for constants
 - Docstrings: Follow PEP 257 and the Google Python Style Guide. Use triple double-quotes """ and include Args, Returns, Raises, Examples sections when applicable.
@@ -70,39 +70,80 @@ Review the given Python code. Your task is to:
 
 ## Developer Workflows & Commands
 
-### Environment Setup (CRITICAL)
-⚠️ **ALL commands below assume the virtual environment is activated first!**
+### Python Execution Rules (CRITICAL)
+- Always use `python3`, never `python` (the `python` shim may not exist on this system)
+- Do NOT assume `pip3` exists system-wide. Use one of:
+  - `python3 -m pip ...` (if pip is available)
+  - `./venv/bin/python -m pip ...` (after creating venv)
+- If imports fail (e.g. `ModuleNotFoundError: shapely`), you're not running inside the repo venv
 
-**Required setup (run once):**
+### Environment Setup (REQUIRED)
+
 ```bash
+# Create virtual environment
 python3 -m venv venv
-source venv/bin/activate
-python3 -m pip install -r requirements.txt
-```
 
+# Install dependencies (use venv's python)
+./venv/bin/python -m pip install -r requirements.txt
+```
 
 ### Development Commands
-Before running ANY command, ensure venv is active:
-```bash
-source venv/bin/activate  # You should see (venv) prefix in your prompt
-```
 
 ```bash
-# Ensure venv is active first: source venv/bin/activate
-source venv/bin/activate  # You should see (venv) prefix in your prompt
-
-# Required for running code / tests
+# Set PYTHONPATH for imports
 export PYTHONPATH=./src
 
-# Run tests (venv must be active)
-(venv) $ pytest -q
+# Option 1: Use system python3 with PYTHONPATH
+PYTHONPATH=./src python3 -m examples.ave.font_check_variable_fonts
 
-# Run specific test file
-(venv) $ pytest tests/test_geom.py -v
+# Option 2: Use venv python explicitly
+PYTHONPATH=./src ./venv/bin/python -m examples.ave.font_check_variable_fonts
 
-# Run the demo app
-(venv) $ PYTHONPATH=./src python3 -m main_app
+# Option 3: Activate venv first (then python3 works)
+source venv/bin/activate
+export PYTHONPATH=./src
+python3 -m examples.ave.font_check_variable_fonts
+```
 
-# Run an example
-(venv) $ PYTHONPATH=./src python3 -m examples.ave.font_check_roboto_flex
+### Quick Syntax Check (without importing optional deps)
+
+```bash
+python3 -c "import ast; ast.parse(open('src/examples/ave/font_check_variable_fonts.py').read()); print('✓ Syntax valid')"
+```
+
+### Running Tests
+
+```bash
+# With venv activated
+source venv/bin/activate
+PYTHONPATH=./src python3 -m pytest -q
+
+# Without activation
+PYTHONPATH=./src ./venv/bin/python -m pytest -q
+```
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `python: command not found` | `python` shim not installed | Use `python3` |
+| `pip3: command not found` | `pip3` not installed system-wide | Use `./venv/bin/python -m pip` |
+| `ModuleNotFoundError: shapely` | Dependencies not installed | Run `./venv/bin/python -m pip install -r requirements.txt` |
+| Import errors for `ave` modules | PYTHONPATH not set | Use `export PYTHONPATH=./src` |
+
+### Example Workflow
+
+```bash
+# 1. Initial setup (once)
+python3 -m venv venv
+./venv/bin/python -m pip install -r requirements.txt
+
+# 2. Everyday work
+export PYTHONPATH=./src
+./venv/bin/python -m examples.ave.font_check_variable_fonts
+
+# 3. Or activate venv for convenience
+source venv/bin/activate
+export PYTHONPATH=./src
+python3 -m examples.ave.font_check_variable_fonts
 ```
