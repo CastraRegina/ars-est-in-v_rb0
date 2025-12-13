@@ -984,6 +984,103 @@ class AvPolygonPath(AvClosedPath, AvPolylinesPath):
         cross = x * y_next - x_next * y
         return bool(cross.sum() > 0.0)
 
+    def contains_point(self, point: Tuple[float, float]) -> bool:
+        """Return True if the point lies inside this polygon (ray casting)."""
+        pts = self.points
+        n = pts.shape[0]
+        if n == 0:
+            return False
+        x, y = point
+        inside = False
+        j = n - 1
+        for i in range(n):
+            xi, yi = pts[i][:2]
+            xj, yj = pts[j][:2]
+            intersects = (yi > y) != (yj > y)
+            if intersects:
+                slope = (xj - xi) / (yj - yi)
+                x_intersect = slope * (y - yi) + xi
+                if x < x_intersect:
+                    inside = not inside
+            j = i
+        return inside
+
+    def representative_point(self, samples: int = 9, epsilon: float = 1e-9) -> Tuple[float, float]:
+        """Return a point intended to lie inside the polygon.
+
+        The centroid of a concave polygon can lie outside the filled region.
+        This method finds interior points by intersecting several horizontal
+        scanlines with the polygon edges and returning the midpoint of an
+        interior interval.
+
+        Args:
+            samples: Number of scanlines to try between ymin and ymax.
+            epsilon: Small relative offset applied to the scanline y value to
+                avoid pathological cases where the scanline hits vertices
+                exactly.
+
+        Returns:
+            Tuple[float, float]: A point inside the polygon when the contour is
+                a simple (non self-intersecting) ring. For degenerate cases a
+                best-effort fallback is returned.
+        """
+        pts = self.points
+        if pts.shape[0] == 0:
+            return (0.0, 0.0)
+
+        if pts.shape[0] < 3:
+            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
+        y_min = float(pts[:, 1].min())
+        y_max = float(pts[:, 1].max())
+        height = y_max - y_min
+        if np.isclose(height, 0.0):
+            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
+        n = int(pts.shape[0])
+        n_samples = max(int(samples), 1)
+
+        y_tol = abs(epsilon) * height
+
+        for k in range(n_samples):
+            y = y_min + (k + 0.5) / n_samples * height + epsilon * height
+
+            xs: List[float] = []
+            j = n - 1
+            for i in range(n):
+                xi, yi = float(pts[i, 0]), float(pts[i, 1])
+                xj, yj = float(pts[j, 0]), float(pts[j, 1])
+
+                if (yi > y) != (yj > y):
+                    dy = yj - yi
+                    if abs(dy) >= y_tol:
+                        x_int = xi + (y - yi) * (xj - xi) / dy
+                        xs.append(float(x_int))
+
+                j = i
+
+            xs.sort()
+
+            if len(xs) % 2 != 0:
+                continue
+
+            best: Optional[Tuple[float, float]] = None
+            best_w = -1.0
+            for i in range(0, len(xs) - 1, 2):
+                w = xs[i + 1] - xs[i]
+                if w > best_w:
+                    best_w = w
+                    best = ((xs[i] + xs[i + 1]) * 0.5, y)
+
+            if best is not None and self.contains_point(best):
+                return (float(best[0]), float(best[1]))
+
+        candidate = self.centroid
+        if self.contains_point(candidate):
+            return candidate
+
+        return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
 
 def main():
     """Main"""
