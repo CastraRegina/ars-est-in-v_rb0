@@ -8,7 +8,7 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
-from ave.geom_bezier import BezierCurve
+from ave.bezier import BezierCurve
 from ave.path import AvPath
 
 ###############################################################################

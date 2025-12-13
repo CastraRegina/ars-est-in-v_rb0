@@ -9,9 +9,9 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 
+from ave.bezier import BezierCurve
 from ave.common import AvGlyphCmds
 from ave.geom import AvBox
-from ave.geom_bezier import BezierCurve
 
 
 ###############################################################################
