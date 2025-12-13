@@ -9,8 +9,9 @@ This file contains general/shared tests that cover both quadratic and cubic curv
 import numpy as np
 import pytest
 
-from ave.geom import AvBox, AvPath
+from ave.geom import AvBox
 from ave.geom_bezier import BezierCurve
+from ave.path import AvPath
 
 ###############################################################################
 # Integration and Regression Tests

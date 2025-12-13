@@ -8,8 +8,9 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
-from ave.geom import AvBox, AvPath, AvSinglePath, GeomMath
+from ave.geom import AvBox, GeomMath
 from ave.geom_bezier import BezierCurve
+from ave.path import AvPath, AvSinglePath
 
 ###############################################################################
 # GeomMath Tests
@@ -93,7 +94,7 @@ class TestAvBox:
 
     def test_avbox_initialization_normal(self):
         """Test AvBox initialization with normal coordinates."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
 
         assert box.xmin == 10.0
         assert box.ymin == 20.0
@@ -102,7 +103,7 @@ class TestAvBox:
 
     def test_avbox_initialization_reversed(self):
         """Test AvBox initialization with reversed coordinates."""
-        box = AvBox(30.0, 40.0, 10.0, 20.0)
+        box = AvBox(xmin=30.0, ymin=40.0, xmax=10.0, ymax=20.0)
 
         # Should automatically reorder
         assert box.xmin == 10.0
@@ -112,7 +113,7 @@ class TestAvBox:
 
     def test_avbox_properties(self):
         """Test AvBox property calculations."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
 
         assert box.width == 20.0
         assert box.height == 20.0
@@ -122,7 +123,7 @@ class TestAvBox:
 
     def test_avbox_zero_area(self):
         """Test AvBox with zero area."""
-        box = AvBox(10.0, 20.0, 10.0, 20.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=10.0, ymax=20.0)
 
         assert box.width == 0.0
         assert box.height == 0.0
@@ -131,7 +132,7 @@ class TestAvBox:
 
     def test_avbox_negative_coordinates(self):
         """Test AvBox with negative coordinates."""
-        box = AvBox(-30.0, -40.0, -10.0, -20.0)
+        box = AvBox(xmin=-30.0, ymin=-40.0, xmax=-10.0, ymax=-20.0)
 
         assert box.xmin == -30.0
         assert box.ymin == -40.0
@@ -142,7 +143,7 @@ class TestAvBox:
 
     def test_avbox_transform_affine_identity(self):
         """Test AvBox affine transformation with identity matrix."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
         affine_trafo = [1, 0, 0, 1, 0, 0]
 
         transformed = box.transform_affine(affine_trafo)
@@ -154,7 +155,7 @@ class TestAvBox:
 
     def test_avbox_transform_affine_translation(self):
         """Test AvBox affine transformation with translation."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
         affine_trafo = [1, 0, 0, 1, 5.0, 10.0]
 
         transformed = box.transform_affine(affine_trafo)
@@ -166,7 +167,7 @@ class TestAvBox:
 
     def test_avbox_transform_affine_scale(self):
         """Test AvBox affine transformation with scaling."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
         affine_trafo = [2, 0, 0, 3, 0, 0]
 
         transformed = box.transform_affine(affine_trafo)
@@ -178,7 +179,7 @@ class TestAvBox:
 
     def test_avbox_transform_scale_translate(self):
         """Test AvBox scale and translate transformation."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
 
         transformed = box.transform_scale_translate(2.0, 5.0, 10.0)
 
@@ -189,7 +190,7 @@ class TestAvBox:
 
     def test_avbox_str_representation(self):
         """Test AvBox string representation."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
 
         str_repr = str(box)
 
@@ -203,7 +204,7 @@ class TestAvBox:
 
     def test_avbox_immutability(self):
         """Test that AvBox properties are read-only."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
 
         # Properties should be read-only
         with pytest.raises(AttributeError):
@@ -224,7 +225,7 @@ class TestAvBoxSerialization:
 
     def test_avbox_to_from_dict_roundtrip(self):
         """Round-trip AvBox through to_dict and from_dict."""
-        box = AvBox(10.0, 20.0, 30.0, 40.0)
+        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
 
         data = box.to_dict()
         restored = AvBox.from_dict(data)
@@ -271,7 +272,7 @@ class TestIntegration:
         # Create bounding box from polygonized points
         x_coords = new_points[:, 0]
         y_coords = new_points[:, 1]
-        box = AvBox(np.min(x_coords), np.min(y_coords), np.max(x_coords), np.max(y_coords))
+        box = AvBox(xmin=np.min(x_coords), ymin=np.min(y_coords), xmax=np.max(x_coords), ymax=np.max(y_coords))
 
         # Transform box
         transformed_box = box.transform_scale_translate(2.0, 10.0, 20.0)

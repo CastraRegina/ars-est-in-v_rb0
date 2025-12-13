@@ -14,7 +14,8 @@ from numpy.typing import NDArray
 import ave.common
 from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen
-from ave.geom import AvBox, AvPath
+from ave.geom import AvBox
+from ave.path import AvPath
 
 ###############################################################################
 # Glyph

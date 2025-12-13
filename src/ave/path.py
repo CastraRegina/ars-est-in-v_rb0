@@ -1,0 +1,911 @@
+"""Handling geometries"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from functools import cached_property
+from typing import List, Optional, Sequence, Tuple, Union
+
+import numpy as np
+from numpy.typing import NDArray
+
+from ave.common import AvGlyphCmds
+from ave.geom import AvBox
+from ave.geom_bezier import BezierCurve
+
+
+###############################################################################
+# AvPath
+###############################################################################
+@dataclass
+class AvPath:
+    """
+    Path represented by points (shape (n, 3)) and corresponding commands.
+    A path contains 0..n segments; each segment starts with M, is followed by
+    an arbitrary mix of L/Q/C, and may optionally end with Z.
+    A path may also be empty (no points and no commands), representing 0 segments.
+    """
+
+    _points: NDArray[np.float64]  # shape (n_points, 3)
+    _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
+    _bounding_box: Optional[AvBox] = None  # caching variable
+    _polygonized_path: Optional[AvPolylinesPath] = None  # caching variable
+
+    # Number of steps to use when polygonizing curves for internal approximations
+    POLYGONIZE_STEPS_INTERNAL: int = 50  # pylint: disable=invalid-name
+
+    def __init__(
+        self,
+        points: Optional[
+            Union[
+                Sequence[Tuple[float, float]],
+                Sequence[Tuple[float, float, float]],
+                NDArray[np.float64],
+            ]
+        ] = None,
+        commands: Optional[List[AvGlyphCmds]] = None,
+    ):
+        """
+        Initialize an AvPath from 2D points.
+
+        Args:
+            points: a sequence of (x, y) or (x, y, type).
+            commands: List of drawing commands corresponding to the points.
+        """
+        if points is None:
+            arr = np.empty((0, 3), dtype=np.float64)
+        elif isinstance(points, np.ndarray):
+            arr = points.astype(np.float64, copy=False)
+        else:
+            arr = np.asarray(points, dtype=np.float64)
+
+        if arr.ndim != 2:
+            raise ValueError(f"points must have 2 dimensions, got {arr.ndim}")
+
+        commands_list = [] if commands is None else list(commands)
+
+        if arr.shape[1] == 2:
+            # Generate type column based on commands
+            type_column = np.zeros(arr.shape[0], dtype=np.float64)
+            point_idx = 0
+
+            for cmd in commands_list:
+                if cmd == "M":  # MoveTo - 1 point
+                    type_column[point_idx] = 0.0
+                    point_idx += 1
+                elif cmd == "L":  # LineTo - 1 point
+                    type_column[point_idx] = 0.0
+                    point_idx += 1
+                elif cmd == "Q":  # Quadratic Bezier - 2 points (control + end)
+                    type_column[point_idx] = 2.0  # control point
+                    type_column[point_idx + 1] = 0.0  # end point
+                    point_idx += 2
+                elif cmd == "C":  # Cubic Bezier - 3 points (control1 + control2 + end)
+                    type_column[point_idx] = 3.0  # control point 1
+                    type_column[point_idx + 1] = 3.0  # control point 2
+                    type_column[point_idx + 2] = 0.0  # end point
+                    point_idx += 3
+                elif cmd == "Z":  # ClosePath - no points
+                    pass
+
+            self._points = np.column_stack([arr, type_column])
+        elif arr.shape[1] == 3:
+            self._points = arr
+        else:
+            raise ValueError(f"points must have shape (n, 2) or (n, 3), got {arr.shape}")
+
+        self._commands = commands_list
+        self._bounding_box = None
+        self._polygonized_path = None
+        self._validate()
+
+    def _validate(self) -> None:
+        """Validate path structure. Override in subclasses for specific constraints."""
+        cmds = self._commands
+        points = self._points
+
+        if not cmds:
+            if points.shape[0] != 0:
+                raise ValueError("Empty command list must have zero points")
+            return
+
+        expected_points = 0
+        idx = 0
+        n_cmds = len(cmds)
+
+        while idx < n_cmds:
+            cmd = cmds[idx]
+            if cmd != "M":
+                raise ValueError(f"Each segment must start with 'M' command (got '{cmd}' at index {idx})")
+
+            expected_points += 1
+            idx += 1
+
+            while idx < n_cmds and cmds[idx] != "M":
+                cmd = cmds[idx]
+                if cmd == "L":
+                    expected_points += 1
+                    idx += 1
+                elif cmd == "Q":
+                    expected_points += 2
+                    idx += 1
+                elif cmd == "C":
+                    expected_points += 3
+                    idx += 1
+                elif cmd == "Z":
+                    idx += 1
+                    if idx < n_cmds and cmds[idx] != "M":
+                        raise ValueError(
+                            "'Z' must terminate a segment "
+                            f"(expected 'M' or end after 'Z', got '{cmds[idx]}' at index {idx})"
+                        )
+                    break
+                else:
+                    raise ValueError(f"Unknown command '{cmd}' at index {idx}")
+
+        if points.shape[0] != expected_points:
+            raise ValueError(
+                f"Number of points ({points.shape[0]}) does not match commands (requires {expected_points} points)"
+            )
+
+    @property
+    def points(self) -> NDArray[np.float64]:
+        """
+        The points of this path as a numpy array of shape (n_points, 3).
+        """
+        return self._points
+
+    @property
+    def commands(self) -> List[AvGlyphCmds]:
+        """
+        The commands of this path as a list of SVG path commands.
+        """
+        return self._commands
+
+    def bounding_box(self) -> AvBox:
+        """
+        Returns bounding box (tightest box around Path)
+        Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
+        Uses dimensions in unitsPerEm.
+        """
+
+        if self._bounding_box is not None:
+            return self._bounding_box
+
+        # No points, so bounding box is set to size 0.
+        if not self._points.size:
+            self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
+            return self._bounding_box
+
+        # Check if path contains curves that need polygonization for accurate bounding box
+        has_curves = any(cmd in ["Q", "C"] for cmd in self._commands)
+
+        if not has_curves:
+            # No curves, use simple min/max calculation on existing points
+            points_x = self._points[:, 0]
+            points_y = self._points[:, 1]
+            x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
+        else:
+            # Has curves, polygonize temporarily to get accurate bounding box
+            polygonized_path = self.polygonized_path()
+            polygonized_points = polygonized_path.points
+
+            if polygonized_points.size == 0:
+                self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
+                return self._bounding_box
+
+            # Calculate bounding box from polygonized points
+            points_x = polygonized_points[:, 0]
+            points_y = polygonized_points[:, 1]
+            x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
+
+        self._bounding_box = AvBox(x_min, y_min, x_max, y_max)
+        return self._bounding_box
+
+    @classmethod
+    def from_dict(cls, data: dict) -> AvPath:
+        """Create an AvPath instance from a dictionary."""
+        raw_points = data.get("points", None)
+        if "points" in data:
+            if raw_points:
+                points = np.array(raw_points, dtype=np.float64)
+            else:
+                points = None
+        else:
+            points = None
+
+        # Convert commands back from strings to enums
+        commands = [cmd for cmd in data.get("commands", [])]
+
+        # Convert bounding box back if present
+        bounding_box = None
+        if data.get("bounding_box") is not None:
+            bounding_box = AvBox.from_dict(data["bounding_box"])
+
+        # Create instance with 3D points (already has type column)
+        path = cls(points, commands)  # Use regular init - it handles 3D points
+        path._bounding_box = bounding_box
+        return path
+
+    def to_dict(self) -> dict:
+        """Convert the AvPath instance to a dictionary."""
+        # Convert numpy array to list for JSON serialization
+        points_list = self._points.tolist() if self._points.size > 0 else []
+
+        # Commands are already strings
+        commands_list = list(self._commands)
+
+        # Convert bounding box to dict if present
+        bbox_dict = None
+        if self._bounding_box is not None:
+            bbox_dict = self._bounding_box.to_dict()
+
+        return {
+            "points": points_list,
+            "commands": commands_list,
+            "bounding_box": bbox_dict,
+        }
+
+    def polygonized_path(self) -> AvPolylinesPath:
+        """Return the polygonized path."""
+        if self._polygonized_path is None:
+            self._polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
+        return self._polygonized_path
+
+    def polygonize(self, steps: int) -> AvPolylinesPath:
+        """Return a polygonized copy of this path.
+
+        Args:
+            steps: Number of segments used to approximate curve segments.
+                If 0, the original path is returned unchanged.
+
+        Returns:
+            AvPolylinesPath: New path with curves replaced by line segments.
+                If this instance is already an AvPolylinesPath, it is returned
+                unchanged.
+        """
+        if steps == 0:
+            return self
+
+        if isinstance(self, AvPolylinesPath):
+            return self
+
+        points = self._points
+        commands = self._commands
+
+        # Input normalization: ensure all points are 3D
+        if points.shape[1] == 2:
+            points = np.column_stack([points, np.zeros(len(points), dtype=np.float64)])
+
+        # Pre-allocation: estimate final size
+        num_curves = sum(1 for cmd in commands if cmd in "QC")
+        estimated_points = len(points) + num_curves * steps
+        new_points_array = np.empty((estimated_points, 3), dtype=np.float64)
+        new_commands_list = []
+
+        point_index = 0
+        array_index = 0
+
+        for cmd in commands:
+            if cmd == "M":  # MoveTo - uses 1 point
+                if point_index >= len(points):
+                    raise ValueError(f"MoveTo command needs 1 point, got {len(points) - point_index}")
+
+                pt = points[point_index]
+                new_points_array[array_index] = pt
+                new_commands_list.append(cmd)
+                array_index += 1
+                point_index += 1
+
+            elif cmd == "L":  # LineTo - uses 1 point
+                if point_index >= len(points):
+                    raise ValueError(f"LineTo command needs 1 point, got {len(points) - point_index}")
+
+                pt = points[point_index]
+                new_points_array[array_index] = pt
+                new_commands_list.append(cmd)
+                array_index += 1
+                point_index += 1
+
+            elif cmd == "Q":  # Quadratic Bezier To - uses 2 points (control, end)
+                if point_index + 1 >= len(points):
+                    raise ValueError(f"Quadratic Bezier command needs 2 points, got {len(points) - point_index}")
+
+                if array_index == 0:
+                    raise ValueError("Quadratic Bezier command has no starting point")
+
+                # Get start point (last point in new_points_array) + control and end points
+                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
+                control_point = points[point_index][:2]
+                end_point = points[point_index + 1][:2]
+
+                control_points = np.array([start_point, control_point, end_point], dtype=np.float64)
+
+                # Polygonize the quadratic bezier directly into output buffer
+                num_curve_points = BezierCurve.polygonize_quadratic_curve_inplace(
+                    control_points, steps, new_points_array, array_index, skip_first=True
+                )
+                new_commands_list.extend(["L"] * num_curve_points)
+                array_index += num_curve_points
+                point_index += 2  # Skip control and end points
+
+            elif cmd == "C":  # Cubic Bezier To - uses 3 points (control1, control2, end)
+                if point_index + 2 >= len(points):
+                    raise ValueError(f"Cubic Bezier command needs 3 points, got {len(points) - point_index}")
+
+                if array_index == 0:
+                    raise ValueError("Cubic Bezier command has no starting point")
+
+                # Get start point (last point in new_points_array) + control1, control2, and end points
+                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
+                control1_point = points[point_index][:2]
+                control2_point = points[point_index + 1][:2]
+                end_point = points[point_index + 2][:2]
+
+                control_points = np.array([start_point, control1_point, control2_point, end_point], dtype=np.float64)
+
+                # Polygonize the cubic bezier directly into output buffer
+                num_curve_points = BezierCurve.polygonize_cubic_curve_inplace(
+                    control_points, steps, new_points_array, array_index, skip_first=True
+                )
+                new_commands_list.extend(["L"] * num_curve_points)
+                array_index += num_curve_points
+                point_index += 3  # Skip control1, control2, and end points
+
+            elif cmd == "Z":  # ClosePath - uses 0 points, no point data in SVG
+                if array_index == 0:
+                    raise ValueError("ClosePath command has no starting point")
+
+                # Z command doesn't add a new point, it just closes the path
+                # The closing line is implicit from current point to first MoveTo point
+                new_commands_list.append(cmd)
+
+            else:
+                raise ValueError(f"Unknown command '{cmd}'")
+
+        # Trim the pre-allocated array to actual size
+        new_points = new_points_array[:array_index]
+        return AvPolylinesPath(new_points, new_commands_list)
+
+    def split_into_single_paths(self) -> List[AvSinglePath]:
+        """Split an AvPath into AvSinglePath segments at each 'M' command."""
+
+        # Empty path: nothing to split
+        if not self.commands:
+            return []
+
+        pts = self.points
+        cmds = self.commands
+
+        single_paths: List[AvSinglePath] = []
+
+        point_idx = 0
+        cmd_idx = 0
+
+        while cmd_idx < len(cmds):
+            cmd = cmds[cmd_idx]
+
+            if cmd != "M":
+                # AvPath._validate should guarantee segments start with 'M'
+                raise ValueError(f"Expected 'M' at command index {cmd_idx}, got '{cmd}'")
+
+            # Start a new segment
+            seg_cmds: List[str] = []
+            seg_points: List[np.ndarray] = []
+
+            # Handle MoveTo (always uses one point)
+            if point_idx >= len(pts):
+                raise ValueError("MoveTo command has no corresponding point")
+
+            seg_cmds.append("M")
+            seg_points.append(pts[point_idx].copy())
+            point_idx += 1
+            cmd_idx += 1
+
+            # Consume commands until next 'M' or end
+            while cmd_idx < len(cmds) and cmds[cmd_idx] != "M":
+                cmd = cmds[cmd_idx]
+
+                if cmd == "L":
+                    if point_idx >= len(pts):
+                        raise ValueError("LineTo command has no corresponding point")
+                    seg_cmds.append("L")
+                    seg_points.append(pts[point_idx].copy())
+                    point_idx += 1
+                    cmd_idx += 1
+
+                elif cmd == "Q":
+                    if point_idx + 1 >= len(pts):
+                        raise ValueError("Quadratic Bezier command needs 2 points")
+                    seg_cmds.append("Q")
+                    seg_points.append(pts[point_idx].copy())  # control
+                    seg_points.append(pts[point_idx + 1].copy())  # end
+                    point_idx += 2
+                    cmd_idx += 1
+
+                elif cmd == "C":
+                    if point_idx + 2 >= len(pts):
+                        raise ValueError("Cubic Bezier command needs 3 points")
+                    seg_cmds.append("C")
+                    seg_points.append(pts[point_idx].copy())  # control1
+                    seg_points.append(pts[point_idx + 1].copy())  # control2
+                    seg_points.append(pts[point_idx + 2].copy())  # end
+                    point_idx += 3
+                    cmd_idx += 1
+
+                elif cmd == "Z":
+                    seg_cmds.append("Z")
+                    cmd_idx += 1
+
+                else:
+                    raise ValueError(f"Unknown command '{cmd}'")
+
+            # Create AvSinglePath for this segment
+            seg_points_array = (
+                np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
+            )
+
+            single_paths.append(AvSinglePath(seg_points_array, seg_cmds))
+
+        return single_paths
+
+    def append(self, *paths: Union[AvPath, Sequence[AvPath]]) -> AvPath:
+        """Return a new AvPath consisting of this path followed by other paths.
+
+        The given paths are concatenated by keeping each segment's initial 'M'
+        command and appending all points and commands in order. The original
+        paths are not modified.
+        """
+
+        # Start with this path and flatten additional arguments: accept single
+        # AvPath, multiple AvPaths, or sequences (tuple, list, etc.) of AvPath
+        # instances.
+        flat_paths: List[AvPath] = [self]
+
+        for arg in paths:
+            if isinstance(arg, AvPath):
+                flat_paths.append(arg)
+            elif isinstance(arg, Sequence) and not isinstance(arg, (str, bytes)):
+                for item in arg:
+                    if not isinstance(item, AvPath):
+                        raise TypeError("append expects only AvPath instances")
+                    flat_paths.append(item)
+            else:
+                raise TypeError("append expects AvPath instances or sequences of AvPath instances")
+
+        # Collect points and commands without modifying originals
+        points_arrays: List[NDArray[np.float64]] = []
+        commands_lists: List[List[AvGlyphCmds]] = []
+
+        for path in flat_paths:
+            if path.points.size > 0:
+                points_arrays.append(path.points)
+            if path.commands:
+                commands_lists.append(path.commands)
+
+        if not points_arrays:
+            # All paths were empty (including self)
+            return AvPath()
+
+        if len(points_arrays) == 1:
+            new_points = points_arrays[0].copy()
+        else:
+            new_points = np.concatenate(points_arrays, axis=0)
+
+        new_commands: List[AvGlyphCmds] = []
+        for cmds in commands_lists:
+            new_commands.extend(cmds)
+
+        return AvPath(new_points, new_commands)
+
+    @classmethod
+    def join_paths(cls, *paths: Union[AvPath, Sequence[AvPath]]) -> AvPath:
+        """Join one or more paths into a single AvPath using append()."""
+
+        # Flatten arguments: accept single AvPath, multiple AvPaths, or
+        # sequences (tuple, list, etc.) of AvPath instances.
+        flat_paths: List[AvPath] = []
+
+        for arg in paths:
+            if isinstance(arg, AvPath):
+                flat_paths.append(arg)
+            elif isinstance(arg, Sequence) and not isinstance(arg, (str, bytes)):
+                for item in arg:
+                    if not isinstance(item, AvPath):
+                        raise TypeError("join_paths expects only AvPath instances")
+                    flat_paths.append(item)
+            else:
+                raise TypeError("join_paths expects AvPath instances or sequences of AvPath instances")
+
+        # No paths -> return empty path
+        if not flat_paths:
+            return cls()
+
+        # Use the first path as base and append the rest
+        base = flat_paths[0]
+        if len(flat_paths) == 1:
+            return base
+
+        return base.append(flat_paths[1:])
+
+    def reverse(self) -> AvPath:
+        """Return a new AvPath with reversed drawing direction.
+
+        The sequence of segments is kept the same, but within each segment
+        the sequence of points and commands is reversed. Curve geometry is
+        preserved by delegating to AvSinglePath.reverse() for each segment.
+        """
+
+        # Split into single segments, reverse each as AvSinglePath, then join.
+        single_paths = self.split_into_single_paths()
+
+        # If the path is empty, return a new empty AvPath for consistency
+        # with join_paths() semantics.
+        if not single_paths:
+            return AvPath()
+
+        reversed_segments = [segment.reverse() for segment in single_paths]
+        return AvPath.join_paths(reversed_segments)
+
+
+###############################################################################
+# AvPolylinesPath
+###############################################################################
+class AvPolylinesPath(AvPath):
+    """
+    Path represented by points (shape (n, 3)) and corresponding commands.
+    A path contains 0..n segments; each segment starts with M, is followed by
+    an arbitrary number of L commands, and may optionally end with Z.
+    A path may also be empty (no points and no commands), representing 0 segments.
+    """
+
+    def _validate(self) -> None:
+        """Validate that this path contains only polyline (M/L/Z) commands."""
+        super()._validate()
+
+        for i, cmd in enumerate(self._commands):
+            if cmd not in ("M", "L", "Z"):
+                raise ValueError(f"AvPolylinesPath cannot contain curve commands (found '{cmd}' at position {i})")
+
+
+###############################################################################
+# AvSinglePath
+###############################################################################
+class AvSinglePath(AvPath):
+    """
+    Path with at most one segment, represented by points (shape (n, 3)) plus commands.
+    If non-empty, it starts with one M, continues with any mix of L/Q/C,
+    and may optionally end with Z.
+    """
+
+    def _validate(self) -> None:
+        """Validate that this path has at most one segment (0 or 1)."""
+        super()._validate()
+
+        if not self._commands:
+            return  # Empty path is valid
+
+        # Check for additional M commands (would indicate multiple segments)
+        for i, cmd in enumerate(self._commands[1:], 1):
+            if cmd == "M":
+                raise ValueError(f"AvSinglePath cannot contain multiple segments (found 'M' at position {i})")
+
+    def reverse(self) -> AvSinglePath:
+        """Return a new AvSinglePath with reversed drawing direction.
+
+        The same point coordinates are used, but their order (and the
+        corresponding commands) is reversed, so traversal runs from the
+        original last point back to the original first point.
+
+        For curve commands (Q, C), control points are reordered to preserve
+        the exact curve geometry when traversed in reverse.
+        """
+        # Early return for empty paths
+        if not self._commands or self._points.size == 0:
+            return AvSinglePath(self._points.copy(), list(self._commands))
+
+        # Check if path is closed
+        is_closed = self._commands[-1] == "Z"
+
+        # Build segments by iterating forward once
+        segments = []
+        last_point = self._points[0].copy()  # Start with M point
+        point_idx = 1  # Skip M's point
+
+        for cmd in self._commands[1:]:
+            if cmd == "Z":
+                break
+
+            start_point = last_point
+
+            if cmd == "L":
+                end_point = self._points[point_idx].copy()
+                segments.append(("L", [], start_point, end_point))
+                last_point = end_point
+                point_idx += 1
+
+            elif cmd == "Q":
+                control = self._points[point_idx].copy()
+                end_point = self._points[point_idx + 1].copy()
+                segments.append(("Q", [control], start_point, end_point))
+                last_point = end_point
+                point_idx += 2
+
+            elif cmd == "C":
+                control1 = self._points[point_idx].copy()
+                control2 = self._points[point_idx + 1].copy()
+                end_point = self._points[point_idx + 2].copy()
+                segments.append(("C", [control1, control2], start_point, end_point))
+                last_point = end_point
+                point_idx += 3
+
+        # Build reversed path
+        new_commands = ["M"]
+        new_points = []
+
+        if segments:
+            # Start from last segment's end point
+            new_points.append(segments[-1][3])  # Last end point
+
+            # Process segments in reverse
+            for cmd_type, controls, start_point, end_point in reversed(segments):
+                if cmd_type == "L":
+                    new_commands.append("L")
+                    new_points.append(start_point)  # Original start becomes new end
+
+                elif cmd_type == "Q":
+                    new_commands.append("Q")
+                    new_points.append(controls[0])  # Control point
+                    new_points.append(start_point)  # Original start becomes new end
+
+                elif cmd_type == "C":
+                    new_commands.append("C")
+                    new_points.append(controls[1])  # Swapped control points
+                    new_points.append(controls[0])
+                    new_points.append(start_point)  # Original start becomes new end
+        else:
+            # Only M command
+            new_points.append(self._points[0].copy())
+
+        # Add Z if original was closed
+        if is_closed:
+            new_commands.append("Z")
+
+        # Convert to numpy array
+        points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
+
+        return AvSinglePath(points_array, new_commands)
+
+
+###############################################################################
+# AvClosedPath
+###############################################################################
+class AvClosedPath(AvSinglePath):
+    """
+    Path with at most one closed segment, stored as points (shape (n, 3)) plus commands.
+    If non-empty, it begins with one M, continues with any mix of L/Q/C,
+    and always ends with Z.
+    """
+
+    def _validate(self) -> None:
+        """Validate that this path has at most one closed segment (0 or 1)."""
+        super()._validate()
+
+        if not self._commands:
+            return  # Empty path is valid
+
+        if self._commands[-1] != "Z":
+            raise ValueError("AvClosedPath must end with 'Z' command")
+
+    def polygonized_path(self) -> AvPolygonPath:
+        """
+        Return a polygonized path as a proxy for the ClosedPath.
+        """
+        polygonized_path = super().polygonized_path()
+        return AvPolygonPath(polygonized_path.points, polygonized_path.commands)
+
+    @property
+    def area(self) -> float:
+        """
+        Return the area of the ClosedPath using a polygonized path as a proxy.
+        """
+        return self.polygonized_path().area
+
+    @property
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Return the centroid of the ClosedPath using a polygonized path as proxy.
+
+        Returns:
+            Tuple[float, float]: The x and y coordinates of the centroid.
+        """
+        return self.polygonized_path().centroid
+
+    @property
+    def is_ccw(self) -> bool:
+        """
+        Return True if the ClosedPath is running counter-clockwise.
+        """
+        return self.polygonized_path().is_ccw
+
+
+###############################################################################
+# AvPolygonPath
+###############################################################################
+class AvPolygonPath(AvClosedPath, AvPolylinesPath):
+    """
+    Polygonal closed path stored as points (shape (n, 3)) plus commands.
+    Begins with one M, follows any number of L commands, and always ends with Z.
+    """
+
+    def _validate(self) -> None:
+        AvClosedPath._validate(self)
+        AvPolylinesPath._validate(self)
+
+    @cached_property
+    def area(self) -> float:
+        """Return the area of the polygon using the shoelace formula."""
+        pts = self.points
+        if pts.shape[0] < 3:
+            return 0.0
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            return 0.0
+        return float(0.5 * abs(cross_sum))
+
+    @cached_property
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Return the centroid of the polygon.
+
+        For polygons with fewer than three points or near-zero area, the
+        centroid is calculated as the arithmetic mean of the vertices.
+
+        Returns:
+            A tuple of two floats representing the x and y coordinates of the
+            centroid.
+        """
+        pts = self.points
+        if pts.shape[0] == 0:
+            return (0.0, 0.0)
+        if pts.shape[0] < 3:
+            x_mean = float(pts[:, 0].mean())
+            y_mean = float(pts[:, 1].mean())
+            return (x_mean, y_mean)
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            x_mean = float(x.mean())
+            y_mean = float(y.mean())
+            return (x_mean, y_mean)
+        factor = 1.0 / (3.0 * cross_sum)
+        cx = float(((x + x_next) * cross).sum() * factor)
+        cy = float(((y + y_next) * cross).sum() * factor)
+        return (cx, cy)
+
+    @cached_property
+    def is_ccw(self) -> bool:
+        """Return True if the polygon vertices are ordered counter-clockwise."""
+        pts = self.points
+        if pts.shape[0] < 3:
+            return False
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        return bool(cross.sum() > 0.0)
+
+    def contains_point(self, point: Tuple[float, float]) -> bool:
+        """Return True if the point lies inside this polygon (ray casting)."""
+        pts = self.points
+        n = pts.shape[0]
+        if n == 0:
+            return False
+        x, y = point
+        inside = False
+        j = n - 1
+        for i in range(n):
+            xi, yi = pts[i][:2]
+            xj, yj = pts[j][:2]
+            intersects = (yi > y) != (yj > y)
+            if intersects:
+                slope = (xj - xi) / (yj - yi)
+                x_intersect = slope * (y - yi) + xi
+                if x < x_intersect:
+                    inside = not inside
+            j = i
+        return inside
+
+    def representative_point(self, samples: int = 9, epsilon: float = 1e-9) -> Tuple[float, float]:
+        """Return a point intended to lie inside the polygon.
+
+        The centroid of a concave polygon can lie outside the filled region.
+        This method finds interior points by intersecting several horizontal
+        scanlines with the polygon edges and returning the midpoint of an
+        interior interval.
+
+        Args:
+            samples: Number of scanlines to try between ymin and ymax.
+            epsilon: Small relative offset applied to the scanline y value to
+                avoid pathological cases where the scanline hits vertices
+                exactly.
+
+        Returns:
+            Tuple[float, float]: A point inside the polygon when the contour is
+                a simple (non self-intersecting) ring. For degenerate cases a
+                best-effort fallback is returned.
+        """
+        pts = self.points
+        if pts.shape[0] == 0:
+            return (0.0, 0.0)
+
+        if pts.shape[0] < 3:
+            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
+        y_min = float(pts[:, 1].min())
+        y_max = float(pts[:, 1].max())
+        height = y_max - y_min
+        if np.isclose(height, 0.0):
+            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
+        n = int(pts.shape[0])
+        n_samples = max(int(samples), 1)
+
+        y_tol = abs(epsilon) * height
+
+        for k in range(n_samples):
+            y = y_min + (k + 0.5) / n_samples * height + epsilon * height
+
+            xs: List[float] = []
+            j = n - 1
+            for i in range(n):
+                xi, yi = float(pts[i, 0]), float(pts[i, 1])
+                xj, yj = float(pts[j, 0]), float(pts[j, 1])
+
+                if (yi > y) != (yj > y):
+                    dy = yj - yi
+                    if abs(dy) >= y_tol:
+                        x_int = xi + (y - yi) * (xj - xi) / dy
+                        xs.append(float(x_int))
+
+                j = i
+
+            xs.sort()
+
+            if len(xs) % 2 != 0:
+                continue
+
+            best: Optional[Tuple[float, float]] = None
+            best_w = -1.0
+            for i in range(0, len(xs) - 1, 2):
+                w = xs[i + 1] - xs[i]
+                if w > best_w:
+                    best_w = w
+                    best = ((xs[i] + xs[i + 1]) * 0.5, y)
+
+            if best is not None and self.contains_point(best):
+                return (float(best[0]), float(best[1]))
+
+        candidate = self.centroid
+        if self.contains_point(candidate):
+            return candidate
+
+        return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
+
+def main():
+    """Main"""
+
+
+if __name__ == "__main__":
+    main()
