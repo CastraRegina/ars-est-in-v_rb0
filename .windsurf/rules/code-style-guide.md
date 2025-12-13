@@ -122,6 +122,10 @@ PYTHONPATH=./src python3 -m pytest -q
 PYTHONPATH=./src ./venv/bin/python -m pytest -q
 ```
 
+run the tests and check if all tests pass:
+Use e.g. cd /data/git/ars-est-in-v_rb0 && PYTHONPATH=./src ./venv/bin/python -m pytest
+
+
 ### Troubleshooting
 
 | Error | Cause | Fix |
