@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple, Union
+from typing import Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
-
-from ave.common import AvGlyphCmds
 
 
 class BezierCurve:
