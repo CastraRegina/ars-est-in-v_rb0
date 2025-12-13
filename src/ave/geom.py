@@ -1,14 +1,15 @@
-"""Handling geometries"""
+"""Handling geometries for SVG processing and 2D transformations."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Sequence, Tuple, Union
 
-
 ###############################################################################
 # GeomMath
 ###############################################################################
+
+
 class GeomMath:
     """Class to provide various static methods related to geometry handling."""
 
@@ -16,10 +17,9 @@ class GeomMath:
     def transform_point(
         affine_trafo: Sequence[Union[int, float]], point: Sequence[Union[int, float]]
     ) -> Tuple[float, float]:
-        """
-        Perform an affine transformation on the given 2D point.
+        """Perform an affine transformation on the given 2D point.
 
-        The given _affine_trafo_ is a list of 6 floats, performing an affine transformation.
+        The given affine_trafo is a list of 6 floats, performing an affine transformation.
         The transformation is defined as:
             | x' | = | a00 a01 b0 |   | x |
             | y' | = | a10 a11 b1 | * | y |
@@ -29,11 +29,14 @@ class GeomMath:
         See also shapely - Affine Transformations
 
         Args:
-            affine_trafo (Tuple/List[float]): Affine transformation - [a00, a01, a10, a11, b0, b1]
-            point (Tuple/List[float]): 2D point - (x, y)
+            affine_trafo: List of 6 floats defining the affine transformation
+            point: 2D point as sequence of (x, y) coordinates
 
         Returns:
-            Tuple[float, float]: the transformed point
+            Transformed point as (x, y) tuple
+
+        Raises:
+            ValueError: If affine_trafo does not have exactly 6 elements
         """
         x_new = float(affine_trafo[0] * point[0] + affine_trafo[1] * point[1] + affine_trafo[4])
         y_new = float(affine_trafo[2] * point[0] + affine_trafo[3] * point[1] + affine_trafo[5])
@@ -74,7 +77,7 @@ class AvBox:
         self._xmax = xmax
         self._ymax = ymax
 
-        # Normalize coordinates to ensure xmin ≤ xmax and ymin ≤ ymax
+        # Normalize coordinates to ensure xmin <= xmax and ymin <= ymax
         if self._xmin > self._xmax:
             self._xmin, self._xmax = self._xmax, self._xmin
         if self._ymin > self._ymax:

@@ -1,4 +1,4 @@
-"""Bezier curve handling utilities"""
+"""Bezier curve handling utilities for SVG path processing and geometry operations."""
 
 from __future__ import annotations
 
@@ -11,7 +11,11 @@ from ave.common import AvGlyphCmds
 
 
 class BezierCurve:
-    """Class to handle Bezier curve."""
+    """Class to handle quadratic and cubic Bezier curve operations.
+
+    Provides methods for polygonizing Bezier curves into point sequences,
+    supporting both pure Python and NumPy-optimized implementations.
+    """
 
     @classmethod
     def polygonize_quadratic_curve_python_inplace(
@@ -23,9 +27,22 @@ class BezierCurve:
         start_index: int = 0,
         skip_first: bool = False,
     ) -> int:
-        """
-        Polygonize a quadratic Bezier curve directly into pre-allocated buffer using pure Python.
+        """Polygonize a quadratic Bezier curve directly into pre-allocated buffer using pure Python.
+
         Optimized using forward differencing for O(1) per point computation.
+
+        Args:
+            points: Control points as sequence of (x, y) tuples or array
+            steps: Number of interpolation steps
+            output_buffer: Pre-allocated buffer for output points (shape: N, 3)
+            start_index: Starting index in output buffer
+            skip_first: Whether to skip the first point
+
+        Returns:
+            Number of points written to buffer
+
+        Raises:
+            ValueError: If points length is not 3 or steps is invalid
         """
         # Extract control points
         pt0, pt1, pt2 = points
@@ -153,15 +170,15 @@ class BezierCurve:
         b3_y = omt3 * p0y + 3.0 * omt2 * t * p1y + 3.0 * omt * t2 * p2y + t3 * p3y
 
         # Derive discrete differences from actual curve points
-        # First differences: ΔB = B(h) - B(0)
+        # First differences: delta_B = B(h) - B(0)
         dx_first = b1_x - b0_x
         dy_first = b1_y - b0_y
 
-        # Second differences: Δ²B = B(2h) - 2*B(h) + B(0)
+        # Second differences: delta2_B = B(2h) - 2*B(h) + B(0)
         dx_second = b2_x - 2.0 * b1_x + b0_x
         dy_second = b2_y - 2.0 * b1_y + b0_y
 
-        # Third differences: Δ³B = B(3h) - 3*B(2h) + 3*B(h) - B(0) (constant for cubic)
+        # Third differences: delta3_B = B(3h) - 3*B(2h) + 3*B(h) - B(0) (constant for cubic)
         dx_third = b3_x - 3.0 * b2_x + 3.0 * b1_x - b0_x
         dy_third = b3_y - 3.0 * b2_y + 3.0 * b1_y - b0_y
 

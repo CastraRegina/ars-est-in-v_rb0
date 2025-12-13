@@ -1,4 +1,4 @@
-"""Handling Paths for SVG"""
+"""SVG path parsing and manipulation utilities for vector graphics processing."""
 
 from __future__ import annotations
 

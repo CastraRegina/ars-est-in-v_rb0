@@ -1,4 +1,4 @@
-"""Classes related to the FontTools library."""
+"""Font processing utilities and FontTools library integration for OpenType fonts."""
 
 from __future__ import annotations
 
@@ -18,8 +18,10 @@ from ave.common import AvGlyphCmds
 
 
 class FontHelper:
-    """
-    Class to provide various static methods related to font handling.
+    """Class to provide various static methods related to font handling.
+
+    Provides utilities for font loading, glyph extraction, and font analysis
+    using the FontTools library.
     """
 
     @staticmethod

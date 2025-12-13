@@ -1,4 +1,4 @@
-"""Module to check how to handle the font Roboto Flex"""
+"""Variable font handling utilities and Roboto Flex font analysis example."""
 
 from typing import Dict, List, Optional
 

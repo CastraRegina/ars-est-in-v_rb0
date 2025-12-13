@@ -1,4 +1,4 @@
-"""Representation of a page described by SVG"""
+"""SVG page representation and layout utilities for document generation."""
 
 from __future__ import annotations
 

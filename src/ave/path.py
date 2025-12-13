@@ -1,4 +1,4 @@
-"""Handling geometries"""
+"""SVG path handling and geometric operations for vector graphics processing."""
 
 from __future__ import annotations
 
@@ -13,23 +13,30 @@ from ave.bezier import BezierCurve
 from ave.common import AvGlyphCmds
 from ave.geom import AvBox
 
-
 ###############################################################################
 # AvPath
 ###############################################################################
+
+
 @dataclass
 class AvPath:
-    """
-    Path represented by points (shape (n, 3)) and corresponding commands.
+    """SVG path represented by points and corresponding commands.
+
     A path contains 0..n segments; each segment starts with M, is followed by
     an arbitrary mix of L/Q/C, and may optionally end with Z.
     A path may also be empty (no points and no commands), representing 0 segments.
+
+    Attributes:
+        _points: Array of 3D points (shape: n_points, 3)
+        _commands: List of SVG commands for each point
+        _bounding_box: Cached bounding box for performance
+        _polygonized_path: Cached polygonized path for performance
     """
 
     _points: NDArray[np.float64]  # shape (n_points, 3)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _bounding_box: Optional[AvBox] = None  # caching variable
-    _polygonized_path: Optional[AvPolylinesPath] = None  # caching variable
+    _polygonized_path: Optional["AvPolylinesPath"] = None  # caching variable
 
     # Number of steps to use when polygonizing curves for internal approximations
     POLYGONIZE_STEPS_INTERNAL: int = 50  # pylint: disable=invalid-name

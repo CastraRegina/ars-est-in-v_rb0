@@ -1,4 +1,4 @@
-"""Central module containing constants and definitions"""
+"""Central module containing constants and definitions for SVG processing and geometry."""
 
 from __future__ import annotations
 
@@ -32,9 +32,7 @@ AvGlyphCmds = Literal[  # Type-Definition for SvgPath-Commands used in AvGlyph
 
 
 class Align(Enum):
-    """
-    Enum to define alignments
-    """
+    """Enum to define text alignment options."""
 
     LEFT = auto()
     RIGHT = auto()
@@ -42,17 +40,16 @@ class Align(Enum):
 
 
 ###############################################################################
-# Classes
+# Functions
 ###############################################################################
 
 
-###############################################################################
-# Main
-###############################################################################
+def main() -> None:
+    """Display system information and alignment enum values.
 
-
-def main():
-    """Main"""
+    This function prints the Python path, PYTHONPATH environment variable,
+    and demonstrates the Align enum values.
+    """
     print("sys.path:  ", sys.path)
     print()
     print("PYTHONPATH:", os.environ["PYTHONPATH"])

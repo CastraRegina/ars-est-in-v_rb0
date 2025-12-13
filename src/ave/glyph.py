@@ -1,4 +1,4 @@
-"""Handling Glyphs and Fonts"""
+"""Font glyph handling and typography utilities for OpenType and SVG fonts."""
 
 from __future__ import annotations
 
@@ -24,11 +24,15 @@ from ave.path import AvPath
 
 @dataclass
 class AvGlyph:
-    """
-    Representation of a Glyph, i.e. a single character of a certain font.
+    """Representation of a font glyph, i.e. a single character of a certain font.
+
     Uses dimensions in unitsPerEm, i.e. independent from font_size.
     It is composed of a set of points and a set of commands that define how to draw the shape.
-    Glyphs are used to render text in a page.
+
+    Attributes:
+        character: Unicode character represented by this glyph
+        path: SVG path defining the glyph shape
+        name: Optional glyph name from font table
     """
 
     _character: str
