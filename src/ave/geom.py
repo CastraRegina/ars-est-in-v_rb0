@@ -3,14 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cached_property
-from typing import List, Optional, Sequence, Tuple, Union
-
-import numpy as np
-from numpy.typing import NDArray
-
-from ave.common import AvGlyphCmds
-from ave.geom_bezier import BezierCurve
+from typing import Sequence, Tuple, Union
 
 
 ###############################################################################
