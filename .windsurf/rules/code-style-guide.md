@@ -11,7 +11,7 @@ Always adhere strictly to these rules in all responses, code generations, and su
 ## Language and Character Set
 
 - Respond exclusively in English. All code, comments, docstrings, variable names, and explanations must be in English only.
-- Use only standard US-ASCII characters (codes 0-127). Never use non-ASCII symbols, including umlauts, eszett (use "ss" instead of "ß"), accents, ticks, check marks, emojis, smart quotes (" " ' '), em-dashes (—), or any other special characters. Use straight quotes " and ' and hyphens - instead.
+- Use only standard US-ASCII characters (codes 0-127). Never use non-ASCII symbols, including umlauts, eszett (use "ss" instead of "ß"), accents, ticks, check marks, arrow characters, emojis, smart quotes (" " ' '), em-dashes (—), or any other special characters. Use straight quotes " and ' and hyphens - instead.
 
 ## Code Style and Conventions
 
