@@ -21,42 +21,88 @@ class AvPointMatcher:
     from an original path to a transformed or resampled path.
 
     Point types in AvPath:
-        0.0 = on-curve point (M, L, or endpoint of Q/C)
-        2.0 = quadratic Bezier control point (Q)
-        3.0 = cubic Bezier control point (C)
+        Exact matches (within epsilon):
+            0.0 = on-curve point (M, L, or endpoint of Q/C)
+            2.0 = quadratic Bezier control point (Q)
+            3.0 = cubic Bezier control point (C)
+        Non-exact matches (nearest neighbor beyond epsilon):
+            -1.0 = derived from on-curve point (0.0)
+            -2.0 = derived from quadratic control point (2.0)
+            -3.0 = derived from cubic control point (3.0)
     """
+
+    # Default epsilon for exact match detection (in coordinate units)
+    DEFAULT_EPSILON: float = 1e-6
+
+    @staticmethod
+    def _map_type_for_distance(
+        org_type: float,
+        distance: float,
+        epsilon: float,
+    ) -> float:
+        """Map original type to result type based on match distance.
+
+        Args:
+            org_type: Original point type (0.0, 2.0, or 3.0).
+            distance: Euclidean distance between matched points.
+            epsilon: Threshold for exact match.
+
+        Returns:
+            Original type if exact match, otherwise negated type
+            (0.0 -> -1.0, 2.0 -> -2.0, 3.0 -> -3.0).
+        """
+        if distance <= epsilon:
+            return org_type
+        # Non-exact match: map to negative type
+        if org_type == 0.0:
+            return -1.0
+        elif org_type == 2.0:
+            return -2.0
+        elif org_type == 3.0:
+            return -3.0
+        else:
+            # Unknown type - return negated value
+            return -abs(org_type) if org_type >= 0 else org_type
 
     @staticmethod
     def transfer_point_types(
         points_org: NDArray[np.float64],
         points_new: NDArray[np.float64],
+        epsilon: float | None = None,
     ) -> NDArray[np.float64]:
         """Transfer point types from original points to new points via nearest neighbor matching.
 
-        For each point in points_new, finds the nearest point in points_org and copies
-        its type value. Uses a KD-tree for O(M log N) performance.
+        For each point in points_new, finds the nearest point in points_org and assigns
+        the type based on match distance:
+        - Exact match (distance <= epsilon): original type (0.0, 2.0, 3.0)
+        - Non-exact match: mapped type (-1.0, -2.0, -3.0)
+
+        Uses a KD-tree for O(M log N) performance.
 
         Args:
             points_org: Original points array, shape (N, 3) with columns (x, y, type).
             points_new: New points array, shape (M, 2) or (M, 3) with columns (x, y, [type]).
                         If 3 columns, the type column will be overwritten.
+            epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
 
         Returns:
-            Array of shape (M, 3) with (x, y, type) where type is transferred from
-            the nearest point in points_org.
+            Array of shape (M, 3) with (x, y, type) where type depends on match distance.
 
         Example:
             >>> org = np.array([[0, 0, 0.0], [1, 1, 2.0], [2, 2, 3.0]])
-            >>> new = np.array([[0.1, 0.1], [1.9, 1.9]])
+            >>> new = np.array([[0.0, 0.0], [1.9, 1.9]])  # first exact, second not
             >>> result = AvPointMatcher.transfer_point_types(org, new)
-            >>> result[:, 2]  # types: [0.0, 3.0]
+            >>> result[:, 2]  # types: [0.0, -3.0]
         """
+        if epsilon is None:
+            epsilon = AvPointMatcher.DEFAULT_EPSILON
+
         # Handle empty arrays
         if points_org.shape[0] == 0:
             if points_new.shape[0] == 0:
                 return np.empty((0, 3), dtype=np.float64)
-            # No source points - default to on-curve type (0.0)
-            result = np.zeros((points_new.shape[0], 3), dtype=np.float64)
+            # No source points - default to non-exact on-curve type (-1.0)
+            result = np.full((points_new.shape[0], 3), -1.0, dtype=np.float64)
             result[:, :2] = points_new[:, :2]
             return result
 
@@ -70,13 +116,18 @@ class AvPointMatcher:
         # Build KD-tree from original points
         tree = cKDTree(org_xy)
 
-        # Query nearest neighbors for all new points
-        _, indices = tree.query(new_xy, k=1)
+        # Query nearest neighbors for all new points (get distances too)
+        distances, indices = tree.query(new_xy, k=1)
 
         # Build result array
         result = np.zeros((points_new.shape[0], 3), dtype=np.float64)
         result[:, :2] = new_xy
-        result[:, 2] = points_org[indices, 2]
+
+        # Assign types based on distance
+        for j, org_idx in enumerate(indices):
+            distance = distances[j]
+            org_type = points_org[org_idx, 2]
+            result[j, 2] = AvPointMatcher._map_type_for_distance(org_type, distance, epsilon)
 
         return result
 
@@ -85,6 +136,7 @@ class AvPointMatcher:
         points_org: NDArray[np.float64],
         points_new: NDArray[np.float64],
         search_window: int = 10,
+        epsilon: float | None = None,
     ) -> NDArray[np.float64]:
         """Transfer point types assuming roughly ordered/aligned point sequences.
 
@@ -92,15 +144,23 @@ class AvPointMatcher:
         are in similar order (possibly reversed). Uses a sliding window search
         instead of a full KD-tree.
 
+        Types are assigned based on match distance:
+        - Exact match (distance <= epsilon): original type (0.0, 2.0, 3.0)
+        - Non-exact match: mapped type (-1.0, -2.0, -3.0)
+
         Args:
             points_org: Original points array, shape (N, 3) with columns (x, y, type).
             points_new: New points array, shape (M, 2) or (M, 3).
             search_window: Number of points to search around the expected position.
                             Larger values handle more deviation but are slower.
+            epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
 
         Returns:
             Array of shape (M, 3) with transferred types.
         """
+        if epsilon is None:
+            epsilon = AvPointMatcher.DEFAULT_EPSILON
+
         n_org = points_org.shape[0]
         n_new = points_new.shape[0]
 
@@ -108,7 +168,7 @@ class AvPointMatcher:
         if n_org == 0:
             if n_new == 0:
                 return np.empty((0, 3), dtype=np.float64)
-            result = np.zeros((n_new, 3), dtype=np.float64)
+            result = np.full((n_new, 3), -1.0, dtype=np.float64)
             result[:, :2] = points_new[:, :2]
             return result
 
@@ -151,40 +211,12 @@ class AvPointMatcher:
             dists_sq = np.sum((window_xy - new_xy[j]) ** 2, axis=1)
             best_local = np.argmin(dists_sq)
             best_i = i_start + best_local
+            best_dist = np.sqrt(dists_sq[best_local])
 
-            result[j, 2] = points_org[best_i, 2]
+            org_type = points_org[best_i, 2]
+            result[j, 2] = AvPointMatcher._map_type_for_distance(org_type, best_dist, epsilon)
 
         return result
-
-    @staticmethod
-    def find_nearest_indices(
-        points_org: NDArray[np.float64],
-        points_new: NDArray[np.float64],
-    ) -> Tuple[NDArray[np.intp], NDArray[np.float64]]:
-        """Find the index of the nearest point in points_org for each point in points_new.
-
-        Args:
-            points_org: Original points array, shape (N, 2) or (N, 3).
-            points_new: New points array, shape (M, 2) or (M, 3).
-
-        Returns:
-            Tuple of (indices, distances):
-                - indices: Array of shape (M,) with index into points_org for each point_new
-                - distances: Array of shape (M,) with Euclidean distance to nearest point
-        """
-        if points_org.shape[0] == 0 or points_new.shape[0] == 0:
-            return (
-                np.empty(points_new.shape[0], dtype=np.intp),
-                np.empty(points_new.shape[0], dtype=np.float64),
-            )
-
-        org_xy = points_org[:, :2]
-        new_xy = points_new[:, :2]
-
-        tree = cKDTree(org_xy)
-        distances, indices = tree.query(new_xy, k=1)
-
-        return indices, distances
 
     @staticmethod
     def transfer_types_two_stage(
@@ -192,6 +224,7 @@ class AvPointMatcher:
         points_new: NDArray[np.float64],
         search_window: int = 8,
         max_residual: float = 5e-3,
+        epsilon: float | None = None,
     ) -> NDArray[np.float64]:
         """Transfer point types using a two-stage approach for optimal performance.
 
@@ -201,16 +234,24 @@ class AvPointMatcher:
         This hybrid approach is ideal when most points follow the expected order but
         some may be displaced or reordered due to path transformations.
 
+        Types are assigned based on match distance:
+        - Exact match (distance <= epsilon): original type (0.0, 2.0, 3.0)
+        - Non-exact match: mapped type (-1.0, -2.0, -3.0)
+
         Args:
             points_org: Original points array, shape (N, 3) with columns (x, y, type).
             points_new: New points array, shape (M, 2) or (M, 3).
             search_window: Window size for the fast ordered matching stage.
             max_residual: Maximum distance threshold to consider a match as "good".
                         Points with residuals above this trigger KD-tree fallback.
+            epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
 
         Returns:
             Array of shape (M, 3) with transferred types.
         """
+        if epsilon is None:
+            epsilon = AvPointMatcher.DEFAULT_EPSILON
+
         n_org = points_org.shape[0]
         n_new = points_new.shape[0]
 
@@ -218,15 +259,17 @@ class AvPointMatcher:
         if n_org == 0:
             if n_new == 0:
                 return np.empty((0, 3), dtype=np.float64)
-            result = np.zeros((n_new, 3), dtype=np.float64)
+            result = np.full((n_new, 3), -1.0, dtype=np.float64)
             result[:, :2] = points_new[:, :2]
             return result
 
         if n_new == 0:
             return np.empty((0, 3), dtype=np.float64)
 
-        # Stage 1: Fast ordered matching
-        result = AvPointMatcher.transfer_point_types_ordered(points_org, points_new, search_window=search_window)
+        # Stage 1: Fast ordered matching (with epsilon for exact/non-exact distinction)
+        result = AvPointMatcher.transfer_point_types_ordered(
+            points_org, points_new, search_window=search_window, epsilon=epsilon
+        )
 
         # Stage 2: Identify and fix poor matches
         # Compute the residuals (distances) for the ordered matches
@@ -275,13 +318,43 @@ class AvPointMatcher:
             # Get the problematic points
             problem_points = points_new[to_fix]
 
-            # Use KD-tree matching for these points
-            fixed = AvPointMatcher.transfer_point_types(points_org, problem_points)
+            # Use KD-tree matching for these points (with epsilon)
+            fixed = AvPointMatcher.transfer_point_types(points_org, problem_points, epsilon=epsilon)
 
             # Update only the problematic rows in the result
             result[to_fix] = fixed
 
         return result
+
+    @staticmethod
+    def find_nearest_indices(
+        points_org: NDArray[np.float64],
+        points_new: NDArray[np.float64],
+    ) -> Tuple[NDArray[np.intp], NDArray[np.float64]]:
+        """Find the index of the nearest point in points_org for each point in points_new.
+
+        Args:
+            points_org: Original points array, shape (N, 2) or (N, 3).
+            points_new: New points array, shape (M, 2) or (M, 3).
+
+        Returns:
+            Tuple of (indices, distances):
+                - indices: Array of shape (M,) with index into points_org for each point_new
+                - distances: Array of shape (M,) with Euclidean distance to nearest point
+        """
+        if points_org.shape[0] == 0 or points_new.shape[0] == 0:
+            return (
+                np.empty(points_new.shape[0], dtype=np.intp),
+                np.empty(points_new.shape[0], dtype=np.float64),
+            )
+
+        org_xy = points_org[:, :2]
+        new_xy = points_new[:, :2]
+
+        tree = cKDTree(org_xy)
+        distances, indices = tree.query(new_xy, k=1)
+
+        return indices, distances
 
     @staticmethod
     def find_exact_matches(

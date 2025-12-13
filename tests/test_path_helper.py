@@ -11,7 +11,7 @@ class TestAvPointMatcher:
     """Test cases for AvPointMatcher class"""
 
     def test_transfer_point_types_basic(self):
-        """Test basic point type transfer"""
+        """Test basic point type transfer with non-exact matches"""
         # Original points with types: on-curve, quadratic control, cubic control
         points_org = np.array(
             [
@@ -22,11 +22,11 @@ class TestAvPointMatcher:
             dtype=np.float64,
         )
 
-        # New points close to originals
+        # New points close to originals but not exact (> epsilon)
         points_new = np.array(
             [
-                [0.1, 0.1],  # should match first (type 0.0)
-                [1.9, 1.9],  # should match third (type 3.0)
+                [0.1, 0.1],  # should match first (type 0.0 -> -1.0)
+                [1.9, 1.9],  # should match third (type 3.0 -> -3.0)
             ],
             dtype=np.float64,
         )
@@ -34,8 +34,8 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_point_types(points_org, points_new)
 
         assert result.shape == (2, 3)
-        assert result[0, 2] == 0.0  # matched to on-curve
-        assert result[1, 2] == 3.0  # matched to cubic control
+        assert result[0, 2] == -1.0  # non-exact match to on-curve
+        assert result[1, 2] == -3.0  # non-exact match to cubic control
 
     def test_transfer_point_types_exact_match(self):
         """Test point type transfer with exact coordinate matches"""
@@ -69,7 +69,7 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_point_types(points_org, points_new)
 
         assert result.shape == (1, 3)
-        assert result[0, 2] == 0.0  # default to on-curve
+        assert result[0, 2] == -1.0  # default to non-exact on-curve
 
     def test_transfer_point_types_empty_new(self):
         """Test with empty new points"""
@@ -90,17 +90,17 @@ class TestAvPointMatcher:
         assert result.shape == (0, 3)
 
     def test_transfer_point_types_single_point(self):
-        """Test with single points"""
+        """Test with single points (non-exact match)"""
         points_org = np.array([[5.0, 5.0, 2.0]], dtype=np.float64)
         points_new = np.array([[0.0, 0.0]], dtype=np.float64)
 
         result = AvPointMatcher.transfer_point_types(points_org, points_new)
 
         assert result.shape == (1, 3)
-        assert result[0, 2] == 2.0  # only option
+        assert result[0, 2] == -2.0  # non-exact match to quadratic
 
     def test_transfer_point_types_many_to_one(self):
-        """Test multiple new points matching same original point"""
+        """Test multiple new points matching same original point (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -120,11 +120,11 @@ class TestAvPointMatcher:
 
         result = AvPointMatcher.transfer_point_types(points_org, points_new)
 
-        # All should match the first point
-        assert all(result[:, 2] == 0.0)
+        # All should match the first point (non-exact)
+        assert all(result[:, 2] == -1.0)
 
     def test_transfer_point_types_ordered_forward(self):
-        """Test ordered transfer with forward-aligned sequences"""
+        """Test ordered transfer with forward-aligned sequences (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -148,10 +148,10 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_point_types_ordered(points_org, points_new)
 
         assert result.shape == (4, 3)
-        np.testing.assert_array_equal(result[:, 2], [0.0, 2.0, 3.0, 0.0])
+        np.testing.assert_array_equal(result[:, 2], [-1.0, -2.0, -3.0, -1.0])
 
     def test_transfer_point_types_ordered_reversed(self):
-        """Test ordered transfer with reversed sequences"""
+        """Test ordered transfer with reversed sequences (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -176,7 +176,7 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_point_types_ordered(points_org, points_new)
 
         assert result.shape == (4, 3)
-        np.testing.assert_array_equal(result[:, 2], [0.0, 3.0, 2.0, 0.0])
+        np.testing.assert_array_equal(result[:, 2], [-1.0, -3.0, -2.0, -1.0])
 
     def test_transfer_point_types_ordered_empty(self):
         """Test ordered transfer with empty arrays"""
@@ -273,7 +273,7 @@ class TestAvPointMatcher:
         assert not matches
 
     def test_transfer_types_two_stage_basic(self):
-        """Test two-stage transfer with mostly ordered points"""
+        """Test two-stage transfer with mostly ordered points (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -300,16 +300,16 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_types_two_stage(points_org, points_new)
 
         assert result.shape == (5, 3)
-        # First three and last should use ordered matching
-        assert result[0, 2] == 0.0
-        assert result[1, 2] == 2.0
-        assert result[2, 2] == 3.0
-        assert result[4, 2] == 0.0
+        # All are non-exact matches (distance > epsilon)
+        assert result[0, 2] == -1.0
+        assert result[1, 2] == -2.0
+        assert result[2, 2] == -3.0
+        assert result[4, 2] == -1.0
         # Displaced point should use KD-tree and match closest (index 4)
-        assert result[3, 2] == 2.0
+        assert result[3, 2] == -2.0
 
     def test_transfer_types_two_stage_no_fallback(self):
-        """Test two-stage transfer when all points are well-ordered"""
+        """Test two-stage transfer when all points are well-ordered (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -331,10 +331,10 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_types_two_stage(points_org, points_new)
 
         assert result.shape == (3, 3)
-        np.testing.assert_array_equal(result[:, 2], [0.0, 2.0, 3.0])
+        np.testing.assert_array_equal(result[:, 2], [-1.0, -2.0, -3.0])
 
     def test_transfer_types_two_stage_all_fallback(self):
-        """Test two-stage transfer when all points exceed threshold"""
+        """Test two-stage transfer when all points exceed threshold (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -357,18 +357,18 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_types_two_stage(points_org, points_new, max_residual=0.1)
 
         assert result.shape == (3, 3)
-        # All should use KD-tree fallback
+        # All should use KD-tree fallback (non-exact matches)
         # Each new point should match nearest original point
         # Since all new points are at y=10.0, distance is purely based on x coordinate
         # (10.0, 10.0) is closest to (2.0, 0.0) with distance sqrt(8^2 + 10^2)
         # (11.0, 10.0) is closest to (2.0, 0.0) with distance sqrt(9^2 + 10^2)
         # (12.0, 10.0) is closest to (2.0, 0.0) with distance sqrt(10^2 + 10^2)
-        assert result[0, 2] == 3.0  # closest to (2,0) which has type 3.0
-        assert result[1, 2] == 3.0  # closest to (2,0) which has type 3.0
-        assert result[2, 2] == 3.0  # closest to (2,0) which has type 3.0
+        assert result[0, 2] == -3.0  # closest to (2,0) which has type 3.0 -> -3.0
+        assert result[1, 2] == -3.0  # closest to (2,0) which has type 3.0 -> -3.0
+        assert result[2, 2] == -3.0  # closest to (2,0) which has type 3.0 -> -3.0
 
     def test_transfer_types_two_stage_reversed(self):
-        """Test two-stage transfer with reversed sequences"""
+        """Test two-stage transfer with reversed sequences (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -393,7 +393,7 @@ class TestAvPointMatcher:
         result = AvPointMatcher.transfer_types_two_stage(points_org, points_new)
 
         assert result.shape == (4, 3)
-        np.testing.assert_array_equal(result[:, 2], [0.0, 3.0, 2.0, 0.0])
+        np.testing.assert_array_equal(result[:, 2], [-1.0, -3.0, -2.0, -1.0])
 
     def test_transfer_types_two_stage_empty(self):
         """Test two-stage transfer with empty arrays"""
@@ -405,17 +405,17 @@ class TestAvPointMatcher:
         assert result.shape == (0, 3)
 
     def test_transfer_types_two_stage_single_points(self):
-        """Test two-stage transfer with single points"""
+        """Test two-stage transfer with single points (non-exact)"""
         points_org = np.array([[5.0, 5.0, 2.0]], dtype=np.float64)
         points_new = np.array([[5.1, 5.1]], dtype=np.float64)
 
         result = AvPointMatcher.transfer_types_two_stage(points_org, points_new)
 
         assert result.shape == (1, 3)
-        assert result[0, 2] == 2.0
+        assert result[0, 2] == -2.0
 
     def test_transfer_types_two_stage_custom_threshold(self):
-        """Test two-stage transfer with custom residual threshold"""
+        """Test two-stage transfer with custom residual threshold (non-exact)"""
         points_org = np.array(
             [
                 [0.0, 0.0, 0.0],
@@ -440,9 +440,9 @@ class TestAvPointMatcher:
         # With high threshold, all should use ordered matching
         result_high = AvPointMatcher.transfer_types_two_stage(points_org, points_new, max_residual=1.0)
 
-        # Both should produce correct types
-        np.testing.assert_array_equal(result_low[:, 2], [0.0, 2.0, 3.0])
-        np.testing.assert_array_equal(result_high[:, 2], [0.0, 2.0, 3.0])
+        # Both should produce correct types (all non-exact)
+        np.testing.assert_array_equal(result_low[:, 2], [-1.0, -2.0, -3.0])
+        np.testing.assert_array_equal(result_high[:, 2], [-1.0, -2.0, -3.0])
 
 
 class TestAvPathCleaner:
