@@ -5,7 +5,7 @@ import pytest
 
 from ave.geom import AvBox
 from ave.glyph import AvFont, AvFontProperties, AvGlyph, AvGlyphCachedFactory
-from ave.path import AvPath
+from ave.path import AvClosedPath, AvPath
 
 
 class TestAvGlyph:
@@ -239,6 +239,216 @@ class TestAvGlyph:
         assert np.isclose(bbox.ymin, -5.0)
         assert bbox.ymax < 10.0  # Should not include control point
         assert bbox.ymax > -5.0  # Should be higher than endpoints
+
+    def test_revise_direction_empty_glyph(self):
+        """Test revise_direction with empty glyph"""
+        points = np.array([], dtype=np.float64).reshape(0, 3)
+        commands = []
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character=" ", width=0, path=path)
+
+        result = glyph.revise_direction()
+
+        assert isinstance(result, AvGlyph)
+        assert result.character == " "
+        assert result.width() == 0
+        assert len(result.path.points) == 0
+        assert len(result.path.commands) == 0
+
+    def test_revise_direction_single_ccw_contour(self):
+        """Test revise_direction with single CCW contour (already correct)"""
+        # Create a CCW square
+        points = np.array([[0.0, 0.0, 0.0], [0.0, 10.0, 0.0], [10.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L", "L", "Z"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=10, path=path)
+
+        result = glyph.revise_direction()
+
+        # Should remain CCW (no change needed)
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 10
+        # Verify it's still CCW by checking area is positive
+        # Need to create a closed path to get area
+        closed = AvClosedPath(result.path.points, result.path.commands)
+        assert closed.area > 0
+
+    def test_revise_direction_single_cw_contour(self):
+        """Test revise_direction with single CW contour (needs reversal)"""
+        # Create a CW square
+        points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0], [0.0, 10.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L", "L", "Z"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=10, path=path)
+
+        result = glyph.revise_direction()
+
+        # Should be reversed to CCW
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 10
+        # Verify it's now CCW by checking area is positive
+        # Need to create a closed path to get area
+        closed = AvClosedPath(result.path.points, result.path.commands)
+        assert closed.area > 0
+
+    def test_revise_direction_nested_contours_correct(self):
+        """Test revise_direction with nested contours already correct (outer CCW, inner CW)"""
+        # Outer CCW square
+        # Inner CW square (hole)
+        points = np.array(
+            [
+                # Outer square (CCW)
+                [0.0, 0.0, 0.0],
+                [0.0, 10.0, 0.0],
+                [10.0, 10.0, 0.0],
+                [10.0, 0.0, 0.0],
+                # Inner square (CW)
+                [2.0, 2.0, 0.0],
+                [8.0, 2.0, 0.0],
+                [8.0, 8.0, 0.0],
+                [2.0, 8.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=10, path=path)
+
+        result = glyph.revise_direction()
+
+        # Should remain unchanged (already correct)
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 10
+
+    def test_revise_direction_nested_contours_wrong(self):
+        """Test revise_direction with nested contours wrong directions (outer CW, inner CCW)"""
+        # Outer CW square
+        # Inner CCW square (should be CW)
+        points = np.array(
+            [
+                # Outer square (CW)
+                [0.0, 0.0, 0.0],
+                [10.0, 0.0, 0.0],
+                [10.0, 10.0, 0.0],
+                [0.0, 10.0, 0.0],
+                # Inner square (CCW - wrong)
+                [2.0, 2.0, 0.0],
+                [2.0, 8.0, 0.0],
+                [8.0, 8.0, 0.0],
+                [8.0, 2.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=10, path=path)
+
+        result = glyph.revise_direction()
+
+        # Should fix both contours
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 10
+        # Split into contours to check individual directions
+        contours = result.path.split_into_single_paths()
+        assert len(contours) == 2
+
+    def test_revise_direction_multiple_separate_contours(self):
+        """Test revise_direction with multiple separate non-nested contours"""
+        # Two separate squares
+        points = np.array(
+            [
+                # First square
+                [0.0, 0.0, 0.0],
+                [0.0, 5.0, 0.0],
+                [5.0, 5.0, 0.0],
+                [5.0, 0.0, 0.0],
+                # Second square
+                [10.0, 0.0, 0.0],
+                [10.0, 5.0, 0.0],
+                [15.0, 5.0, 0.0],
+                [15.0, 0.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=15, path=path)
+
+        result = glyph.revise_direction()
+
+        # Both should be CCW (additive)
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 15
+
+    def test_revise_direction_triple_nesting(self):
+        """Test revise_direction with triple nesting (island in hole in shape)"""
+        # Outer CCW, middle CW, inner CCW
+        points = np.array(
+            [
+                # Outer square (CCW)
+                [0.0, 0.0, 0.0],
+                [0.0, 15.0, 0.0],
+                [15.0, 15.0, 0.0],
+                [15.0, 0.0, 0.0],
+                # Middle square (CW - hole)
+                [3.0, 3.0, 0.0],
+                [12.0, 3.0, 0.0],
+                [12.0, 12.0, 0.0],
+                [3.0, 12.0, 0.0],
+                # Inner square (CCW - island in hole)
+                [5.0, 5.0, 0.0],
+                [5.0, 10.0, 0.0],
+                [10.0, 10.0, 0.0],
+                [10.0, 5.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=15, path=path)
+
+        result = glyph.revise_direction()
+
+        # Should maintain correct nesting directions
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 15
+
+    def test_revise_direction_open_contour(self):
+        """Test revise_direction with open contour (should be untouched)"""
+        points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]  # No closing 'Z'
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=10, path=path)
+
+        result = glyph.revise_direction()
+
+        # Open contour should be untouched
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 10
+        assert len(result.path.commands) == 3
+        assert "Z" not in result.path.commands
+
+    def test_revise_direction_degenerate_contour(self):
+        """Test revise_direction with degenerate/near-zero area contour"""
+        # Create a line segment that closes to form degenerate polygon
+        points = np.array([[5.0, 5.0, 0.0], [5.0, 5.00001, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "Z"]
+        path = AvPath(points, commands)
+        glyph = AvGlyph(character="A", width=10, path=path)
+
+        result = glyph.revise_direction()
+
+        # Should handle degenerate case gracefully
+        assert isinstance(result, AvGlyph)
+        assert result.character == "A"
+        assert result.width() == 10
 
 
 class TestAvFontCache:

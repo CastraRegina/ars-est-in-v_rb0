@@ -15,7 +15,7 @@ import ave.common
 from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
-from ave.path import AvPath
+from ave.path import AvClosedPath, AvPath, AvPolygonPath, AvSinglePath
 
 ###############################################################################
 # Glyph
@@ -188,6 +188,122 @@ class AvGlyph:
         """
         # Delegate entirely to AvPath's bounding box implementation
         return self._path.bounding_box()
+
+    def revise_direction(self) -> AvGlyph:
+        """Normalize contour direction to TrueType/OpenType winding rules.
+
+        TrueType/OpenType glyph outlines use contour winding to distinguish
+        filled regions vs holes. This function rewrites each contour so
+        that the glyph complies with the following standard directions:
+
+        - Additive polygons (filled areas, outer contours): counter-clockwise (CCW)
+        - Subtractive polygons (cut-out areas, inner contours/holes): clockwise (CW)
+
+        Algorithm:
+        Step 1: Split glyph into individual contours
+        Step 2-3: Process each contour - check if closed, polygonize for area computation
+        Step 4: Classify contours as additive vs subtractive using geometric nesting depth:
+                - Count how many other contours contain each contour's interior point
+                - Even depth = additive, Odd depth = subtractive
+        Step 5: Enforce required direction - reverse contours that don't match winding rules
+        Step 6: Reassemble contours into new AvPath
+
+        Returns:
+            AvGlyph: New glyph with corrected segement directions
+        """
+        # Step 1: Split glyph into individual contours
+        contours: List[AvSinglePath] = self.path.split_into_single_paths()
+
+        # Prepare lists for processed contours and their polygonized versions
+        processed_contours: List[AvSinglePath] = []
+        polygonized_contours: List[Optional[AvPolygonPath]] = []  # For containment testing
+
+        # Steps 2-3: Process each contour
+        for contour in contours:
+            # Check if contour is closed (ends with 'Z')
+            is_closed = contour.commands and contour.commands[-1] == "Z"
+
+            if not is_closed:
+                # Edge case: leave open contours untouched
+                processed_contours.append(contour)
+                polygonized_contours.append(None)
+                continue
+
+            # Create a closed path wrapper to access polygonization utilities
+            closed_path = AvClosedPath(contour.points.copy(), list(contour.commands))
+
+            # Polygonize the contour for robust winding computation
+            polygonized: AvPolygonPath = closed_path.polygonized_path()
+
+            # Edge case: skip degenerate contours with near-zero area
+            if abs(polygonized.area) < 1e-10:
+                processed_contours.append(contour)
+                polygonized_contours.append(None)
+                continue
+
+            processed_contours.append(contour)
+            polygonized_contours.append(polygonized)
+
+        # Step 4: Classify contours as additive vs subtractive using nesting depth
+        contour_classes: List[Optional[bool]] = []  # True for additive, False for subtractive
+
+        for i, (contour, polygonized) in enumerate(zip(processed_contours, polygonized_contours)):
+            if polygonized is None:
+                # Open contour - not classified
+                contour_classes.append(None)
+                continue
+
+            # Get a test point inside the contour
+            test_point: tuple[float, float] = polygonized.representative_point()
+            current_area = polygonized.area
+
+            # Count how many other closed contours contain this point
+            containment_depth = 0
+            for j, other_polygonized in enumerate(polygonized_contours):
+                if j != i and other_polygonized is not None:
+                    if other_polygonized.area > current_area and other_polygonized.contains_point(test_point):
+                        containment_depth += 1
+
+            # Even depth => additive, odd depth => subtractive
+            is_additive = containment_depth % 2 == 0
+            contour_classes.append(is_additive)
+
+        # Step 5: Enforce required direction
+        final_contours: List[AvSinglePath] = []
+
+        for contour, polygonized, is_additive in zip(processed_contours, polygonized_contours, contour_classes):
+            if polygonized is None or is_additive is None:
+                # Open contour - leave as is
+                final_contours.append(contour)
+                continue
+
+            # Get current winding direction
+            is_ccw = polygonized.is_ccw
+
+            # Check if direction needs correction
+            needs_reversal = False
+            if is_additive and not is_ccw:
+                # Additive should be CCW
+                needs_reversal = True
+            elif not is_additive and is_ccw:
+                # Subtractive should be CW
+                needs_reversal = True
+
+            if needs_reversal:
+                # Reverse the contour while preserving geometry
+                reversed_contour = contour.reverse()
+                final_contours.append(reversed_contour)
+            else:
+                final_contours.append(contour)
+
+        # Step 6: Reassemble contours into new AvPath
+        if final_contours:
+            new_path = AvPath.join_paths(*final_contours)
+        else:
+            new_path = AvPath()
+
+        # Return new AvGlyph with corrected directions
+        return AvGlyph(self.character, self.width(), new_path)
 
 
 ###############################################################################
