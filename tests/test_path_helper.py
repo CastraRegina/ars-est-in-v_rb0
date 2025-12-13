@@ -80,6 +80,72 @@ class TestAvPointMatcher:
 
         assert result.shape == (0, 3)
 
+    def test_transfer_point_types_ordered_shifted_start_closed(self):
+        points_org_xy = np.array(
+            [
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [-1.0, 0.0],
+                [0.0, -1.0],
+            ],
+            dtype=np.float64,
+        )
+        points_org = np.column_stack(
+            [
+                points_org_xy,
+                np.array([0.0, 2.0, 3.0, 0.0], dtype=np.float64),
+            ]
+        )
+
+        points_new = points_org_xy[[2, 3, 0, 1]]
+        result = AvPointMatcher.transfer_point_types_ordered(points_org, points_new, search_window=1, is_closed=True)
+
+        assert result.shape == (4, 3)
+        np.testing.assert_array_equal(result[:, 2], [3.0, 0.0, 0.0, 2.0])
+
+    def test_transfer_point_types_ordered_realignment_mid_sequence(self):
+        n = 12
+        angles = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
+        org_xy = np.column_stack([np.cos(angles), np.sin(angles)]).astype(np.float64)
+
+        org_types = np.array([0.0, 2.0, 3.0] * 4, dtype=np.float64)
+        points_org = np.column_stack([org_xy, org_types])
+
+        idx = np.array([3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6], dtype=int)
+        points_new = org_xy[idx]
+
+        result = AvPointMatcher.transfer_point_types_ordered(points_org, points_new, search_window=2, is_closed=True)
+        assert result.shape == (n, 3)
+        np.testing.assert_array_equal(result[:, 2], org_types[idx])
+
+    def test_transfer_point_types_ordered_explicit_open(self):
+        """Test ordered transfer with explicit open sequence (should anchor at start)"""
+        points_org = np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 2.0],
+                [2.0, 0.0, 3.0],
+                [3.0, 0.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+
+        # Shifted sequence but still open
+        points_new = np.array(
+            [
+                [1.0, 0.0],
+                [2.0, 0.0],
+                [3.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+
+        result = AvPointMatcher.transfer_point_types_ordered(points_org, points_new, search_window=1, is_closed=False)
+
+        assert result.shape == (3, 3)
+        # With explicit open, should anchor at start (index 0) and not use cyclic matching
+        np.testing.assert_array_equal(result[:, 2], [2.0, 3.0, 0.0])
+
     def test_transfer_point_types_both_empty(self):
         """Test with both arrays empty"""
         points_org = np.empty((0, 3), dtype=np.float64)

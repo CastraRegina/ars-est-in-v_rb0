@@ -132,11 +132,135 @@ class AvPointMatcher:
         return result
 
     @staticmethod
+    def _ordered_match_indices(
+        org_xy: NDArray[np.float64],
+        new_xy: NDArray[np.float64],
+        search_window: int,
+        epsilon: float,
+        is_closed: bool | None = None,
+    ) -> Tuple[NDArray[np.intp], NDArray[np.float64]]:
+        n_org = org_xy.shape[0]
+        n_new = new_xy.shape[0]
+
+        if n_new == 0:
+            return (
+                np.empty(0, dtype=np.intp),
+                np.empty(0, dtype=np.float64),
+            )
+
+        chosen_idx = np.empty(n_new, dtype=np.intp)
+        chosen_dist = np.empty(n_new, dtype=np.float64)
+
+        tree = cKDTree(org_xy)
+        offsets = np.arange(-search_window, search_window + 1, dtype=np.intp)
+
+        if n_org > 1:
+            step_lengths = np.linalg.norm(org_xy - np.roll(org_xy, 1, axis=0), axis=1)
+            typical_step = float(np.median(step_lengths))
+        else:
+            typical_step = 0.0
+
+        if not np.isfinite(typical_step) or typical_step <= 0.0:
+            typical_step = 1.0
+
+        # Auto-detect if sequence is closed unless explicitly specified
+        if is_closed is None:
+            is_closed_like = False
+            if n_org >= 3:
+                first_last_dist = float(np.linalg.norm(org_xy[0] - org_xy[-1]))
+                is_closed_like = first_last_dist < 2.0 * typical_step
+        else:
+            is_closed_like = is_closed
+
+        if is_closed_like:
+            ratio = (n_org / n_new) if n_new > 0 else 0.0
+        else:
+            ratio = (n_org - 1) / (n_new - 1) if n_new > 1 else 0.0
+
+        # For open sequences, anchor at start (index 0) instead of using KD-tree
+        if is_closed_like:
+            i0 = int(tree.query(new_xy[0], k=1)[1])
+        else:
+            i0 = 0
+
+        if n_new <= 1:
+            chosen_idx[0] = i0
+            chosen_dist[0] = float(tree.query(new_xy[0], k=1)[0])
+            return chosen_idx, chosen_dist
+
+        sample_count = min(5, n_new)
+        sample_js = np.unique(np.linspace(0, n_new - 1, num=sample_count, dtype=int))
+
+        def _sample_cost(sign: float) -> float:
+            anchor = float(i0)
+            cost = 0.0
+            for j in sample_js:
+                expected_i = int(round(anchor + sign * j * ratio))
+                if is_closed_like:
+                    cand = (expected_i + offsets) % n_org
+                else:
+                    cand = expected_i + offsets
+                    cand = cand[(cand >= 0) & (cand < n_org)]
+                    if cand.size == 0:
+                        cand = np.array([int(np.clip(expected_i, 0, n_org - 1))], dtype=np.intp)
+                d2 = np.sum((org_xy[cand] - new_xy[j]) ** 2, axis=1)
+                cost += float(np.min(d2))
+            return cost
+
+        is_reversed = _sample_cost(-1.0) < _sample_cost(1.0)
+        sign = -1.0 if is_reversed else 1.0
+
+        anchor = float(i0)
+        hard_threshold = max(10.0 * epsilon, 3.0 * typical_step)
+
+        for j in range(n_new):
+            expected_i = int(round(anchor + sign * j * ratio))
+            if is_closed_like:
+                cand = (expected_i + offsets) % n_org
+                cand_offsets = offsets
+            else:
+                cand = expected_i + offsets
+                mask = (cand >= 0) & (cand < n_org)
+                cand = cand[mask]
+                cand_offsets = offsets[mask]
+                if cand.size == 0:
+                    cand = np.array([int(np.clip(expected_i, 0, n_org - 1))], dtype=np.intp)
+                    cand_offsets = np.array([0], dtype=np.intp)
+
+            d2 = np.sum((org_xy[cand] - new_xy[j]) ** 2, axis=1)
+            best_local = int(np.argmin(d2))
+            best_i = int(cand[best_local])
+            best_dist = float(np.sqrt(d2[best_local]))
+            best_offset = int(cand_offsets[best_local])
+
+            if (abs(best_offset) == search_window and best_dist > typical_step) or best_dist > hard_threshold:
+                i_global = int(tree.query(new_xy[j], k=1)[1])
+                anchor = float(i_global) - sign * j * ratio
+                expected_i = int(round(anchor + sign * j * ratio))
+                if is_closed_like:
+                    cand = (expected_i + offsets) % n_org
+                else:
+                    cand = expected_i + offsets
+                    cand = cand[(cand >= 0) & (cand < n_org)]
+                    if cand.size == 0:
+                        cand = np.array([int(np.clip(expected_i, 0, n_org - 1))], dtype=np.intp)
+                d2 = np.sum((org_xy[cand] - new_xy[j]) ** 2, axis=1)
+                best_local = int(np.argmin(d2))
+                best_i = int(cand[best_local])
+                best_dist = float(np.sqrt(d2[best_local]))
+
+            chosen_idx[j] = best_i
+            chosen_dist[j] = best_dist
+
+        return chosen_idx, chosen_dist
+
+    @staticmethod
     def transfer_point_types_ordered(
         points_org: NDArray[np.float64],
         points_new: NDArray[np.float64],
         search_window: int = 10,
         epsilon: float | None = None,
+        is_closed: bool | None = None,
     ) -> NDArray[np.float64]:
         """Transfer point types assuming roughly ordered/aligned point sequences.
 
@@ -154,6 +278,9 @@ class AvPointMatcher:
             search_window: Number of points to search around the expected position.
                             Larger values handle more deviation but are slower.
             epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
+            is_closed: Whether the path is closed (loop). If None, auto-detects.
+                        For closed paths, the search wraps around at the ends.
+                        For open paths, search is bounded within array indices.
 
         Returns:
             Array of shape (M, 3) with transferred types.
@@ -179,42 +306,18 @@ class AvPointMatcher:
         org_xy = points_org[:, :2]
         new_xy = points_new[:, :2]
 
-        # Determine if sequences are forward or reverse aligned
-        # Compare first and last points to detect reversal
-        forward_dist = np.sum((new_xy[0] - org_xy[0]) ** 2) + np.sum((new_xy[-1] - org_xy[-1]) ** 2)
-        reverse_dist = np.sum((new_xy[0] - org_xy[-1]) ** 2) + np.sum((new_xy[-1] - org_xy[0]) ** 2)
-        is_reversed = reverse_dist < forward_dist
+        # Determine alignment (including possible reversal) and windowed matches
+        # Uses initial anchoring + re-alignment when local matching becomes unreliable
+        indices, distances = AvPointMatcher._ordered_match_indices(org_xy, new_xy, search_window, epsilon, is_closed)
 
         # Build result array
         result = np.zeros((n_new, 3), dtype=np.float64)
         result[:, :2] = new_xy
 
         # Linear index mapping ratio
-        if n_new > 1:
-            ratio = (n_org - 1) / (n_new - 1) if n_new > 1 else 0
-        else:
-            ratio = 0
-
-        for j in range(n_new):
-            # Expected index in original array
-            if is_reversed:
-                expected_i = int((n_org - 1) - j * ratio)
-            else:
-                expected_i = int(j * ratio)
-
-            # Search window bounds
-            i_start = max(0, expected_i - search_window)
-            i_end = min(n_org, expected_i + search_window + 1)
-
-            # Find nearest within window
-            window_xy = org_xy[i_start:i_end]
-            dists_sq = np.sum((window_xy - new_xy[j]) ** 2, axis=1)
-            best_local = np.argmin(dists_sq)
-            best_i = i_start + best_local
-            best_dist = np.sqrt(dists_sq[best_local])
-
-            org_type = points_org[best_i, 2]
-            result[j, 2] = AvPointMatcher._map_type_for_distance(org_type, best_dist, epsilon)
+        for j, org_idx in enumerate(indices):
+            org_type = points_org[org_idx, 2]
+            result[j, 2] = AvPointMatcher._map_type_for_distance(org_type, distances[j], epsilon)
 
         return result
 
@@ -225,6 +328,7 @@ class AvPointMatcher:
         search_window: int = 8,
         max_residual: float = 5e-3,
         epsilon: float | None = None,
+        is_closed: bool | None = None,
     ) -> NDArray[np.float64]:
         """Transfer point types using a two-stage approach for optimal performance.
 
@@ -268,7 +372,7 @@ class AvPointMatcher:
 
         # Stage 1: Fast ordered matching (with epsilon for exact/non-exact distinction)
         result = AvPointMatcher.transfer_point_types_ordered(
-            points_org, points_new, search_window=search_window, epsilon=epsilon
+            points_org, points_new, search_window=search_window, epsilon=epsilon, is_closed=is_closed
         )
 
         # Stage 2: Identify and fix poor matches
@@ -277,38 +381,7 @@ class AvPointMatcher:
         new_xy = points_new[:, :2]
 
         # Reconstruct which original points were matched by the ordered algorithm
-        chosen_idx = np.zeros(n_new, dtype=np.intp)
-
-        # Determine if sequences are forward or reverse aligned
-        forward_dist = np.sum((new_xy[0] - org_xy[0]) ** 2) + np.sum((new_xy[-1] - org_xy[-1]) ** 2)
-        reverse_dist = np.sum((new_xy[0] - org_xy[-1]) ** 2) + np.sum((new_xy[-1] - org_xy[0]) ** 2)
-        is_reversed = reverse_dist < forward_dist
-
-        # Linear index mapping ratio
-        if n_new > 1:
-            ratio = (n_org - 1) / (n_new - 1)
-        else:
-            ratio = 0
-
-        for j in range(n_new):
-            # Expected index in original array
-            if is_reversed:
-                expected_i = int((n_org - 1) - j * ratio)
-            else:
-                expected_i = int(j * ratio)
-
-            # Search window bounds
-            i_start = max(0, expected_i - search_window)
-            i_end = min(n_org, expected_i + search_window + 1)
-
-            # Find nearest within window
-            window_xy = org_xy[i_start:i_end]
-            dists_sq = np.sum((window_xy - new_xy[j]) ** 2, axis=1)
-            best_local = np.argmin(dists_sq)
-            chosen_idx[j] = i_start + best_local
-
-        # Compute residuals (actual distances)
-        residuals = np.linalg.norm(new_xy - org_xy[chosen_idx], axis=1)
+        chosen_idx, residuals = AvPointMatcher._ordered_match_indices(org_xy, new_xy, search_window, epsilon, is_closed)
 
         # Find points that need fixing (poor matches)
         to_fix = np.where(residuals > max_residual)[0]
