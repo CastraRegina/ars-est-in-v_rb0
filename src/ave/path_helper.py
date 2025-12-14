@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 import numpy as np
 import shapely.geometry
+import shapely.ops
 from numpy.typing import NDArray
 from scipy.spatial import cKDTree
 
@@ -526,6 +527,7 @@ class AvPathCleaner:
 
         # Apply buffer(0) operation to each polygon to remove self-intersections and store cleaned polygons
         cleaned_polygons: List[shapely.geometry.Polygon] = []
+        hole_polygons: List[shapely.geometry.Polygon] = []
 
         for closed_path in closed_contours:
             # Step 3: Convert each closed contour to a polygonized path format
@@ -541,21 +543,34 @@ class AvPathCleaner:
                 shapely_poly = shapely.geometry.Polygon(polygonized.points[:, :2].tolist())
                 cleaned_poly = shapely_poly.buffer(0)
 
+                # Check if this is a hole by examining the original contour orientation
+                # CCW = exterior, CW = hole
+                is_hole = not closed_path.is_ccw
+
                 # Handle different geometry types returned by buffer(0)
                 if isinstance(cleaned_poly, shapely.geometry.Polygon) and not cleaned_poly.is_empty:
-                    cleaned_polygons.append(cleaned_poly)
+                    if is_hole:
+                        hole_polygons.append(cleaned_poly)
+                    else:
+                        cleaned_polygons.append(cleaned_poly)
 
                 elif isinstance(cleaned_poly, shapely.geometry.MultiPolygon):
                     # Add all sub-polygons
                     for poly in cleaned_poly.geoms:
                         if not poly.is_empty:
-                            cleaned_polygons.append(poly)
+                            if is_hole:
+                                hole_polygons.append(poly)
+                            else:
+                                cleaned_polygons.append(poly)
 
                 elif isinstance(cleaned_poly, shapely.geometry.GeometryCollection):
                     # Extract Polygon types
                     for geom in cleaned_poly.geoms:
                         if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
-                            cleaned_polygons.append(geom)
+                            if is_hole:
+                                hole_polygons.append(geom)
+                            else:
+                                cleaned_polygons.append(geom)
 
             except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
                 print(f"Warning: Failed to process contour {e}. Skipping.")
@@ -564,24 +579,24 @@ class AvPathCleaner:
         if not cleaned_polygons:
             return AvPath()
 
-        # Step 5: Perform sequential boolean operations based on contour orientation
+        # Step 5: Union all cleaned polygons together and subtract holes
         try:
-            # Start with the first polygon
-            result = cleaned_polygons[0]
+            # First union all exterior polygons
+            if cleaned_polygons:
+                result = shapely.ops.unary_union(cleaned_polygons)
+            else:
+                return AvPath()
 
-            # Process remaining polygons sequentially
-            for poly in cleaned_polygons[1:]:
-                # Check orientation using Shapely's built-in orientation
-                # Shapely uses CCW for exterior rings by convention
-                if poly.exterior.is_ccw:
-                    # Union additive polygons
-                    result = result.union(poly)
-                else:
-                    # Subtract hole polygons
-                    result = result.difference(poly)
+            # Then subtract all hole polygons
+            if hole_polygons:
+                holes_union = shapely.ops.unary_union(hole_polygons)
+                result = result.difference(holes_union)
+
+            if result.is_empty:
+                return path  # Return original path if result is empty
 
         except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
-            print(f"Error during sequential boolean operations: {e}")
+            print(f"Error during union operation: {e}")
             return path  # Return original path on error
 
         # Step 6: Convert final Shapely geometry back to AvPath format
