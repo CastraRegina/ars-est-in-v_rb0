@@ -717,6 +717,7 @@ class AvFontProperties:
     - `line_gap`: Additional spacing between lines.
     - `x_height`: Height of lowercase 'x'.
     - `cap_height`: Height of uppercase 'H'.
+    - `dash_thickness`: Height/thickness of dash '-' character.
     - `units_per_em`: Units per em.
     - `family_name`: Font family name.
     - `subfamily_name`: Style name (Regular, Bold, etc.).
@@ -731,6 +732,7 @@ class AvFontProperties:
 
     x_height: float
     cap_height: float
+    dash_thickness: float
     units_per_em: float
 
     family_name: str
@@ -750,6 +752,7 @@ class AvFontProperties:
         line_gap: float = 0,
         x_height: float = 0,
         cap_height: float = 0,
+        dash_thickness: float = 0,
         units_per_em: float = 1000,
         family_name: str = "",
         subfamily_name: str = "",
@@ -762,6 +765,7 @@ class AvFontProperties:
         self.line_gap = line_gap
         self.x_height = x_height
         self.cap_height = cap_height
+        self.dash_thickness = dash_thickness
         self.units_per_em = units_per_em
         self.family_name = family_name
         self.subfamily_name = subfamily_name
@@ -777,6 +781,7 @@ class AvFontProperties:
             line_gap=data.get("line_gap", 0),
             x_height=data.get("x_height", 0),
             cap_height=data.get("cap_height", 0),
+            dash_thickness=data.get("dash_thickness", 0),
             units_per_em=data.get("units_per_em", 1000),
             family_name=data.get("family_name", ""),
             subfamily_name=data.get("subfamily_name", ""),
@@ -792,6 +797,7 @@ class AvFontProperties:
             "line_gap": self.line_gap,
             "x_height": self.x_height,
             "cap_height": self.cap_height,
+            "dash_thickness": self.dash_thickness,
             "units_per_em": self.units_per_em,
             "family_name": self.family_name,
             "subfamily_name": self.subfamily_name,
@@ -875,6 +881,7 @@ class AvFontProperties:
             # line_height is automatically computed via @computed_field
             x_height=cls._glyph_visual_height(ttfont, "x"),
             cap_height=cls._glyph_visual_height(ttfont, "H"),
+            dash_thickness=cls._glyph_visual_height(ttfont, "-"),
             units_per_em=float(head.unitsPerEm),  # type: ignore
             family_name=cls._get_name_safe(name_table, 1),
             subfamily_name=cls._get_name_safe(name_table, 2),
@@ -896,6 +903,7 @@ class AvFontProperties:
             f"line_height:  {self.line_height:>5.0f} (ascender - descender + line_gap)\n"
             f"x_height:     {self.x_height:>5.0f} (height of lowercase 'x')\n"
             f"cap_height:   {self.cap_height:>5.0f} (height of uppercase 'H')\n"
+            f"dash_thickness:{self.dash_thickness:>5.0f} (height/thickness of dash '-')\n"
             f"units_per_em: {self.units_per_em:>5.0f} (number of units per EM)\n"
             f"family_name:         {self.family_name}\n"
             f"subfamily_name:      {self.subfamily_name}\n"
