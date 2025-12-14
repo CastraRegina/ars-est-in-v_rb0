@@ -124,7 +124,7 @@ def main():
     detail_chars += "QR§$"  # intersection and hole
     detail_chars += "Ä"  # intersection and hole, several polygons
     detail_chars += "BDÖä"  # holes
-    detail_chars += "i:%;"  # several polygons
+    detail_chars += 'i:%"'  # several polygons
     # ypos = 0.05
     # for char in detail_chars:
     #     print_text_on_page(svg_page, 0.05, ypos, f"{char}", avfont, font_size)
@@ -165,19 +165,40 @@ def main():
         svg_page.add(svg_path)
         ypos += 0.02
 
-    # Print path points for character 'K' before and after cleaning
-    char_k = "K"
-    original_glyph = avfont.get_glyph(char_k)
-    print(f"\nOriginal path points for '{char_k}':")
-    print(original_glyph.path.points)
-    print(f"Original path commands for '{char_k}':")
-    print(original_glyph.path.commands)
+    detail_chars = 'AKX4#"ÄB&e%$§'
+    # Create polygonized font with 4 steps for detailed character analysis
+    polygonized_factory = AvGlyphPolygonizeFactory(avfont.glyph_factory, polygonize_steps=2)
+    polygonized_font = AvFont(polygonized_factory, avfont.props)
+    # Create cleaned font based on polygonized font
+    cleaned_font = create_cleaned_font(detail_chars, polygonized_font)
 
-    cleaned_glyph = cleaned_font.get_glyph(char_k)
-    print(f"\nCleaned path points for '{char_k}':")
-    print(cleaned_glyph.path.points)
-    print(f"Cleaned path commands for '{char_k}':")
-    print(cleaned_glyph.path.commands)
+    # Print path points for each character before and after cleaning
+    print("\nPath points for characters:")
+    for char in detail_chars:
+        print(f"\n--- Character: '{char}' ---")
+        original_glyph = polygonized_font.get_glyph(char)
+        print("Original path points:")
+        print(original_glyph.path.points)
+        print("Original path commands:")
+        print(original_glyph.path.commands)
+
+        cleaned_glyph = cleaned_font.get_glyph(char)
+        print("Cleaned path points:")
+        print(cleaned_glyph.path.points)
+        print("Cleaned path commands:")
+        print(cleaned_glyph.path.commands)
+
+    # Print cleaned characters on the page
+    xpos = 0.125
+    ypos = 0.05
+    for character in detail_chars:
+        glyph = cleaned_font.get_glyph(character)
+        letter = AvLetter.from_font_size_units_per_em(glyph, font_size, cleaned_font.props.units_per_em, xpos, ypos)
+        svg_path = svg_page.drawing.path(
+            letter.svg_path_string(), fill="none", stroke="black", stroke_width=stroke_width
+        )
+        svg_page.add(svg_path)
+        ypos += 0.02
 
     # Save the SVG
     svg_page.save_as(output_filename, include_debug_layer=True, pretty=True)

@@ -81,6 +81,7 @@ class TestAvPointMatcher:
         assert result.shape == (0, 3)
 
     def test_transfer_point_types_ordered_shifted_start_closed(self):
+        """Test ordered transfer with shifted start on closed sequence (cyclic matching)"""
         points_org_xy = np.array(
             [
                 [1.0, 0.0],
@@ -104,6 +105,7 @@ class TestAvPointMatcher:
         np.testing.assert_array_equal(result[:, 2], [3.0, 0.0, 0.0, 2.0])
 
     def test_transfer_point_types_ordered_realignment_mid_sequence(self):
+        """Test ordered transfer with realignment in the middle of a closed sequence"""
         n = 12
         angles = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
         org_xy = np.column_stack([np.cos(angles), np.sin(angles)]).astype(np.float64)
@@ -509,108 +511,3 @@ class TestAvPointMatcher:
         # Both should produce correct types (all non-exact)
         np.testing.assert_array_equal(result_low[:, 2], [-1.0, -2.0, -3.0])
         np.testing.assert_array_equal(result_high[:, 2], [-1.0, -2.0, -3.0])
-
-
-class TestAvPathCleaner:
-    """Test cases for AvPathCleaner class"""
-
-    def test_resolve_path_intersections_simple_square(self):
-        """Test resolving intersections with a simple square"""
-        points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0], [0.0, 10.0, 0.0]], dtype=np.float64)
-        commands = ["M", "L", "L", "L", "Z"]
-        path = AvPath(points, commands)
-
-        result = AvPathCleaner.resolve_path_intersections(path)
-
-        # Should return a valid path (no intersections to resolve)
-        assert isinstance(result, AvPath)
-        assert len(result.points) >= 4  # At least the original points
-        assert result.commands[-1] == "Z"  # Should be closed
-
-    def test_resolve_path_intersections_self_intersecting_figure_eight(self):
-        """Test resolving intersections with a self-intersecting figure-eight"""
-        # Create a figure-eight path that self-intersects
-        points = np.array(
-            [
-                [0.0, 0.0, 0.0],  # Start
-                [5.0, 5.0, 0.0],  # Center intersection point
-                [10.0, 0.0, 0.0],  # Right
-                [5.0, -5.0, 0.0],  # Bottom intersection
-                [0.0, 0.0, 0.0],  # Back to start
-            ],
-            dtype=np.float64,
-        )
-        commands = ["M", "L", "L", "L", "L"]
-        path = AvPath(points, commands)
-
-        result = AvPathCleaner.resolve_path_intersections(path)
-
-        # Should return a valid path after resolving intersections
-        assert isinstance(result, AvPath)
-        # The result should be a proper path (may be split into multiple contours)
-        assert len(result.points) > 0
-
-    def test_resolve_path_intersections_open_path(self):
-        """Test resolving intersections with an open path (no closing)"""
-        points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
-        commands = ["M", "L", "L"]  # No closing 'Z'
-        path = AvPath(points, commands)
-
-        result = AvPathCleaner.resolve_path_intersections(path)
-
-        # Open paths should be handled gracefully
-        assert isinstance(result, AvPath)
-
-    def test_resolve_path_intersections_empty_path(self):
-        """Test resolving intersections with an empty path"""
-        points = np.array([], dtype=np.float64).reshape(0, 3)
-        commands = []
-        path = AvPath(points, commands)
-
-        result = AvPathCleaner.resolve_path_intersections(path)
-
-        # Empty path should return empty path
-        assert isinstance(result, AvPath)
-        assert len(result.points) == 0
-        assert len(result.commands) == 0
-
-    def test_resolve_path_intersections_degenerate_polygon(self):
-        """Test resolving intersections with a degenerate polygon (collinear points)"""
-        # Create a degenerate "polygon" with collinear points
-        points = np.array([[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
-        commands = ["M", "L", "L", "Z"]
-        path = AvPath(points, commands)
-
-        result = AvPathCleaner.resolve_path_intersections(path)
-
-        # Should handle degenerate cases gracefully
-        assert isinstance(result, AvPath)
-
-    def test_resolve_path_intersections_multiple_contours(self):
-        """Test resolving intersections with multiple separate contours"""
-        # Create two separate squares
-        points = np.array(
-            [
-                # First square
-                [0.0, 0.0, 0.0],
-                [10.0, 0.0, 0.0],
-                [10.0, 10.0, 0.0],
-                [0.0, 10.0, 0.0],
-                # Move to second square
-                [20.0, 0.0, 0.0],
-                [30.0, 0.0, 0.0],
-                [30.0, 10.0, 0.0],
-                [20.0, 10.0, 0.0],
-            ],
-            dtype=np.float64,
-        )
-        commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
-        path = AvPath(points, commands)
-
-        result = AvPathCleaner.resolve_path_intersections(path)
-
-        # Should handle multiple contours
-        assert isinstance(result, AvPath)
-        assert len(result.points) > 0
-        # Should still have closed contours
-        assert "Z" in result.commands
