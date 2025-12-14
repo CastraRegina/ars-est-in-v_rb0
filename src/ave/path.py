@@ -728,6 +728,47 @@ class AvClosedPath(AvSinglePath):
         """
         return self.polygonized_path().centroid
 
+    @classmethod
+    def from_single_path(cls, single_path: "AvSinglePath") -> "AvClosedPath":
+        """
+        Create an AvClosedPath from a single path, ensuring it's properly closed.
+
+        Args:
+            single_path: An AvSinglePath instance to convert to closed path
+
+        Returns:
+            AvClosedPath: A new closed path with proper Z command and no duplicate endpoints
+        """
+        if not isinstance(single_path, AvSinglePath):
+            raise TypeError("single_path must be an AvSinglePath instance")
+
+        # Handle empty path
+        if single_path.points.size == 0 or not single_path.commands:
+            return cls()
+
+        # Copy points and commands to avoid modifying original
+        points = single_path.points.copy()
+        commands = single_path.commands.copy()
+
+        # Ensure path ends with Z command
+        if commands[-1] != "Z":
+            commands.append("Z")
+
+        # Check if first and last points are duplicates (or very close)
+        if len(points) > 0:
+            first_point = points[0]
+            last_point = points[-1]
+
+            # Calculate distance between first and last points
+            distance = np.linalg.norm(first_point[:2] - last_point[:2])
+
+            # If points are very close (within a small tolerance), remove the duplicate
+            tolerance = 1e-10
+            if distance < tolerance:
+                points = points[:-1]  # Remove last point
+
+        return cls(points, commands)
+
     @property
     def is_ccw(self) -> bool:
         """
