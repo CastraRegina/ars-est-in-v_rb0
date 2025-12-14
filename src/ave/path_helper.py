@@ -381,7 +381,7 @@ class AvPointMatcher:
         new_xy = points_new[:, :2]
 
         # Reconstruct which original points were matched by the ordered algorithm
-        chosen_idx, residuals = AvPointMatcher._ordered_match_indices(org_xy, new_xy, search_window, epsilon, is_closed)
+        _, residuals = AvPointMatcher._ordered_match_indices(org_xy, new_xy, search_window, epsilon, is_closed)
 
         # Find points that need fixing (poor matches)
         to_fix = np.where(residuals > max_residual)[0]
