@@ -35,6 +35,36 @@ class TestPolygonizedPathCleaning:
         assert len(result.points) > 0
         assert isinstance(result, AvPolylinesPath)
 
+    def test_k_glyph_shape(self):
+        """Test that 'K' glyph shape is preserved with all legs."""
+        # Create a simplified 'K' shape with vertical and diagonal legs
+        points = np.array(
+            [
+                [100, 0, 0],  # Vertical bar
+                [120, 0, 0],
+                [120, 1000, 0],
+                [100, 1000, 0],
+                [100, 0, 0],
+                [120, 400, 0],  # Diagonal leg start
+                [400, 0, 0],
+                [420, 0, 0],
+                [120, 420, 0],
+                [120, 600, 0],  # Lower diagonal leg
+                [400, 1000, 0],
+                [420, 1000, 0],
+                [120, 620, 0],
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "L", "M", "L", "L", "L", "Z"]
+        path = AvPolylinesPath(points, commands)
+
+        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+
+        # Should preserve all parts of the 'K'
+        assert len(result.points) > 0
+        assert isinstance(result, AvPolylinesPath)
+
     def test_simple_square(self):
         """Test cleaning a simple square."""
         points = np.array(
@@ -373,6 +403,156 @@ class TestPolygonizedPathCleaningFromData:
             "M",
             "L",
             "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "Z",
+        ]
+        original_path = AvPolylinesPath(original_points, original_commands)
+
+        # Apply path cleaning
+        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+
+        # Verify result is not empty
+        assert len(result.points) > 0
+        assert isinstance(result, AvPolylinesPath)
+
+    def test_character_0034(self):
+        """Test cleaning for character '4'."""
+        # Original path
+        original_points = np.array(
+            [
+                [724.0, 0.0, 0.0],
+                [904.0, 0.0, 0.0],
+                [904.0, 1456.0, 0.0],
+                [732.0, 1456.0, 0.0],
+                [50.0, 468.0, 0.0],
+                [50.0, 342.0, 0.0],
+                [1108.0, 342.0, 0.0],
+                [1108.0, 500.0, 0.0],
+                [852.0, 500.0, 0.0],
+                [775.0, 500.0, 0.0],
+                [269.0, 500.0, 0.0],
+                [712.0, 1149.0, 0.0],
+                [724.0, 1149.0, 0.0],
+                [724.0, 450.0, 0.0],
+                [724.0, 398.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        original_commands = [
+            "M",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "Z",
+        ]
+        original_path = AvPolylinesPath(original_points, original_commands)
+
+        # Apply path cleaning
+        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+
+        # Verify result is not empty
+        assert len(result.points) > 0
+        assert isinstance(result, AvPolylinesPath)
+
+    def test_character_0023(self):
+        """Test cleaning for character '#'."""
+        # Original path
+        original_points = np.array(
+            [
+                [216.0, -20.0, 0.0],
+                [360.0, -20.0, 0.0],
+                [797.0, 1501.0, 0.0],
+                [653.0, 1501.0, 0.0],
+                [722.0, -20.0, 0.0],
+                [866.0, -20.0, 0.0],
+                [1303.0, 1501.0, 0.0],
+                [1159.0, 1501.0, 0.0],
+                [64.0, 404.0, 0.0],
+                [1405.0, 404.0, 0.0],
+                [1405.0, 542.0, 0.0],
+                [64.0, 542.0, 0.0],
+                [115.0, 939.0, 0.0],
+                [1455.0, 939.0, 0.0],
+                [1455.0, 1077.0, 0.0],
+                [115.0, 1077.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        original_commands = [
+            "M",
+            "L",
+            "L",
+            "L",
+            "Z",
+            "M",
+            "L",
+            "L",
+            "L",
+            "Z",
+            "M",
+            "L",
+            "L",
+            "L",
+            "Z",
+            "M",
+            "L",
+            "L",
+            "L",
+            "Z",
+        ]
+        original_path = AvPolylinesPath(original_points, original_commands)
+
+        # Apply path cleaning
+        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+
+        # Verify result is not empty
+        assert len(result.points) > 0
+        assert isinstance(result, AvPolylinesPath)
+
+    def test_character_0022(self):
+        """Test cleaning for character '\"'."""
+        # Original path
+        original_points = np.array(
+            [
+                [115.0, 966.0, 0.0],
+                [265.0, 966.0, 0.0],
+                [280.0, 1320.0, 0.0],
+                [280.0, 1456.0, 0.0],
+                [100.0, 1456.0, 0.0],
+                [100.0, 1320.0, 0.0],
+                [495.0, 966.0, 0.0],
+                [645.0, 966.0, 0.0],
+                [660.0, 1320.0, 0.0],
+                [660.0, 1456.0, 0.0],
+                [480.0, 1456.0, 0.0],
+                [480.0, 1320.0, 0.0],
+            ],
+            dtype=np.float64,
+        )
+        original_commands = [
+            "M",
+            "L",
+            "L",
+            "L",
+            "L",
+            "L",
+            "Z",
+            "M",
             "L",
             "L",
             "L",

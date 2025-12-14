@@ -653,11 +653,62 @@ class AvPathCleaner:
         - Counter-clockwise (CCW) segments represent positive/additive polygons
         - Clockwise (CW) segments represent subtractive polygons (holes)
 
+        Algorithm Strategy:
+        The function resolves complex path intersections by processing polygonized segments
+        through Shapely geometric operations, carefully handling winding directions and
+        deferring CW polygons until the first CCW polygon is found.
+
+        Step-by-step process:
+        1. Split input path into individual segments (sub-paths)
+        2. Convert each segment to closed path and then to polygonized format
+        3. Store CCW orientation from each closed path for later processing
+        4. Apply buffer(0) operation to each polygon to remove self-intersections:
+            - buffer(0) cleans up topology and resolves intersections
+            - Handles Polygon, MultiPolygon, and GeometryCollection results
+            - Skips invalid or empty geometries with warnings
+        5. Perform sequential boolean operations with special ordering:
+            - Wait for first CCW polygon to initialize the result
+            - Defer all CW polygons encountered before first CCW
+            - Once first CCW is found, process deferred CW polygons as holes
+            - Subsequent CCW polygons are unioned (additive)
+            - Subsequent CW polygons are differenced (subtractive)
+        6. Handle different geometry types from buffer(0):
+            - Polygon: processed directly
+            - MultiPolygon: each sub-polygon processed with same orientation
+            - GeometryCollection: Polygon types extracted and processed
+        7. Convert final Shapely geometry back to AvPolylinesPath format:
+            - Extract exterior rings as closed paths with 'Z' command
+            - Extract interior rings (holes) as separate paths
+            - Join all paths using AvPath.join_paths
+            - Convert result to AvPolylinesPath explicitly
+
+        Key technical details:
+        - Uses orientation from AvClosedPath.is_ccw to determine winding
+        - Implements deferred processing for CW polygons before first CCW
+        - Comprehensive error handling with fallback to original path
+        - Removes duplicate closing points when converting coordinates
+
+        The function handles the following cases:
+        - Empty input paths: returns empty AvPolylinesPath
+        - Degenerate polygons (< 3 points): skips with warning
+        - Invalid geometries after buffer(0): skips with warning
+        - Different geometry types from buffer(0):
+            - Polygon: processed directly
+            - MultiPolygon: each sub-polygon processed with same orientation
+            - GeometryCollection: Polygon types extracted and processed
+        - CW polygons before first CCW: deferred until first CCW is found
+        - No CCW polygon found: returns empty path with warning
+        - Empty result after operations: returns original path with warning
+        - Shapely errors during processing: returns original path with warning
+        - Errors during geometry conversion: returns original path with warning
+        - Errors during path joining: returns original path with warning
+
         Args:
             path: An AvPolylinesPath containing the segments to process
 
         Returns:
-            AvPolylinesPath: A new path with resolved intersections and proper winding
+            AvPolylinesPath: A new path with resolved intersections and proper winding,
+                            or the original path if errors occur
         """
         # Split path into individual segments
         segments = path.split_into_single_paths()
@@ -694,11 +745,6 @@ class AvPathCleaner:
 
                 # Convert to Shapely polygon
                 shapely_poly = shapely.geometry.Polygon(polygon.points[:, :2].tolist())
-
-                # Check if polygon is self-intersecting
-                if not shapely_poly.is_valid:
-                    print("Warning: Self-intersecting polygon detected. Returning empty path.")
-                    return AvPolylinesPath()
 
                 # Clean intersections with buffer(0)
                 try:
@@ -783,10 +829,10 @@ class AvPathCleaner:
                                     result = result.difference(geom)
                 # Skip empty geometries
 
-            # If no CCW polygon was found, return original path
+            # If no CCW polygon was found, return empty path
             if result is None or not first_ccw_found:
-                print("Warning: No CCW polygon found. Returning original path.")
-                return path
+                print("Warning: No CCW polygon found. Returning empty path.")
+                return AvPolylinesPath()
 
             if result.is_empty:
                 print("Warning: Result is empty after operations. Returning original path.")
