@@ -120,38 +120,38 @@ def main():
     font = setup_avfont(font_filename, {"wght": 400.0})
     print(font.get_info_string())
 
-    font_filename = "fonts/RobotoMono-VariableFont_wght.ttf"
-    output_filename = "data/output/example/svg/ave/example_font_RobotoMono_variable.svgz"
-    print_font_example_page(
-        output_filename,
-        [
-            setup_avfont(font_filename, {"wght": 100.0}),
-            setup_avfont(font_filename, {"wght": 400.0}),
-            setup_avfont(font_filename, {"wght": 700.0}),
-        ],
-    )
+    # font_filename = "fonts/RobotoMono-VariableFont_wght.ttf"
+    # output_filename = "data/output/example/svg/ave/example_font_RobotoMono_variable.svgz"
+    # print_font_example_page(
+    #     output_filename,
+    #     [
+    #         setup_avfont(font_filename, {"wght": 100.0}),
+    #         setup_avfont(font_filename, {"wght": 400.0}),
+    #         setup_avfont(font_filename, {"wght": 700.0}),
+    #     ],
+    # )
 
-    font_filename = "fonts/Petrona-VariableFont_wght.ttf"
-    output_filename = "data/output/example/svg/ave/example_font_Petrona_variable.svgz"
-    print_font_example_page(
-        output_filename,
-        [
-            setup_avfont(font_filename, {"wght": 100.0}),
-            setup_avfont(font_filename, {"wght": 400.0}),
-            setup_avfont(font_filename, {"wght": 900.0}),
-        ],
-    )
+    # font_filename = "fonts/Petrona-VariableFont_wght.ttf"
+    # output_filename = "data/output/example/svg/ave/example_font_Petrona_variable.svgz"
+    # print_font_example_page(
+    #     output_filename,
+    #     [
+    #         setup_avfont(font_filename, {"wght": 100.0}),
+    #         setup_avfont(font_filename, {"wght": 400.0}),
+    #         setup_avfont(font_filename, {"wght": 900.0}),
+    #     ],
+    # )
 
-    font_filename = "fonts/Caveat-VariableFont_wght.ttf"
-    output_filename = "data/output/example/svg/ave/example_font_Caveat_variable.svgz"
-    print_font_example_page(
-        output_filename,
-        [
-            setup_avfont(font_filename, {"wght": 400.0}),
-            setup_avfont(font_filename, {"wght": 400.0}),
-            setup_avfont(font_filename, {"wght": 700.0}),
-        ],
-    )
+    # font_filename = "fonts/Caveat-VariableFont_wght.ttf"
+    # output_filename = "data/output/example/svg/ave/example_font_Caveat_variable.svgz"
+    # print_font_example_page(
+    #     output_filename,
+    #     [
+    #         setup_avfont(font_filename, {"wght": 400.0}),
+    #         setup_avfont(font_filename, {"wght": 400.0}),
+    #         setup_avfont(font_filename, {"wght": 700.0}),
+    #     ],
+    # )
 
 
 if __name__ == "__main__":
