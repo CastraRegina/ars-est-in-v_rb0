@@ -3,8 +3,7 @@
 import numpy as np
 import pytest
 
-from ave.path import AvPath
-from ave.path_helper import AvPathCleaner, AvPointMatcher
+from ave.path_helper import AvPointMatcher
 
 
 class TestAvPointMatcher:

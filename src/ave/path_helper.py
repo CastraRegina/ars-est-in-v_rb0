@@ -729,7 +729,7 @@ class AvPathCleaner:
                 polygonized = closed_path.polygonized_path()
                 polygons.append(polygonized)
                 orientations.append(closed_path.is_ccw)  # Store orientation from closed path
-            except Exception as e:
+            except (TypeError, ValueError) as e:
                 print(f"Error processing segment: {e}. Skipping.")
                 continue
 
