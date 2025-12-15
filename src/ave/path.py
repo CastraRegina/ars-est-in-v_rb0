@@ -709,6 +709,9 @@ class AvClosedPath(AvSinglePath):
         Return a polygonized path as a proxy for the ClosedPath.
         """
         polygonized_path = super().polygonized_path()
+
+        # Ensure the polygonized path has valid point/command matching
+        # AvPolygonPath validation expects proper point/command ratios
         return AvPolygonPath(polygonized_path.points, polygonized_path.commands)
 
     @property
@@ -766,6 +769,12 @@ class AvClosedPath(AvSinglePath):
             tolerance = 1e-10
             if distance < tolerance:
                 points = points[:-1]  # Remove last point
+                # Also remove one command to maintain point/command ratio
+                # Remove the command before Z (which should be the last command)
+                if len(commands) > 1 and commands[-1] == "Z":
+                    commands = commands[:-2] + ["Z"]
+                else:
+                    commands = commands[:-1]
 
         return cls(points, commands)
 

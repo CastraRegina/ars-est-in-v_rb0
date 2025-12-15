@@ -3,12 +3,72 @@
 import numpy as np
 import pytest
 
-from ave.path import AvPath, AvPolylinesPath
+from ave.path import AvClosedPath, AvPath, AvPolylinesPath, AvSinglePath
 from ave.path_helper import AvPathCleaner
 
 
 class TestPolygonizedPathCleaning:
     """Test polygonized path cleaning functionality."""
+
+    def test_avclosed_path_from_single_path_with_duplicate_endpoint(self):
+        """Test that AvClosedPath.from_single_path() correctly handles duplicate endpoints.
+
+        This test verifies the fix for the bug where duplicate endpoints were removed
+        but the command count wasn't adjusted, causing point/command mismatches.
+        """
+        # Create a path with duplicate endpoint (first and last points are the same)
+        points = np.array(
+            [[0, 0, 0], [100, 0, 0], [100, 100, 0], [0, 100, 0], [0, 0, 0]],  # Duplicate of first point
+            dtype=np.float64,
+        )
+
+        # Commands for a closed path with duplicate point
+        commands = ["M", "L", "L", "L", "L", "Z"]
+
+        # Create original path as AvSinglePath
+        original_path = AvSinglePath(points, commands)
+
+        # Convert to closed path
+        closed_path = AvClosedPath.from_single_path(original_path)
+
+        # Verify that the duplicate point was removed
+        assert closed_path.points.shape[0] == 4  # Should have 4 points (not 5)
+
+        # Verify that the command count was adjusted to match
+        assert len(closed_path.commands) == 5  # Should have 5 commands (not 6)
+
+        # Verify the commands are correct for the number of points
+        # For 4 points, we need: M, L, L, L, Z
+        expected_commands = ["M", "L", "L", "L", "Z"]
+        assert closed_path.commands == expected_commands
+
+        # Verify the path is still valid
+        # Should not raise ValueError during creation
+        AvPath(closed_path.points, closed_path.commands)
+
+    def test_avclosed_path_from_single_path_without_duplicate_endpoint(self):
+        """Test that AvClosedPath.from_single_path() works correctly when no duplicate endpoint exists."""
+        # Create a path without duplicate endpoint
+        points = np.array([[0, 0, 0], [100, 0, 0], [100, 100, 0], [0, 100, 0]], dtype=np.float64)
+
+        # Commands without duplicate point
+        commands = ["M", "L", "L", "L"]
+
+        # Create original path as AvSinglePath
+        original_path = AvSinglePath(points, commands)
+
+        # Convert to closed path
+        closed_path = AvClosedPath.from_single_path(original_path)
+
+        # Verify that Z was added
+        assert len(closed_path.commands) == 5
+        assert closed_path.commands[-1] == "Z"
+
+        # Verify points remain unchanged
+        assert closed_path.points.shape[0] == 4
+
+        # Verify the path is valid
+        AvPath(closed_path.points, closed_path.commands)
 
     def test_plus_shape_crossing_lines(self):
         """Test that '+' shape formed by crossing lines is preserved."""

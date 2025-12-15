@@ -607,16 +607,18 @@ class AvPathCleaner:
             exterior_coords = list(result.exterior.coords)
             if len(exterior_coords) >= 4:
                 exterior_coords = exterior_coords[:-1]  # Remove closing point
-                exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
+                if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+                    exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+                    cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
             # Convert interiors (holes)
             for interior in result.interiors:
                 interior_coords = list(interior.coords)
                 if len(interior_coords) >= 4:
                     interior_coords = interior_coords[:-1]  # Remove closing point
-                    interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                    cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+                    if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+                        interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
+                        cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
         elif isinstance(result, shapely.geometry.MultiPolygon):
             # Handle MultiPolygon result
@@ -626,20 +628,23 @@ class AvPathCleaner:
                     exterior_coords = list(poly.exterior.coords)
                     if len(exterior_coords) >= 4:
                         exterior_coords = exterior_coords[:-1]
-                        exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                        cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
+                        if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+                            exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+                            cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
                     # Convert interiors
                     for interior in poly.interiors:
                         interior_coords = list(interior.coords)
                         if len(interior_coords) >= 4:
                             interior_coords = interior_coords[:-1]
-                            interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                            cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+                            if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+                                interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
+                                cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
         # Join all paths
         if cleaned_paths:
-            return AvPath.join_paths(*cleaned_paths)
+            joined = AvPath.join_paths(*cleaned_paths)
+            return joined
         else:
             return AvPath()
 
@@ -719,10 +724,14 @@ class AvPathCleaner:
 
         for segment in segments:
             # Create AvClosedPath first, then get polygonized path
-            closed_path = AvClosedPath.from_single_path(segment)
-            polygonized = closed_path.polygonized_path()
-            polygons.append(polygonized)
-            orientations.append(closed_path.is_ccw)  # Store orientation from closed path
+            try:
+                closed_path = AvClosedPath.from_single_path(segment)
+                polygonized = closed_path.polygonized_path()
+                polygons.append(polygonized)
+                orientations.append(closed_path.is_ccw)  # Store orientation from closed path
+            except Exception as e:
+                print(f"Error processing segment: {e}. Skipping.")
+                continue
 
         if not polygons:
             return AvPolylinesPath()
@@ -851,16 +860,18 @@ class AvPathCleaner:
                 exterior_coords = list(result.exterior.coords)
                 if len(exterior_coords) >= 4:
                     exterior_coords = exterior_coords[:-1]  # Remove closing point
-                    exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                    cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
+                    if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+                        exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+                        cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
                 # Convert interiors (holes)
                 for interior in result.interiors:
                     interior_coords = list(interior.coords)
                     if len(interior_coords) >= 4:
                         interior_coords = interior_coords[:-1]  # Remove closing point
-                        interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                        cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+                        if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+                            interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
+                            cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
             elif isinstance(result, shapely.geometry.MultiPolygon):
                 # Handle MultiPolygon result
@@ -870,16 +881,18 @@ class AvPathCleaner:
                         exterior_coords = list(poly.exterior.coords)
                         if len(exterior_coords) >= 4:
                             exterior_coords = exterior_coords[:-1]
-                            exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                            cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
+                            if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+                                exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+                                cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
                         # Convert interiors
                         for interior in poly.interiors:
                             interior_coords = list(interior.coords)
                             if len(interior_coords) >= 4:
                                 interior_coords = interior_coords[:-1]
-                                interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                                cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+                                if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+                                    interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
+                                    cleaned_paths.append(AvPath(interior_coords, interior_cmds))
         except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
             print(f"Error during geometry conversion: {e}. Returning original path.")
             return path
