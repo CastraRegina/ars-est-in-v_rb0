@@ -24,12 +24,16 @@ STEPS_LIST = [10, 20, 30, 35, 40, 50, 60, 70, 80, 90, 100, 150, 200, 300, 500, 7
 
 def test_python_method(steps: int):
     """Test the pure Python implementation"""
-    return BezierCurve.polygonize_cubic_curve_python(POINTS, steps)
+    result = np.empty((steps + 1, 3), dtype=np.float64)
+    BezierCurve.polygonize_cubic_curve_python_inplace(POINTS, steps, result, start_index=0, skip_first=False)
+    return result
 
 
 def test_numpy_method(steps: int):
     """Test the NumPy implementation"""
-    return BezierCurve.polygonize_cubic_curve_numpy(POINTS, steps)
+    result = np.empty((steps + 1, 3), dtype=np.float64)
+    BezierCurve.polygonize_cubic_curve_numpy_inplace(POINTS, steps, result, start_index=0, skip_first=False)
+    return result
 
 
 def test_auto_method(steps: int):

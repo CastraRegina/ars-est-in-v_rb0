@@ -70,8 +70,6 @@ class TestBezierIntegration:
         assert callable(BezierCurve.polygonize_cubic_curve_python_inplace)
         assert callable(BezierCurve.polygonize_quadratic_curve_numpy_inplace)
         assert callable(BezierCurve.polygonize_cubic_curve_numpy_inplace)
-        assert callable(BezierCurve.polygonize_cubic_curve_python)
-        assert callable(BezierCurve.polygonize_cubic_curve_numpy)
 
     def test_return_type_consistency(self):
         """Test that return types are consistent across methods."""
@@ -292,35 +290,6 @@ class TestBezierPolygonizationAccuracy:
             # Start and end should always be exact regardless of step count
             assert np.allclose(result[0, :2], control_points[0]), f"Start accuracy failed at {steps} steps"
             assert np.allclose(result[-1, :2], control_points[3]), f"End accuracy failed at {steps} steps"
-
-    def test_accuracy_cubic_python_vs_numpy_consistency(self):
-        """Test that Python and NumPy cubic implementations give consistent results."""
-        control_points = np.array([[0.0, 0.0], [5.0, 20.0], [15.0, 20.0], [20.0, 0.0]], dtype=np.float64)
-        steps = 20
-
-        # Test both implementations if they exist
-        # Check if both methods are available
-        if not hasattr(BezierCurve, "polygonize_cubic_curve_python"):
-            pytest.skip("polygonize_cubic_curve_python not available")
-
-        if not hasattr(BezierCurve, "polygonize_cubic_curve_numpy"):
-            pytest.skip("polygonize_cubic_curve_numpy not available")
-
-        # Both methods are available, proceed with test
-        result_python = BezierCurve.polygonize_cubic_curve_python(control_points, steps)
-        result_numpy = BezierCurve.polygonize_cubic_curve_numpy(control_points, steps)
-
-        # Both should have exact start/end points
-        assert np.allclose(result_python[0, :2], control_points[0]), "Python implementation start accuracy"
-        assert np.allclose(result_python[-1, :2], control_points[3]), "Python implementation end accuracy"
-        assert np.allclose(result_numpy[0, :2], control_points[0]), "NumPy implementation start accuracy"
-        assert np.allclose(result_numpy[-1, :2], control_points[3]), "NumPy implementation end accuracy"
-
-        # Results should be mathematically equivalent within realistic tolerance
-        # Python uses forward differencing, NumPy uses direct evaluation
-        assert np.allclose(
-            result_python, result_numpy, rtol=1e-9, atol=1e-9
-        ), "Python and NumPy results should be consistent"
 
 
 ###############################################################################

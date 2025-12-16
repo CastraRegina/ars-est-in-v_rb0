@@ -215,28 +215,6 @@ class TestCubicBezierCurve:
         # not the end point. Let's just verify it's not the start point.
         assert not np.allclose(output_buffer[0, :2], points[0])
 
-    def test_polygonize_cubic_curve_python(self):
-        """Test cubic curve Python convenience wrapper."""
-        points = [(0.0, 0.0), (5.0, 20.0), (15.0, 20.0), (20.0, 0.0)]
-        steps = 5
-
-        result = BezierCurve.polygonize_cubic_curve_python(points, steps)
-
-        assert result.shape == (steps + 1, 3)
-        assert np.allclose(result[0, :2], points[0])
-        assert np.allclose(result[-1, :2], points[3])
-
-    def test_polygonize_cubic_curve_numpy(self):
-        """Test cubic curve NumPy convenience wrapper."""
-        points = [(0.0, 0.0), (5.0, 20.0), (15.0, 20.0), (20.0, 0.0)]
-        steps = 5
-
-        result = BezierCurve.polygonize_cubic_curve_numpy(points, steps)
-
-        assert result.shape == (steps + 1, 3)
-        assert np.allclose(result[0, :2], points[0])
-        assert np.allclose(result[-1, :2], points[3])
-
     def test_polygonize_path_cubic_curve(self):
         """Test path with cubic curve command."""
         points = np.array(
