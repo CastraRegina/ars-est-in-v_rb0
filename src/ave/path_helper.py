@@ -8,6 +8,7 @@ import shapely.ops
 from numpy.typing import NDArray
 from scipy.spatial import cKDTree
 
+from ave.common import deprecated
 from ave.path import AvClosedPath, AvPath, AvPolygonPath, AvPolylinesPath, AvSinglePath
 
 
@@ -466,6 +467,7 @@ class AvPathCleaner:
     """Collection of static path-cleaning utilities."""
 
     @staticmethod
+    @deprecated("Use resolve_polygonized_path_intersections instead.")
     def resolve_path_intersections(path: AvPath) -> AvPath:
         """Resolve self-intersections in an AvPath using sequential Shapely boolean operations.
 

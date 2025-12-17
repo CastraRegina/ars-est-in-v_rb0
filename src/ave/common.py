@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 import sys
+import warnings
 from enum import Enum, auto
+from functools import wraps
 from typing import Literal
 
 ###############################################################################
@@ -42,6 +44,22 @@ class Align(Enum):
 ###############################################################################
 # Functions
 ###############################################################################
+
+
+def deprecated(reason: str = ""):
+    """Declare a function as deprecated and emit a warning on each call."""
+
+    def decorator(func):
+        message = f"{func.__name__} is deprecated. {reason}".strip()
+
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            warnings.warn(message, DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def main() -> None:
