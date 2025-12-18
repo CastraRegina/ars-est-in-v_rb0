@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from functools import cached_property
 from typing import List, Optional, Sequence, Tuple, Union
@@ -34,6 +35,25 @@ class PathConstraints:
     must_close: bool = False
     min_points_per_segment: Optional[int] = None
 
+    def to_dict(self) -> dict:
+        """Convert constraints to a dictionary for serialization."""
+        return {
+            "allows_curves": self.allows_curves,
+            "max_segments": self.max_segments,
+            "must_close": self.must_close,
+            "min_points_per_segment": self.min_points_per_segment,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PathConstraints":
+        """Create PathConstraints from a dictionary."""
+        return cls(
+            allows_curves=data.get("allows_curves", True),
+            max_segments=data.get("max_segments"),
+            must_close=data.get("must_close", False),
+            min_points_per_segment=data.get("min_points_per_segment"),
+        )
+
 
 # Constraint constants for different path types
 GENERAL_CONSTRAINTS = PathConstraints()
@@ -64,6 +84,14 @@ SINGLE_POLYGON_CONSTRAINTS = PathConstraints(
     max_segments=1,
     must_close=True,
     min_points_per_segment=3,
+)
+
+# Internal version without min_points restriction for handling degenerate cases
+_SINGLE_POLYGON_CONSTRAINTS_INTERNAL = PathConstraints(
+    allows_curves=False,
+    max_segments=1,
+    must_close=True,
+    min_points_per_segment=None,
 )
 
 MULTI_POLYGON_CONSTRAINTS = PathConstraints(
@@ -274,10 +302,15 @@ class AvPath:
         self._validate()
 
     def _validate(self) -> None:
-        """Validate path structure. Override in subclasses for specific constraints."""
+        """Validate path structure using PathValidator.
+
+        This method validates the path structure and point/command consistency.
+        For constraint-specific validation, use PathValidator.validate() directly.
+        """
         cmds = self._commands
         points = self._points
 
+        # Basic structure validation
         if not cmds:
             if points.shape[0] != 0:
                 raise ValueError("Empty command list must have zero points")
@@ -322,6 +355,9 @@ class AvPath:
                 f"Number of points ({points.shape[0]}) does not match commands (requires {expected_points} points)"
             )
 
+        # Constraint-based validation using PathValidator
+        PathValidator.validate(cmds, points, self._constraints)
+
     @property
     def points(self) -> NDArray[np.float64]:
         """
@@ -342,6 +378,172 @@ class AvPath:
         The constraints defining valid path structures.
         """
         return self._constraints
+
+    @property
+    def constraint_type(self) -> str:
+        """
+        Return a string identifier for the constraint type.
+
+        This property allows type checking without isinstance() calls.
+        Returns one of: 'general', 'multi_polyline', 'single_path',
+        'closed_single_path', 'single_polygon', 'multi_polygon', or 'custom'.
+        """
+        if self._constraints == GENERAL_CONSTRAINTS:
+            return "general"
+        elif self._constraints == MULTI_POLYLINE_CONSTRAINTS:
+            return "multi_polyline"
+        elif self._constraints == SINGLE_PATH_CONSTRAINTS:
+            return "single_path"
+        elif self._constraints == CLOSED_SINGLE_PATH_CONSTRAINTS:
+            return "closed_single_path"
+        elif self._constraints == SINGLE_POLYGON_CONSTRAINTS:
+            return "single_polygon"
+        elif self._constraints == MULTI_POLYGON_CONSTRAINTS:
+            return "multi_polygon"
+        else:
+            return "custom"
+
+    def is_polygon_like(self) -> bool:
+        """
+        Return True if this path has polygon-like constraints.
+
+        Polygon-like paths support geometric operations like area, centroid, is_ccw.
+        This includes single_polygon and multi_polygon constraint types.
+        """
+        return self._constraints.must_close and not self._constraints.allows_curves
+
+    def is_closed(self) -> bool:
+        """
+        Return True if this path has closure constraints (must_close=True).
+        """
+        return self._constraints.must_close
+
+    def is_single_segment(self) -> bool:
+        """
+        Return True if this path is constrained to a single segment.
+        """
+        return self._constraints.max_segments == 1
+
+    def get_area(self) -> float:
+        """
+        Return the area of this path if it's polygon-like.
+
+        For paths with curves, the path is first polygonized.
+        For multi-segment paths, returns the sum of all segment areas.
+
+        Returns:
+            float: The area of the path. Returns 0.0 if path has fewer than 3 points.
+
+        Raises:
+            ValueError: If the path is not closed (must_close constraint required).
+        """
+        if not self._constraints.must_close:
+            raise ValueError("Area calculation requires a closed path (must_close=True)")
+
+        # For polygon-like paths, use direct calculation
+        if self.is_polygon_like():
+            return self._calculate_polygon_area()
+
+        # For closed paths with curves, polygonize first
+        polygonized = self.polygonized_path()
+        return polygonized._calculate_polygon_area()
+
+    def _calculate_polygon_area(self) -> float:
+        """Calculate area using shoelace formula for a single polygon."""
+        pts = self._points
+        if pts.shape[0] < 3:
+            return 0.0
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            return 0.0
+        return float(0.5 * abs(cross_sum))
+
+    def get_centroid(self) -> Tuple[float, float]:
+        """
+        Return the centroid of this path if it's polygon-like.
+
+        For paths with curves, the path is first polygonized.
+
+        Returns:
+            Tuple[float, float]: The x and y coordinates of the centroid.
+
+        Raises:
+            ValueError: If the path is not closed (must_close constraint required).
+        """
+        if not self._constraints.must_close:
+            raise ValueError("Centroid calculation requires a closed path (must_close=True)")
+
+        # For polygon-like paths, use direct calculation
+        if self.is_polygon_like():
+            return self._calculate_polygon_centroid()
+
+        # For closed paths with curves, polygonize first
+        polygonized = self.polygonized_path()
+        return polygonized._calculate_polygon_centroid()
+
+    def _calculate_polygon_centroid(self) -> Tuple[float, float]:
+        """Calculate centroid for a polygon."""
+        pts = self._points
+        if pts.shape[0] == 0:
+            return (0.0, 0.0)
+        if pts.shape[0] < 3:
+            x_mean = float(pts[:, 0].mean())
+            y_mean = float(pts[:, 1].mean())
+            return (x_mean, y_mean)
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            x_mean = float(x.mean())
+            y_mean = float(y.mean())
+            return (x_mean, y_mean)
+        factor = 1.0 / (3.0 * cross_sum)
+        cx = float(((x + x_next) * cross).sum() * factor)
+        cy = float(((y + y_next) * cross).sum() * factor)
+        return (cx, cy)
+
+    def get_is_ccw(self) -> bool:
+        """
+        Return True if this path runs counter-clockwise.
+
+        For paths with curves, the path is first polygonized.
+
+        Returns:
+            bool: True if counter-clockwise, False otherwise.
+
+        Raises:
+            ValueError: If the path is not closed (must_close constraint required).
+        """
+        if not self._constraints.must_close:
+            raise ValueError("CCW check requires a closed path (must_close=True)")
+
+        # For polygon-like paths, use direct calculation
+        if self.is_polygon_like():
+            return self._calculate_is_ccw()
+
+        # For closed paths with curves, polygonize first
+        polygonized = self.polygonized_path()
+        return polygonized._calculate_is_ccw()
+
+    def _calculate_is_ccw(self) -> bool:
+        """Calculate if polygon vertices are ordered counter-clockwise."""
+        pts = self._points
+        if pts.shape[0] < 3:
+            return False
+        x = pts[:, 0]
+        y = pts[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        return bool(cross.sum() > 0.0)
 
     def bounding_box(self) -> AvBox:
         """
@@ -403,8 +605,13 @@ class AvPath:
         if data.get("bounding_box") is not None:
             bounding_box = AvBox.from_dict(data["bounding_box"])
 
+        # Convert constraints back if present
+        constraints = None
+        if data.get("constraints") is not None:
+            constraints = PathConstraints.from_dict(data["constraints"])
+
         # Create instance with 3D points (already has type column)
-        path = cls(points, commands)  # Use regular init - it handles 3D points
+        path = cls(points, commands, constraints)
         path._bounding_box = bounding_box
         return path
 
@@ -425,6 +632,7 @@ class AvPath:
             "points": points_list,
             "commands": commands_list,
             "bounding_box": bbox_dict,
+            "constraints": self._constraints.to_dict(),
         }
 
     def polygonized_path(self) -> AvPolylinesPath:
@@ -546,7 +754,7 @@ class AvPath:
 
         # Trim the pre-allocated array to actual size
         new_points = new_points_array[:array_index]
-        return AvPolylinesPath(new_points, new_commands_list)
+        return AvPolylinesPath(new_points, new_commands_list, _internal=True)
 
     def split_into_single_paths(self) -> List[AvSinglePath]:
         """Split an AvPath into AvSinglePath segments at each 'M' command."""
@@ -626,7 +834,7 @@ class AvPath:
                 np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
             )
 
-            single_paths.append(AvSinglePath(seg_points_array, seg_cmds))
+            single_paths.append(AvSinglePath(seg_points_array, seg_cmds, _internal=True))
 
         return single_paths
 
@@ -730,7 +938,7 @@ class AvPath:
 
 
 ###############################################################################
-# AvPolylinesPath
+# AvPolylinesPath (Deprecated - use AvPath with MULTI_POLYLINE_CONSTRAINTS)
 ###############################################################################
 class AvPolylinesPath(AvPath):
     """
@@ -738,6 +946,9 @@ class AvPolylinesPath(AvPath):
     A path contains 0..n segments; each segment starts with M, is followed by
     an arbitrary number of L commands, and may optionally end with Z.
     A path may also be empty (no points and no commands), representing 0 segments.
+
+    .. deprecated::
+        Use AvPath with MULTI_POLYLINE_CONSTRAINTS instead.
     """
 
     def __init__(
@@ -751,8 +962,15 @@ class AvPolylinesPath(AvPath):
         ] = None,
         commands: Optional[List[AvGlyphCmds]] = None,
         constraints: Optional[PathConstraints] = None,
+        _internal: bool = False,
     ):
         """Initialize an AvPolylinesPath with MULTI_POLYLINE_CONSTRAINTS."""
+        if not _internal:
+            warnings.warn(
+                "AvPolylinesPath is deprecated. Use AvPath with MULTI_POLYLINE_CONSTRAINTS instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(
             points,
             commands,
@@ -769,13 +987,16 @@ class AvPolylinesPath(AvPath):
 
 
 ###############################################################################
-# AvSinglePath
+# AvSinglePath (Deprecated - use AvPath with SINGLE_PATH_CONSTRAINTS)
 ###############################################################################
 class AvSinglePath(AvPath):
     """
     Path with at most one segment, represented by points (shape (n, 3)) plus commands.
     If non-empty, it starts with one M, continues with any mix of L/Q/C,
     and may optionally end with Z.
+
+    .. deprecated::
+        Use AvPath with SINGLE_PATH_CONSTRAINTS instead.
     """
 
     def __init__(
@@ -789,8 +1010,15 @@ class AvSinglePath(AvPath):
         ] = None,
         commands: Optional[List[AvGlyphCmds]] = None,
         constraints: Optional[PathConstraints] = None,
+        _internal: bool = False,
     ):
         """Initialize an AvSinglePath with SINGLE_PATH_CONSTRAINTS."""
+        if not _internal:
+            warnings.warn(
+                "AvSinglePath is deprecated. Use AvPath with SINGLE_PATH_CONSTRAINTS instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(
             points,
             commands,
@@ -821,7 +1049,7 @@ class AvSinglePath(AvPath):
         """
         # Early return for empty paths
         if not self._commands or self._points.size == 0:
-            return AvSinglePath(self._points.copy(), list(self._commands))
+            return AvSinglePath(self._points.copy(), list(self._commands), _internal=True)
 
         # Check if path is closed
         is_closed = self._commands[-1] == "Z"
@@ -893,17 +1121,20 @@ class AvSinglePath(AvPath):
         # Convert to numpy array
         points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
 
-        return AvSinglePath(points_array, new_commands)
+        return AvSinglePath(points_array, new_commands, _internal=True)
 
 
 ###############################################################################
-# AvClosedPath
+# AvClosedPath (Deprecated - use AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS)
 ###############################################################################
 class AvClosedPath(AvSinglePath):
     """
     Path with at most one closed segment, stored as points (shape (n, 3)) plus commands.
     If non-empty, it begins with one M, continues with any mix of L/Q/C,
     and always ends with Z.
+
+    .. deprecated::
+        Use AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS instead.
     """
 
     def __init__(
@@ -917,12 +1148,20 @@ class AvClosedPath(AvSinglePath):
         ] = None,
         commands: Optional[List[AvGlyphCmds]] = None,
         constraints: Optional[PathConstraints] = None,
+        _internal: bool = False,
     ):
         """Initialize an AvClosedPath with CLOSED_SINGLE_PATH_CONSTRAINTS."""
+        if not _internal:
+            warnings.warn(
+                "AvClosedPath is deprecated. Use AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(
             points,
             commands,
             constraints if constraints is not None else CLOSED_SINGLE_PATH_CONSTRAINTS,
+            _internal=True,  # Suppress parent's deprecation warning
         )
 
     def _validate(self) -> None:
@@ -942,8 +1181,13 @@ class AvClosedPath(AvSinglePath):
         polygonized_path = super().polygonized_path()
 
         # Ensure the polygonized path has valid point/command matching
-        # AvPolygonPath validation expects proper point/command ratios
-        return AvPolygonPath(polygonized_path.points, polygonized_path.commands)
+        # Use internal constraint for degenerate cases (fewer than 3 points)
+        return AvPolygonPath(
+            polygonized_path.points,
+            polygonized_path.commands,
+            constraints=_SINGLE_POLYGON_CONSTRAINTS_INTERNAL,
+            _internal=True,
+        )
 
     @property
     def area(self) -> float:
@@ -1018,12 +1262,15 @@ class AvClosedPath(AvSinglePath):
 
 
 ###############################################################################
-# AvPolygonPath
+# AvPolygonPath (Deprecated - use AvPath with SINGLE_POLYGON_CONSTRAINTS)
 ###############################################################################
 class AvPolygonPath(AvClosedPath, AvPolylinesPath):
     """
     Polygonal closed path stored as points (shape (n, 3)) plus commands.
     Begins with one M, follows any number of L commands, and always ends with Z.
+
+    .. deprecated::
+        Use AvPath with SINGLE_POLYGON_CONSTRAINTS instead.
     """
 
     def __init__(
@@ -1037,8 +1284,15 @@ class AvPolygonPath(AvClosedPath, AvPolylinesPath):
         ] = None,
         commands: Optional[List[AvGlyphCmds]] = None,
         constraints: Optional[PathConstraints] = None,
+        _internal: bool = False,
     ):
         """Initialize an AvPolygonPath with SINGLE_POLYGON_CONSTRAINTS."""
+        if not _internal:
+            warnings.warn(
+                "AvPolygonPath is deprecated. Use AvPath with SINGLE_POLYGON_CONSTRAINTS instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         # Use AvPath.__init__ directly to avoid MRO issues
         AvPath.__init__(
             self,

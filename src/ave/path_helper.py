@@ -736,7 +736,7 @@ class AvPathCleaner:
                 continue
 
         if not polygons:
-            return AvPolylinesPath()
+            return AvPolylinesPath(_internal=True)
 
         # Sequentially combine polygons using the first CCW polygon as base
         # Store early CW polygons to defer them until we find the first CCW
@@ -843,7 +843,7 @@ class AvPathCleaner:
             # If no CCW polygon was found, return empty path
             if result is None or not first_ccw_found:
                 print("Warning: No CCW polygon found. Returning empty path.")
-                return AvPolylinesPath()
+                return AvPolylinesPath(_internal=True)
 
             if result.is_empty:
                 print("Warning: Result is empty after operations. Returning original path.")
@@ -904,7 +904,7 @@ class AvPathCleaner:
             try:
                 joined = AvPath.join_paths(*cleaned_paths)
                 # Convert to AvPolylinesPath explicitly
-                return AvPolylinesPath(joined.points, joined.commands)
+                return AvPolylinesPath(joined.points, joined.commands, _internal=True)
             except (TypeError, ValueError) as e:
                 print(f"Error during path joining: {e}. Returning original path.")
                 return path

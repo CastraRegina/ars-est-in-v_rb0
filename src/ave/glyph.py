@@ -229,7 +229,7 @@ class AvGlyph:
                 continue
 
             # Create a closed path wrapper to access polygonization utilities
-            closed_path = AvClosedPath(contour.points.copy(), list(contour.commands))
+            closed_path = AvClosedPath(contour.points.copy(), list(contour.commands), _internal=True)
 
             # Polygonize the contour for robust winding computation
             polygonized: AvPolygonPath = closed_path.polygonized_path()
