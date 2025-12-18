@@ -14,6 +14,162 @@ from ave.common import AvGlyphCmds
 from ave.geom import AvBox
 
 ###############################################################################
+# PathConstraints
+###############################################################################
+
+
+@dataclass(frozen=True)
+class PathConstraints:
+    """Constraints defining valid path structures.
+
+    Attributes:
+        allows_curves: If False, only M, L, Z commands are allowed (no Q, C).
+        max_segments: Maximum number of segments (M commands). None means unlimited.
+        must_close: If True, each segment must end with Z command.
+        min_points_per_segment: Minimum points required per segment. None means no minimum.
+    """
+
+    allows_curves: bool = True
+    max_segments: Optional[int] = None
+    must_close: bool = False
+    min_points_per_segment: Optional[int] = None
+
+
+# Constraint constants for different path types
+GENERAL_CONSTRAINTS = PathConstraints()
+
+MULTI_POLYLINE_CONSTRAINTS = PathConstraints(
+    allows_curves=False,
+    max_segments=None,
+    must_close=False,
+    min_points_per_segment=None,
+)
+
+SINGLE_PATH_CONSTRAINTS = PathConstraints(
+    allows_curves=True,
+    max_segments=1,
+    must_close=False,
+    min_points_per_segment=None,
+)
+
+CLOSED_SINGLE_PATH_CONSTRAINTS = PathConstraints(
+    allows_curves=True,
+    max_segments=1,
+    must_close=True,
+    min_points_per_segment=None,
+)
+
+SINGLE_POLYGON_CONSTRAINTS = PathConstraints(
+    allows_curves=False,
+    max_segments=1,
+    must_close=True,
+    min_points_per_segment=3,
+)
+
+MULTI_POLYGON_CONSTRAINTS = PathConstraints(
+    allows_curves=False,
+    max_segments=None,
+    must_close=True,
+    min_points_per_segment=3,
+)
+
+
+###############################################################################
+# PathValidator
+###############################################################################
+
+
+class PathValidator:
+    """Validates path structure against constraints."""
+
+    @staticmethod
+    def validate(
+        commands: List[AvGlyphCmds],
+        points: NDArray[np.float64],
+        constraints: PathConstraints,
+    ) -> None:
+        """Validate path against constraints.
+
+        Args:
+            commands: List of path commands.
+            points: Array of path points.
+            constraints: Constraints to validate against.
+
+        Raises:
+            ValueError: If path violates any constraint.
+        """
+        if not commands:
+            if points.shape[0] != 0:
+                raise ValueError("Empty command list must have zero points")
+            return
+
+        # Validate command types
+        if not constraints.allows_curves:
+            for i, cmd in enumerate(commands):
+                if cmd not in ("M", "L", "Z"):
+                    raise ValueError(f"Path cannot contain curve commands (found '{cmd}' at position {i})")
+
+        # Count segments and validate structure
+        segments = PathValidator._split_into_segments(commands, points)
+
+        # Validate segment count
+        if constraints.max_segments is not None:
+            if len(segments) > constraints.max_segments:
+                raise ValueError(f"Path has {len(segments)} segments but max is {constraints.max_segments}")
+
+        # Validate each segment
+        for seg_idx, (seg_cmds, seg_point_count) in enumerate(segments):
+            # Check closure
+            if constraints.must_close:
+                if not seg_cmds or seg_cmds[-1] != "Z":
+                    raise ValueError(f"Segment {seg_idx} must end with 'Z' command")
+
+            # Check minimum points
+            if constraints.min_points_per_segment is not None:
+                if seg_point_count < constraints.min_points_per_segment:
+                    raise ValueError(
+                        f"Segment {seg_idx} has {seg_point_count} points "
+                        f"but minimum is {constraints.min_points_per_segment}"
+                    )
+
+    @staticmethod
+    def _split_into_segments(
+        commands: List[AvGlyphCmds],
+        points: NDArray[np.float64],
+    ) -> List[Tuple[List[AvGlyphCmds], int]]:
+        """Split commands into segments, returning list of (commands, point_count) tuples."""
+        if not commands:
+            return []
+
+        segments: List[Tuple[List[AvGlyphCmds], int]] = []
+        current_cmds: List[AvGlyphCmds] = []
+        current_point_count = 0
+
+        for cmd in commands:
+            if cmd == "M":
+                if current_cmds:
+                    segments.append((current_cmds, current_point_count))
+                current_cmds = ["M"]
+                current_point_count = 1
+            elif cmd == "L":
+                current_cmds.append("L")
+                current_point_count += 1
+            elif cmd == "Q":
+                current_cmds.append("Q")
+                current_point_count += 2
+            elif cmd == "C":
+                current_cmds.append("C")
+                current_point_count += 3
+            elif cmd == "Z":
+                current_cmds.append("Z")
+
+        if current_cmds:
+            segments.append((current_cmds, current_point_count))
+
+        return segments
+
+
+###############################################################################
 # AvPath
 ###############################################################################
 
@@ -35,6 +191,7 @@ class AvPath:
 
     _points: NDArray[np.float64]  # shape (n_points, 3)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
+    _constraints: PathConstraints = GENERAL_CONSTRAINTS  # path constraints
     _bounding_box: Optional[AvBox] = None  # caching variable
     _polygonized_path: Optional["AvPolylinesPath"] = None  # caching variable
 
@@ -51,6 +208,7 @@ class AvPath:
             ]
         ] = None,
         commands: Optional[List[AvGlyphCmds]] = None,
+        constraints: Optional[PathConstraints] = None,
     ):
         """
         Initialize an AvPath from 2D points.
@@ -110,6 +268,7 @@ class AvPath:
             raise ValueError(f"points must have shape (n, 2) or (n, 3), got {arr.shape}")
 
         self._commands = commands_list
+        self._constraints = constraints if constraints is not None else GENERAL_CONSTRAINTS
         self._bounding_box = None
         self._polygonized_path = None
         self._validate()
@@ -176,6 +335,13 @@ class AvPath:
         The commands of this path as a list of SVG path commands.
         """
         return self._commands
+
+    @property
+    def constraints(self) -> PathConstraints:
+        """
+        The constraints defining valid path structures.
+        """
+        return self._constraints
 
     def bounding_box(self) -> AvBox:
         """
@@ -574,6 +740,25 @@ class AvPolylinesPath(AvPath):
     A path may also be empty (no points and no commands), representing 0 segments.
     """
 
+    def __init__(
+        self,
+        points: Optional[
+            Union[
+                Sequence[Tuple[float, float]],
+                Sequence[Tuple[float, float, float]],
+                NDArray[np.float64],
+            ]
+        ] = None,
+        commands: Optional[List[AvGlyphCmds]] = None,
+        constraints: Optional[PathConstraints] = None,
+    ):
+        """Initialize an AvPolylinesPath with MULTI_POLYLINE_CONSTRAINTS."""
+        super().__init__(
+            points,
+            commands,
+            constraints if constraints is not None else MULTI_POLYLINE_CONSTRAINTS,
+        )
+
     def _validate(self) -> None:
         """Validate that this path contains only polyline (M/L/Z) commands."""
         super()._validate()
@@ -592,6 +777,25 @@ class AvSinglePath(AvPath):
     If non-empty, it starts with one M, continues with any mix of L/Q/C,
     and may optionally end with Z.
     """
+
+    def __init__(
+        self,
+        points: Optional[
+            Union[
+                Sequence[Tuple[float, float]],
+                Sequence[Tuple[float, float, float]],
+                NDArray[np.float64],
+            ]
+        ] = None,
+        commands: Optional[List[AvGlyphCmds]] = None,
+        constraints: Optional[PathConstraints] = None,
+    ):
+        """Initialize an AvSinglePath with SINGLE_PATH_CONSTRAINTS."""
+        super().__init__(
+            points,
+            commands,
+            constraints if constraints is not None else SINGLE_PATH_CONSTRAINTS,
+        )
 
     def _validate(self) -> None:
         """Validate that this path has at most one segment (0 or 1)."""
@@ -702,6 +906,25 @@ class AvClosedPath(AvSinglePath):
     and always ends with Z.
     """
 
+    def __init__(
+        self,
+        points: Optional[
+            Union[
+                Sequence[Tuple[float, float]],
+                Sequence[Tuple[float, float, float]],
+                NDArray[np.float64],
+            ]
+        ] = None,
+        commands: Optional[List[AvGlyphCmds]] = None,
+        constraints: Optional[PathConstraints] = None,
+    ):
+        """Initialize an AvClosedPath with CLOSED_SINGLE_PATH_CONSTRAINTS."""
+        super().__init__(
+            points,
+            commands,
+            constraints if constraints is not None else CLOSED_SINGLE_PATH_CONSTRAINTS,
+        )
+
     def _validate(self) -> None:
         """Validate that this path has at most one closed segment (0 or 1)."""
         super()._validate()
@@ -802,6 +1025,27 @@ class AvPolygonPath(AvClosedPath, AvPolylinesPath):
     Polygonal closed path stored as points (shape (n, 3)) plus commands.
     Begins with one M, follows any number of L commands, and always ends with Z.
     """
+
+    def __init__(
+        self,
+        points: Optional[
+            Union[
+                Sequence[Tuple[float, float]],
+                Sequence[Tuple[float, float, float]],
+                NDArray[np.float64],
+            ]
+        ] = None,
+        commands: Optional[List[AvGlyphCmds]] = None,
+        constraints: Optional[PathConstraints] = None,
+    ):
+        """Initialize an AvPolygonPath with SINGLE_POLYGON_CONSTRAINTS."""
+        # Use AvPath.__init__ directly to avoid MRO issues
+        AvPath.__init__(
+            self,
+            points,
+            commands,
+            constraints if constraints is not None else SINGLE_POLYGON_CONSTRAINTS,
+        )
 
     def _validate(self) -> None:
         AvClosedPath._validate(self)
