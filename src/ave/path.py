@@ -78,22 +78,30 @@ class AvPath:
 
             for cmd in commands_list:
                 if cmd == "M":  # MoveTo - 1 point
+                    if point_idx >= arr.shape[0]:
+                        raise ValueError(f"Not enough points for MoveTo command at index {point_idx}")
                     type_column[point_idx] = 0.0
                     point_idx += 1
                 elif cmd == "L":  # LineTo - 1 point
+                    if point_idx >= arr.shape[0]:
+                        raise ValueError(f"Not enough points for LineTo command at index {point_idx}")
                     type_column[point_idx] = 0.0
                     point_idx += 1
                 elif cmd == "Q":  # Quadratic Bezier - 2 points (control + end)
+                    if point_idx + 1 >= arr.shape[0]:
+                        raise ValueError(f"Not enough points for Quadratic Bezier command at index {point_idx}")
                     type_column[point_idx] = 2.0  # control point
                     type_column[point_idx + 1] = 0.0  # end point
                     point_idx += 2
                 elif cmd == "C":  # Cubic Bezier - 3 points (control1 + control2 + end)
+                    if point_idx + 2 >= arr.shape[0]:
+                        raise ValueError(f"Not enough points for Cubic Bezier command at index {point_idx}")
                     type_column[point_idx] = 3.0  # control point 1
                     type_column[point_idx + 1] = 3.0  # control point 2
                     type_column[point_idx + 2] = 0.0  # end point
                     point_idx += 3
                 elif cmd == "Z":  # ClosePath - no points
-                    pass
+                    pass  # No points consumed
 
             self._points = np.column_stack([arr, type_column])
         elif arr.shape[1] == 3:
