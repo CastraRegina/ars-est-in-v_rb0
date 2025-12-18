@@ -58,8 +58,8 @@ def create_cleaned_font(characters: str, original_font: AvFont) -> AvFont:
             # Get original glyph
             original_glyph = original_font.get_glyph(char)
 
-            # Clean the glyph using resolve_path_intersections
-            cleaned_path = AvPathCleaner.resolve_path_intersections(original_glyph.path)
+            # Clean the glyph using the polygonized intersection resolver
+            cleaned_path = AvPathCleaner.resolve_polygonized_path_intersections(original_glyph.path.polygonized_path())
             cleaned_glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=cleaned_path)
             cleaned_glyphs[char] = cleaned_glyph
 
