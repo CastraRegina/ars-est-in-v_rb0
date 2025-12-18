@@ -22,13 +22,9 @@ from typing import Dict
 
 from fontTools.ttLib import TTFont
 
+from ave.font import AvFont, AvFontProperties
 from ave.fonttools import FontHelper
-from ave.glyph import (
-    AvFont,
-    AvFontProperties,
-    AvGlyphFromTTFontFactory,
-    AvGlyphPolygonizeFactory,
-)
+from ave.glyph import AvGlyphFromTTFontFactory, AvGlyphPolygonizeFactory
 
 ROBOTO_FLEX_FILENAME = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
 

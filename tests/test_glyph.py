@@ -3,8 +3,9 @@
 import numpy as np
 import pytest
 
+from ave.font import AvFont, AvFontProperties
 from ave.geom import AvBox
-from ave.glyph import AvFont, AvFontProperties, AvGlyph, AvGlyphCachedFactory
+from ave.glyph import AvGlyph, AvGlyphCachedFactory
 from ave.path import AvClosedPath, AvPath
 
 
