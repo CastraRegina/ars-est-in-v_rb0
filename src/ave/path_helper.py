@@ -466,189 +466,189 @@ class AvPointMatcher:
 class AvPathCleaner:
     """Collection of static path-cleaning utilities."""
 
-    @staticmethod
-    @deprecated("Use resolve_polygonized_path_intersections instead.")
-    def resolve_path_intersections(path: AvPath) -> AvPath:
-        """Resolve self-intersections in an AvPath using sequential Shapely boolean operations.
+    # @staticmethod
+    # @deprecated("Use resolve_polygonized_path_intersections instead.")
+    # def resolve_path_intersections(path: AvPath) -> AvPath:
+    #     """Resolve self-intersections in an AvPath using sequential Shapely boolean operations.
 
-        Algorithm Strategy:
-        The function resolves complex path intersections by converting vector paths to Shapely
-        geometric objects, performing topological operations, then converting back to paths.
+    #     Algorithm Strategy:
+    #     The function resolves complex path intersections by converting vector paths to Shapely
+    #     geometric objects, performing topological operations, then converting back to paths.
 
-        Step-by-step process:
-        1. Split input path into individual contours (sub-paths)
-        2. Ensure all contours are properly closed by adding 'Z' command if missing
-        3. Convert each closed contour to a polygonized path format
-        4. Apply buffer(0) operation to each polygon to remove self-intersections
-            - buffer(0) is a Shapely technique that cleans up topology
-            - Handles Polygon, MultiPolygon, and GeometryCollection results
-        5. Perform sequential boolean operations based on contour orientation:
-            - CCW contours (exterior): union operation (additive)
-            - CW contours (interior/hole): difference operation (subtractive)
-            - This reconstructs the proper fill rule for complex glyphs
-        6. Convert final Shapely geometry back to AvPath format:
-            - Extract exterior rings as closed paths
-            - Extract interior rings (holes) as separate paths
-            - Join all paths into final result
+    #     Step-by-step process:
+    #     1. Split input path into individual contours (sub-paths)
+    #     2. Ensure all contours are properly closed by adding 'Z' command if missing
+    #     3. Convert each closed contour to a polygonized path format
+    #     4. Apply buffer(0) operation to each polygon to remove self-intersections
+    #         - buffer(0) is a Shapely technique that cleans up topology
+    #         - Handles Polygon, MultiPolygon, and GeometryCollection results
+    #     5. Perform sequential boolean operations based on contour orientation:
+    #         - CCW contours (exterior): union operation (additive)
+    #         - CW contours (interior/hole): difference operation (subtractive)
+    #         - This reconstructs the proper fill rule for complex glyphs
+    #     6. Convert final Shapely geometry back to AvPath format:
+    #         - Extract exterior rings as closed paths
+    #         - Extract interior rings (holes) as separate paths
+    #         - Join all paths into final result
 
-        Key technical details:
-        - Uses Shapely's is_ccw property to determine contour orientation
-        - Handles edge cases: empty contours, degenerate polygons, processing errors
-        - Falls back to original path if boolean operations fail
-        - Removes duplicate closing points when converting coordinates back to paths
+    #     Key technical details:
+    #     - Uses Shapely's is_ccw property to determine contour orientation
+    #     - Handles edge cases: empty contours, degenerate polygons, processing errors
+    #     - Falls back to original path if boolean operations fail
+    #     - Removes duplicate closing points when converting coordinates back to paths
 
-        Args:
-            path: Input AvPath that may contain self-intersections
+    #     Args:
+    #         path: Input AvPath that may contain self-intersections
 
-        Returns:
-            AvPath: Cleaned path with intersections resolved, or empty path if no valid result
-        """
-        # Step 1: Split into individual contours
-        contours: List[AvSinglePath] = path.split_into_single_paths()
+    #     Returns:
+    #         AvPath: Cleaned path with intersections resolved, or empty path if no valid result
+    #     """
+    #     # Step 1: Split into individual contours
+    #     contours: List[AvSinglePath] = path.split_into_single_paths()
 
-        # Step 2: Ensure all contours are properly closed by adding 'Z' command if missing
-        closed_contours: List[AvClosedPath] = []
-        for contour in contours:
-            # Skip empty contours
-            if not contour.commands:
-                continue
+    #     # Step 2: Ensure all contours are properly closed by adding 'Z' command if missing
+    #     closed_contours: List[AvClosedPath] = []
+    #     for contour in contours:
+    #         # Skip empty contours
+    #         if not contour.commands:
+    #             continue
 
-            # Check if contour is closed, considering both explicit 'Z' and implicit closure
-            if contour.commands[-1] == "Z":
-                # Already closed, use as is
-                closed_path = AvClosedPath(contour.points.copy(), list(contour.commands))
-            else:
-                # Add 'Z' to close the contour
-                new_commands = list(contour.commands) + ["Z"]
-                closed_path = AvClosedPath(contour.points.copy(), new_commands)
+    #         # Check if contour is closed, considering both explicit 'Z' and implicit closure
+    #         if contour.commands[-1] == "Z":
+    #             # Already closed, use as is
+    #             closed_path = AvClosedPath(contour.points.copy(), list(contour.commands))
+    #         else:
+    #             # Add 'Z' to close the contour
+    #             new_commands = list(contour.commands) + ["Z"]
+    #             closed_path = AvClosedPath(contour.points.copy(), new_commands)
 
-            closed_contours.append(closed_path)
+    #         closed_contours.append(closed_path)
 
-        if not closed_contours:
-            return AvPath()
+    #     if not closed_contours:
+    #         return AvPath()
 
-        # Apply buffer(0) operation to each polygon to remove self-intersections and store cleaned polygons
-        cleaned_polygons: List[shapely.geometry.Polygon] = []
-        hole_polygons: List[shapely.geometry.Polygon] = []
+    #     # Apply buffer(0) operation to each polygon to remove self-intersections and store cleaned polygons
+    #     cleaned_polygons: List[shapely.geometry.Polygon] = []
+    #     hole_polygons: List[shapely.geometry.Polygon] = []
 
-        for closed_path in closed_contours:
-            # Step 3: Convert each closed contour to a polygonized path format
-            polygonized: AvPolygonPath = closed_path.polygonized_path()
+    #     for closed_path in closed_contours:
+    #         # Step 3: Convert each closed contour to a polygonized path format
+    #         polygonized: AvPolygonPath = closed_path.polygonized_path()
 
-            # Skip degenerate polygons
-            if polygonized.points.shape[0] < 3:
-                print("Warning: Contour has fewer than 3 points. Skipping.")
-                continue
+    #         # Skip degenerate polygons
+    #         if polygonized.points.shape[0] < 3:
+    #             print("Warning: Contour has fewer than 3 points. Skipping.")
+    #             continue
 
-            try:
-                # Step 4: Create Shapely polygon and remove self-intersections
-                shapely_poly = shapely.geometry.Polygon(polygonized.points[:, :2].tolist())
-                cleaned_poly = shapely_poly.buffer(0)
+    #         try:
+    #             # Step 4: Create Shapely polygon and remove self-intersections
+    #             shapely_poly = shapely.geometry.Polygon(polygonized.points[:, :2].tolist())
+    #             cleaned_poly = shapely_poly.buffer(0)
 
-                # Check if this is a hole by examining the original contour orientation
-                # CCW = exterior, CW = hole
-                is_hole = not closed_path.is_ccw
+    #             # Check if this is a hole by examining the original contour orientation
+    #             # CCW = exterior, CW = hole
+    #             is_hole = not closed_path.is_ccw
 
-                # Handle different geometry types returned by buffer(0)
-                if isinstance(cleaned_poly, shapely.geometry.Polygon) and not cleaned_poly.is_empty:
-                    if is_hole:
-                        hole_polygons.append(cleaned_poly)
-                    else:
-                        cleaned_polygons.append(cleaned_poly)
+    #             # Handle different geometry types returned by buffer(0)
+    #             if isinstance(cleaned_poly, shapely.geometry.Polygon) and not cleaned_poly.is_empty:
+    #                 if is_hole:
+    #                     hole_polygons.append(cleaned_poly)
+    #                 else:
+    #                     cleaned_polygons.append(cleaned_poly)
 
-                elif isinstance(cleaned_poly, shapely.geometry.MultiPolygon):
-                    # Add all sub-polygons
-                    for poly in cleaned_poly.geoms:
-                        if not poly.is_empty:
-                            if is_hole:
-                                hole_polygons.append(poly)
-                            else:
-                                cleaned_polygons.append(poly)
+    #             elif isinstance(cleaned_poly, shapely.geometry.MultiPolygon):
+    #                 # Add all sub-polygons
+    #                 for poly in cleaned_poly.geoms:
+    #                     if not poly.is_empty:
+    #                         if is_hole:
+    #                             hole_polygons.append(poly)
+    #                         else:
+    #                             cleaned_polygons.append(poly)
 
-                elif isinstance(cleaned_poly, shapely.geometry.GeometryCollection):
-                    # Extract Polygon types
-                    for geom in cleaned_poly.geoms:
-                        if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
-                            if is_hole:
-                                hole_polygons.append(geom)
-                            else:
-                                cleaned_polygons.append(geom)
+    #             elif isinstance(cleaned_poly, shapely.geometry.GeometryCollection):
+    #                 # Extract Polygon types
+    #                 for geom in cleaned_poly.geoms:
+    #                     if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
+    #                         if is_hole:
+    #                             hole_polygons.append(geom)
+    #                         else:
+    #                             cleaned_polygons.append(geom)
 
-            except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
-                print(f"Warning: Failed to process contour {e}. Skipping.")
-                continue
+    #         except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
+    #             print(f"Warning: Failed to process contour {e}. Skipping.")
+    #             continue
 
-        if not cleaned_polygons:
-            return AvPath()
+    #     if not cleaned_polygons:
+    #         return AvPath()
 
-        # Step 5: Union all cleaned polygons together and subtract holes
-        try:
-            # First union all exterior polygons
-            if cleaned_polygons:
-                result = shapely.ops.unary_union(cleaned_polygons)
-            else:
-                return AvPath()
+    #     # Step 5: Union all cleaned polygons together and subtract holes
+    #     try:
+    #         # First union all exterior polygons
+    #         if cleaned_polygons:
+    #             result = shapely.ops.unary_union(cleaned_polygons)
+    #         else:
+    #             return AvPath()
 
-            # Then subtract all hole polygons
-            if hole_polygons:
-                holes_union = shapely.ops.unary_union(hole_polygons)
-                result = result.difference(holes_union)
+    #         # Then subtract all hole polygons
+    #         if hole_polygons:
+    #             holes_union = shapely.ops.unary_union(hole_polygons)
+    #             result = result.difference(holes_union)
 
-            if result.is_empty:
-                return path  # Return original path if result is empty
+    #         if result.is_empty:
+    #             return path  # Return original path if result is empty
 
-        except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
-            print(f"Error during union operation: {e}")
-            return path  # Return original path on error
+    #     except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
+    #         print(f"Error during union operation: {e}")
+    #         return path  # Return original path on error
 
-        # Step 6: Convert final Shapely geometry back to AvPath format
-        cleaned_paths: List[AvPath] = []
+    #     # Step 6: Convert final Shapely geometry back to AvPath format
+    #     cleaned_paths: List[AvPath] = []
 
-        if isinstance(result, shapely.geometry.Polygon) and not result.is_empty:
-            # Convert exterior
-            exterior_coords = list(result.exterior.coords)
-            if len(exterior_coords) >= 4:
-                exterior_coords = exterior_coords[:-1]  # Remove closing point
-                if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
-                    exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                    cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
+    #     if isinstance(result, shapely.geometry.Polygon) and not result.is_empty:
+    #         # Convert exterior
+    #         exterior_coords = list(result.exterior.coords)
+    #         if len(exterior_coords) >= 4:
+    #             exterior_coords = exterior_coords[:-1]  # Remove closing point
+    #             if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+    #                 exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+    #                 cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
-            # Convert interiors (holes)
-            for interior in result.interiors:
-                interior_coords = list(interior.coords)
-                if len(interior_coords) >= 4:
-                    interior_coords = interior_coords[:-1]  # Remove closing point
-                    if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
-                        interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                        cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+    #         # Convert interiors (holes)
+    #         for interior in result.interiors:
+    #             interior_coords = list(interior.coords)
+    #             if len(interior_coords) >= 4:
+    #                 interior_coords = interior_coords[:-1]  # Remove closing point
+    #                 if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+    #                     interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
+    #                     cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
-        elif isinstance(result, shapely.geometry.MultiPolygon):
-            # Handle MultiPolygon result
-            for poly in result.geoms:
-                if not poly.is_empty:
-                    # Convert exterior
-                    exterior_coords = list(poly.exterior.coords)
-                    if len(exterior_coords) >= 4:
-                        exterior_coords = exterior_coords[:-1]
-                        if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
-                            exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                            cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
+    #     elif isinstance(result, shapely.geometry.MultiPolygon):
+    #         # Handle MultiPolygon result
+    #         for poly in result.geoms:
+    #             if not poly.is_empty:
+    #                 # Convert exterior
+    #                 exterior_coords = list(poly.exterior.coords)
+    #                 if len(exterior_coords) >= 4:
+    #                     exterior_coords = exterior_coords[:-1]
+    #                     if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+    #                         exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+    #                         cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
-                    # Convert interiors
-                    for interior in poly.interiors:
-                        interior_coords = list(interior.coords)
-                        if len(interior_coords) >= 4:
-                            interior_coords = interior_coords[:-1]
-                            if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
-                                interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                                cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+    #                 # Convert interiors
+    #                 for interior in poly.interiors:
+    #                     interior_coords = list(interior.coords)
+    #                     if len(interior_coords) >= 4:
+    #                         interior_coords = interior_coords[:-1]
+    #                         if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+    #                             interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
+    #                             cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
-        # Join all paths
-        if cleaned_paths:
-            joined = AvPath.join_paths(*cleaned_paths)
-            return joined
-        else:
-            return AvPath()
+    #     # Join all paths
+    #     if cleaned_paths:
+    #         joined = AvPath.join_paths(*cleaned_paths)
+    #         return joined
+    #     else:
+    #         return AvPath()
 
     @staticmethod
     def resolve_polygonized_path_intersections(path: AvPolylinesPath) -> AvPolylinesPath:
