@@ -6,7 +6,7 @@ import pytest
 from ave.font import AvFont, AvFontProperties
 from ave.geom import AvBox
 from ave.glyph import AvGlyph, AvGlyphCachedFactory
-from ave.path import CLOSED_SINGLE_PATH_CONSTRAINTS, AvClosedSinglePath, AvPath
+from ave.path import CLOSED_SINGLE_PATH_CONSTRAINTS, AvPath
 
 
 class TestAvGlyph:
@@ -270,10 +270,10 @@ class TestAvGlyph:
         assert isinstance(result, AvGlyph)
         assert result.character == "A"
         assert result.width() == 10
-        # Verify it's still CCW by checking area is positive
-        # Need to create a closed path to get area
+        # Verify it's still CCW
+        # Need to create a closed path to check winding direction
         closed = AvPath(result.path.points, result.path.commands, CLOSED_SINGLE_PATH_CONSTRAINTS)
-        assert closed.get_area() > 0
+        assert closed.is_ccw
 
     def test_revise_direction_single_cw_contour(self):
         """Test revise_direction with single CW contour (needs reversal)"""
@@ -289,10 +289,10 @@ class TestAvGlyph:
         assert isinstance(result, AvGlyph)
         assert result.character == "A"
         assert result.width() == 10
-        # Verify it's now CCW by checking area is positive
-        # Need to create a closed path to get area
+        # Verify it's now CCW
+        # Need to create a closed path to check winding direction
         closed = AvPath(result.path.points, result.path.commands, CLOSED_SINGLE_PATH_CONSTRAINTS)
-        assert closed.get_area() > 0
+        assert closed.is_ccw
 
     def test_revise_direction_nested_contours_correct(self):
         """Test revise_direction with nested contours already correct (outer CCW, inner CW)"""

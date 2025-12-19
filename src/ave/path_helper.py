@@ -1,443 +1,61 @@
 """Path cleaning and manipulation utilities for vector graphics processing."""
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
 import shapely.geometry
-import shapely.ops
-from numpy.typing import NDArray
-from scipy.spatial import cKDTree
 
-from ave.common import deprecated
-from ave.path import (
-    CLOSED_SINGLE_PATH_CONSTRAINTS,
-    MULTI_POLYLINE_CONSTRAINTS,
-    SINGLE_POLYGON_CONSTRAINTS,
-    AvClosedSinglePath,
-    AvMultiPolylinePath,
-    AvPath,
-    AvSinglePath,
-    AvSinglePolygonPath,
-)
+from ave.common import AvGlyphCmds
 
+if TYPE_CHECKING:
+    from ave.path import (
+        MULTI_POLYLINE_CONSTRAINTS,
+        AvMultiPolylinePath,
+        AvPath,
+        AvSinglePolygonPath,
+    )
 
 ###############################################################################
-# AvPointMatcher
+# Path Utilities
 ###############################################################################
-class AvPointMatcher:
-    """Utilities for matching points between two 2D point sets and transferring attributes.
 
-    This class provides efficient nearest-neighbor matching between point arrays,
-    primarily used to transfer point type information (on-curve vs control points)
-    from an original path to a transformed or resampled path.
 
-    Point types in AvPath:
-        Exact matches (within epsilon):
-            0.0 = on-curve point (M, L, or endpoint of Q/C)
-            2.0 = quadratic Bezier control point (Q)
-            3.0 = cubic Bezier control point (C)
-        Non-exact matches (nearest neighbor beyond epsilon):
-            -1.0 = derived from on-curve point (0.0)
-            -2.0 = derived from quadratic control point (2.0)
-            -3.0 = derived from cubic control point (3.0)
-    """
-
-    # Default epsilon for exact match detection (in coordinate units)
-    DEFAULT_EPSILON: float = 1e-6
+class AvPathUtils:
+    """Collection of static utility functions for path operations."""
 
     @staticmethod
-    def _map_type_for_distance(
-        org_type: float,
-        distance: float,
-        epsilon: float,
-    ) -> float:
-        """Map original type to result type based on match distance.
-
-        Args:
-            org_type: Original point type (0.0, 2.0, or 3.0).
-            distance: Euclidean distance between matched points.
-            epsilon: Threshold for exact match.
-
-        Returns:
-            Original type if exact match, otherwise negated type
-            (0.0 -> -1.0, 2.0 -> -2.0, 3.0 -> -3.0).
-        """
-        if distance <= epsilon:
-            return org_type
-        # Non-exact match: map to negative type
-        if org_type == 0.0:
-            return -1.0
-        elif org_type == 2.0:
-            return -2.0
-        elif org_type == 3.0:
-            return -3.0
-        else:
-            # Unknown type - return negated value
-            return -abs(org_type) if org_type >= 0 else org_type
-
-    @staticmethod
-    def transfer_point_types(
-        points_org: NDArray[np.float64],
-        points_new: NDArray[np.float64],
-        epsilon: float | None = None,
-    ) -> NDArray[np.float64]:
-        """Transfer point types from original points to new points via nearest neighbor matching.
-
-        For each point in points_new, finds the nearest point in points_org and assigns
-        the type based on match distance:
-        - Exact match (distance <= epsilon): original type (0.0, 2.0, 3.0)
-        - Non-exact match: mapped type (-1.0, -2.0, -3.0)
-
-        Uses a KD-tree for O(M log N) performance.
-
-        Args:
-            points_org: Original points array, shape (N, 3) with columns (x, y, type).
-            points_new: New points array, shape (M, 2) or (M, 3) with columns (x, y, [type]).
-                        If 3 columns, the type column will be overwritten.
-            epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
-
-        Returns:
-            Array of shape (M, 3) with (x, y, type) where type depends on match distance.
-
-        Example:
-            >>> org = np.array([[0, 0, 0.0], [1, 1, 2.0], [2, 2, 3.0]])
-            >>> new = np.array([[0.0, 0.0], [1.9, 1.9]])  # first exact, second not
-            >>> result = AvPointMatcher.transfer_point_types(org, new)
-            >>> result[:, 2]  # types: [0.0, -3.0]
-        """
-        if epsilon is None:
-            epsilon = AvPointMatcher.DEFAULT_EPSILON
-
-        # Handle empty arrays
-        if points_org.shape[0] == 0:
-            if points_new.shape[0] == 0:
-                return np.empty((0, 3), dtype=np.float64)
-            # No source points - default to non-exact on-curve type (-1.0)
-            result = np.full((points_new.shape[0], 3), -1.0, dtype=np.float64)
-            result[:, :2] = points_new[:, :2]
-            return result
-
-        if points_new.shape[0] == 0:
-            return np.empty((0, 3), dtype=np.float64)
-
-        # Extract 2D coordinates for matching
-        org_xy = points_org[:, :2]
-        new_xy = points_new[:, :2]
-
-        # Build KD-tree from original points
-        tree = cKDTree(org_xy)
-
-        # Query nearest neighbors for all new points (get distances too)
-        distances, indices = tree.query(new_xy, k=1)
-
-        # Build result array
-        result = np.zeros((points_new.shape[0], 3), dtype=np.float64)
-        result[:, :2] = new_xy
-
-        # Assign types based on distance
-        for j, org_idx in enumerate(indices):
-            distance = distances[j]
-            org_type = points_org[org_idx, 2]
-            result[j, 2] = AvPointMatcher._map_type_for_distance(org_type, distance, epsilon)
-
-        return result
-
-    @staticmethod
-    def _ordered_match_indices(
-        org_xy: NDArray[np.float64],
-        new_xy: NDArray[np.float64],
-        search_window: int,
-        epsilon: float,
-        is_closed: bool | None,
-    ) -> Tuple[NDArray[np.intp], NDArray[np.float64]]:
-        n_org = org_xy.shape[0]
-        n_new = new_xy.shape[0]
-
-        if n_org == 0 or n_new == 0:
-            return (
-                np.empty(n_new, dtype=np.intp),
-                np.empty(n_new, dtype=np.float64),
-            )
-
-        def _avg_spacing(closed: bool) -> float:
-            if n_org < 2:
-                return 0.0
-            diffs = org_xy[1:] - org_xy[:-1]
-            d = np.sqrt(np.sum(diffs * diffs, axis=1))
-            if closed:
-                wrap = org_xy[0] - org_xy[-1]
-                d = np.concatenate([d, [float(np.sqrt(np.sum(wrap * wrap)))]])
-            return float(np.mean(d)) if d.size else 0.0
-
-        def _run(closed: bool, step: int) -> Tuple[NDArray[np.intp], NDArray[np.float64], float]:
-            d0 = np.sqrt(np.sum((org_xy - new_xy[0]) ** 2, axis=1))
-
-            valid = np.ones(n_org, dtype=bool)
-            if not closed:
-                if step == 1:
-                    valid &= np.arange(n_org) + (n_new - 1) < n_org
-                else:
-                    valid &= np.arange(n_org) - (n_new - 1) >= 0
-                if not np.any(valid):
-                    valid[:] = True
-
-            d0_masked = np.where(valid, d0, np.inf)
-            i_prev = int(np.argmin(d0_masked))
-
-            indices = np.empty(n_new, dtype=np.intp)
-            distances = np.empty(n_new, dtype=np.float64)
-            indices[0] = i_prev
-            distances[0] = float(d0[i_prev])
-
-            spacing = _avg_spacing(closed)
-            realign_threshold = max(10.0 * epsilon, 1.5 * spacing) if spacing > 0 else 10.0 * epsilon
-
-            for j in range(1, n_new):
-                i_expected = i_prev + step
-
-                if closed:
-                    cand = (np.arange(i_expected - search_window, i_expected + search_window + 1) % n_org).astype(
-                        np.intp
-                    )
-                else:
-                    lo = max(0, i_expected - search_window)
-                    hi = min(n_org - 1, i_expected + search_window)
-                    cand = np.arange(lo, hi + 1, dtype=np.intp)
-
-                diffs = org_xy[cand] - new_xy[j]
-                dists = np.sqrt(np.sum(diffs * diffs, axis=1))
-                best_local = int(cand[int(np.argmin(dists))])
-                best_dist = float(np.min(dists))
-
-                if best_dist > realign_threshold:
-                    d_global = np.sqrt(np.sum((org_xy - new_xy[j]) ** 2, axis=1))
-                    best_local = int(np.argmin(d_global))
-                    best_dist = float(d_global[best_local])
-
-                indices[j] = best_local
-                distances[j] = best_dist
-                i_prev = best_local
-
-            return indices, distances, float(np.mean(distances))
-
-        closed_candidates = [is_closed] if is_closed is not None else [False, True]
-        best_indices: NDArray[np.intp] | None = None
-        best_distances: NDArray[np.float64] | None = None
-        best_score = float("inf")
-
-        for closed in closed_candidates:
-            for step in (1, -1):
-                indices, distances, score = _run(bool(closed), step)
-                if score < best_score:
-                    best_indices = indices
-                    best_distances = distances
-                    best_score = score
-
-        return best_indices, best_distances
-
-    @staticmethod
-    def transfer_point_types_ordered(
-        points_org: NDArray[np.float64],
-        points_new: NDArray[np.float64],
-        search_window: int = 10,
-        epsilon: float | None = None,
-        is_closed: bool | None = None,
-    ) -> NDArray[np.float64]:
-        """Transfer point types assuming roughly ordered/aligned point sequences.
-
-        Optimized O(M * W) algorithm for cases where points_new and points_org
-        are in similar order (possibly reversed). Uses a sliding window search
-        instead of a full KD-tree.
-
-        Types are assigned based on match distance:
-        - Exact match (distance <= epsilon): original type (0.0, 2.0, 3.0)
-        - Non-exact match: mapped type (-1.0, -2.0, -3.0)
-
-        Args:
-            points_org: Original points array, shape (N, 3) with columns (x, y, type).
-            points_new: New points array, shape (M, 2) or (M, 3).
-            search_window: Number of points to search around the expected position.
-                            Larger values handle more deviation but are slower.
-            epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
-            is_closed: Whether the path is closed (loop). If None, auto-detects.
-                        For closed paths, the search wraps around at the ends.
-                        For open paths, search is bounded within array indices.
-
-        Returns:
-            Array of shape (M, 3) with transferred types.
-        """
-        if epsilon is None:
-            epsilon = AvPointMatcher.DEFAULT_EPSILON
-
-        n_org = points_org.shape[0]
-        n_new = points_new.shape[0]
-
-        # Handle empty arrays
-        if n_org == 0:
-            if n_new == 0:
-                return np.empty((0, 3), dtype=np.float64)
-            result = np.full((n_new, 3), -1.0, dtype=np.float64)
-            result[:, :2] = points_new[:, :2]
-            return result
-
-        if n_new == 0:
-            return np.empty((0, 3), dtype=np.float64)
-
-        # Extract coordinates
-        org_xy = points_org[:, :2]
-        new_xy = points_new[:, :2]
-
-        # Determine alignment (including possible reversal) and windowed matches
-        # Uses initial anchoring + re-alignment when local matching becomes unreliable
-        indices, distances = AvPointMatcher._ordered_match_indices(org_xy, new_xy, search_window, epsilon, is_closed)
-
-        # Build result array
-        result = np.zeros((n_new, 3), dtype=np.float64)
-        result[:, :2] = new_xy
-
-        # Linear index mapping ratio
-        for j, org_idx in enumerate(indices):
-            org_type = points_org[org_idx, 2]
-            result[j, 2] = AvPointMatcher._map_type_for_distance(org_type, distances[j], epsilon)
-
-        return result
-
-    @staticmethod
-    def transfer_types_two_stage(
-        points_org: NDArray[np.float64],
-        points_new: NDArray[np.float64],
-        search_window: int = 8,
-        max_residual: float = 5e-3,
-        epsilon: float | None = None,
-        is_closed: bool | None = None,
-    ) -> NDArray[np.float64]:
-        """Transfer point types using a two-stage approach for optimal performance.
-
-        Stage 1: Use fast ordered matching for all points.
-        Stage 2: For points with poor matches (high residual distance), use KD-tree fallback.
-
-        This hybrid approach is ideal when most points follow the expected order but
-        some may be displaced or reordered due to path transformations.
-
-        Types are assigned based on match distance:
-        - Exact match (distance <= epsilon): original type (0.0, 2.0, 3.0)
-        - Non-exact match: mapped type (-1.0, -2.0, -3.0)
-
-        Args:
-            points_org: Original points array, shape (N, 3) with columns (x, y, type).
-            points_new: New points array, shape (M, 2) or (M, 3).
-            search_window: Window size for the fast ordered matching stage.
-                            Larger values handle more deviation but are slower.
-            max_residual: Maximum distance threshold to consider a match as "good".
-                        Points with residuals above this trigger KD-tree fallback.
-            epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
-
-        Returns:
-            Array of shape (M, 3) with transferred types.
-        """
-        if epsilon is None:
-            epsilon = AvPointMatcher.DEFAULT_EPSILON
-
-        n_org = points_org.shape[0]
-        n_new = points_new.shape[0]
-
-        # Handle empty arrays
-        if n_org == 0:
-            if n_new == 0:
-                return np.empty((0, 3), dtype=np.float64)
-            result = np.full((n_new, 3), -1.0, dtype=np.float64)
-            result[:, :2] = points_new[:, :2]
-            return result
-
-        if n_new == 0:
-            return np.empty((0, 3), dtype=np.float64)
-
-        # Stage 1: Fast ordered matching (with epsilon for exact/non-exact distinction)
-        result = AvPointMatcher.transfer_point_types_ordered(
-            points_org, points_new, search_window=search_window, epsilon=epsilon, is_closed=is_closed
-        )
-
-        # Stage 2: Identify and fix poor matches
-        # Compute the residuals (distances) for the ordered matches
-        org_xy = points_org[:, :2]
-        new_xy = points_new[:, :2]
-
-        # Reconstruct which original points were matched by the ordered algorithm
-        _, residuals = AvPointMatcher._ordered_match_indices(org_xy, new_xy, search_window, epsilon, is_closed)
-
-        # Find points that need fixing (poor matches)
-        to_fix = np.where(residuals > max_residual)[0]
-
-        # Stage 3: Fix outliers using KD-tree
-        if to_fix.size > 0:
-            # Get the problematic points
-            problem_points = points_new[to_fix]
-
-            # Use KD-tree matching for these points (with epsilon)
-            fixed = AvPointMatcher.transfer_point_types(points_org, problem_points, epsilon=epsilon)
-
-            # Update only the problematic rows in the result
-            result[to_fix] = fixed
-
-        return result
-
-    @staticmethod
-    def find_nearest_indices(
-        points_org: NDArray[np.float64],
-        points_new: NDArray[np.float64],
-    ) -> Tuple[NDArray[np.intp], NDArray[np.float64]]:
-        """Find the index of the nearest point in points_org for each point in points_new.
-
-        Args:
-            points_org: Original points array, shape (N, 2) or (N, 3).
-            points_new: New points array, shape (M, 2) or (M, 3).
-
-        Returns:
-            Tuple of (indices, distances):
-                - indices: Array of shape (M,) with index into points_org for each point_new
-                - distances: Array of shape (M,) with Euclidean distance to nearest point
-        """
-        if points_org.shape[0] == 0 or points_new.shape[0] == 0:
-            return (
-                np.empty(points_new.shape[0], dtype=np.intp),
-                np.empty(points_new.shape[0], dtype=np.float64),
-            )
-
-        org_xy = points_org[:, :2]
-        new_xy = points_new[:, :2]
-
-        tree = cKDTree(org_xy)
-        distances, indices = tree.query(new_xy, k=1)
-
-        return indices, distances
-
-    @staticmethod
-    def find_exact_matches(
-        points_org: NDArray[np.float64],
-        points_new: NDArray[np.float64],
-        tolerance: float = 1e-12,
-    ) -> List[Tuple[int, int]]:
-        """Find exact coordinate matches between two point sets.
-
-        Args:
-            points_org: Original points array, shape (N, 2) or (N, 3).
-            points_new: New points array, shape (M, 2) or (M, 3).
-            tolerance: Maximum distance to consider as exact match.
-
-        Returns:
-            List of (j, i) tuples where points_new[j] matches points_org[i] exactly.
-        """
-        if points_org.shape[0] == 0 or points_new.shape[0] == 0:
+    def split_into_segments(commands: List[AvGlyphCmds]) -> List[Tuple[List[AvGlyphCmds], int]]:
+        """Split commands into segments, returning list of (commands, point_count) tuples."""
+        if not commands:
             return []
 
-        indices, distances = AvPointMatcher.find_nearest_indices(points_org, points_new)
+        segments: List[Tuple[List[AvGlyphCmds], int]] = []
+        current_cmds: List[AvGlyphCmds] = []
+        current_point_count = 0
 
-        exact_matches = []
-        for j, (i, d) in enumerate(zip(indices, distances)):
-            if d <= tolerance:
-                exact_matches.append((j, int(i)))
+        for cmd in commands:
+            if cmd == "M":
+                if current_cmds:
+                    segments.append((current_cmds, current_point_count))
+                current_cmds = ["M"]
+                current_point_count = 1
+            elif cmd == "L":
+                current_cmds.append("L")
+                current_point_count += 1
+            elif cmd == "Q":
+                current_cmds.append("Q")
+                current_point_count += 2
+            elif cmd == "C":
+                current_cmds.append("C")
+                current_point_count += 3
+            elif cmd == "Z":
+                current_cmds.append("Z")
 
-        return exact_matches
+        if current_cmds:
+            segments.append((current_cmds, current_point_count))
+
+        return segments
 
 
 ###############################################################################
@@ -670,7 +288,7 @@ class AvPathCleaner:
             - Return result with MULTI_POLYLINE_CONSTRAINTS
 
         Key technical details:
-        - Uses orientation from closed path's get_is_ccw() to determine winding
+        - Uses orientation from closed path's is_ccw() to determine winding
         - Implements deferred processing for CW polygons before first CCW
         - Comprehensive error handling with fallback to original path
         - Removes duplicate closing points when converting coordinates
@@ -697,6 +315,9 @@ class AvPathCleaner:
             AvMultiPolylinePath: A new path with resolved intersections and proper winding,
                                 or the original path if errors occur
         """
+        # Runtime imports to avoid circular dependency
+        from ave.path import MULTI_POLYLINE_CONSTRAINTS, AvMultiPolylinePath, AvPath
+
         # Split path into individual segments
         segments = path.split_into_single_paths()
 
@@ -710,7 +331,7 @@ class AvPathCleaner:
                 closed_path = AvPath.make_closed_single(segment)
                 polygonized = closed_path.polygonized_path()
                 polygons.append(polygonized)
-                orientations.append(closed_path.get_is_ccw())  # Store orientation from closed path
+                orientations.append(closed_path.is_ccw)  # Store orientation from closed path
             except (TypeError, ValueError) as e:
                 print(f"Error processing segment: {e}. Skipping.")
                 continue
@@ -725,9 +346,8 @@ class AvPathCleaner:
         first_ccw_found = False
 
         try:
-            for i, polygon in enumerate(polygons):
+            for polygon, is_ccw in zip(polygons, orientations):
                 # Use stored orientation from closed path
-                is_ccw = orientations[i]
 
                 # Skip degenerate polygons
                 if polygon.points.shape[0] < 3:

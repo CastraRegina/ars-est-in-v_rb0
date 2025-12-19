@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 from ave.bezier import BezierCurve
 from ave.common import AvGlyphCmds
 from ave.geom import AvBox
+from ave.path_helper import AvPathUtils
 
 ###############################################################################
 # PathConstraints
@@ -94,21 +95,6 @@ MULTI_POLYGON_CONSTRAINTS = PathConstraints(
 
 
 ###############################################################################
-# Type Aliases for Path Types
-###############################################################################
-# These type aliases provide clear type hints for paths with specific constraints.
-# They are all AvPath at runtime but communicate intent in type annotations.
-# Use runtime properties (is_single_path, is_polylines_path, etc.) to verify.
-
-# Forward declaration - actual alias defined after AvPath class
-# AvSinglePath: Type alias for AvPath with SINGLE_PATH_CONSTRAINTS
-# AvClosedSinglePath: Type alias for AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS
-# AvMultiPolylinePath: Type alias for AvPath with MULTI_POLYLINE_CONSTRAINTS
-# AvSinglePolygonPath: Type alias for AvPath with SINGLE_POLYGON_CONSTRAINTS
-# AvMultiPolygonPath: Type alias for AvPath with MULTI_POLYGON_CONSTRAINTS
-
-
-###############################################################################
 # PathValidator
 ###############################################################################
 
@@ -144,7 +130,7 @@ class PathValidator:
                     raise ValueError(f"Path cannot contain curve commands (found '{cmd}' at position {i})")
 
         # Count segments and validate structure
-        segments = PathValidator._split_into_segments(commands, points)
+        segments = AvPathUtils.split_into_segments(commands)
 
         # Validate segment count
         if constraints.max_segments is not None:
@@ -165,42 +151,6 @@ class PathValidator:
                         f"Segment {seg_idx} has {seg_point_count} points "
                         f"but minimum is {constraints.min_points_per_segment}"
                     )
-
-    @staticmethod
-    def _split_into_segments(
-        commands: List[AvGlyphCmds],
-        points: NDArray[np.float64],
-    ) -> List[Tuple[List[AvGlyphCmds], int]]:
-        """Split commands into segments, returning list of (commands, point_count) tuples."""
-        if not commands:
-            return []
-
-        segments: List[Tuple[List[AvGlyphCmds], int]] = []
-        current_cmds: List[AvGlyphCmds] = []
-        current_point_count = 0
-
-        for cmd in commands:
-            if cmd == "M":
-                if current_cmds:
-                    segments.append((current_cmds, current_point_count))
-                current_cmds = ["M"]
-                current_point_count = 1
-            elif cmd == "L":
-                current_cmds.append("L")
-                current_point_count += 1
-            elif cmd == "Q":
-                current_cmds.append("Q")
-                current_point_count += 2
-            elif cmd == "C":
-                current_cmds.append("C")
-                current_point_count += 3
-            elif cmd == "Z":
-                current_cmds.append("Z")
-
-        if current_cmds:
-            segments.append((current_cmds, current_point_count))
-
-        return segments
 
 
 ###############################################################################
@@ -310,59 +260,46 @@ class AvPath:
     def _validate(self) -> None:
         """Validate path structure using PathValidator.
 
-        This method validates the path structure and point/command consistency.
-        For constraint-specific validation, use PathValidator.validate() directly.
+        This method validates basic path structure and point/command consistency,
+        then delegates constraint-specific validation to PathValidator.
         """
         cmds = self._commands
         points = self._points
 
-        # Basic structure validation
+        # Constraint-based validation (handles empty path check, curve allowance, segment limits)
+        PathValidator.validate(cmds, points, self._constraints)
+
+        # Nothing more to check for empty paths
         if not cmds:
-            if points.shape[0] != 0:
-                raise ValueError("Empty command list must have zero points")
             return
 
-        expected_points = 0
+        # Use PathValidator's segment parsing to validate structure and point count
+        segments = AvPathUtils.split_into_segments(cmds)
+
+        # Validate that segments start with M and Z properly terminates segments
         idx = 0
-        n_cmds = len(cmds)
+        for seg_idx, (seg_cmds, _) in enumerate(segments):
+            if not seg_cmds or seg_cmds[0] != "M":
+                raise ValueError(
+                    f"Each segment must start with 'M' command (segment {seg_idx} starts with '{seg_cmds[0] if seg_cmds else 'None'}')"
+                )
 
-        while idx < n_cmds:
-            cmd = cmds[idx]
-            if cmd != "M":
-                raise ValueError(f"Each segment must start with 'M' command (got '{cmd}' at index {idx})")
+            # Check Z termination within segment (except for last segment which may not end with Z)
+            for cmd_idx, cmd in enumerate(seg_cmds):
+                if cmd == "Z" and cmd_idx < len(seg_cmds) - 1:
+                    raise ValueError(
+                        f"'Z' must terminate a segment "
+                        f"(found 'Z' at position {idx + cmd_idx} followed by '{seg_cmds[cmd_idx + 1]}')"
+                    )
 
-            expected_points += 1
-            idx += 1
+            idx += len(seg_cmds)
 
-            while idx < n_cmds and cmds[idx] != "M":
-                cmd = cmds[idx]
-                if cmd == "L":
-                    expected_points += 1
-                    idx += 1
-                elif cmd == "Q":
-                    expected_points += 2
-                    idx += 1
-                elif cmd == "C":
-                    expected_points += 3
-                    idx += 1
-                elif cmd == "Z":
-                    idx += 1
-                    if idx < n_cmds and cmds[idx] != "M":
-                        raise ValueError(
-                            "'Z' must terminate a segment "
-                            f"(expected 'M' or end after 'Z', got '{cmds[idx]}' at index {idx})"
-                        )
-                    break
-                else:
-                    raise ValueError(f"Unknown command '{cmd}' at index {idx}")
-
-        if points.shape[0] != expected_points:
+        # Validate total point count matches segments
+        total_expected = sum(point_count for _, point_count in segments)
+        if points.shape[0] != total_expected:
             raise ValueError(
-                f"Number of points ({points.shape[0]}) does not match commands (requires {expected_points} points)"
+                f"Number of points ({points.shape[0]}) does not match commands (requires {total_expected} points)"
             )
-
-        # Constraint-based validation using PathValidator
-        PathValidator.validate(cmds, points, self._constraints)
 
     @property
     def points(self) -> NDArray[np.float64]:
@@ -386,29 +323,6 @@ class AvPath:
         return self._constraints
 
     @property
-    def constraint_type(self) -> str:
-        """
-        Return a string identifier for the constraint type.
-
-        This property allows type checking without isinstance() calls.
-        Returns one of: 'general', 'multi_polyline', 'single_path',
-        'closed_single_path', 'single_polygon', 'multi_polygon', or 'custom'.
-        """
-        if self._constraints == GENERAL_CONSTRAINTS:
-            return "general"
-        elif self._constraints == MULTI_POLYLINE_CONSTRAINTS:
-            return "multi_polyline"
-        elif self._constraints == SINGLE_PATH_CONSTRAINTS:
-            return "single_path"
-        elif self._constraints == CLOSED_SINGLE_PATH_CONSTRAINTS:
-            return "closed_single_path"
-        elif self._constraints == SINGLE_POLYGON_CONSTRAINTS:
-            return "single_polygon"
-        elif self._constraints == MULTI_POLYGON_CONSTRAINTS:
-            return "multi_polygon"
-        else:
-            return "custom"
-
     def is_polygon_like(self) -> bool:
         """
         Return True if this path has polygon-like constraints.
@@ -418,12 +332,14 @@ class AvPath:
         """
         return self._constraints.must_close and not self._constraints.allows_curves
 
+    @property
     def is_closed(self) -> bool:
         """
         Return True if this path has closure constraints (must_close=True).
         """
         return self._constraints.must_close
 
+    @property
     def is_single_segment(self) -> bool:
         """
         Return True if this path is constrained to a single segment.
@@ -455,7 +371,8 @@ class AvPath:
         """Return True if this path has MULTI_POLYGON_CONSTRAINTS."""
         return self._constraints == MULTI_POLYGON_CONSTRAINTS
 
-    def get_area(self) -> float:
+    @cached_property
+    def area(self) -> float:
         """
         Return the area of this path if it's polygon-like.
 
@@ -472,7 +389,7 @@ class AvPath:
             raise ValueError("Area calculation requires a closed path (must_close=True)")
 
         # For polygon-like paths, use direct calculation
-        if self.is_polygon_like():
+        if self.is_polygon_like:
             return self._calculate_polygon_area()
 
         # For closed paths with curves, polygonize first
@@ -494,7 +411,8 @@ class AvPath:
             return 0.0
         return float(0.5 * abs(cross_sum))
 
-    def get_centroid(self) -> Tuple[float, float]:
+    @cached_property
+    def centroid(self) -> Tuple[float, float]:
         """
         Return the centroid of this path if it's polygon-like.
 
@@ -510,7 +428,7 @@ class AvPath:
             raise ValueError("Centroid calculation requires a closed path (must_close=True)")
 
         # For polygon-like paths, use direct calculation
-        if self.is_polygon_like():
+        if self.is_polygon_like:
             return self._calculate_polygon_centroid()
 
         # For closed paths with curves, polygonize first
@@ -541,7 +459,8 @@ class AvPath:
         cy = float(((y + y_next) * cross).sum() * factor)
         return (cx, cy)
 
-    def get_is_ccw(self) -> bool:
+    @cached_property
+    def is_ccw(self) -> bool:
         """
         Return True if this path runs counter-clockwise.
 
@@ -557,7 +476,7 @@ class AvPath:
             raise ValueError("CCW check requires a closed path (must_close=True)")
 
         # For polygon-like paths, use direct calculation
-        if self.is_polygon_like():
+        if self.is_polygon_like:
             return self._calculate_is_ccw()
 
         # For closed paths with curves, polygonize first
@@ -605,18 +524,18 @@ class AvPath:
 
     def _reverse_single_segment(self, path: AvSinglePath) -> AvSinglePath:
         """Reverse a single-segment path."""
-        if not path._commands or path._points.size == 0:
-            return AvPath(path._points.copy(), list(path._commands), path._constraints)
+        if not path.commands or path._points.size == 0:
+            return AvSinglePath(path._points.copy(), list(path.commands), path._constraints)
 
         # Check if path is closed
-        is_closed = path._commands[-1] == "Z"
+        is_closed = path.commands[-1] == "Z"
 
         # Build segments by iterating forward once
         segments = []
         last_point = path._points[0].copy()  # Start with M point
         point_idx = 1  # Skip M's point
 
-        for cmd in path._commands[1:]:
+        for cmd in path.commands[1:]:
             if cmd == "Z":
                 break
 
@@ -678,10 +597,10 @@ class AvPath:
         # Convert to numpy array
         points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
 
-        return AvSinglePath(points_array, new_commands, path._constraints)
+        return AvSinglePath(points_array, new_commands, path.constraints)
 
     @classmethod
-    def make_closed_single(cls, path: AvSinglePath) -> AvClosedSinglePath:
+    def make_closed_single(cls, path: "AvSinglePath") -> "AvClosedSinglePath":
         """Create a closed AvPath from an existing AvSinglePath, ensuring it's properly closed.
 
         Args:
@@ -830,7 +749,7 @@ class AvPath:
 
         # Fallback to centroid if available
         if self._constraints.must_close:
-            candidate = self.get_centroid()
+            candidate = self.centroid
             if self.contains_point(candidate):
                 return candidate
 
@@ -1210,11 +1129,12 @@ class AvPath:
 
 
 ###############################################################################
-# Type Aliases
+# Type Aliases for Path Types
 ###############################################################################
-# These are type aliases that communicate the intended constraint type.
-# At runtime they are all AvPath, but they provide clear documentation
-# in type annotations. Use the is_* properties to verify at runtime.
+# These type aliases provide clear type hints for paths with specific constraints.
+# They are all AvPath at runtime but communicate intent in type annotations.
+# Use runtime properties (is_single_path, is_polylines_path, etc.) to verify.
+# Using string literals to avoid circular import issues.
 
 AvSinglePath = AvPath
 """Type alias for AvPath with SINGLE_PATH_CONSTRAINTS (single segment, may have curves)."""
@@ -1230,6 +1150,11 @@ AvSinglePolygonPath = AvPath
 
 AvMultiPolygonPath = AvPath
 """Type alias for AvPath with MULTI_POLYGON_CONSTRAINTS (multiple closed polygons, no curves)."""
+
+
+###############################################################################
+# Main
+###############################################################################
 
 
 def main():

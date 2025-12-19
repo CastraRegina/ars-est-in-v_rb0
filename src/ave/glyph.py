@@ -243,7 +243,7 @@ class AvGlyph:
             polygonized: AvSinglePolygonPath = closed_path.polygonized_path()
 
             # Edge case: skip degenerate contours with near-zero area
-            if abs(polygonized.get_area()) < 1e-10:
+            if abs(polygonized.area) < 1e-10:
                 processed_contours.append(contour)
                 polygonized_contours.append(None)
                 continue
@@ -262,13 +262,13 @@ class AvGlyph:
 
             # Get a test point inside the contour
             test_point: tuple[float, float] = polygonized.representative_point()
-            current_area = polygonized.get_area()
+            current_area = polygonized.area
 
             # Count how many other closed contours contain this point
             containment_depth = 0
             for j, other_polygonized in enumerate(polygonized_contours):
                 if j != i and other_polygonized is not None:
-                    if other_polygonized.get_area() > current_area and other_polygonized.contains_point(test_point):
+                    if other_polygonized.area > current_area and other_polygonized.contains_point(test_point):
                         containment_depth += 1
 
             # Even depth => additive, odd depth => subtractive
@@ -285,7 +285,7 @@ class AvGlyph:
                 continue
 
             # Get current winding direction
-            is_ccw = polygonized.get_is_ccw()
+            is_ccw = polygonized.is_ccw
 
             # Check if direction needs correction
             needs_reversal = False
