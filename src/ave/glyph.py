@@ -14,7 +14,13 @@ import ave.common
 from ave.common import AvGlyphCmds
 from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
-from ave.path import AvClosedPath, AvPath, AvPolygonPath, AvSinglePath
+from ave.path import (
+    CLOSED_SINGLE_PATH_CONSTRAINTS,
+    AvClosedSinglePath,
+    AvPath,
+    AvSinglePath,
+    AvSinglePolygonPath,
+)
 
 ###############################################################################
 # Glyph
@@ -215,7 +221,7 @@ class AvGlyph:
 
         # Prepare lists for processed contours and their polygonized versions
         processed_contours: List[AvSinglePath] = []
-        polygonized_contours: List[Optional[AvPolygonPath]] = []  # For containment testing
+        polygonized_contours: List[Optional[AvSinglePolygonPath]] = []  # For containment testing
 
         # Steps 2-3: Process each contour
         for contour in contours:
@@ -228,14 +234,16 @@ class AvGlyph:
                 polygonized_contours.append(None)
                 continue
 
-            # Create a closed path wrapper to access polygonization utilities
-            closed_path = AvClosedPath(contour.points.copy(), list(contour.commands), _internal=True)
+            # Create a closed path to access polygonization utilities
+            closed_path: AvClosedSinglePath = AvPath(
+                contour.points.copy(), list(contour.commands), CLOSED_SINGLE_PATH_CONSTRAINTS
+            )
 
             # Polygonize the contour for robust winding computation
-            polygonized: AvPolygonPath = closed_path.polygonized_path()
+            polygonized: AvSinglePolygonPath = closed_path.polygonized_path()
 
             # Edge case: skip degenerate contours with near-zero area
-            if abs(polygonized.area) < 1e-10:
+            if abs(polygonized.get_area()) < 1e-10:
                 processed_contours.append(contour)
                 polygonized_contours.append(None)
                 continue
@@ -254,13 +262,13 @@ class AvGlyph:
 
             # Get a test point inside the contour
             test_point: tuple[float, float] = polygonized.representative_point()
-            current_area = polygonized.area
+            current_area = polygonized.get_area()
 
             # Count how many other closed contours contain this point
             containment_depth = 0
             for j, other_polygonized in enumerate(polygonized_contours):
                 if j != i and other_polygonized is not None:
-                    if other_polygonized.area > current_area and other_polygonized.contains_point(test_point):
+                    if other_polygonized.get_area() > current_area and other_polygonized.contains_point(test_point):
                         containment_depth += 1
 
             # Even depth => additive, odd depth => subtractive
@@ -277,7 +285,7 @@ class AvGlyph:
                 continue
 
             # Get current winding direction
-            is_ccw = polygonized.is_ccw
+            is_ccw = polygonized.get_is_ccw()
 
             # Check if direction needs correction
             needs_reversal = False

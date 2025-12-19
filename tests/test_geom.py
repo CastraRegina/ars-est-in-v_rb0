@@ -10,7 +10,7 @@ import pytest
 
 from ave.bezier import BezierCurve
 from ave.geom import AvBox, GeomMath
-from ave.path import AvPath, AvSinglePath
+from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath, AvSinglePath
 
 ###############################################################################
 # GeomMath Tests
@@ -804,63 +804,63 @@ class TestAvPathSerialization:
 
 
 ###############################################################################
-# AvSinglePath Tests
+# AvPath Single Path Tests (with SINGLE_PATH_CONSTRAINTS)
 ###############################################################################
 
 
-class TestAvSinglePath:
-    """Tests for AvSinglePath behavior."""
+class TestAvPathSinglePath:
+    """Tests for AvPath with SINGLE_PATH_CONSTRAINTS behavior."""
 
-    def test_avsinglepath_empty(self):
-        """Empty AvSinglePath should behave like an empty AvPath."""
-        path = AvSinglePath()
+    def test_avpath_single_empty(self):
+        """Empty single-segment AvPath should behave like an empty AvPath."""
+        path = AvPath(constraints=SINGLE_PATH_CONSTRAINTS)
 
         assert path.points.shape == (0, 3)
         assert path.commands == []
 
-    def test_avsinglepath_single_segment_ok(self):
-        """Single-segment AvSinglePath with M and L commands is valid."""
+    def test_avpath_single_segment_ok(self):
+        """Single-segment AvPath with M and L commands is valid."""
         points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 5.0]], dtype=np.float64)
         commands = ["M", "L", "L"]
 
-        path = AvSinglePath(points_2d, commands)
+        path = AvPath(points_2d, commands, SINGLE_PATH_CONSTRAINTS)
 
         assert path.points.shape == (3, 3)
         assert path.commands == commands
 
-    def test_avsinglepath_multiple_segments_raises(self):
-        """AvSinglePath must not contain more than one segment."""
+    def test_avpath_single_multiple_segments_raises(self):
+        """Single-segment AvPath must not contain more than one segment."""
         points_2d = np.array([[0.0, 0.0], [10.0, 0.0], [20.0, 0.0], [30.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "M", "L"]
 
         with pytest.raises(ValueError):
-            AvSinglePath(points_2d, commands)
+            AvPath(points_2d, commands, SINGLE_PATH_CONSTRAINTS)
 
-    def test_avsinglepath_reversed_path_empty(self):
+    def test_avpath_reversed_path_empty(self):
         """Test reversed_path on empty path returns equivalent empty path."""
-        path = AvSinglePath()
+        path = AvPath(constraints=SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         assert len(reversed_path.points) == 0
         assert reversed_path.commands == []
 
-    def test_avsinglepath_reversed_path_move_only(self):
+    def test_avpath_reversed_path_move_only(self):
         """Test reversed_path on path with only M command."""
         points = np.array([[5.0, 10.0, 0.0]], dtype=np.float64)
         commands = ["M"]
 
-        path = AvSinglePath(points, commands)
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         np.testing.assert_array_equal(reversed_path.points, points)
         assert reversed_path.commands == commands
 
-    def test_avsinglepath_reversed_path_line_segment(self):
+    def test_avpath_reversed_path_line_segment(self):
         """Test reversed_path on simple line segment."""
         points = np.array([[0.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
         commands = ["M", "L"]
 
-        path = AvSinglePath(points, commands)
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         # Expected: start from end point, draw to start point
@@ -870,12 +870,12 @@ class TestAvSinglePath:
         np.testing.assert_array_equal(reversed_path.points, expected_points)
         assert reversed_path.commands == expected_commands
 
-    def test_avsinglepath_reversed_path_multiple_lines(self):
+    def test_avpath_reversed_path_multiple_lines(self):
         """Test reversed_path on multiple line segments."""
         points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "L"]
 
-        path = AvSinglePath(points, commands)
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         # Expected: start from last point, draw backwards
@@ -885,12 +885,12 @@ class TestAvSinglePath:
         np.testing.assert_array_equal(reversed_path.points, expected_points)
         assert reversed_path.commands == expected_commands
 
-    def test_avsinglepath_reversed_path_quadratic_bezier(self):
+    def test_avpath_reversed_path_quadratic_bezier(self):
         """Test reversed_path on quadratic bezier curve."""
         points = np.array([[0.0, 0.0, 0.0], [5.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
         commands = ["M", "Q"]
 
-        path = AvSinglePath(points, commands)
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         # Expected: start from end point, use same control point, end at start
@@ -900,12 +900,12 @@ class TestAvSinglePath:
         np.testing.assert_array_equal(reversed_path.points, expected_points)
         assert reversed_path.commands == expected_commands
 
-    def test_avsinglepath_reversed_path_cubic_bezier(self):
+    def test_avpath_reversed_path_cubic_bezier(self):
         """Test reversed_path on cubic bezier curve."""
         points = np.array([[0.0, 0.0, 0.0], [3.0, 10.0, 0.0], [7.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
         commands = ["M", "C"]
 
-        path = AvSinglePath(points, commands)
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         # Expected: start from end point, control points swapped, end at start
@@ -917,12 +917,12 @@ class TestAvSinglePath:
         np.testing.assert_array_equal(reversed_path.points, expected_points)
         assert reversed_path.commands == expected_commands
 
-    def test_avsinglepath_reversed_path_closed_triangle(self):
+    def test_avpath_reversed_path_closed_triangle(self):
         """Test reversed_path on closed triangle."""
         points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "L", "Z"]
 
-        path = AvSinglePath(points, commands)
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         # Expected: start from last point, draw backwards, close
@@ -932,7 +932,7 @@ class TestAvSinglePath:
         np.testing.assert_array_equal(reversed_path.points, expected_points)
         assert reversed_path.commands == expected_commands
 
-    def test_avsinglepath_reversed_path_mixed_commands(self):
+    def test_avpath_reversed_path_mixed_commands(self):
         """Test reversed_path on mixed commands (lines and curves)."""
         points = np.array(
             [
@@ -948,7 +948,7 @@ class TestAvSinglePath:
         )
         commands = ["M", "L", "Q", "C"]
 
-        path = AvSinglePath(points, commands)
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_path = path.reverse()
 
         # Expected: start from last point, process commands in reverse
@@ -969,12 +969,12 @@ class TestAvSinglePath:
         np.testing.assert_array_equal(reversed_path.points, expected_points)
         assert reversed_path.commands == expected_commands
 
-    def test_avsinglepath_reversed_path_twice_returns_original(self):
+    def test_avpath_reversed_path_twice_returns_original(self):
         """Test that reversing twice returns to the original path."""
         points = np.array([[0.0, 0.0, 0.0], [5.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
         commands = ["M", "Q"]
 
-        original_path = AvSinglePath(points, commands)
+        original_path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
         reversed_once = original_path.reverse()
         reversed_twice = reversed_once.reverse()
 

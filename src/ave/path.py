@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from functools import cached_property
 from typing import List, Optional, Sequence, Tuple, Union
@@ -86,20 +85,27 @@ SINGLE_POLYGON_CONSTRAINTS = PathConstraints(
     min_points_per_segment=3,
 )
 
-# Internal version without min_points restriction for handling degenerate cases
-_SINGLE_POLYGON_CONSTRAINTS_INTERNAL = PathConstraints(
-    allows_curves=False,
-    max_segments=1,
-    must_close=True,
-    min_points_per_segment=None,
-)
-
 MULTI_POLYGON_CONSTRAINTS = PathConstraints(
     allows_curves=False,
     max_segments=None,
     must_close=True,
     min_points_per_segment=3,
 )
+
+
+###############################################################################
+# Type Aliases for Path Types
+###############################################################################
+# These type aliases provide clear type hints for paths with specific constraints.
+# They are all AvPath at runtime but communicate intent in type annotations.
+# Use runtime properties (is_single_path, is_polylines_path, etc.) to verify.
+
+# Forward declaration - actual alias defined after AvPath class
+# AvSinglePath: Type alias for AvPath with SINGLE_PATH_CONSTRAINTS
+# AvClosedSinglePath: Type alias for AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS
+# AvMultiPolylinePath: Type alias for AvPath with MULTI_POLYLINE_CONSTRAINTS
+# AvSinglePolygonPath: Type alias for AvPath with SINGLE_POLYGON_CONSTRAINTS
+# AvMultiPolygonPath: Type alias for AvPath with MULTI_POLYGON_CONSTRAINTS
 
 
 ###############################################################################
@@ -221,7 +227,7 @@ class AvPath:
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _constraints: PathConstraints = GENERAL_CONSTRAINTS  # path constraints
     _bounding_box: Optional[AvBox] = None  # caching variable
-    _polygonized_path: Optional["AvPolylinesPath"] = None  # caching variable
+    _polygonized_path: Optional["AvPath"] = None  # caching variable
 
     # Number of steps to use when polygonizing curves for internal approximations
     POLYGONIZE_STEPS_INTERNAL: int = 50  # pylint: disable=invalid-name
@@ -424,6 +430,31 @@ class AvPath:
         """
         return self._constraints.max_segments == 1
 
+    @property
+    def is_single_path(self) -> bool:
+        """Return True if this path has SINGLE_PATH_CONSTRAINTS."""
+        return self._constraints == SINGLE_PATH_CONSTRAINTS
+
+    @property
+    def is_closed_path(self) -> bool:
+        """Return True if this path has CLOSED_SINGLE_PATH_CONSTRAINTS."""
+        return self._constraints == CLOSED_SINGLE_PATH_CONSTRAINTS
+
+    @property
+    def is_polylines_path(self) -> bool:
+        """Return True if this path has MULTI_POLYLINE_CONSTRAINTS."""
+        return self._constraints == MULTI_POLYLINE_CONSTRAINTS
+
+    @property
+    def is_polygon_path(self) -> bool:
+        """Return True if this path has SINGLE_POLYGON_CONSTRAINTS."""
+        return self._constraints == SINGLE_POLYGON_CONSTRAINTS
+
+    @property
+    def is_multi_polygon_path(self) -> bool:
+        """Return True if this path has MULTI_POLYGON_CONSTRAINTS."""
+        return self._constraints == MULTI_POLYGON_CONSTRAINTS
+
     def get_area(self) -> float:
         """
         Return the area of this path if it's polygon-like.
@@ -545,6 +576,266 @@ class AvPath:
         cross = x * y_next - x_next * y
         return bool(cross.sum() > 0.0)
 
+    def reverse(self) -> AvPath:
+        """Return a new AvPath with reversed drawing direction.
+
+        The same point coordinates are used, but their order (and the
+        corresponding commands) is reversed, so traversal runs from the
+        original last point back to the original first point.
+
+        For curve commands (Q, C), control points are reordered to preserve
+        the exact curve geometry when traversed in reverse.
+
+        For multi-segment paths, each segment is reversed individually.
+        """
+        # Early return for empty paths
+        if not self._commands or self._points.size == 0:
+            return AvPath(self._points.copy(), list(self._commands), self._constraints)
+
+        # Check if this is a multi-segment path
+        m_count = self._commands.count("M")
+        if m_count > 1:
+            # Multi-segment path: split, reverse each, join
+            single_paths = self.split_into_single_paths()
+            reversed_segments = [self._reverse_single_segment(seg) for seg in single_paths]
+            return AvPath.join_paths(reversed_segments)
+
+        # Single-segment path: reverse directly
+        return self._reverse_single_segment(self)
+
+    def _reverse_single_segment(self, path: "AvPath") -> "AvPath":
+        """Reverse a single-segment path."""
+        if not path._commands or path._points.size == 0:
+            return AvPath(path._points.copy(), list(path._commands), path._constraints)
+
+        # Check if path is closed
+        is_closed = path._commands[-1] == "Z"
+
+        # Build segments by iterating forward once
+        segments = []
+        last_point = path._points[0].copy()  # Start with M point
+        point_idx = 1  # Skip M's point
+
+        for cmd in path._commands[1:]:
+            if cmd == "Z":
+                break
+
+            start_point = last_point
+
+            if cmd == "L":
+                end_point = path._points[point_idx].copy()
+                segments.append(("L", [], start_point, end_point))
+                last_point = end_point
+                point_idx += 1
+
+            elif cmd == "Q":
+                control = path._points[point_idx].copy()
+                end_point = path._points[point_idx + 1].copy()
+                segments.append(("Q", [control], start_point, end_point))
+                last_point = end_point
+                point_idx += 2
+
+            elif cmd == "C":
+                control1 = path._points[point_idx].copy()
+                control2 = path._points[point_idx + 1].copy()
+                end_point = path._points[point_idx + 2].copy()
+                segments.append(("C", [control1, control2], start_point, end_point))
+                last_point = end_point
+                point_idx += 3
+
+        # Build reversed path
+        new_commands = ["M"]
+        new_points = []
+
+        if segments:
+            # Start from last segment's end point
+            new_points.append(segments[-1][3])  # Last end point
+
+            # Process segments in reverse
+            for cmd_type, controls, start_point, end_point in reversed(segments):
+                if cmd_type == "L":
+                    new_commands.append("L")
+                    new_points.append(start_point)  # Original start becomes new end
+
+                elif cmd_type == "Q":
+                    new_commands.append("Q")
+                    new_points.append(controls[0])  # Control point
+                    new_points.append(start_point)  # Original start becomes new end
+
+                elif cmd_type == "C":
+                    new_commands.append("C")
+                    new_points.append(controls[1])  # Swapped control points
+                    new_points.append(controls[0])
+                    new_points.append(start_point)  # Original start becomes new end
+        else:
+            # Only M command
+            new_points.append(path._points[0].copy())
+
+        # Add Z if original was closed
+        if is_closed:
+            new_commands.append("Z")
+
+        # Convert to numpy array
+        points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
+
+        return AvPath(points_array, new_commands, path._constraints)
+
+    @classmethod
+    def make_closed(cls, path: "AvPath") -> "AvPath":
+        """Create a closed AvPath from an existing path, ensuring it's properly closed.
+
+        Args:
+            path: An AvPath instance to convert to a closed path
+
+        Returns:
+            AvPath: A new closed path with proper Z command and no duplicate endpoints
+        """
+        # Handle empty path
+        if path.points.size == 0 or not path.commands:
+            return cls(constraints=CLOSED_SINGLE_PATH_CONSTRAINTS)
+
+        # Copy points and commands to avoid modifying original
+        points = path.points.copy()
+        commands = list(path.commands)
+
+        # Ensure path ends with Z command
+        if commands[-1] != "Z":
+            commands.append("Z")
+
+        # Check if first and last points are duplicates (or very close)
+        if len(points) > 0:
+            first_point = points[0]
+            last_point = points[-1]
+
+            # Calculate distance between first and last points
+            distance = np.linalg.norm(first_point[:2] - last_point[:2])
+
+            # If points are very close (within a small tolerance), remove the duplicate
+            tolerance = 1e-10
+            if distance < tolerance:
+                points = points[:-1]  # Remove last point
+                # Also remove one command to maintain point/command ratio
+                # Remove the command before Z (which should be the last command)
+                if len(commands) > 1 and commands[-1] == "Z":
+                    commands = commands[:-2] + ["Z"]
+                else:
+                    commands = commands[:-1]
+
+        return cls(points, commands, CLOSED_SINGLE_PATH_CONSTRAINTS)
+
+    def contains_point(self, point: Tuple[float, float]) -> bool:
+        """Return True if the point lies inside this path (ray casting).
+
+        This method is most meaningful for closed polygon-like paths.
+        For paths with curves, the path is first polygonized.
+        """
+        # For paths with curves, polygonize first
+        if any(cmd in ["Q", "C"] for cmd in self._commands):
+            return self.polygonized_path().contains_point(point)
+
+        pts = self._points
+        n = pts.shape[0]
+        if n == 0:
+            return False
+        x, y = point
+        inside = False
+        j = n - 1
+        for i in range(n):
+            xi, yi = pts[i][:2]
+            xj, yj = pts[j][:2]
+            intersects = (yi > y) != (yj > y)
+            if intersects:
+                slope = (xj - xi) / (yj - yi)
+                x_intersect = slope * (y - yi) + xi
+                if x < x_intersect:
+                    inside = not inside
+            j = i
+        return inside
+
+    def representative_point(self, samples: int = 9, epsilon: float = 1e-9) -> Tuple[float, float]:
+        """Return a point intended to lie inside the path.
+
+        The centroid of a concave polygon can lie outside the filled region.
+        This method finds interior points by intersecting several horizontal
+        scanlines with the polygon edges and returning the midpoint of an
+        interior interval.
+
+        For paths with curves, the path is first polygonized.
+
+        Args:
+            samples: Number of scanlines to try between ymin and ymax.
+            epsilon: Small relative offset applied to the scanline y value to
+                avoid pathological cases where the scanline hits vertices
+                exactly.
+
+        Returns:
+            Tuple[float, float]: A point inside the path when the contour is
+                a simple (non self-intersecting) ring. For degenerate cases a
+                best-effort fallback is returned.
+        """
+        # For paths with curves, polygonize first
+        if any(cmd in ["Q", "C"] for cmd in self._commands):
+            return self.polygonized_path().representative_point(samples, epsilon)
+
+        pts = self._points
+        if pts.shape[0] == 0:
+            return (0.0, 0.0)
+
+        if pts.shape[0] < 3:
+            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
+        y_min = float(pts[:, 1].min())
+        y_max = float(pts[:, 1].max())
+        height = y_max - y_min
+        if np.isclose(height, 0.0):
+            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
+        n = int(pts.shape[0])
+        n_samples = max(int(samples), 1)
+
+        y_tol = abs(epsilon) * height
+
+        for k in range(n_samples):
+            y = y_min + (k + 0.5) / n_samples * height + epsilon * height
+
+            xs: List[float] = []
+            j = n - 1
+            for i in range(n):
+                xi, yi = float(pts[i, 0]), float(pts[i, 1])
+                xj, yj = float(pts[j, 0]), float(pts[j, 1])
+
+                if (yi > y) != (yj > y):
+                    dy = yj - yi
+                    if abs(dy) >= y_tol:
+                        x_int = xi + (y - yi) * (xj - xi) / dy
+                        xs.append(float(x_int))
+
+                j = i
+
+            xs.sort()
+
+            if len(xs) % 2 != 0:
+                continue
+
+            best: Optional[Tuple[float, float]] = None
+            best_w = -1.0
+            for i in range(0, len(xs) - 1, 2):
+                w = xs[i + 1] - xs[i]
+                if w > best_w:
+                    best_w = w
+                    best = ((xs[i] + xs[i + 1]) * 0.5, y)
+
+            if best is not None and self.contains_point(best):
+                return (float(best[0]), float(best[1]))
+
+        # Fallback to centroid if available
+        if self._constraints.must_close:
+            candidate = self.get_centroid()
+            if self.contains_point(candidate):
+                return candidate
+
+        return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+
     def bounding_box(self) -> AvBox:
         """
         Returns bounding box (tightest box around Path)
@@ -635,13 +926,13 @@ class AvPath:
             "constraints": self._constraints.to_dict(),
         }
 
-    def polygonized_path(self) -> AvPolylinesPath:
+    def polygonized_path(self) -> AvPath:
         """Return the polygonized path."""
         if self._polygonized_path is None:
             self._polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
         return self._polygonized_path
 
-    def polygonize(self, steps: int) -> AvPolylinesPath:
+    def polygonize(self, steps: int) -> AvPath:
         """Return a polygonized copy of this path.
 
         Args:
@@ -649,14 +940,14 @@ class AvPath:
                 If 0, the original path is returned unchanged.
 
         Returns:
-            AvPolylinesPath: New path with curves replaced by line segments.
-                If this instance is already an AvPolylinesPath, it is returned
-                unchanged.
+            AvPath: New path with curves replaced by line segments.
+                If this instance already has no curves, it is returned unchanged.
         """
         if steps == 0:
             return self
 
-        if isinstance(self, AvPolylinesPath):
+        # Check if path already has no curves
+        if not any(cmd in ["Q", "C"] for cmd in self._commands):
             return self
 
         points = self._points
@@ -754,10 +1045,10 @@ class AvPath:
 
         # Trim the pre-allocated array to actual size
         new_points = new_points_array[:array_index]
-        return AvPolylinesPath(new_points, new_commands_list, _internal=True)
+        return AvPath(new_points, new_commands_list, MULTI_POLYLINE_CONSTRAINTS)
 
-    def split_into_single_paths(self) -> List[AvSinglePath]:
-        """Split an AvPath into AvSinglePath segments at each 'M' command."""
+    def split_into_single_paths(self) -> List[AvPath]:
+        """Split an AvPath into single-segment AvPath instances at each 'M' command."""
 
         # Empty path: nothing to split
         if not self.commands:
@@ -766,7 +1057,7 @@ class AvPath:
         pts = self.points
         cmds = self.commands
 
-        single_paths: List[AvSinglePath] = []
+        single_paths: List[AvPath] = []
 
         point_idx = 0
         cmd_idx = 0
@@ -829,12 +1120,12 @@ class AvPath:
                 else:
                     raise ValueError(f"Unknown command '{cmd}'")
 
-            # Create AvSinglePath for this segment
+            # Create AvPath for this segment with single-path constraints
             seg_points_array = (
                 np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
             )
 
-            single_paths.append(AvSinglePath(seg_points_array, seg_cmds, _internal=True))
+            single_paths.append(AvPath(seg_points_array, seg_cmds, SINGLE_PATH_CONSTRAINTS))
 
         return single_paths
 
@@ -917,553 +1208,28 @@ class AvPath:
 
         return base.append(flat_paths[1:])
 
-    def reverse(self) -> AvPath:
-        """Return a new AvPath with reversed drawing direction.
-
-        The sequence of segments is kept the same, but within each segment
-        the sequence of points and commands is reversed. Curve geometry is
-        preserved by delegating to AvSinglePath.reverse() for each segment.
-        """
-
-        # Split into single segments, reverse each as AvSinglePath, then join.
-        single_paths = self.split_into_single_paths()
-
-        # If the path is empty, return a new empty AvPath for consistency
-        # with join_paths() semantics.
-        if not single_paths:
-            return AvPath()
-
-        reversed_segments = [segment.reverse() for segment in single_paths]
-        return AvPath.join_paths(reversed_segments)
-
 
 ###############################################################################
-# AvPolylinesPath (Deprecated - use AvPath with MULTI_POLYLINE_CONSTRAINTS)
+# Type Aliases
 ###############################################################################
-class AvPolylinesPath(AvPath):
-    """
-    Path represented by points (shape (n, 3)) and corresponding commands.
-    A path contains 0..n segments; each segment starts with M, is followed by
-    an arbitrary number of L commands, and may optionally end with Z.
-    A path may also be empty (no points and no commands), representing 0 segments.
+# These are type aliases that communicate the intended constraint type.
+# At runtime they are all AvPath, but they provide clear documentation
+# in type annotations. Use the is_* properties to verify at runtime.
 
-    .. deprecated::
-        Use AvPath with MULTI_POLYLINE_CONSTRAINTS instead.
-    """
+AvSinglePath = AvPath
+"""Type alias for AvPath with SINGLE_PATH_CONSTRAINTS (single segment, may have curves)."""
 
-    def __init__(
-        self,
-        points: Optional[
-            Union[
-                Sequence[Tuple[float, float]],
-                Sequence[Tuple[float, float, float]],
-                NDArray[np.float64],
-            ]
-        ] = None,
-        commands: Optional[List[AvGlyphCmds]] = None,
-        constraints: Optional[PathConstraints] = None,
-        _internal: bool = False,
-    ):
-        """Initialize an AvPolylinesPath with MULTI_POLYLINE_CONSTRAINTS."""
-        if not _internal:
-            warnings.warn(
-                "AvPolylinesPath is deprecated. Use AvPath with MULTI_POLYLINE_CONSTRAINTS instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        super().__init__(
-            points,
-            commands,
-            constraints if constraints is not None else MULTI_POLYLINE_CONSTRAINTS,
-        )
+AvClosedSinglePath = AvPath
+"""Type alias for AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS (single closed segment, may have curves)."""
 
-    def _validate(self) -> None:
-        """Validate that this path contains only polyline (M/L/Z) commands."""
-        super()._validate()
+AvMultiPolylinePath = AvPath
+"""Type alias for AvPath with MULTI_POLYLINE_CONSTRAINTS (multiple segments, no curves)."""
 
-        for i, cmd in enumerate(self._commands):
-            if cmd not in ("M", "L", "Z"):
-                raise ValueError(f"AvPolylinesPath cannot contain curve commands (found '{cmd}' at position {i})")
+AvSinglePolygonPath = AvPath
+"""Type alias for AvPath with SINGLE_POLYGON_CONSTRAINTS (single closed polygon, no curves)."""
 
-
-###############################################################################
-# AvSinglePath (Deprecated - use AvPath with SINGLE_PATH_CONSTRAINTS)
-###############################################################################
-class AvSinglePath(AvPath):
-    """
-    Path with at most one segment, represented by points (shape (n, 3)) plus commands.
-    If non-empty, it starts with one M, continues with any mix of L/Q/C,
-    and may optionally end with Z.
-
-    .. deprecated::
-        Use AvPath with SINGLE_PATH_CONSTRAINTS instead.
-    """
-
-    def __init__(
-        self,
-        points: Optional[
-            Union[
-                Sequence[Tuple[float, float]],
-                Sequence[Tuple[float, float, float]],
-                NDArray[np.float64],
-            ]
-        ] = None,
-        commands: Optional[List[AvGlyphCmds]] = None,
-        constraints: Optional[PathConstraints] = None,
-        _internal: bool = False,
-    ):
-        """Initialize an AvSinglePath with SINGLE_PATH_CONSTRAINTS."""
-        if not _internal:
-            warnings.warn(
-                "AvSinglePath is deprecated. Use AvPath with SINGLE_PATH_CONSTRAINTS instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        super().__init__(
-            points,
-            commands,
-            constraints if constraints is not None else SINGLE_PATH_CONSTRAINTS,
-        )
-
-    def _validate(self) -> None:
-        """Validate that this path has at most one segment (0 or 1)."""
-        super()._validate()
-
-        if not self._commands:
-            return  # Empty path is valid
-
-        # Check for additional M commands (would indicate multiple segments)
-        for i, cmd in enumerate(self._commands[1:], 1):
-            if cmd == "M":
-                raise ValueError(f"AvSinglePath cannot contain multiple segments (found 'M' at position {i})")
-
-    def reverse(self) -> AvSinglePath:
-        """Return a new AvSinglePath with reversed drawing direction.
-
-        The same point coordinates are used, but their order (and the
-        corresponding commands) is reversed, so traversal runs from the
-        original last point back to the original first point.
-
-        For curve commands (Q, C), control points are reordered to preserve
-        the exact curve geometry when traversed in reverse.
-        """
-        # Early return for empty paths
-        if not self._commands or self._points.size == 0:
-            return AvSinglePath(self._points.copy(), list(self._commands), _internal=True)
-
-        # Check if path is closed
-        is_closed = self._commands[-1] == "Z"
-
-        # Build segments by iterating forward once
-        segments = []
-        last_point = self._points[0].copy()  # Start with M point
-        point_idx = 1  # Skip M's point
-
-        for cmd in self._commands[1:]:
-            if cmd == "Z":
-                break
-
-            start_point = last_point
-
-            if cmd == "L":
-                end_point = self._points[point_idx].copy()
-                segments.append(("L", [], start_point, end_point))
-                last_point = end_point
-                point_idx += 1
-
-            elif cmd == "Q":
-                control = self._points[point_idx].copy()
-                end_point = self._points[point_idx + 1].copy()
-                segments.append(("Q", [control], start_point, end_point))
-                last_point = end_point
-                point_idx += 2
-
-            elif cmd == "C":
-                control1 = self._points[point_idx].copy()
-                control2 = self._points[point_idx + 1].copy()
-                end_point = self._points[point_idx + 2].copy()
-                segments.append(("C", [control1, control2], start_point, end_point))
-                last_point = end_point
-                point_idx += 3
-
-        # Build reversed path
-        new_commands = ["M"]
-        new_points = []
-
-        if segments:
-            # Start from last segment's end point
-            new_points.append(segments[-1][3])  # Last end point
-
-            # Process segments in reverse
-            for cmd_type, controls, start_point, end_point in reversed(segments):
-                if cmd_type == "L":
-                    new_commands.append("L")
-                    new_points.append(start_point)  # Original start becomes new end
-
-                elif cmd_type == "Q":
-                    new_commands.append("Q")
-                    new_points.append(controls[0])  # Control point
-                    new_points.append(start_point)  # Original start becomes new end
-
-                elif cmd_type == "C":
-                    new_commands.append("C")
-                    new_points.append(controls[1])  # Swapped control points
-                    new_points.append(controls[0])
-                    new_points.append(start_point)  # Original start becomes new end
-        else:
-            # Only M command
-            new_points.append(self._points[0].copy())
-
-        # Add Z if original was closed
-        if is_closed:
-            new_commands.append("Z")
-
-        # Convert to numpy array
-        points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
-
-        return AvSinglePath(points_array, new_commands, _internal=True)
-
-
-###############################################################################
-# AvClosedPath (Deprecated - use AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS)
-###############################################################################
-class AvClosedPath(AvSinglePath):
-    """
-    Path with at most one closed segment, stored as points (shape (n, 3)) plus commands.
-    If non-empty, it begins with one M, continues with any mix of L/Q/C,
-    and always ends with Z.
-
-    .. deprecated::
-        Use AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS instead.
-    """
-
-    def __init__(
-        self,
-        points: Optional[
-            Union[
-                Sequence[Tuple[float, float]],
-                Sequence[Tuple[float, float, float]],
-                NDArray[np.float64],
-            ]
-        ] = None,
-        commands: Optional[List[AvGlyphCmds]] = None,
-        constraints: Optional[PathConstraints] = None,
-        _internal: bool = False,
-    ):
-        """Initialize an AvClosedPath with CLOSED_SINGLE_PATH_CONSTRAINTS."""
-        if not _internal:
-            warnings.warn(
-                "AvClosedPath is deprecated. Use AvPath with CLOSED_SINGLE_PATH_CONSTRAINTS instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        super().__init__(
-            points,
-            commands,
-            constraints if constraints is not None else CLOSED_SINGLE_PATH_CONSTRAINTS,
-            _internal=True,  # Suppress parent's deprecation warning
-        )
-
-    def _validate(self) -> None:
-        """Validate that this path has at most one closed segment (0 or 1)."""
-        super()._validate()
-
-        if not self._commands:
-            return  # Empty path is valid
-
-        if self._commands[-1] != "Z":
-            raise ValueError("AvClosedPath must end with 'Z' command")
-
-    def polygonized_path(self) -> AvPolygonPath:
-        """
-        Return a polygonized path as a proxy for the ClosedPath.
-        """
-        polygonized_path = super().polygonized_path()
-
-        # Ensure the polygonized path has valid point/command matching
-        # Use internal constraint for degenerate cases (fewer than 3 points)
-        return AvPolygonPath(
-            polygonized_path.points,
-            polygonized_path.commands,
-            constraints=_SINGLE_POLYGON_CONSTRAINTS_INTERNAL,
-            _internal=True,
-        )
-
-    @property
-    def area(self) -> float:
-        """
-        Return the area of the ClosedPath using a polygonized path as a proxy.
-        """
-        return self.polygonized_path().area
-
-    @property
-    def centroid(self) -> Tuple[float, float]:
-        """
-        Return the centroid of the ClosedPath using a polygonized path as proxy.
-
-        Returns:
-            Tuple[float, float]: The x and y coordinates of the centroid.
-        """
-        return self.polygonized_path().centroid
-
-    @classmethod
-    def from_single_path(cls, single_path: "AvSinglePath") -> "AvClosedPath":
-        """
-        Create an AvClosedPath from a single path, ensuring it's properly closed.
-
-        Args:
-            single_path: An AvSinglePath instance to convert to closed path
-
-        Returns:
-            AvClosedPath: A new closed path with proper Z command and no duplicate endpoints
-        """
-        if not isinstance(single_path, AvSinglePath):
-            raise TypeError("single_path must be an AvSinglePath instance")
-
-        # Handle empty path
-        if single_path.points.size == 0 or not single_path.commands:
-            return cls()
-
-        # Copy points and commands to avoid modifying original
-        points = single_path.points.copy()
-        commands = single_path.commands.copy()
-
-        # Ensure path ends with Z command
-        if commands[-1] != "Z":
-            commands.append("Z")
-
-        # Check if first and last points are duplicates (or very close)
-        if len(points) > 0:
-            first_point = points[0]
-            last_point = points[-1]
-
-            # Calculate distance between first and last points
-            distance = np.linalg.norm(first_point[:2] - last_point[:2])
-
-            # If points are very close (within a small tolerance), remove the duplicate
-            tolerance = 1e-10
-            if distance < tolerance:
-                points = points[:-1]  # Remove last point
-                # Also remove one command to maintain point/command ratio
-                # Remove the command before Z (which should be the last command)
-                if len(commands) > 1 and commands[-1] == "Z":
-                    commands = commands[:-2] + ["Z"]
-                else:
-                    commands = commands[:-1]
-
-        return cls(points, commands)
-
-    @property
-    def is_ccw(self) -> bool:
-        """
-        Return True if the ClosedPath is running counter-clockwise.
-        """
-        return self.polygonized_path().is_ccw
-
-
-###############################################################################
-# AvPolygonPath (Deprecated - use AvPath with SINGLE_POLYGON_CONSTRAINTS)
-###############################################################################
-class AvPolygonPath(AvClosedPath, AvPolylinesPath):
-    """
-    Polygonal closed path stored as points (shape (n, 3)) plus commands.
-    Begins with one M, follows any number of L commands, and always ends with Z.
-
-    .. deprecated::
-        Use AvPath with SINGLE_POLYGON_CONSTRAINTS instead.
-    """
-
-    def __init__(
-        self,
-        points: Optional[
-            Union[
-                Sequence[Tuple[float, float]],
-                Sequence[Tuple[float, float, float]],
-                NDArray[np.float64],
-            ]
-        ] = None,
-        commands: Optional[List[AvGlyphCmds]] = None,
-        constraints: Optional[PathConstraints] = None,
-        _internal: bool = False,
-    ):
-        """Initialize an AvPolygonPath with SINGLE_POLYGON_CONSTRAINTS."""
-        if not _internal:
-            warnings.warn(
-                "AvPolygonPath is deprecated. Use AvPath with SINGLE_POLYGON_CONSTRAINTS instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        # Use AvPath.__init__ directly to avoid MRO issues
-        AvPath.__init__(
-            self,
-            points,
-            commands,
-            constraints if constraints is not None else SINGLE_POLYGON_CONSTRAINTS,
-        )
-
-    def _validate(self) -> None:
-        AvClosedPath._validate(self)
-        AvPolylinesPath._validate(self)
-
-    @cached_property
-    def area(self) -> float:
-        """Return the area of the polygon using the shoelace formula."""
-        pts = self.points
-        if pts.shape[0] < 3:
-            return 0.0
-        x = pts[:, 0]
-        y = pts[:, 1]
-        x_next = np.roll(x, -1)
-        y_next = np.roll(y, -1)
-        cross = x * y_next - x_next * y
-        cross_sum = cross.sum()
-        if np.isclose(cross_sum, 0.0):
-            return 0.0
-        return float(0.5 * abs(cross_sum))
-
-    @cached_property
-    def centroid(self) -> Tuple[float, float]:
-        """
-        Return the centroid of the polygon.
-
-        For polygons with fewer than three points or near-zero area, the
-        centroid is calculated as the arithmetic mean of the vertices.
-
-        Returns:
-            A tuple of two floats representing the x and y coordinates of the
-            centroid.
-        """
-        pts = self.points
-        if pts.shape[0] == 0:
-            return (0.0, 0.0)
-        if pts.shape[0] < 3:
-            x_mean = float(pts[:, 0].mean())
-            y_mean = float(pts[:, 1].mean())
-            return (x_mean, y_mean)
-        x = pts[:, 0]
-        y = pts[:, 1]
-        x_next = np.roll(x, -1)
-        y_next = np.roll(y, -1)
-        cross = x * y_next - x_next * y
-        cross_sum = cross.sum()
-        if np.isclose(cross_sum, 0.0):
-            x_mean = float(x.mean())
-            y_mean = float(y.mean())
-            return (x_mean, y_mean)
-        factor = 1.0 / (3.0 * cross_sum)
-        cx = float(((x + x_next) * cross).sum() * factor)
-        cy = float(((y + y_next) * cross).sum() * factor)
-        return (cx, cy)
-
-    @cached_property
-    def is_ccw(self) -> bool:
-        """Return True if the polygon vertices are ordered counter-clockwise."""
-        pts = self.points
-        if pts.shape[0] < 3:
-            return False
-        x = pts[:, 0]
-        y = pts[:, 1]
-        x_next = np.roll(x, -1)
-        y_next = np.roll(y, -1)
-        cross = x * y_next - x_next * y
-        return bool(cross.sum() > 0.0)
-
-    def contains_point(self, point: Tuple[float, float]) -> bool:
-        """Return True if the point lies inside this polygon (ray casting)."""
-        pts = self.points
-        n = pts.shape[0]
-        if n == 0:
-            return False
-        x, y = point
-        inside = False
-        j = n - 1
-        for i in range(n):
-            xi, yi = pts[i][:2]
-            xj, yj = pts[j][:2]
-            intersects = (yi > y) != (yj > y)
-            if intersects:
-                slope = (xj - xi) / (yj - yi)
-                x_intersect = slope * (y - yi) + xi
-                if x < x_intersect:
-                    inside = not inside
-            j = i
-        return inside
-
-    def representative_point(self, samples: int = 9, epsilon: float = 1e-9) -> Tuple[float, float]:
-        """Return a point intended to lie inside the polygon.
-
-        The centroid of a concave polygon can lie outside the filled region.
-        This method finds interior points by intersecting several horizontal
-        scanlines with the polygon edges and returning the midpoint of an
-        interior interval.
-
-        Args:
-            samples: Number of scanlines to try between ymin and ymax.
-            epsilon: Small relative offset applied to the scanline y value to
-                avoid pathological cases where the scanline hits vertices
-                exactly.
-
-        Returns:
-            Tuple[float, float]: A point inside the polygon when the contour is
-                a simple (non self-intersecting) ring. For degenerate cases a
-                best-effort fallback is returned.
-        """
-        pts = self.points
-        if pts.shape[0] == 0:
-            return (0.0, 0.0)
-
-        if pts.shape[0] < 3:
-            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
-
-        y_min = float(pts[:, 1].min())
-        y_max = float(pts[:, 1].max())
-        height = y_max - y_min
-        if np.isclose(height, 0.0):
-            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
-
-        n = int(pts.shape[0])
-        n_samples = max(int(samples), 1)
-
-        y_tol = abs(epsilon) * height
-
-        for k in range(n_samples):
-            y = y_min + (k + 0.5) / n_samples * height + epsilon * height
-
-            xs: List[float] = []
-            j = n - 1
-            for i in range(n):
-                xi, yi = float(pts[i, 0]), float(pts[i, 1])
-                xj, yj = float(pts[j, 0]), float(pts[j, 1])
-
-                if (yi > y) != (yj > y):
-                    dy = yj - yi
-                    if abs(dy) >= y_tol:
-                        x_int = xi + (y - yi) * (xj - xi) / dy
-                        xs.append(float(x_int))
-
-                j = i
-
-            xs.sort()
-
-            if len(xs) % 2 != 0:
-                continue
-
-            best: Optional[Tuple[float, float]] = None
-            best_w = -1.0
-            for i in range(0, len(xs) - 1, 2):
-                w = xs[i + 1] - xs[i]
-                if w > best_w:
-                    best_w = w
-                    best = ((xs[i] + xs[i + 1]) * 0.5, y)
-
-            if best is not None and self.contains_point(best):
-                return (float(best[0]), float(best[1]))
-
-        candidate = self.centroid
-        if self.contains_point(candidate):
-            return candidate
-
-        return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
+AvMultiPolygonPath = AvPath
+"""Type alias for AvPath with MULTI_POLYGON_CONSTRAINTS (multiple closed polygons, no curves)."""
 
 
 def main():

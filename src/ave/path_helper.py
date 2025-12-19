@@ -9,7 +9,16 @@ from numpy.typing import NDArray
 from scipy.spatial import cKDTree
 
 from ave.common import deprecated
-from ave.path import AvClosedPath, AvPath, AvPolygonPath, AvPolylinesPath, AvSinglePath
+from ave.path import (
+    CLOSED_SINGLE_PATH_CONSTRAINTS,
+    MULTI_POLYLINE_CONSTRAINTS,
+    SINGLE_POLYGON_CONSTRAINTS,
+    AvClosedSinglePath,
+    AvMultiPolylinePath,
+    AvPath,
+    AvSinglePath,
+    AvSinglePolygonPath,
+)
 
 
 ###############################################################################
@@ -139,122 +148,92 @@ class AvPointMatcher:
         new_xy: NDArray[np.float64],
         search_window: int,
         epsilon: float,
-        is_closed: bool | None = None,
+        is_closed: bool | None,
     ) -> Tuple[NDArray[np.intp], NDArray[np.float64]]:
         n_org = org_xy.shape[0]
         n_new = new_xy.shape[0]
 
-        if n_new == 0:
+        if n_org == 0 or n_new == 0:
             return (
-                np.empty(0, dtype=np.intp),
-                np.empty(0, dtype=np.float64),
+                np.empty(n_new, dtype=np.intp),
+                np.empty(n_new, dtype=np.float64),
             )
 
-        chosen_idx = np.empty(n_new, dtype=np.intp)
-        chosen_dist = np.empty(n_new, dtype=np.float64)
+        def _avg_spacing(closed: bool) -> float:
+            if n_org < 2:
+                return 0.0
+            diffs = org_xy[1:] - org_xy[:-1]
+            d = np.sqrt(np.sum(diffs * diffs, axis=1))
+            if closed:
+                wrap = org_xy[0] - org_xy[-1]
+                d = np.concatenate([d, [float(np.sqrt(np.sum(wrap * wrap)))]])
+            return float(np.mean(d)) if d.size else 0.0
 
-        tree = cKDTree(org_xy)
-        offsets = np.arange(-search_window, search_window + 1, dtype=np.intp)
+        def _run(closed: bool, step: int) -> Tuple[NDArray[np.intp], NDArray[np.float64], float]:
+            d0 = np.sqrt(np.sum((org_xy - new_xy[0]) ** 2, axis=1))
 
-        if n_org > 1:
-            step_lengths = np.linalg.norm(org_xy - np.roll(org_xy, 1, axis=0), axis=1)
-            typical_step = float(np.median(step_lengths))
-        else:
-            typical_step = 0.0
-
-        if not np.isfinite(typical_step) or typical_step <= 0.0:
-            typical_step = 1.0
-
-        # Auto-detect if sequence is closed unless explicitly specified
-        if is_closed is None:
-            is_closed_like = False
-            if n_org >= 3:
-                first_last_dist = float(np.linalg.norm(org_xy[0] - org_xy[-1]))
-                is_closed_like = first_last_dist < 2.0 * typical_step
-        else:
-            is_closed_like = is_closed
-
-        if is_closed_like:
-            ratio = (n_org / n_new) if n_new > 0 else 0.0
-        else:
-            ratio = (n_org - 1) / (n_new - 1) if n_new > 1 else 0.0
-
-        # For open sequences, anchor at start (index 0) instead of using KD-tree
-        if is_closed_like:
-            i0 = int(tree.query(new_xy[0], k=1)[1])
-        else:
-            i0 = 0
-
-        if n_new <= 1:
-            chosen_idx[0] = i0
-            chosen_dist[0] = float(tree.query(new_xy[0], k=1)[0])
-            return chosen_idx, chosen_dist
-
-        sample_count = min(5, n_new)
-        sample_js = np.unique(np.linspace(0, n_new - 1, num=sample_count, dtype=int))
-
-        def _sample_cost(sign: float) -> float:
-            anchor = float(i0)
-            cost = 0.0
-            for j in sample_js:
-                expected_i = int(round(anchor + sign * j * ratio))
-                if is_closed_like:
-                    cand = (expected_i + offsets) % n_org
+            valid = np.ones(n_org, dtype=bool)
+            if not closed:
+                if step == 1:
+                    valid &= np.arange(n_org) + (n_new - 1) < n_org
                 else:
-                    cand = expected_i + offsets
-                    cand = cand[(cand >= 0) & (cand < n_org)]
-                    if cand.size == 0:
-                        cand = np.array([int(np.clip(expected_i, 0, n_org - 1))], dtype=np.intp)
-                d2 = np.sum((org_xy[cand] - new_xy[j]) ** 2, axis=1)
-                cost += float(np.min(d2))
-            return cost
+                    valid &= np.arange(n_org) - (n_new - 1) >= 0
+                if not np.any(valid):
+                    valid[:] = True
 
-        is_reversed = _sample_cost(-1.0) < _sample_cost(1.0)
-        sign = -1.0 if is_reversed else 1.0
+            d0_masked = np.where(valid, d0, np.inf)
+            i_prev = int(np.argmin(d0_masked))
 
-        anchor = float(i0)
-        hard_threshold = max(10.0 * epsilon, 3.0 * typical_step)
+            indices = np.empty(n_new, dtype=np.intp)
+            distances = np.empty(n_new, dtype=np.float64)
+            indices[0] = i_prev
+            distances[0] = float(d0[i_prev])
 
-        for j in range(n_new):
-            expected_i = int(round(anchor + sign * j * ratio))
-            if is_closed_like:
-                cand = (expected_i + offsets) % n_org
-                cand_offsets = offsets
-            else:
-                cand = expected_i + offsets
-                mask = (cand >= 0) & (cand < n_org)
-                cand = cand[mask]
-                cand_offsets = offsets[mask]
-                if cand.size == 0:
-                    cand = np.array([int(np.clip(expected_i, 0, n_org - 1))], dtype=np.intp)
-                    cand_offsets = np.array([0], dtype=np.intp)
+            spacing = _avg_spacing(closed)
+            realign_threshold = max(10.0 * epsilon, 1.5 * spacing) if spacing > 0 else 10.0 * epsilon
 
-            d2 = np.sum((org_xy[cand] - new_xy[j]) ** 2, axis=1)
-            best_local = int(np.argmin(d2))
-            best_i = int(cand[best_local])
-            best_dist = float(np.sqrt(d2[best_local]))
-            best_offset = int(cand_offsets[best_local])
+            for j in range(1, n_new):
+                i_expected = i_prev + step
 
-            if (abs(best_offset) == search_window and best_dist > typical_step) or best_dist > hard_threshold:
-                i_global = int(tree.query(new_xy[j], k=1)[1])
-                anchor = float(i_global) - sign * j * ratio
-                expected_i = int(round(anchor + sign * j * ratio))
-                if is_closed_like:
-                    cand = (expected_i + offsets) % n_org
+                if closed:
+                    cand = (np.arange(i_expected - search_window, i_expected + search_window + 1) % n_org).astype(
+                        np.intp
+                    )
                 else:
-                    cand = expected_i + offsets
-                    cand = cand[(cand >= 0) & (cand < n_org)]
-                    if cand.size == 0:
-                        cand = np.array([int(np.clip(expected_i, 0, n_org - 1))], dtype=np.intp)
-                d2 = np.sum((org_xy[cand] - new_xy[j]) ** 2, axis=1)
-                best_local = int(np.argmin(d2))
-                best_i = int(cand[best_local])
-                best_dist = float(np.sqrt(d2[best_local]))
+                    lo = max(0, i_expected - search_window)
+                    hi = min(n_org - 1, i_expected + search_window)
+                    cand = np.arange(lo, hi + 1, dtype=np.intp)
 
-            chosen_idx[j] = best_i
-            chosen_dist[j] = best_dist
+                diffs = org_xy[cand] - new_xy[j]
+                dists = np.sqrt(np.sum(diffs * diffs, axis=1))
+                best_local = int(cand[int(np.argmin(dists))])
+                best_dist = float(np.min(dists))
 
-        return chosen_idx, chosen_dist
+                if best_dist > realign_threshold:
+                    d_global = np.sqrt(np.sum((org_xy - new_xy[j]) ** 2, axis=1))
+                    best_local = int(np.argmin(d_global))
+                    best_dist = float(d_global[best_local])
+
+                indices[j] = best_local
+                distances[j] = best_dist
+                i_prev = best_local
+
+            return indices, distances, float(np.mean(distances))
+
+        closed_candidates = [is_closed] if is_closed is not None else [False, True]
+        best_indices: NDArray[np.intp] | None = None
+        best_distances: NDArray[np.float64] | None = None
+        best_score = float("inf")
+
+        for closed in closed_candidates:
+            for step in (1, -1):
+                indices, distances, score = _run(bool(closed), step)
+                if score < best_score:
+                    best_indices = indices
+                    best_distances = distances
+                    best_score = score
+
+        return best_indices, best_distances
 
     @staticmethod
     def transfer_point_types_ordered(
@@ -348,6 +327,7 @@ class AvPointMatcher:
             points_org: Original points array, shape (N, 3) with columns (x, y, type).
             points_new: New points array, shape (M, 2) or (M, 3).
             search_window: Window size for the fast ordered matching stage.
+                            Larger values handle more deviation but are slower.
             max_residual: Maximum distance threshold to consider a match as "good".
                         Points with residuals above this trigger KD-tree fallback.
             epsilon: Distance threshold for exact match. Defaults to DEFAULT_EPSILON.
@@ -468,7 +448,7 @@ class AvPathCleaner:
 
     # @staticmethod
     # @deprecated("Use resolve_polygonized_path_intersections instead.")
-    # def resolve_path_intersections(path: AvPath) -> AvPath:
+    # def resolve_path_intersections(path: AvPath) -> AvMultiPolylinePath:
     #     """Resolve self-intersections in an AvPath using sequential Shapely boolean operations.
 
     #     Algorithm Strategy:
@@ -507,7 +487,7 @@ class AvPathCleaner:
     #     contours: List[AvSinglePath] = path.split_into_single_paths()
 
     #     # Step 2: Ensure all contours are properly closed by adding 'Z' command if missing
-    #     closed_contours: List[AvClosedPath] = []
+    #     closed_contours: List[AvClosedSinglePath] = []
     #     for contour in contours:
     #         # Skip empty contours
     #         if not contour.commands:
@@ -516,11 +496,11 @@ class AvPathCleaner:
     #         # Check if contour is closed, considering both explicit 'Z' and implicit closure
     #         if contour.commands[-1] == "Z":
     #             # Already closed, use as is
-    #             closed_path = AvClosedPath(contour.points.copy(), list(contour.commands))
+    #             closed_path = AvPath(contour.points.copy(), list(contour.commands), CLOSED_SINGLE_PATH_CONSTRAINTS)
     #         else:
     #             # Add 'Z' to close the contour
     #             new_commands = list(contour.commands) + ["Z"]
-    #             closed_path = AvClosedPath(contour.points.copy(), new_commands)
+    #             closed_path = AvPath(contour.points.copy(), new_commands, CLOSED_SINGLE_PATH_CONSTRAINTS)
 
     #         closed_contours.append(closed_path)
 
@@ -533,7 +513,7 @@ class AvPathCleaner:
 
     #     for closed_path in closed_contours:
     #         # Step 3: Convert each closed contour to a polygonized path format
-    #         polygonized: AvPolygonPath = closed_path.polygonized_path()
+    #         polygonized: AvSinglePolygonPath = closed_path.polygonized_path()
 
     #         # Skip degenerate polygons
     #         if polygonized.points.shape[0] < 3:
@@ -602,7 +582,7 @@ class AvPathCleaner:
     #         return path  # Return original path on error
 
     #     # Step 6: Convert final Shapely geometry back to AvPath format
-    #     cleaned_paths: List[AvPath] = []
+    #     cleaned_paths: List[AvSinglePolygonPath] = []
 
     #     if isinstance(result, shapely.geometry.Polygon) and not result.is_empty:
     #         # Convert exterior
@@ -651,7 +631,7 @@ class AvPathCleaner:
     #         return AvPath()
 
     @staticmethod
-    def resolve_polygonized_path_intersections(path: AvPolylinesPath) -> AvPolylinesPath:
+    def resolve_polygonized_path_intersections(path: AvPath) -> AvMultiPolylinePath:
         """Resolve self-intersections in a polygonized path with winding direction rules.
 
         The input path consists of 0..n closed segments. Each segment must end with 'Z',
@@ -683,20 +663,20 @@ class AvPathCleaner:
             - Polygon: processed directly
             - MultiPolygon: each sub-polygon processed with same orientation
             - GeometryCollection: Polygon types extracted and processed
-        7. Convert final Shapely geometry back to AvPolylinesPath format:
+        7. Convert final Shapely geometry back to AvPath format:
             - Extract exterior rings as closed paths with 'Z' command
             - Extract interior rings (holes) as separate paths
             - Join all paths using AvPath.join_paths
-            - Convert result to AvPolylinesPath explicitly
+            - Return result with MULTI_POLYLINE_CONSTRAINTS
 
         Key technical details:
-        - Uses orientation from AvClosedPath.is_ccw to determine winding
+        - Uses orientation from closed path's get_is_ccw() to determine winding
         - Implements deferred processing for CW polygons before first CCW
         - Comprehensive error handling with fallback to original path
         - Removes duplicate closing points when converting coordinates
 
         The function handles the following cases:
-        - Empty input paths: returns empty AvPolylinesPath
+        - Empty input paths: returns empty AvPath
         - Degenerate polygons (< 3 points): skips with warning
         - Invalid geometries after buffer(0): skips with warning
         - Different geometry types from buffer(0):
@@ -711,32 +691,32 @@ class AvPathCleaner:
         - Errors during path joining: returns original path with warning
 
         Args:
-            path: An AvPolylinesPath containing the segments to process
+            path: An AvPath containing the segments to process
 
         Returns:
-            AvPolylinesPath: A new path with resolved intersections and proper winding,
+            AvPath: A new path with resolved intersections and proper winding,
                             or the original path if errors occur
         """
         # Split path into individual segments
         segments = path.split_into_single_paths()
 
         # Process each segment to ensure it's closed
-        polygons: List[AvPolygonPath] = []
+        polygons: List[AvSinglePolygonPath] = []
         orientations: List[bool] = []  # Store CCW orientation from closed paths
 
         for segment in segments:
-            # Create AvClosedPath first, then get polygonized path
+            # Create closed path, then get polygonized path
             try:
-                closed_path = AvClosedPath.from_single_path(segment)
+                closed_path = AvPath.make_closed(segment)
                 polygonized = closed_path.polygonized_path()
                 polygons.append(polygonized)
-                orientations.append(closed_path.is_ccw)  # Store orientation from closed path
+                orientations.append(closed_path.get_is_ccw())  # Store orientation from closed path
             except (TypeError, ValueError) as e:
                 print(f"Error processing segment: {e}. Skipping.")
                 continue
 
         if not polygons:
-            return AvPolylinesPath(_internal=True)
+            return AvPath(constraints=MULTI_POLYLINE_CONSTRAINTS)
 
         # Sequentially combine polygons using the first CCW polygon as base
         # Store early CW polygons to defer them until we find the first CCW
@@ -843,7 +823,7 @@ class AvPathCleaner:
             # If no CCW polygon was found, return empty path
             if result is None or not first_ccw_found:
                 print("Warning: No CCW polygon found. Returning empty path.")
-                return AvPolylinesPath(_internal=True)
+                return AvPath(constraints=MULTI_POLYLINE_CONSTRAINTS)
 
             if result.is_empty:
                 print("Warning: Result is empty after operations. Returning original path.")
@@ -853,8 +833,8 @@ class AvPathCleaner:
             print(f"Error during polygon processing: {e}. Returning original path.")
             return path  # Return original path on error
 
-        # Convert final Shapely geometry back to AvPolylinesPath
-        cleaned_paths: List[AvPath] = []
+        # Convert final Shapely geometry back to AvPath
+        cleaned_paths: List[AvSinglePolygonPath] = []
 
         try:
             if isinstance(result, shapely.geometry.Polygon) and not result.is_empty:
@@ -899,12 +879,12 @@ class AvPathCleaner:
             print(f"Error during geometry conversion: {e}. Returning original path.")
             return path
 
-        # Join all paths and return as AvPolylinesPath
+        # Join all paths and return as AvPath with MULTI_POLYLINE_CONSTRAINTS
         if cleaned_paths:
             try:
                 joined = AvPath.join_paths(*cleaned_paths)
-                # Convert to AvPolylinesPath explicitly
-                return AvPolylinesPath(joined.points, joined.commands, _internal=True)
+                # Return with MULTI_POLYLINE_CONSTRAINTS
+                return AvPath(joined.points, joined.commands, MULTI_POLYLINE_CONSTRAINTS)
             except (TypeError, ValueError) as e:
                 print(f"Error during path joining: {e}. Returning original path.")
                 return path

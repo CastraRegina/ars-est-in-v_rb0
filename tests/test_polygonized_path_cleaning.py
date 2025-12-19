@@ -3,15 +3,23 @@
 import numpy as np
 import pytest
 
-from ave.path import AvClosedPath, AvPath, AvPolylinesPath, AvSinglePath
+from ave.path import (
+    CLOSED_SINGLE_PATH_CONSTRAINTS,
+    MULTI_POLYLINE_CONSTRAINTS,
+    SINGLE_PATH_CONSTRAINTS,
+    AvClosedSinglePath,
+    AvMultiPolylinePath,
+    AvPath,
+    AvSinglePath,
+)
 from ave.path_helper import AvPathCleaner
 
 
 class TestPolygonizedPathCleaning:
     """Test polygonized path cleaning functionality."""
 
-    def test_avclosed_path_from_single_path_with_duplicate_endpoint(self):
-        """Test that AvClosedPath.from_single_path() correctly handles duplicate endpoints.
+    def test_make_closed_with_duplicate_endpoint(self):
+        """Test that AvPath.make_closed() correctly handles duplicate endpoints.
 
         This test verifies the fix for the bug where duplicate endpoints were removed
         but the command count wasn't adjusted, causing point/command mismatches.
@@ -25,11 +33,11 @@ class TestPolygonizedPathCleaning:
         # Commands for a closed path with duplicate point
         commands = ["M", "L", "L", "L", "L", "Z"]
 
-        # Create original path as AvSinglePath
-        original_path = AvSinglePath(points, commands)
+        # Create original path
+        original_path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
 
         # Convert to closed path
-        closed_path = AvClosedPath.from_single_path(original_path)
+        closed_path = AvPath.make_closed(original_path)
 
         # Verify that the duplicate point was removed
         assert closed_path.points.shape[0] == 4  # Should have 4 points (not 5)
@@ -46,19 +54,19 @@ class TestPolygonizedPathCleaning:
         # Should not raise ValueError during creation
         AvPath(closed_path.points, closed_path.commands)
 
-    def test_avclosed_path_from_single_path_without_duplicate_endpoint(self):
-        """Test that AvClosedPath.from_single_path() works correctly when no duplicate endpoint exists."""
+    def test_make_closed_without_duplicate_endpoint(self):
+        """Test that AvPath.make_closed() works correctly when no duplicate endpoint exists."""
         # Create a path without duplicate endpoint
         points = np.array([[0, 0, 0], [100, 0, 0], [100, 100, 0], [0, 100, 0]], dtype=np.float64)
 
         # Commands without duplicate point
         commands = ["M", "L", "L", "L"]
 
-        # Create original path as AvSinglePath
-        original_path = AvSinglePath(points, commands)
+        # Create original path
+        original_path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
 
         # Convert to closed path
-        closed_path = AvClosedPath.from_single_path(original_path)
+        closed_path = AvPath.make_closed(original_path)
 
         # Verify that Z was added
         assert len(closed_path.commands) == 5
@@ -87,13 +95,13 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         # Should preserve the '+' shape
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_k_glyph_shape(self):
         """Test that 'K' glyph shape is preserved with all legs."""
@@ -117,13 +125,13 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "L", "M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         # Should preserve all parts of the 'K'
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_simple_square(self):
         """Test cleaning a simple square."""
@@ -137,12 +145,12 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_overlapping_squares(self):
         """Test cleaning overlapping squares."""
@@ -160,12 +168,12 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_donut_shape_with_hole(self):
         """Test cleaning a donut shape (square with hole)."""
@@ -183,12 +191,12 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
         # Should have two contours (outer and inner)
         assert result.commands.count("Z") == 2
 
@@ -208,12 +216,12 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
         # Should still have two contours
         assert result.commands.count("Z") == 2
 
@@ -229,12 +237,12 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         # Self-intersecting polygons should return empty path (matching resolve_path_intersections)
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
         assert len(result.points) == 0
         assert len(result.commands) == 0
 
@@ -249,23 +257,23 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         # Should handle degenerate cases gracefully
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_empty_path(self):
         """Test cleaning an empty path."""
         points = np.array([], dtype=np.float64).reshape(0, 3)
         commands = []
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         # Empty path should return empty path
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
         assert len(result.points) == 0
         assert len(result.commands) == 0
 
@@ -280,12 +288,12 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L"]  # No closing 'Z'
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         # Open paths should be handled gracefully
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_multiple_contours(self):
         """Test cleaning multiple separate contours."""
@@ -306,12 +314,12 @@ class TestPolygonizedPathCleaning:
             dtype=np.float64,
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
-        path = AvPolylinesPath(points, commands)
+        path = AvPath(points, commands)
 
         result = AvPathCleaner.resolve_polygonized_path_intersections(path)
 
         # Should handle multiple contours
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
         assert len(result.points) > 0
         # Should still have closed contours
         assert "Z" in result.commands
@@ -372,14 +380,14 @@ class TestPolygonizedPathCleaningFromData:
             "L",
             "Z",
         ]
-        original_path = AvPolylinesPath(original_points, original_commands)
+        original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
         result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_character_004b(self):
         """Test cleaning for character 'K'."""
@@ -417,14 +425,14 @@ class TestPolygonizedPathCleaningFromData:
             "L",
             "Z",
         ]
-        original_path = AvPolylinesPath(original_points, original_commands)
+        original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
         result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_character_0058(self):
         """Test cleaning for character 'X'."""
@@ -470,14 +478,14 @@ class TestPolygonizedPathCleaningFromData:
             "L",
             "Z",
         ]
-        original_path = AvPolylinesPath(original_points, original_commands)
+        original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
         result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_character_0034(self):
         """Test cleaning for character '4'."""
@@ -520,14 +528,14 @@ class TestPolygonizedPathCleaningFromData:
             "L",
             "Z",
         ]
-        original_path = AvPolylinesPath(original_points, original_commands)
+        original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
         result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_character_0023(self):
         """Test cleaning for character '#'."""
@@ -575,14 +583,14 @@ class TestPolygonizedPathCleaningFromData:
             "L",
             "Z",
         ]
-        original_path = AvPolylinesPath(original_points, original_commands)
+        original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
         result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
     def test_character_0022(self):
         """Test cleaning for character '\"'."""
@@ -620,14 +628,14 @@ class TestPolygonizedPathCleaningFromData:
             "L",
             "Z",
         ]
-        original_path = AvPolylinesPath(original_points, original_commands)
+        original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
         result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
-        assert isinstance(result, AvPolylinesPath)
+        assert isinstance(result, AvPath)
 
 
 if __name__ == "__main__":
