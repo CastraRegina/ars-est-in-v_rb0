@@ -227,7 +227,7 @@ class AvPath:
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _constraints: PathConstraints = GENERAL_CONSTRAINTS  # path constraints
     _bounding_box: Optional[AvBox] = None  # caching variable
-    _polygonized_path: Optional["AvPath"] = None  # caching variable
+    _polygonized_path: Optional[AvMultiPolylinePath] = None  # caching variable
 
     # Number of steps to use when polygonizing curves for internal approximations
     POLYGONIZE_STEPS_INTERNAL: int = 50  # pylint: disable=invalid-name
@@ -603,7 +603,7 @@ class AvPath:
         # Single-segment path: reverse directly
         return self._reverse_single_segment(self)
 
-    def _reverse_single_segment(self, path: "AvPath") -> "AvPath":
+    def _reverse_single_segment(self, path: AvSinglePath) -> AvSinglePath:
         """Reverse a single-segment path."""
         if not path._commands or path._points.size == 0:
             return AvPath(path._points.copy(), list(path._commands), path._constraints)
@@ -678,21 +678,21 @@ class AvPath:
         # Convert to numpy array
         points_array = np.array(new_points, dtype=np.float64) if new_points else np.empty((0, 3), dtype=np.float64)
 
-        return AvPath(points_array, new_commands, path._constraints)
+        return AvSinglePath(points_array, new_commands, path._constraints)
 
     @classmethod
-    def make_closed(cls, path: "AvPath") -> "AvPath":
-        """Create a closed AvPath from an existing path, ensuring it's properly closed.
+    def make_closed_single(cls, path: AvSinglePath) -> AvClosedSinglePath:
+        """Create a closed AvPath from an existing AvSinglePath, ensuring it's properly closed.
 
         Args:
-            path: An AvPath instance to convert to a closed path
+            path: An AvSinglePath instance to convert to a closed path
 
         Returns:
-            AvPath: A new closed path with proper Z command and no duplicate endpoints
+            AvClosedSinglePath: A new closed path with proper Z command and no duplicate endpoints
         """
         # Handle empty path
         if path.points.size == 0 or not path.commands:
-            return cls(constraints=CLOSED_SINGLE_PATH_CONSTRAINTS)
+            return AvClosedSinglePath(constraints=CLOSED_SINGLE_PATH_CONSTRAINTS)
 
         # Copy points and commands to avoid modifying original
         points = path.points.copy()
@@ -721,7 +721,7 @@ class AvPath:
                 else:
                     commands = commands[:-1]
 
-        return cls(points, commands, CLOSED_SINGLE_PATH_CONSTRAINTS)
+        return AvClosedSinglePath(points, commands, CLOSED_SINGLE_PATH_CONSTRAINTS)
 
     def contains_point(self, point: Tuple[float, float]) -> bool:
         """Return True if the point lies inside this path (ray casting).
@@ -926,13 +926,13 @@ class AvPath:
             "constraints": self._constraints.to_dict(),
         }
 
-    def polygonized_path(self) -> AvPath:
+    def polygonized_path(self) -> AvMultiPolylinePath:
         """Return the polygonized path."""
         if self._polygonized_path is None:
             self._polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
         return self._polygonized_path
 
-    def polygonize(self, steps: int) -> AvPath:
+    def polygonize(self, steps: int) -> AvMultiPolylinePath:
         """Return a polygonized copy of this path.
 
         Args:
@@ -1045,10 +1045,10 @@ class AvPath:
 
         # Trim the pre-allocated array to actual size
         new_points = new_points_array[:array_index]
-        return AvPath(new_points, new_commands_list, MULTI_POLYLINE_CONSTRAINTS)
+        return AvMultiPolylinePath(new_points, new_commands_list, MULTI_POLYLINE_CONSTRAINTS)
 
-    def split_into_single_paths(self) -> List[AvPath]:
-        """Split an AvPath into single-segment AvPath instances at each 'M' command."""
+    def split_into_single_paths(self) -> List[AvSinglePath]:
+        """Split an AvPath into single-segment AvSinglePath instances at each 'M' command."""
 
         # Empty path: nothing to split
         if not self.commands:
@@ -1057,7 +1057,7 @@ class AvPath:
         pts = self.points
         cmds = self.commands
 
-        single_paths: List[AvPath] = []
+        single_paths: List[AvSinglePath] = []
 
         point_idx = 0
         cmd_idx = 0
@@ -1120,12 +1120,12 @@ class AvPath:
                 else:
                     raise ValueError(f"Unknown command '{cmd}'")
 
-            # Create AvPath for this segment with single-path constraints
+            # Create AvSinglePath for this segment with single-path constraints
             seg_points_array = (
                 np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
             )
 
-            single_paths.append(AvPath(seg_points_array, seg_cmds, SINGLE_PATH_CONSTRAINTS))
+            single_paths.append(AvSinglePath(seg_points_array, seg_cmds, SINGLE_PATH_CONSTRAINTS))
 
         return single_paths
 

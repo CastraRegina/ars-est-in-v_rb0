@@ -631,7 +631,7 @@ class AvPathCleaner:
     #         return AvPath()
 
     @staticmethod
-    def resolve_polygonized_path_intersections(path: AvPath) -> AvMultiPolylinePath:
+    def resolve_polygonized_path_intersections(path: AvMultiPolylinePath) -> AvMultiPolylinePath:
         """Resolve self-intersections in a polygonized path with winding direction rules.
 
         The input path consists of 0..n closed segments. Each segment must end with 'Z',
@@ -663,7 +663,7 @@ class AvPathCleaner:
             - Polygon: processed directly
             - MultiPolygon: each sub-polygon processed with same orientation
             - GeometryCollection: Polygon types extracted and processed
-        7. Convert final Shapely geometry back to AvPath format:
+        7. Convert final Shapely geometry back to AvMultiPolylinePath format:
             - Extract exterior rings as closed paths with 'Z' command
             - Extract interior rings (holes) as separate paths
             - Join all paths using AvPath.join_paths
@@ -676,7 +676,7 @@ class AvPathCleaner:
         - Removes duplicate closing points when converting coordinates
 
         The function handles the following cases:
-        - Empty input paths: returns empty AvPath
+        - Empty input paths: returns empty AvMultiPolylinePath
         - Degenerate polygons (< 3 points): skips with warning
         - Invalid geometries after buffer(0): skips with warning
         - Different geometry types from buffer(0):
@@ -691,11 +691,11 @@ class AvPathCleaner:
         - Errors during path joining: returns original path with warning
 
         Args:
-            path: An AvPath containing the segments to process
+            path: An AvMultiPolylinePath containing the segments to process
 
         Returns:
-            AvPath: A new path with resolved intersections and proper winding,
-                            or the original path if errors occur
+            AvMultiPolylinePath: A new path with resolved intersections and proper winding,
+                                or the original path if errors occur
         """
         # Split path into individual segments
         segments = path.split_into_single_paths()
@@ -707,7 +707,7 @@ class AvPathCleaner:
         for segment in segments:
             # Create closed path, then get polygonized path
             try:
-                closed_path = AvPath.make_closed(segment)
+                closed_path = AvPath.make_closed_single(segment)
                 polygonized = closed_path.polygonized_path()
                 polygons.append(polygonized)
                 orientations.append(closed_path.get_is_ccw())  # Store orientation from closed path
@@ -716,7 +716,7 @@ class AvPathCleaner:
                 continue
 
         if not polygons:
-            return AvPath(constraints=MULTI_POLYLINE_CONSTRAINTS)
+            return AvMultiPolylinePath(constraints=MULTI_POLYLINE_CONSTRAINTS)
 
         # Sequentially combine polygons using the first CCW polygon as base
         # Store early CW polygons to defer them until we find the first CCW
@@ -823,7 +823,7 @@ class AvPathCleaner:
             # If no CCW polygon was found, return empty path
             if result is None or not first_ccw_found:
                 print("Warning: No CCW polygon found. Returning empty path.")
-                return AvPath(constraints=MULTI_POLYLINE_CONSTRAINTS)
+                return AvMultiPolylinePath(constraints=MULTI_POLYLINE_CONSTRAINTS)
 
             if result.is_empty:
                 print("Warning: Result is empty after operations. Returning original path.")
@@ -833,7 +833,7 @@ class AvPathCleaner:
             print(f"Error during polygon processing: {e}. Returning original path.")
             return path  # Return original path on error
 
-        # Convert final Shapely geometry back to AvPath
+        # Convert final Shapely geometry back to AvMultiPolylinePath
         cleaned_paths: List[AvSinglePolygonPath] = []
 
         try:
@@ -879,12 +879,12 @@ class AvPathCleaner:
             print(f"Error during geometry conversion: {e}. Returning original path.")
             return path
 
-        # Join all paths and return as AvPath with MULTI_POLYLINE_CONSTRAINTS
+        # Join all paths and return as AvMultiPolylinePath with MULTI_POLYLINE_CONSTRAINTS
         if cleaned_paths:
             try:
                 joined = AvPath.join_paths(*cleaned_paths)
                 # Return with MULTI_POLYLINE_CONSTRAINTS
-                return AvPath(joined.points, joined.commands, MULTI_POLYLINE_CONSTRAINTS)
+                return AvMultiPolylinePath(joined.points, joined.commands, MULTI_POLYLINE_CONSTRAINTS)
             except (TypeError, ValueError) as e:
                 print(f"Error during path joining: {e}. Returning original path.")
                 return path

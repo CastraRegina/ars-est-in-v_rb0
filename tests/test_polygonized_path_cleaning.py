@@ -37,7 +37,7 @@ class TestPolygonizedPathCleaning:
         original_path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
 
         # Convert to closed path
-        closed_path = AvPath.make_closed(original_path)
+        closed_path = AvPath.make_closed_single(original_path)
 
         # Verify that the duplicate point was removed
         assert closed_path.points.shape[0] == 4  # Should have 4 points (not 5)
@@ -66,7 +66,7 @@ class TestPolygonizedPathCleaning:
         original_path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
 
         # Convert to closed path
-        closed_path = AvPath.make_closed(original_path)
+        closed_path = AvPath.make_closed_single(original_path)
 
         # Verify that Z was added
         assert len(closed_path.commands) == 5
