@@ -44,7 +44,7 @@ class PathConstraints:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "PathConstraints":
+    def from_dict(cls, data: dict) -> PathConstraints:
         """Create PathConstraints from a dictionary."""
         return cls(
             allows_curves=data.get("allows_curves", True),

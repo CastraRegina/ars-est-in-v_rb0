@@ -174,7 +174,7 @@ class AvFontProperties:
         return ""
 
     @classmethod
-    def from_ttfont(cls, ttfont: TTFont) -> "AvFontProperties":
+    def from_ttfont(cls, ttfont: TTFont) -> AvFontProperties:
         """
         Create AvFontProperties from a fontTools TTFont object.
         Works with static and variable fonts (as long as the correct variation is active).
@@ -278,7 +278,7 @@ class AvFont:
         }
 
     @classmethod
-    def from_cache_dict(cls, data: dict) -> "AvFont":
+    def from_cache_dict(cls, data: dict) -> AvFont:
         """Create an AvFont instance from a cache dictionary.
 
         Args:
