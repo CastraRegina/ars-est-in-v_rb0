@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 
 from ave.bezier import BezierCurve
 from ave.common import AvGlyphCmds
-from ave.geom import AvBox
+from ave.geom import AvBox, AvPolygon
 
 ###############################################################################
 # PathConstraints
@@ -432,26 +432,11 @@ class AvPath:
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
-            return self._calculate_polygon_area()
+            return AvPolygon.area(self.points)
 
         # For closed paths with curves, polygonize first
         polygonized = self.polygonized_path()
-        return polygonized._calculate_polygon_area()
-
-    def _calculate_polygon_area(self) -> float:
-        """Calculate area using shoelace formula for a single polygon."""
-        pts = self.points
-        if pts.shape[0] < 3:
-            return 0.0
-        x = pts[:, 0]
-        y = pts[:, 1]
-        x_next = np.roll(x, -1)
-        y_next = np.roll(y, -1)
-        cross = x * y_next - x_next * y
-        cross_sum = cross.sum()
-        if np.isclose(cross_sum, 0.0):
-            return 0.0
-        return float(0.5 * abs(cross_sum))
+        return AvPolygon.area(polygonized.points)
 
     @cached_property
     def centroid(self) -> Tuple[float, float]:
@@ -471,35 +456,11 @@ class AvPath:
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
-            return self._calculate_polygon_centroid()
+            return AvPolygon.centroid(self.points)
 
         # For closed paths with curves, polygonize first
         polygonized = self.polygonized_path()
-        return polygonized._calculate_polygon_centroid()
-
-    def _calculate_polygon_centroid(self) -> Tuple[float, float]:
-        """Calculate centroid for a polygon."""
-        pts = self.points
-        if pts.shape[0] == 0:
-            return (0.0, 0.0)
-        if pts.shape[0] < 3:
-            x_mean = float(pts[:, 0].mean())
-            y_mean = float(pts[:, 1].mean())
-            return (x_mean, y_mean)
-        x = pts[:, 0]
-        y = pts[:, 1]
-        x_next = np.roll(x, -1)
-        y_next = np.roll(y, -1)
-        cross = x * y_next - x_next * y
-        cross_sum = cross.sum()
-        if np.isclose(cross_sum, 0.0):
-            x_mean = float(x.mean())
-            y_mean = float(y.mean())
-            return (x_mean, y_mean)
-        factor = 1.0 / (3.0 * cross_sum)
-        cx = float(((x + x_next) * cross).sum() * factor)
-        cy = float(((y + y_next) * cross).sum() * factor)
-        return (cx, cy)
+        return AvPolygon.centroid(polygonized.points)
 
     @cached_property
     def is_ccw(self) -> bool:
@@ -519,23 +480,11 @@ class AvPath:
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
-            return self._calculate_is_ccw()
+            return AvPolygon.is_ccw(self.points)
 
         # For closed paths with curves, polygonize first
         polygonized = self.polygonized_path()
-        return polygonized._calculate_is_ccw()
-
-    def _calculate_is_ccw(self) -> bool:
-        """Calculate if polygon vertices are ordered counter-clockwise."""
-        pts = self.points
-        if pts.shape[0] < 3:
-            return False
-        x = pts[:, 0]
-        y = pts[:, 1]
-        x_next = np.roll(x, -1)
-        y_next = np.roll(y, -1)
-        cross = x * y_next - x_next * y
-        return bool(cross.sum() > 0.0)
+        return AvPolygon.is_ccw(polygonized.points)
 
     def reverse(self) -> AvPath:
         """Return a new AvPath with reversed drawing direction.

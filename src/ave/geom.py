@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence, Tuple, Union
 
+import numpy as np
+from numpy.typing import NDArray
+
 ###############################################################################
 # GeomMath
 ###############################################################################
@@ -44,8 +47,70 @@ class GeomMath:
 
 
 ###############################################################################
+# AvPolygon
+###############################################################################
+
+
+class AvPolygon:
+    """Class to provide various static methods related to simple single polygons."""
+
+    @staticmethod
+    def area(points: NDArray[np.float64]) -> float:
+        """Calculate area using shoelace formula for a single polygon."""
+        if points.shape[0] < 3:
+            return 0.0
+        x = points[:, 0]
+        y = points[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            return 0.0
+        return float(0.5 * abs(cross_sum))
+
+    @staticmethod
+    def centroid(points: NDArray[np.float64]) -> Tuple[float, float]:
+        """Calculate centroid for a single polygon."""
+        if points.shape[0] == 0:
+            return (0.0, 0.0)
+        if points.shape[0] < 3:
+            x_mean = float(points[:, 0].mean())
+            y_mean = float(points[:, 1].mean())
+            return (x_mean, y_mean)
+        x = points[:, 0]
+        y = points[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        cross_sum = cross.sum()
+        if np.isclose(cross_sum, 0.0):
+            x_mean = float(x.mean())
+            y_mean = float(y.mean())
+            return (x_mean, y_mean)
+        factor = 1.0 / (3.0 * cross_sum)
+        cx = float(((x + x_next) * cross).sum() * factor)
+        cy = float(((y + y_next) * cross).sum() * factor)
+        return (cx, cy)
+
+    @staticmethod
+    def is_ccw(points: NDArray[np.float64]) -> bool:
+        """Calculate if single polygon vertices are ordered counter-clockwise."""
+        if points.shape[0] < 3:
+            return False
+        x = points[:, 0]
+        y = points[:, 1]
+        x_next = np.roll(x, -1)
+        y_next = np.roll(y, -1)
+        cross = x * y_next - x_next * y
+        return bool(cross.sum() > 0.0)
+
+
+###############################################################################
 # AvBox
 ###############################################################################
+
+
 @dataclass
 class AvBox:
     """
@@ -191,6 +256,11 @@ class AvBox:
             "xmax": self.xmax,
             "ymax": self.ymax,
         }
+
+
+###############################################################################
+# main
+###############################################################################
 
 
 def main():
