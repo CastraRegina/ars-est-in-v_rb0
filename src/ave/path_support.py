@@ -312,7 +312,7 @@ class PathSplitter:
             ValueError: If path structure is invalid
         """
         # Import here to avoid circular import
-        from ave.path import AvPath
+        from ave.path import AvPath  # pylint: disable=import-outside-toplevel
 
         # Empty path: nothing to split
         if not commands:
