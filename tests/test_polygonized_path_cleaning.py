@@ -3,16 +3,8 @@
 import numpy as np
 import pytest
 
-from ave.path import (
-    CLOSED_SINGLE_PATH_CONSTRAINTS,
-    MULTI_POLYLINE_CONSTRAINTS,
-    SINGLE_PATH_CONSTRAINTS,
-    AvClosedSinglePath,
-    AvMultiPolylinePath,
-    AvPath,
-    AvSinglePath,
-)
-from ave.path_helper import AvPathCleaner
+from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath
+from ave.path_processing import AvPathCleaner
 
 
 class TestPolygonizedPathCleaning:

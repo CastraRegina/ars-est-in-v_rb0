@@ -11,7 +11,7 @@ from ave.glyph import (
     AvLetter,
 )
 from ave.page import AvSvgPage
-from ave.path_helper import AvPathCleaner
+from ave.path_processing import AvPathCleaner
 
 
 def setup_avfont(ttfont_filename: str):
