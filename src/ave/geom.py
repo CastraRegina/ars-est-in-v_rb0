@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -149,6 +149,82 @@ class AvPolygon:
                         inside = not inside
             j = i
         return inside
+
+    @staticmethod
+    def interior_point_scanlines(
+        points: NDArray[np.float64], samples: int = 9, epsilon: float = 1e-9
+    ) -> Optional[Tuple[float, float]]:
+        """Find an interior point in a single polygon using horizontal scanlines.
+
+        This method samples horizontal lines across the polygon's y-range,
+        finds intersections with polygon edges, and returns the midpoint of
+        the widest interior interval. This is useful for finding a representative
+        point inside potentially concave polygons where the centroid might lie
+        outside the filled region.
+
+        Args:
+            points: Array of polygon vertices (shape: n_points, 3 or n_points, 2)
+            samples: Number of horizontal scanlines to try between ymin and ymax
+            epsilon: Small relative offset applied to scanline y values to avoid
+                pathological cases where the scanline hits vertices exactly
+
+        Returns:
+            Optional[Tuple[float, float]]: An interior point if one can be found,
+                None if the polygon is degenerate or no interior point is found
+
+        Note:
+            This method works on single polygons only. For multi-polygon or
+            polygon-with-holes scenarios, use higher-level path methods.
+        """
+        if points.shape[0] < 3:
+            return None
+
+        y_min = float(points[:, 1].min())
+        y_max = float(points[:, 1].max())
+        height = y_max - y_min
+        if np.isclose(height, 0.0):
+            return None
+
+        n = int(points.shape[0])
+        n_samples = max(int(samples), 1)
+        y_tol = abs(epsilon) * height
+
+        for k in range(n_samples):
+            y = y_min + (k + 0.5) / n_samples * height + epsilon * height
+
+            xs: List[float] = []
+            j = n - 1
+            for i in range(n):
+                xi, yi = float(points[i, 0]), float(points[i, 1])
+                xj, yj = float(points[j, 0]), float(points[j, 1])
+
+                if (yi > y) != (yj > y):
+                    dy = yj - yi
+                    if abs(dy) >= y_tol:
+                        x_int = xi + (y - yi) * (xj - xi) / dy
+                        xs.append(float(x_int))
+
+                j = i
+
+            xs.sort()
+
+            if len(xs) % 2 != 0:
+                continue
+
+            best: Optional[Tuple[float, float]] = None
+            best_w = -1.0
+            for i in range(0, len(xs) - 1, 2):
+                w = xs[i + 1] - xs[i]
+                if w > best_w:
+                    best_w = w
+                    best = ((xs[i] + xs[i + 1]) * 0.5, y)
+
+            if best is not None:
+                # Verify the point is actually inside using ray casting
+                if AvPolygon.ray_casting_single(points, best):
+                    return (float(best[0]), float(best[1]))
+
+        return None
 
 
 ###############################################################################

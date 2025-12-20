@@ -549,49 +549,10 @@ class AvPath:
         if pts.shape[0] < 3:
             return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
 
-        y_min = float(pts[:, 1].min())
-        y_max = float(pts[:, 1].max())
-        height = y_max - y_min
-        if np.isclose(height, 0.0):
-            return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
-
-        n = int(pts.shape[0])
-        n_samples = max(int(samples), 1)
-
-        y_tol = abs(epsilon) * height
-
-        for k in range(n_samples):
-            y = y_min + (k + 0.5) / n_samples * height + epsilon * height
-
-            xs: List[float] = []
-            j = n - 1
-            for i in range(n):
-                xi, yi = float(pts[i, 0]), float(pts[i, 1])
-                xj, yj = float(pts[j, 0]), float(pts[j, 1])
-
-                if (yi > y) != (yj > y):
-                    dy = yj - yi
-                    if abs(dy) >= y_tol:
-                        x_int = xi + (y - yi) * (xj - xi) / dy
-                        xs.append(float(x_int))
-
-                j = i
-
-            xs.sort()
-
-            if len(xs) % 2 != 0:
-                continue
-
-            best: Optional[Tuple[float, float]] = None
-            best_w = -1.0
-            for i in range(0, len(xs) - 1, 2):
-                w = xs[i + 1] - xs[i]
-                if w > best_w:
-                    best_w = w
-                    best = ((xs[i] + xs[i + 1]) * 0.5, y)
-
-            if best is not None and self.contains_point(best):
-                return (float(best[0]), float(best[1]))
+        # Use the new polygon scanline method for single polygons
+        scanline_point = AvPolygon.interior_point_scanlines(pts, samples, epsilon)
+        if scanline_point is not None:
+            return scanline_point
 
         # Fallback to centroid if available
         if self.constraints.must_close:

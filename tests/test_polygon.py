@@ -485,3 +485,273 @@ class TestAvPolygon:
         assert AvPolygon.ray_casting_single(square, (0, 0))  # int
         assert AvPolygon.ray_casting_single(square, (0.5, 0))  # mixed
         assert AvPolygon.ray_casting_single(square, [0.5, 0.5])  # list instead of tuple
+
+    # Tests for interior_point_scanlines method
+    def test_interior_point_scanlines_degenerate_cases(self):
+        """Test interior point finding on degenerate polygons."""
+        # Empty polygon
+        points = np.array([], dtype=np.float64).reshape(0, 3)
+        assert AvPolygon.interior_point_scanlines(points) is None
+
+        # Single point
+        points = np.array([[1.0, 1.0, 0.0]], dtype=np.float64)
+        assert AvPolygon.interior_point_scanlines(points) is None
+
+        # Two points
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0]], dtype=np.float64)
+        assert AvPolygon.interior_point_scanlines(points) is None
+
+        # Collinear points (horizontal line)
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]], dtype=np.float64)
+        assert AvPolygon.interior_point_scanlines(points) is None
+
+        # Collinear points (vertical line)
+        points = np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 2.0, 0.0]], dtype=np.float64)
+        assert AvPolygon.interior_point_scanlines(points) is None
+
+    def test_interior_point_scanlines_triangle(self):
+        """Test interior point finding on a triangle."""
+        # Right triangle with vertices (0,0), (2,0), (0,2)
+        triangle = np.array([[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(triangle)
+        assert point is not None
+
+        # Point should be inside triangle
+        assert AvPolygon.ray_casting_single(triangle, point)
+
+        # Point should be within triangle bounds
+        assert 0.0 <= point[0] <= 2.0
+        assert 0.0 <= point[1] <= 2.0
+        assert point[0] + point[1] <= 2.0  # Below hypotenuse
+
+    def test_interior_point_scanlines_square(self):
+        """Test interior point finding on a square."""
+        # Unit square
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(square)
+        assert point is not None
+
+        # Point should be inside square
+        assert AvPolygon.ray_casting_single(square, point)
+
+        # Point should be within square bounds
+        assert 0.0 < point[0] < 1.0
+        assert 0.0 < point[1] < 1.0
+
+    def test_interior_point_scanlines_rectangle(self):
+        """Test interior point finding on a rectangle."""
+        # Rectangle 3x2
+        rectangle = np.array([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [3.0, 2.0, 0.0], [0.0, 2.0, 0.0]], dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(rectangle)
+        assert point is not None
+
+        # Point should be inside rectangle
+        assert AvPolygon.ray_casting_single(rectangle, point)
+
+        # Point should be within rectangle bounds
+        assert 0.0 < point[0] < 3.0
+        assert 0.0 < point[1] < 2.0
+
+    def test_interior_point_scanlines_concave_polygon(self):
+        """Test interior point finding on a concave polygon."""
+        # Concave L-shaped polygon
+        concave = np.array(
+            [[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, 2.0, 0.0], [0.0, 2.0, 0.0]],
+            dtype=np.float64,
+        )
+
+        point = AvPolygon.interior_point_scanlines(concave)
+        assert point is not None
+
+        # Point should be inside concave polygon
+        assert AvPolygon.ray_casting_single(concave, point)
+
+        # Point should be within overall bounds
+        assert 0.0 < point[0] < 2.0
+        assert 0.0 < point[1] < 2.0
+
+    def test_interior_point_scanlines_regular_polygon(self):
+        """Test interior point finding on regular polygons."""
+        # Regular pentagon
+        n_sides = 5
+        points = []
+        for i in range(n_sides):
+            angle = 2 * np.pi * i / n_sides
+            points.append([np.cos(angle), np.sin(angle), 0.0])
+        pentagon = np.array(points, dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(pentagon)
+        assert point is not None
+
+        # Point should be inside pentagon
+        assert AvPolygon.ray_casting_single(pentagon, point)
+
+        # Point should be near center for regular polygon
+        assert abs(point[0]) < 1.0  # Should be within polygon bounds
+        assert abs(point[1]) < 1.0
+
+    def test_interior_point_scanlines_parameters(self):
+        """Test interior point finding with different parameters."""
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        # Test with different sample counts
+        for samples in [1, 3, 5, 10, 20]:
+            point = AvPolygon.interior_point_scanlines(square, samples=samples)
+            assert point is not None
+            assert AvPolygon.ray_casting_single(square, point)
+
+        # Test with different epsilon values
+        for epsilon in [1e-6, 1e-9, 1e-12]:
+            point = AvPolygon.interior_point_scanlines(square, epsilon=epsilon)
+            assert point is not None
+            assert AvPolygon.ray_casting_single(square, point)
+
+    def test_interior_point_scanlines_clockwise_vs_counterclockwise(self):
+        """Test that interior point finding works regardless of vertex order."""
+        # Square vertices
+        square_ccw = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+        square_cw = square_ccw[::-1]  # Reverse order
+
+        point_ccw = AvPolygon.interior_point_scanlines(square_ccw)
+        point_cw = AvPolygon.interior_point_scanlines(square_cw)
+
+        # Both should find valid interior points
+        assert point_ccw is not None
+        assert point_cw is not None
+        assert AvPolygon.ray_casting_single(square_ccw, point_ccw)
+        assert AvPolygon.ray_casting_single(square_cw, point_cw)
+
+    def test_interior_point_scanlines_large_coordinates(self):
+        """Test interior point finding with large coordinate values."""
+        # Large square
+        large_square = np.array(
+            [[1000.0, 1000.0, 0.0], [2000.0, 1000.0, 0.0], [2000.0, 2000.0, 0.0], [1000.0, 2000.0, 0.0]],
+            dtype=np.float64,
+        )
+
+        point = AvPolygon.interior_point_scanlines(large_square)
+        assert point is not None
+
+        # Point should be inside large square
+        assert AvPolygon.ray_casting_single(large_square, point)
+
+        # Point should be within large square bounds
+        assert 1000.0 < point[0] < 2000.0
+        assert 1000.0 < point[1] < 2000.0
+
+    def test_interior_point_scanlines_small_coordinates(self):
+        """Test interior point finding with very small coordinate values."""
+        # Small square
+        small_square = np.array(
+            [[0.001, 0.001, 0.0], [0.002, 0.001, 0.0], [0.002, 0.002, 0.0], [0.001, 0.002, 0.0]], dtype=np.float64
+        )
+
+        point = AvPolygon.interior_point_scanlines(small_square)
+        assert point is not None
+
+        # Point should be inside small square
+        assert AvPolygon.ray_casting_single(small_square, point)
+
+        # Point should be within small square bounds
+        assert 0.001 < point[0] < 0.002
+        assert 0.001 < point[1] < 0.002
+
+    def test_interior_point_scanlines_negative_coordinates(self):
+        """Test interior point finding with negative coordinate values."""
+        # Square in negative quadrant
+        neg_square = np.array(
+            [[-2.0, -2.0, 0.0], [-1.0, -2.0, 0.0], [-1.0, -1.0, 0.0], [-2.0, -1.0, 0.0]], dtype=np.float64
+        )
+
+        point = AvPolygon.interior_point_scanlines(neg_square)
+        assert point is not None
+
+        # Point should be inside negative square
+        assert AvPolygon.ray_casting_single(neg_square, point)
+
+        # Point should be within negative square bounds
+        assert -2.0 < point[0] < -1.0
+        assert -2.0 < point[1] < -1.0
+
+    def test_interior_point_scanlines_2d_points(self):
+        """Test interior point finding with 2D points (without type column)."""
+        # 2D square
+        square_2d = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]], dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(square_2d)
+        assert point is not None
+
+        # Should work the same as 3D points
+        assert AvPolygon.ray_casting_single(square_2d, point)
+        assert 0.0 < point[0] < 1.0
+        assert 0.0 < point[1] < 1.0
+
+    def test_interior_point_scanlines_skinny_polygon(self):
+        """Test interior point finding on skinny polygons."""
+        # Very thin rectangle
+        skinny = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 0.01, 0.0], [0.0, 0.01, 0.0]], dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(skinny)
+        assert point is not None
+
+        # Point should be inside skinny rectangle
+        assert AvPolygon.ray_casting_single(skinny, point)
+
+        # Point should be within skinny rectangle bounds
+        assert 0.0 < point[0] < 10.0
+        assert 0.0 < point[1] < 0.01
+
+    def test_interior_point_scanlines_complex_concave(self):
+        """Test interior point finding on complex concave polygon."""
+        # Star-shaped concave polygon
+        star_points = []
+        n_points = 10
+        for i in range(n_points):
+            angle = 2 * np.pi * i / n_points
+            if i % 2 == 0:
+                # Outer points
+                radius = 2.0
+            else:
+                # Inner points (creating concavity)
+                radius = 1.0
+            star_points.append([radius * np.cos(angle), radius * np.sin(angle), 0.0])
+        star = np.array(star_points, dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(star)
+        assert point is not None
+
+        # Point should be inside star
+        assert AvPolygon.ray_casting_single(star, point)
+
+        # Point should be within overall bounds
+        assert -2.0 < point[0] < 2.0
+        assert -2.0 < point[1] < 2.0
+
+    def test_interior_point_scanlines_performance_consistency(self):
+        """Test that interior point finding gives consistent results."""
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        # Multiple calls should give valid interior points
+        points = [AvPolygon.interior_point_scanlines(square) for _ in range(10)]
+        for point in points:
+            assert point is not None
+            assert AvPolygon.ray_casting_single(square, point)
+
+    def test_interior_point_scanlines_edge_cases(self):
+        """Test interior point finding on edge case polygons."""
+        # Triangle with very small area
+        tiny_triangle = np.array([[0.0, 0.0, 0.0], [0.001, 0.0, 0.0], [0.0, 0.001, 0.0]], dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(tiny_triangle)
+        assert point is not None
+        assert AvPolygon.ray_casting_single(tiny_triangle, point)
+
+        # Very tall skinny triangle
+        tall_triangle = np.array([[0.0, 0.0, 0.0], [0.001, 0.0, 0.0], [0.0, 100.0, 0.0]], dtype=np.float64)
+
+        point = AvPolygon.interior_point_scanlines(tall_triangle)
+        assert point is not None
+        assert AvPolygon.ray_casting_single(tall_triangle, point)
