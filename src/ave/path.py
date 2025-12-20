@@ -12,7 +12,6 @@ from numpy.typing import NDArray
 from ave.bezier import BezierCurve
 from ave.common import AvGlyphCmds
 from ave.geom import AvBox
-from ave.path_helper import AvPathUtils
 
 ###############################################################################
 # PathConstraints
@@ -151,6 +150,48 @@ class PathValidator:
                         f"Segment {seg_idx} has {seg_point_count} points "
                         f"but minimum is {constraints.min_points_per_segment}"
                     )
+
+
+###############################################################################
+# AvPathUtils
+###############################################################################
+
+
+class AvPathUtils:
+    """Collection of static utility functions for path operations."""
+
+    @staticmethod
+    def split_into_segments(commands: List[AvGlyphCmds]) -> List[Tuple[List[AvGlyphCmds], int]]:
+        """Split commands into segments, returning list of (commands, point_count) tuples."""
+        if not commands:
+            return []
+
+        segments: List[Tuple[List[AvGlyphCmds], int]] = []
+        current_cmds: List[AvGlyphCmds] = []
+        current_point_count = 0
+
+        for cmd in commands:
+            if cmd == "M":
+                if current_cmds:
+                    segments.append((current_cmds, current_point_count))
+                current_cmds = ["M"]
+                current_point_count = 1
+            elif cmd == "L":
+                current_cmds.append("L")
+                current_point_count += 1
+            elif cmd == "Q":
+                current_cmds.append("Q")
+                current_point_count += 2
+            elif cmd == "C":
+                current_cmds.append("C")
+                current_point_count += 3
+            elif cmd == "Z":
+                current_cmds.append("Z")
+
+        if current_cmds:
+            segments.append((current_cmds, current_point_count))
+
+        return segments
 
 
 ###############################################################################
