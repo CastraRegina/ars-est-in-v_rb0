@@ -798,7 +798,7 @@ class AvPath:
         """Internal method to compute representative point."""
         # For paths with curves, polygonize first using cached curve detection
         if self.has_curves:
-            return self.polygonized_path()._compute_representative_point(samples, epsilon)
+            return self.polygonized_path().representative_point(samples, epsilon)
 
         pts = self.points
         if pts.shape[0] == 0:
