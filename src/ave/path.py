@@ -304,11 +304,11 @@ class AvPath:
         This method validates basic path structure and point/command consistency,
         then delegates constraint-specific validation to PathValidator.
         """
-        cmds = self._commands
-        points = self._points
+        cmds = self.commands
+        points = self.points
 
         # Constraint-based validation (handles empty path check, curve allowance, segment limits)
-        PathValidator.validate(cmds, points, self._constraints)
+        PathValidator.validate(cmds, points, self.constraints)
 
         # Nothing more to check for empty paths
         if not cmds:
@@ -322,7 +322,8 @@ class AvPath:
         for seg_idx, (seg_cmds, _) in enumerate(segments):
             if not seg_cmds or seg_cmds[0] != "M":
                 raise ValueError(
-                    f"Each segment must start with 'M' command (segment {seg_idx} starts with '{seg_cmds[0] if seg_cmds else 'None'}')"
+                    f"Each segment must start with 'M' command (segment {seg_idx} "
+                    f"starts with '{seg_cmds[0] if seg_cmds else 'None'}')"
                 )
 
             # Check Z termination within segment (except for last segment which may not end with Z)
@@ -371,46 +372,46 @@ class AvPath:
         Polygon-like paths support geometric operations like area, centroid, is_ccw.
         This includes single_polygon and multi_polygon constraint types.
         """
-        return self._constraints.must_close and not self._constraints.allows_curves
+        return self.constraints.must_close and not self.constraints.allows_curves
 
     @property
     def is_closed(self) -> bool:
         """
         Return True if this path has closure constraints (must_close=True).
         """
-        return self._constraints.must_close
+        return self.constraints.must_close
 
     @property
     def is_single_segment(self) -> bool:
         """
         Return True if this path is constrained to a single segment.
         """
-        return self._constraints.max_segments == 1
+        return self.constraints.max_segments == 1
 
     @property
     def is_single_path(self) -> bool:
         """Return True if this path has SINGLE_PATH_CONSTRAINTS."""
-        return self._constraints == SINGLE_PATH_CONSTRAINTS
+        return self.constraints == SINGLE_PATH_CONSTRAINTS
 
     @property
     def is_closed_path(self) -> bool:
         """Return True if this path has CLOSED_SINGLE_PATH_CONSTRAINTS."""
-        return self._constraints == CLOSED_SINGLE_PATH_CONSTRAINTS
+        return self.constraints == CLOSED_SINGLE_PATH_CONSTRAINTS
 
     @property
     def is_polylines_path(self) -> bool:
         """Return True if this path has MULTI_POLYLINE_CONSTRAINTS."""
-        return self._constraints == MULTI_POLYLINE_CONSTRAINTS
+        return self.constraints == MULTI_POLYLINE_CONSTRAINTS
 
     @property
     def is_polygon_path(self) -> bool:
         """Return True if this path has SINGLE_POLYGON_CONSTRAINTS."""
-        return self._constraints == SINGLE_POLYGON_CONSTRAINTS
+        return self.constraints == SINGLE_POLYGON_CONSTRAINTS
 
     @property
     def is_multi_polygon_path(self) -> bool:
         """Return True if this path has MULTI_POLYGON_CONSTRAINTS."""
-        return self._constraints == MULTI_POLYGON_CONSTRAINTS
+        return self.constraints == MULTI_POLYGON_CONSTRAINTS
 
     @cached_property
     def area(self) -> float:
@@ -426,7 +427,7 @@ class AvPath:
         Raises:
             ValueError: If the path is not closed (must_close constraint required).
         """
-        if not self._constraints.must_close:
+        if not self.constraints.must_close:
             raise ValueError("Area calculation requires a closed path (must_close=True)")
 
         # For polygon-like paths, use direct calculation
@@ -439,7 +440,7 @@ class AvPath:
 
     def _calculate_polygon_area(self) -> float:
         """Calculate area using shoelace formula for a single polygon."""
-        pts = self._points
+        pts = self.points
         if pts.shape[0] < 3:
             return 0.0
         x = pts[:, 0]
@@ -465,7 +466,7 @@ class AvPath:
         Raises:
             ValueError: If the path is not closed (must_close constraint required).
         """
-        if not self._constraints.must_close:
+        if not self.constraints.must_close:
             raise ValueError("Centroid calculation requires a closed path (must_close=True)")
 
         # For polygon-like paths, use direct calculation
@@ -478,7 +479,7 @@ class AvPath:
 
     def _calculate_polygon_centroid(self) -> Tuple[float, float]:
         """Calculate centroid for a polygon."""
-        pts = self._points
+        pts = self.points
         if pts.shape[0] == 0:
             return (0.0, 0.0)
         if pts.shape[0] < 3:
@@ -513,7 +514,7 @@ class AvPath:
         Raises:
             ValueError: If the path is not closed (must_close constraint required).
         """
-        if not self._constraints.must_close:
+        if not self.constraints.must_close:
             raise ValueError("CCW check requires a closed path (must_close=True)")
 
         # For polygon-like paths, use direct calculation
@@ -526,7 +527,7 @@ class AvPath:
 
     def _calculate_is_ccw(self) -> bool:
         """Calculate if polygon vertices are ordered counter-clockwise."""
-        pts = self._points
+        pts = self.points
         if pts.shape[0] < 3:
             return False
         x = pts[:, 0]
@@ -549,11 +550,11 @@ class AvPath:
         For multi-segment paths, each segment is reversed individually.
         """
         # Early return for empty paths
-        if not self._commands or self._points.size == 0:
-            return AvPath(self._points.copy(), list(self._commands), self._constraints)
+        if not self.commands or self.points.size == 0:
+            return AvPath(self.points.copy(), list(self.commands), self.constraints)
 
         # Check if this is a multi-segment path
-        m_count = self._commands.count("M")
+        m_count = self.commands.count("M")
         if m_count > 1:
             # Multi-segment path: split, reverse each, join
             single_paths = self.split_into_single_paths()
@@ -565,15 +566,15 @@ class AvPath:
 
     def _reverse_single_segment(self, path: AvSinglePath) -> AvSinglePath:
         """Reverse a single-segment path."""
-        if not path.commands or path._points.size == 0:
-            return AvSinglePath(path._points.copy(), list(path.commands), path._constraints)
+        if not path.commands or path.points.size == 0:
+            return AvSinglePath(path.points.copy(), list(path.commands), path.constraints)
 
         # Check if path is closed
         is_closed = path.commands[-1] == "Z"
 
         # Build segments by iterating forward once
         segments = []
-        last_point = path._points[0].copy()  # Start with M point
+        last_point = path.points[0].copy()  # Start with M point
         point_idx = 1  # Skip M's point
 
         for cmd in path.commands[1:]:
@@ -583,22 +584,22 @@ class AvPath:
             start_point = last_point
 
             if cmd == "L":
-                end_point = path._points[point_idx].copy()
+                end_point = path.points[point_idx].copy()
                 segments.append(("L", [], start_point, end_point))
                 last_point = end_point
                 point_idx += 1
 
             elif cmd == "Q":
-                control = path._points[point_idx].copy()
-                end_point = path._points[point_idx + 1].copy()
+                control = path.points[point_idx].copy()
+                end_point = path.points[point_idx + 1].copy()
                 segments.append(("Q", [control], start_point, end_point))
                 last_point = end_point
                 point_idx += 2
 
             elif cmd == "C":
-                control1 = path._points[point_idx].copy()
-                control2 = path._points[point_idx + 1].copy()
-                end_point = path._points[point_idx + 2].copy()
+                control1 = path.points[point_idx].copy()
+                control2 = path.points[point_idx + 1].copy()
+                end_point = path.points[point_idx + 2].copy()
                 segments.append(("C", [control1, control2], start_point, end_point))
                 last_point = end_point
                 point_idx += 3
@@ -629,7 +630,7 @@ class AvPath:
                     new_points.append(start_point)  # Original start becomes new end
         else:
             # Only M command
-            new_points.append(path._points[0].copy())
+            new_points.append(path.points[0].copy())
 
         # Add Z if original was closed
         if is_closed:
@@ -704,10 +705,10 @@ class AvPath:
         For paths with curves, the path is first polygonized.
         """
         # For paths with curves, polygonize first
-        if any(cmd in ["Q", "C"] for cmd in self._commands):
+        if any(cmd in ["Q", "C"] for cmd in self.commands):
             return self.polygonized_path().contains_point(point)
 
-        pts = self._points
+        pts = self.points
         n = pts.shape[0]
         if n == 0:
             return False
@@ -748,10 +749,10 @@ class AvPath:
                 best-effort fallback is returned.
         """
         # For paths with curves, polygonize first
-        if any(cmd in ["Q", "C"] for cmd in self._commands):
+        if any(cmd in ["Q", "C"] for cmd in self.commands):
             return self.polygonized_path().representative_point(samples, epsilon)
 
-        pts = self._points
+        pts = self.points
         if pts.shape[0] == 0:
             return (0.0, 0.0)
 
@@ -803,7 +804,7 @@ class AvPath:
                 return (float(best[0]), float(best[1]))
 
         # Fallback to centroid if available
-        if self._constraints.must_close:
+        if self.constraints.must_close:
             candidate = self.centroid
             if self.contains_point(candidate):
                 return candidate
@@ -821,17 +822,17 @@ class AvPath:
             return self._bounding_box
 
         # No points, so bounding box is set to size 0.
-        if not self._points.size:
+        if not self.points.size:
             self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
             return self._bounding_box
 
         # Check if path contains curves that need polygonization for accurate bounding box
-        has_curves = any(cmd in ["Q", "C"] for cmd in self._commands)
+        has_curves = any(cmd in ["Q", "C"] for cmd in self.commands)
 
         if not has_curves:
             # No curves, use simple min/max calculation on existing points
-            points_x = self._points[:, 0]
-            points_y = self._points[:, 1]
+            points_x = self.points[:, 0]
+            points_y = self.points[:, 1]
             x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
         else:
             # Has curves, polygonize temporarily to get accurate bounding box
@@ -883,21 +884,21 @@ class AvPath:
     def to_dict(self) -> dict:
         """Convert the AvPath instance to a dictionary."""
         # Convert numpy array to list for JSON serialization
-        points_list = self._points.tolist() if self._points.size > 0 else []
+        points_list = self.points.tolist() if self.points.size > 0 else []
 
         # Commands are already strings
-        commands_list = list(self._commands)
+        commands_list = list(self.commands)
 
         # Convert bounding box to dict if present
         bbox_dict = None
         if self._bounding_box is not None:
-            bbox_dict = self._bounding_box.to_dict()
+            bbox_dict = self.bounding_box().to_dict()
 
         return {
             "points": points_list,
             "commands": commands_list,
             "bounding_box": bbox_dict,
-            "constraints": self._constraints.to_dict(),
+            "constraints": self.constraints.to_dict(),
         }
 
     def polygonized_path(self) -> AvMultiPolylinePath:
@@ -921,11 +922,11 @@ class AvPath:
             return self
 
         # Check if path already has no curves
-        if not any(cmd in ["Q", "C"] for cmd in self._commands):
+        if not any(cmd in ["Q", "C"] for cmd in self.commands):
             return self
 
-        points = self._points
-        commands = self._commands
+        points = self.points
+        commands = self.commands
 
         # Input normalization: ensure all points are 3D
         if points.shape[1] == 2:
