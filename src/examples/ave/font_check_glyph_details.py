@@ -146,13 +146,13 @@ def main():
     )
 
     # Characters to display
-    characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 1234567890"
-    characters = (
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
-        + "abcdefghijklmnopqrstuvwxyz "
-        + "ÄÖÜ äöü ß€µ@²³~^°\\ 1234567890 "
-        + ',.;:+-*#_<> !"§$%&/()=?{}[]'
-    )
+    characters = ""
+    characters += "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+    characters += "abcdefghijklmnopqrstuvwxyz "
+    characters += "0123456789 "
+    characters += ',.;:+-*#_<> !"§$%&/()=?{}[] '
+    # NON-ASCII EXCEPTION: German characters and special symbols for comprehensive font testing
+    characters += "ÄÖÜ äöü ß€µ@²³~^°\\ "
 
     # Print characters on the page
     print_text_on_page(svg_page, 0.05, 0.01, characters, avfont, font_size)
@@ -162,13 +162,12 @@ def main():
     detail_chars += "€#"  # several intersections
     detail_chars += "e&46"  # self-intersection
     detail_chars += "QR§$"  # intersection and hole
+    # NON-ASCII EXCEPTION: German characters for font testing
     detail_chars += "Ä"  # intersection and hole, several polygons
+    # NON-ASCII EXCEPTION: German characters for font testing
     detail_chars += "BDÖä"  # holes
     detail_chars += 'i:%"'  # several polygons
-    # ypos = 0.05
-    # for char in detail_chars:
-    #     print_text_on_page(svg_page, 0.05, ypos, f"{char}", avfont, font_size)
-    #     ypos += 0.02
+
     xpos = 0.05
     ypos = 0.15
     for character in detail_chars:
@@ -205,7 +204,6 @@ def main():
         svg_page.add(svg_path)
         ypos += 0.02
 
-    # detail_chars = 'AKX4"#ÄB&e%$§'
     # Create polygonized font with 4 steps for detailed character analysis
     polygonized_factory = AvGlyphPolygonizeFactory(avfont.glyph_factory, polygonize_steps=2)
     polygonized_font = AvFont(polygonized_factory, avfont.props)

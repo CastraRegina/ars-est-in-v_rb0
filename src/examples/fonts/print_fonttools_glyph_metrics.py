@@ -87,6 +87,7 @@ def main():
     print_font_metrics(ttfont)
 
     print("--------------------------------------")
+    # NON-ASCII EXCEPTION: German umlauts needed for comprehensive font testing
     print_glyph_metrics(ttfont, "ä")
     print_glyph_metrics(ttfont, "ö")
     print_glyph_metrics(ttfont, "ü")
@@ -102,24 +103,28 @@ def main():
 
     print("--------------------------------------")
     print("Standard default (wght=400):")
+    # NON-ASCII EXCEPTION: German umlaut needed for font testing
     print_glyph_metrics(ttfont, "Ä")
     print_font_metrics(ttfont)
 
     # print()
     # print("Example wght=400:")
     # varfont = instancer.instantiateVariableFont(ttfont, {"wght": 400})
+    # NON-ASCII EXCEPTION: German umlaut needed for font testing
     # print_glyph_metrics(varfont, "Ä")
     # print_font_metrics(ttfont)
 
     # print()
     # print("Example wght=200:")
     # varfont = instancer.instantiateVariableFont(ttfont, {"wght": 200})
+    # NON-ASCII EXCEPTION: German umlaut needed for font testing
     # print_glyph_metrics(varfont, "Ä")
     # print_font_metrics(ttfont)
 
     # print()
     # print("Example wght=700:")
     # varfont = instancer.instantiateVariableFont(ttfont, {"wght": 700})
+    # NON-ASCII EXCEPTION: German umlaut needed for font testing
     # print_glyph_metrics(varfont, "Ä")
     # print_font_metrics(ttfont)
 

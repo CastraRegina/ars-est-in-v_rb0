@@ -8,9 +8,8 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
-from ave.bezier import BezierCurve
 from ave.geom import AvBox, GeomMath
-from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath, AvSinglePath
+from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath
 
 ###############################################################################
 # GeomMath Tests
@@ -508,7 +507,7 @@ class TestAvPath:
         """AvPath.reversed should match expected commands and 2D coords for multiple scenarios."""
 
         test_cases = [
-            # SIMPLE 1 — Open polyline (L only)
+            # SIMPLE 1 - Open polyline (L only)
             dict(
                 name="simple_line",
                 commands=["M", "L", "L"],
@@ -516,7 +515,7 @@ class TestAvPath:
                 exp_commands=["M", "L", "L"],
                 exp_coords=[(10, 10), (10, 0), (0, 0)],
             ),
-            # SIMPLE 2 — Closed polygon (with Z)
+            # SIMPLE 2 - Closed polygon (with Z)
             dict(
                 name="simple_closed_square",
                 commands=["M", "L", "L", "L", "Z"],
@@ -524,7 +523,7 @@ class TestAvPath:
                 exp_commands=["M", "L", "L", "L", "Z"],
                 exp_coords=[(0, 10), (10, 10), (10, 0), (0, 0)],
             ),
-            # SIMPLE 3 — Quadratic curve
+            # SIMPLE 3 - Quadratic curve
             dict(
                 name="simple_quad",
                 commands=["M", "Q"],
@@ -532,7 +531,7 @@ class TestAvPath:
                 exp_commands=["M", "Q"],
                 exp_coords=[(10, 0), (5, 10), (0, 0)],
             ),
-            # SIMPLE 4 — Cubic curve
+            # SIMPLE 4 - Cubic curve
             dict(
                 name="simple_cubic",
                 commands=["M", "C"],
@@ -540,7 +539,7 @@ class TestAvPath:
                 exp_commands=["M", "C"],
                 exp_coords=[(15, 0), (10, 10), (5, 10), (0, 0)],
             ),
-            # SIMPLE 5 — Mixed Q + L + C
+            # SIMPLE 5 - Mixed Q + L + C
             dict(
                 name="mixed_simple",
                 commands=["M", "Q", "L", "C"],
@@ -564,7 +563,7 @@ class TestAvPath:
                     (0, 0),
                 ],
             ),
-            # MULTI 1 — Two contours, quadratic only
+            # MULTI 1 - Two contours, quadratic only
             dict(
                 name="multi_quad",
                 commands=["M", "Q", "Q", "Z", "M", "Q", "L"],
@@ -592,7 +591,7 @@ class TestAvPath:
                     (30, 0),
                 ],
             ),
-            # MULTI 2 — Two contours mixing C and Q
+            # MULTI 2 - Two contours mixing C and Q
             dict(
                 name="multi_cq",
                 commands=["M", "C", "Q", "Z", "M", "C"],
@@ -622,7 +621,7 @@ class TestAvPath:
                     (40, 0),
                 ],
             ),
-            # MULTI 3 — Open + closed, mixed commands
+            # MULTI 3 - Open + closed, mixed commands
             dict(
                 name="multi_mixed_three",
                 commands=["M", "L", "Q", "M", "C", "L", "Z", "M", "Q", "C"],
@@ -663,7 +662,7 @@ class TestAvPath:
                     (100, 100),
                 ],
             ),
-            # MULTI 4 — Z then open contour with Q + C
+            # MULTI 4 - Z then open contour with Q + C
             dict(
                 name="multi_z_plus_open",
                 commands=["M", "L", "C", "Z", "M", "Q", "C", "L"],

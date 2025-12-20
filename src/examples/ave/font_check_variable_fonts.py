@@ -9,12 +9,13 @@ from ave.fonttools import FontHelper
 from ave.glyph import AvGlyphFromTTFontFactory, AvGlyphPolygonizeFactory, AvLetter
 from ave.page import AvSvgPage
 
-CHARACTERS = (
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
-    + "abcdefghijklmnopqrstuvwxyz "
-    + "ÄÖÜ äöü ß€µ@²³~^°\\ 1234567890 "
-    + ',.;:+-*#_<> !"§$%&/()=?{}[]'
-)
+CHARACTERS = ""
+CHARACTERS += "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+CHARACTERS += "abcdefghijklmnopqrstuvwxyz "
+CHARACTERS += "0123456789 "
+CHARACTERS += ',.;:+-*#_<> !"§$%&/()=?{}[] '
+# NON-ASCII EXCEPTION: German characters and special symbols for comprehensive font testing
+CHARACTERS += "ÄÖÜ äöü ß€µ@²³~^°\\ "
 
 
 def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] = None):

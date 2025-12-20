@@ -44,7 +44,7 @@ def test_auto_method(steps: int):
 def run_performance_tests():
     """Run performance comparison between Python, NumPy, and auto methods"""
     print("\nPerformance Results (average of 200 runs, times in microseconds):")
-    print(" Steps |  Python (μs) |  NumPy (μs) |   Auto (μs) | Winner | Faster")
+    print(" Steps |  Python (us) |  NumPy (us) |   Auto (us) | Winner | Faster")
     print("---------------------------------------------------------------")
 
     # Store performance data for crossover analysis
@@ -132,22 +132,22 @@ def analyze_performance_crossover(data):
 
     if exact_crossover:
         print(f"\nExact crossover: NumPy becomes faster at {exact_crossover}+ steps")
-        print(f"At {exact_crossover} steps: Python {python_us:.2f}μs vs NumPy {numpy_us:.2f}μs")
+        print(f"At {exact_crossover} steps: Python {python_us:.2f}us vs NumPy {numpy_us:.2f}us")
         speedup = python_us / numpy_us if numpy_us > 0 else 0
         print(f"NumPy speedup at crossover: {speedup:.2f}x")
 
-    print("\n📊 RECOMMENDATION:")
+    print("\n RECOMMENDATION:")
     if exact_crossover and exact_crossover <= 100:
-        print(f"  • Use Python for step counts < {exact_crossover}")
-        print(f"  • Use NumPy for step counts >= {exact_crossover}")
-        print(f"  • Auto dispatcher correctly chooses optimal implementation")
+        print(f"  - Use Python for step counts < {exact_crossover}")
+        print(f"  - Use NumPy for step counts >= {exact_crossover}")
+        print(f"  - Auto dispatcher correctly chooses optimal implementation")
     elif exact_crossover:
-        print(f"  • Use Python for step counts < {exact_crossover}")
-        print(f"  • Use NumPy for step counts >= {exact_crossover}")
-        print(f"  • Auto dispatcher correctly chooses optimal implementation")
+        print(f"  - Use Python for step counts < {exact_crossover}")
+        print(f"  - Use NumPy for step counts >= {exact_crossover}")
+        print(f"  - Auto dispatcher correctly chooses optimal implementation")
     else:
-        print("  • Auto dispatcher effectively chooses optimal implementation")
-        print("  • Performance varies based on system conditions")
+        print("  - Auto dispatcher effectively chooses optimal implementation")
+        print("  - Performance varies based on system conditions")
 
 
 def verify_correctness():
@@ -169,7 +169,7 @@ def verify_correctness():
         assert np.allclose(python_result, auto_result, rtol=1e-12), f"Mismatch Python vs Auto for steps={steps}"
         assert np.allclose(numpy_result, auto_result, rtol=1e-12), f"Mismatch NumPy vs Auto for steps={steps}"
 
-        print(f"  Steps {steps:4d}: ✓ All methods match")
+        print(f"  Steps {steps:4d}: OK All methods match")
 
 
 def test_different_input_formats():
@@ -224,10 +224,10 @@ def test_different_input_formats():
     assert np.allclose(auto_numpy, python_numpy), "Auto vs Python (numpy input) mismatch"
     assert np.allclose(auto_numpy, numpy_numpy), "Auto vs NumPy (numpy input) mismatch"
 
-    print("  ✓ Tuple sequence input works")
-    print("  ✓ NumPy array input works")
-    print("  ✓ All formats produce identical results")
-    print("  ✓ Python, NumPy, and Auto methods produce identical results")
+    print("  OK Tuple sequence input works")
+    print("  OK NumPy array input works")
+    print("  OK All formats produce identical results")
+    print("  OK Python, NumPy, and Auto methods produce identical results")
 
 
 if __name__ == "__main__":

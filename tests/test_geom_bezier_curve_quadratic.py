@@ -318,7 +318,7 @@ class TestQuadraticInplaceDebugging:
             assert buffer[i, 0] <= control_points[2, 0] + 1e-10, f"Point {i} x should be <= P2.x"
 
             # Verify the point matches the expected quadratic Bezier position at parameter t
-            # B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+            # B(t) = (1-t)^2P0 + 2(1-t)tP1 + t^2P2
             expected_x = (
                 (1 - t) ** 2 * control_points[0, 0]
                 + 2 * (1 - t) * t * control_points[1, 0]
