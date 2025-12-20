@@ -7,12 +7,15 @@ functions that are used by the core path implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
 
 from ave.common import AvGlyphCmds
+
+if TYPE_CHECKING:
+    from ave.path import AvPath  # pylint: disable=unused-import
 
 ###############################################################################
 # PathCommandInfo
@@ -289,3 +292,105 @@ class AvPathUtils:
             segments.append((current_cmds, current_point_count))
 
         return segments
+
+
+class PathSplitter:
+    """Utility class for splitting paths into single-segment components."""
+
+    @staticmethod
+    def split_into_single_paths(points: NDArray[np.float64], commands: List[AvGlyphCmds]) -> List["AvPath"]:
+        """Split an AvPath into single-segment AvPath instances at each 'M' command.
+
+        Args:
+            points: Array of path points
+            commands: List of SVG commands
+
+        Returns:
+            List of single-segment AvPath instances
+
+        Raises:
+            ValueError: If path structure is invalid
+        """
+        # Import here to avoid circular import
+        from ave.path import AvPath
+
+        # Empty path: nothing to split
+        if not commands:
+            return []
+
+        pts = points
+        cmds = commands
+
+        single_paths: List[AvPath] = []
+        point_idx = 0
+        cmd_idx = 0
+
+        while cmd_idx < len(cmds):
+            cmd = cmds[cmd_idx]
+
+            if cmd != "M":
+                # AvPath._validate should guarantee segments start with 'M'
+                raise ValueError(f"Expected 'M' at command index {cmd_idx}, got '{cmd}'")
+
+            # Start a new segment
+            seg_cmds: List[str] = []
+            seg_points: List[np.ndarray] = []
+
+            # Handle MoveTo (always uses one point)
+            if point_idx >= len(pts):
+                raise ValueError("MoveTo command has no corresponding point")
+
+            seg_cmds.append("M")
+            seg_points.append(pts[point_idx].copy())
+            point_idx += 1
+            cmd_idx += 1
+
+            # Consume commands until next 'M' or end using PathCommandProcessor
+            while cmd_idx < len(cmds) and cmds[cmd_idx] != "M":
+                cmd = cmds[cmd_idx]
+                consumed = PathCommandProcessor.get_point_consumption(cmd)
+
+                if cmd == "L":
+                    if point_idx + consumed > len(pts):
+                        raise ValueError(f"LineTo command needs {consumed} point, got {len(pts) - point_idx}")
+                    seg_cmds.append("L")
+                    seg_points.append(pts[point_idx].copy())
+                    point_idx += consumed
+                    cmd_idx += 1
+
+                elif cmd == "Q":
+                    if point_idx + consumed > len(pts):
+                        raise ValueError(
+                            f"Quadratic Bezier command needs {consumed} points, got {len(pts) - point_idx}"
+                        )
+                    seg_cmds.append("Q")
+                    seg_points.append(pts[point_idx].copy())  # control
+                    seg_points.append(pts[point_idx + 1].copy())  # end
+                    point_idx += consumed
+                    cmd_idx += 1
+
+                elif cmd == "C":
+                    if point_idx + consumed > len(pts):
+                        raise ValueError(f"Cubic Bezier command needs {consumed} points, got {len(pts) - point_idx}")
+                    seg_cmds.append("C")
+                    seg_points.append(pts[point_idx].copy())  # control1
+                    seg_points.append(pts[point_idx + 1].copy())  # control2
+                    seg_points.append(pts[point_idx + 2].copy())  # end
+                    point_idx += consumed
+                    cmd_idx += 1
+
+                elif cmd == "Z":
+                    seg_cmds.append("Z")
+                    cmd_idx += 1
+
+                else:
+                    raise ValueError(f"Unknown command '{cmd}'")
+
+            # Create AvPath for this segment with single-path constraints
+            seg_points_array = (
+                np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
+            )
+
+            single_paths.append(AvPath(seg_points_array, seg_cmds, SINGLE_PATH_CONSTRAINTS))
+
+        return single_paths

@@ -9,9 +9,9 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from ave.bezier import BezierCurve
 from ave.common import AvGlyphCmds
 from ave.geom import AvBox, AvPolygon
+from ave.path_polygonizer import PathPolygonizer
 from ave.path_support import (  # pylint: disable=unused-import
     CLOSED_SINGLE_PATH_CONSTRAINTS,
     COMMAND_INFO,
@@ -24,6 +24,7 @@ from ave.path_support import (  # pylint: disable=unused-import
     PathCommandInfo,
     PathCommandProcessor,
     PathConstraints,
+    PathSplitter,
     PathValidator,
 )
 
@@ -710,201 +711,17 @@ class AvPath:
         if not self.has_curves:
             return self
 
-        points = self.points
-        commands = self.commands
-
-        # Input normalization: ensure all points are 3D using PathCommandProcessor
-        if points.shape[1] == 2:
-            points = self._process_2d_to_3d(points, commands)
-
-        # Pre-allocation: estimate final size more accurately
-        # Count actual curves and estimate points needed
-        num_quadratic = commands.count("Q")
-        num_cubic = commands.count("C")
-        # Each Q becomes (steps) L's, each C becomes (steps) L's
-        estimated_points = (
-            len(points)  # Original points
-            - num_quadratic * 2  # Remove original curve points
-            - num_cubic * 3  # Remove original curve points
-            + (num_quadratic + num_cubic) * steps  # Add polygonized points
+        # Use the extracted PathPolygonizer
+        new_points, new_commands = PathPolygonizer.polygonize_path(
+            self.points, self.commands, steps, self._process_2d_to_3d
         )
-        new_points_array = np.empty((estimated_points, 3), dtype=np.float64)
-        new_commands_list = []
 
-        point_index = 0
-        array_index = 0
-        last_point = None
-
-        for cmd in commands:
-            consumed = PathCommandProcessor.get_point_consumption(cmd)
-
-            if cmd == "M":  # MoveTo - uses consumed points
-                if point_index + consumed > len(points):
-                    raise ValueError(f"MoveTo command needs {consumed} point, got {len(points) - point_index}")
-
-                pt = points[point_index]
-                new_points_array[array_index] = pt
-                new_commands_list.append(cmd)
-                last_point = pt[:2]  # Store 2D for curve calculations
-                array_index += 1
-                point_index += consumed
-
-            elif cmd == "L":  # LineTo - uses consumed points
-                if point_index + consumed > len(points):
-                    raise ValueError(f"LineTo command needs {consumed} point, got {len(points) - point_index}")
-
-                pt = points[point_index]
-                new_points_array[array_index] = pt
-                new_commands_list.append(cmd)
-                last_point = pt[:2]  # Store 2D for curve calculations
-                array_index += 1
-                point_index += consumed
-
-            elif cmd == "Q":  # Quadratic Bezier To - uses consumed points
-                if point_index + consumed > len(points):
-                    raise ValueError(
-                        f"Quadratic Bezier command needs {consumed} points, got {len(points) - point_index}"
-                    )
-
-                if array_index == 0:
-                    raise ValueError("Quadratic Bezier command has no starting point")
-
-                # Get start point (last point) + control and end points
-                control_point = points[point_index][:2]
-                end_point = points[point_index + 1][:2]
-
-                control_points = np.array([last_point, control_point, end_point], dtype=np.float64)
-
-                # Polygonize the quadratic bezier directly into output buffer
-                num_curve_points = BezierCurve.polygonize_quadratic_curve_inplace(
-                    control_points, steps, new_points_array, array_index, skip_first=True
-                )
-                new_commands_list.extend(["L"] * num_curve_points)
-                array_index += num_curve_points
-                last_point = end_point  # Update last point
-                point_index += consumed
-
-            elif cmd == "C":  # Cubic Bezier To - uses consumed points
-                if point_index + consumed > len(points):
-                    raise ValueError(f"Cubic Bezier command needs {consumed} points, got {len(points) - point_index}")
-
-                if array_index == 0:
-                    raise ValueError("Cubic Bezier command has no starting point")
-
-                # Get start point (last point) + control1, control2, and end points
-                control1_point = points[point_index][:2]
-                control2_point = points[point_index + 1][:2]
-                end_point = points[point_index + 2][:2]
-
-                control_points = np.array([last_point, control1_point, control2_point, end_point], dtype=np.float64)
-
-                # Polygonize the cubic bezier directly into output buffer
-                num_curve_points = BezierCurve.polygonize_cubic_curve_inplace(
-                    control_points, steps, new_points_array, array_index, skip_first=True
-                )
-                new_commands_list.extend(["L"] * num_curve_points)
-                array_index += num_curve_points
-                last_point = end_point  # Update last point
-                point_index += consumed
-
-            elif cmd == "Z":  # ClosePath - uses 0 points, no point data in SVG
-                if array_index == 0:
-                    raise ValueError("ClosePath command has no starting point")
-
-                # Z command doesn't add a new point, it just closes the path
-                # The closing line is implicit from current point to first MoveTo point
-                new_commands_list.append(cmd)
-
-            else:
-                raise ValueError(f"Unknown command '{cmd}'")
-
-        # Trim the pre-allocated array to actual size
-        new_points = new_points_array[:array_index]
-        return AvMultiPolylinePath(new_points, new_commands_list, MULTI_POLYLINE_CONSTRAINTS)
+        return AvMultiPolylinePath(new_points, new_commands, MULTI_POLYLINE_CONSTRAINTS)
 
     def split_into_single_paths(self) -> List[AvSinglePath]:
         """Split an AvPath into single-segment AvSinglePath instances at each 'M' command."""
-
-        # Empty path: nothing to split
-        if not self.commands:
-            return []
-
-        pts = self.points
-        cmds = self.commands
-
-        single_paths: List[AvSinglePath] = []
-        point_idx = 0
-        cmd_idx = 0
-
-        while cmd_idx < len(cmds):
-            cmd = cmds[cmd_idx]
-
-            if cmd != "M":
-                # AvPath._validate should guarantee segments start with 'M'
-                raise ValueError(f"Expected 'M' at command index {cmd_idx}, got '{cmd}'")
-
-            # Start a new segment
-            seg_cmds: List[str] = []
-            seg_points: List[np.ndarray] = []
-
-            # Handle MoveTo (always uses one point)
-            if point_idx >= len(pts):
-                raise ValueError("MoveTo command has no corresponding point")
-
-            seg_cmds.append("M")
-            seg_points.append(pts[point_idx].copy())
-            point_idx += 1
-            cmd_idx += 1
-
-            # Consume commands until next 'M' or end using PathCommandProcessor
-            while cmd_idx < len(cmds) and cmds[cmd_idx] != "M":
-                cmd = cmds[cmd_idx]
-                consumed = PathCommandProcessor.get_point_consumption(cmd)
-
-                if cmd == "L":
-                    if point_idx + consumed > len(pts):
-                        raise ValueError(f"LineTo command needs {consumed} point, got {len(pts) - point_idx}")
-                    seg_cmds.append("L")
-                    seg_points.append(pts[point_idx].copy())
-                    point_idx += consumed
-                    cmd_idx += 1
-
-                elif cmd == "Q":
-                    if point_idx + consumed > len(pts):
-                        raise ValueError(
-                            f"Quadratic Bezier command needs {consumed} points, got {len(pts) - point_idx}"
-                        )
-                    seg_cmds.append("Q")
-                    seg_points.append(pts[point_idx].copy())  # control
-                    seg_points.append(pts[point_idx + 1].copy())  # end
-                    point_idx += consumed
-                    cmd_idx += 1
-
-                elif cmd == "C":
-                    if point_idx + consumed > len(pts):
-                        raise ValueError(f"Cubic Bezier command needs {consumed} points, got {len(pts) - point_idx}")
-                    seg_cmds.append("C")
-                    seg_points.append(pts[point_idx].copy())  # control1
-                    seg_points.append(pts[point_idx + 1].copy())  # control2
-                    seg_points.append(pts[point_idx + 2].copy())  # end
-                    point_idx += consumed
-                    cmd_idx += 1
-
-                elif cmd == "Z":
-                    seg_cmds.append("Z")
-                    cmd_idx += 1
-
-                else:
-                    raise ValueError(f"Unknown command '{cmd}'")
-
-            # Create AvSinglePath for this segment with single-path constraints
-            seg_points_array = (
-                np.array(seg_points, dtype=np.float64) if seg_points else np.empty((0, 3), dtype=np.float64)
-            )
-
-            single_paths.append(AvSinglePath(seg_points_array, seg_cmds, SINGLE_PATH_CONSTRAINTS))
-
-        return single_paths
+        # Use the extracted PathSplitter
+        return PathSplitter.split_into_single_paths(self.points, self.commands)
 
     def append(self, *paths: Union[AvPath, Sequence[AvPath]]) -> AvPath:
         """Return a new AvPath consisting of this path followed by other paths.
