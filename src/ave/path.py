@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,6 +12,97 @@ from numpy.typing import NDArray
 from ave.bezier import BezierCurve
 from ave.common import AvGlyphCmds
 from ave.geom import AvBox, AvPolygon
+
+###############################################################################
+# Command Processing Infrastructure
+###############################################################################
+
+
+@dataclass(frozen=True)
+class PathCommandInfo:
+    """Metadata for SVG path commands.
+
+    Attributes:
+        consumes_points: Number of points this command consumes
+        is_curve: Whether this command represents a curve
+        is_drawing: Whether this command draws (vs. move)
+    """
+
+    consumes_points: int
+    is_curve: bool
+    is_drawing: bool = True
+
+
+# Command registry with metadata
+COMMAND_INFO = {
+    "M": PathCommandInfo(1, False, False),  # MoveTo - not drawing
+    "L": PathCommandInfo(1, False, True),  # LineTo - drawing
+    "Q": PathCommandInfo(2, True, True),  # Quadratic - curve, drawing
+    "C": PathCommandInfo(3, True, True),  # Cubic - curve, drawing
+    "Z": PathCommandInfo(0, False, True),  # ClosePath - drawing, no points
+}
+
+
+class PathCommandProcessor:
+    """Handles command/point processing operations."""
+
+    @staticmethod
+    def get_point_consumption(cmd: str) -> int:
+        """Return number of points consumed by command."""
+        return COMMAND_INFO[cmd].consumes_points
+
+    @staticmethod
+    def is_curve_command(cmd: str) -> bool:
+        """Return True if command represents a curve."""
+        return COMMAND_INFO[cmd].is_curve
+
+    @staticmethod
+    def is_drawing_command(cmd: str) -> bool:
+        """Return True if command draws (vs. move)."""
+        return COMMAND_INFO[cmd].is_drawing
+
+    @staticmethod
+    def validate_command_sequence(commands: List[AvGlyphCmds], points: NDArray) -> None:
+        """Validate that commands match available points."""
+        point_idx = 0
+        for cmd in commands:
+            if cmd == "Z":
+                continue
+
+            consumed = PathCommandProcessor.get_point_consumption(cmd)
+            if point_idx + consumed > len(points):
+                raise ValueError(f"Not enough points for {cmd} command at index {point_idx}")
+            point_idx += consumed
+
+    @staticmethod
+    def process_commands_with_points(
+        commands: List[AvGlyphCmds], points: NDArray, processor_func: Callable[[str, Optional[NDArray], int], Any]
+    ) -> List[Any]:
+        """Generic command processing with point advancement.
+
+        Args:
+            commands: List of commands to process
+            points: Array of points
+            processor_func: Function that takes (cmd, cmd_points, point_idx)
+
+        Returns:
+            List of results from processor_func
+        """
+        results = []
+        point_idx = 0
+
+        for cmd in commands:
+            if cmd == "Z":
+                results.append(processor_func(cmd, None, -1))
+                continue
+
+            consumed = PathCommandProcessor.get_point_consumption(cmd)
+            cmd_points = points[point_idx : point_idx + consumed]
+            results.append(processor_func(cmd, cmd_points, point_idx))
+            point_idx += consumed
+
+        return results
+
 
 ###############################################################################
 # PathConstraints
@@ -255,38 +346,8 @@ class AvPath:
         commands_list = [] if commands is None else list(commands)
 
         if arr.shape[1] == 2:
-            # Generate type column based on commands
-            type_column = np.zeros(arr.shape[0], dtype=np.float64)
-            point_idx = 0
-
-            for cmd in commands_list:
-                if cmd == "M":  # MoveTo - 1 point
-                    if point_idx >= arr.shape[0]:
-                        raise ValueError(f"Not enough points for MoveTo command at index {point_idx}")
-                    type_column[point_idx] = 0.0
-                    point_idx += 1
-                elif cmd == "L":  # LineTo - 1 point
-                    if point_idx >= arr.shape[0]:
-                        raise ValueError(f"Not enough points for LineTo command at index {point_idx}")
-                    type_column[point_idx] = 0.0
-                    point_idx += 1
-                elif cmd == "Q":  # Quadratic Bezier - 2 points (control + end)
-                    if point_idx + 1 >= arr.shape[0]:
-                        raise ValueError(f"Not enough points for Quadratic Bezier command at index {point_idx}")
-                    type_column[point_idx] = 2.0  # control point
-                    type_column[point_idx + 1] = 0.0  # end point
-                    point_idx += 2
-                elif cmd == "C":  # Cubic Bezier - 3 points (control1 + control2 + end)
-                    if point_idx + 2 >= arr.shape[0]:
-                        raise ValueError(f"Not enough points for Cubic Bezier command at index {point_idx}")
-                    type_column[point_idx] = 3.0  # control point 1
-                    type_column[point_idx + 1] = 3.0  # control point 2
-                    type_column[point_idx + 2] = 0.0  # end point
-                    point_idx += 3
-                elif cmd == "Z":  # ClosePath - no points
-                    pass  # No points consumed
-
-            self._points = np.column_stack([arr, type_column])
+            # Generate type column based on commands using PathCommandProcessor
+            self._points = self._process_2d_to_3d(arr, commands_list)
         elif arr.shape[1] == 3:
             self._points = arr
         else:
@@ -297,6 +358,37 @@ class AvPath:
         self._bounding_box = None
         self._polygonized_path = None
         self._validate()
+
+    def _process_2d_to_3d(self, points: NDArray[np.float64], commands: List[AvGlyphCmds]) -> NDArray[np.float64]:
+        """Convert 2D points to 3D with type column based on commands using PathCommandProcessor."""
+        # Validate command sequence first
+        PathCommandProcessor.validate_command_sequence(commands, points)
+
+        type_column = np.zeros(points.shape[0], dtype=np.float64)
+        point_idx = 0
+
+        for cmd in commands:
+            if cmd == "Z":
+                continue
+
+            consumed = PathCommandProcessor.get_point_consumption(cmd)
+
+            if cmd in ["M", "L"]:
+                # Regular points get type 0.0 (no change needed)
+                point_idx += consumed
+            elif cmd == "Q":
+                # Quadratic: control point (2.0), end point (0.0)
+                type_column[point_idx] = 2.0  # Control point
+                type_column[point_idx + 1] = 0.0  # End point
+                point_idx += consumed
+            elif cmd == "C":
+                # Cubic: control1 (3.0), control2 (3.0), end point (0.0)
+                type_column[point_idx] = 3.0  # Control point 1
+                type_column[point_idx + 1] = 3.0  # Control point 2
+                type_column[point_idx + 2] = 0.0  # End point
+                point_idx += consumed
+
+        return np.column_stack([points, type_column])
 
     def _validate(self) -> None:
         """Validate path structure using PathValidator.
@@ -653,8 +745,8 @@ class AvPath:
         This method is most meaningful for closed polygon-like paths.
         For paths with curves, the path is first polygonized.
         """
-        # For paths with curves, polygonize first
-        if any(cmd in ["Q", "C"] for cmd in self.commands):
+        # For paths with curves, polygonize first using PathCommandProcessor
+        if any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands):
             return self.polygonized_path().contains_point(point)
 
         pts = self.points
@@ -697,8 +789,8 @@ class AvPath:
                 a simple (non self-intersecting) ring. For degenerate cases a
                 best-effort fallback is returned.
         """
-        # For paths with curves, polygonize first
-        if any(cmd in ["Q", "C"] for cmd in self.commands):
+        # For paths with curves, polygonize first using PathCommandProcessor
+        if any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands):
             return self.polygonized_path().representative_point(samples, epsilon)
 
         pts = self.points
@@ -776,7 +868,7 @@ class AvPath:
             return self._bounding_box
 
         # Check if path contains curves that need polygonization for accurate bounding box
-        has_curves = any(cmd in ["Q", "C"] for cmd in self.commands)
+        has_curves = any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands)
 
         if not has_curves:
             # No curves, use simple min/max calculation on existing points
@@ -870,60 +962,66 @@ class AvPath:
         if steps == 0:
             return self
 
-        # Check if path already has no curves
-        if not any(cmd in ["Q", "C"] for cmd in self.commands):
+        # Check if path already has no curves using PathCommandProcessor
+        if not any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands):
             return self
 
         points = self.points
         commands = self.commands
 
-        # Input normalization: ensure all points are 3D
+        # Input normalization: ensure all points are 3D using PathCommandProcessor
         if points.shape[1] == 2:
-            points = np.column_stack([points, np.zeros(len(points), dtype=np.float64)])
+            points = self._process_2d_to_3d(points, commands)
 
-        # Pre-allocation: estimate final size
-        num_curves = sum(1 for cmd in commands if cmd in "QC")
+        # Pre-allocation: estimate final size using PathCommandProcessor
+        num_curves = sum(1 for cmd in commands if PathCommandProcessor.is_curve_command(cmd))
         estimated_points = len(points) + num_curves * steps
         new_points_array = np.empty((estimated_points, 3), dtype=np.float64)
         new_commands_list = []
 
         point_index = 0
         array_index = 0
+        last_point = None
 
         for cmd in commands:
-            if cmd == "M":  # MoveTo - uses 1 point
-                if point_index >= len(points):
-                    raise ValueError(f"MoveTo command needs 1 point, got {len(points) - point_index}")
+            consumed = PathCommandProcessor.get_point_consumption(cmd)
+
+            if cmd == "M":  # MoveTo - uses consumed points
+                if point_index + consumed > len(points):
+                    raise ValueError(f"MoveTo command needs {consumed} point, got {len(points) - point_index}")
 
                 pt = points[point_index]
                 new_points_array[array_index] = pt
                 new_commands_list.append(cmd)
+                last_point = pt[:2]  # Store 2D for curve calculations
                 array_index += 1
-                point_index += 1
+                point_index += consumed
 
-            elif cmd == "L":  # LineTo - uses 1 point
-                if point_index >= len(points):
-                    raise ValueError(f"LineTo command needs 1 point, got {len(points) - point_index}")
+            elif cmd == "L":  # LineTo - uses consumed points
+                if point_index + consumed > len(points):
+                    raise ValueError(f"LineTo command needs {consumed} point, got {len(points) - point_index}")
 
                 pt = points[point_index]
                 new_points_array[array_index] = pt
                 new_commands_list.append(cmd)
+                last_point = pt[:2]  # Store 2D for curve calculations
                 array_index += 1
-                point_index += 1
+                point_index += consumed
 
-            elif cmd == "Q":  # Quadratic Bezier To - uses 2 points (control, end)
-                if point_index + 1 >= len(points):
-                    raise ValueError(f"Quadratic Bezier command needs 2 points, got {len(points) - point_index}")
+            elif cmd == "Q":  # Quadratic Bezier To - uses consumed points
+                if point_index + consumed > len(points):
+                    raise ValueError(
+                        f"Quadratic Bezier command needs {consumed} points, got {len(points) - point_index}"
+                    )
 
                 if array_index == 0:
                     raise ValueError("Quadratic Bezier command has no starting point")
 
-                # Get start point (last point in new_points_array) + control and end points
-                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
+                # Get start point (last point) + control and end points
                 control_point = points[point_index][:2]
                 end_point = points[point_index + 1][:2]
 
-                control_points = np.array([start_point, control_point, end_point], dtype=np.float64)
+                control_points = np.array([last_point, control_point, end_point], dtype=np.float64)
 
                 # Polygonize the quadratic bezier directly into output buffer
                 num_curve_points = BezierCurve.polygonize_quadratic_curve_inplace(
@@ -931,22 +1029,22 @@ class AvPath:
                 )
                 new_commands_list.extend(["L"] * num_curve_points)
                 array_index += num_curve_points
-                point_index += 2  # Skip control and end points
+                last_point = end_point  # Update last point
+                point_index += consumed
 
-            elif cmd == "C":  # Cubic Bezier To - uses 3 points (control1, control2, end)
-                if point_index + 2 >= len(points):
-                    raise ValueError(f"Cubic Bezier command needs 3 points, got {len(points) - point_index}")
+            elif cmd == "C":  # Cubic Bezier To - uses consumed points
+                if point_index + consumed > len(points):
+                    raise ValueError(f"Cubic Bezier command needs {consumed} points, got {len(points) - point_index}")
 
                 if array_index == 0:
                     raise ValueError("Cubic Bezier command has no starting point")
 
-                # Get start point (last point in new_points_array) + control1, control2, and end points
-                start_point = new_points_array[array_index - 1][:2]  # Get x,y from last point
+                # Get start point (last point) + control1, control2, and end points
                 control1_point = points[point_index][:2]
                 control2_point = points[point_index + 1][:2]
                 end_point = points[point_index + 2][:2]
 
-                control_points = np.array([start_point, control1_point, control2_point, end_point], dtype=np.float64)
+                control_points = np.array([last_point, control1_point, control2_point, end_point], dtype=np.float64)
 
                 # Polygonize the cubic bezier directly into output buffer
                 num_curve_points = BezierCurve.polygonize_cubic_curve_inplace(
@@ -954,7 +1052,8 @@ class AvPath:
                 )
                 new_commands_list.extend(["L"] * num_curve_points)
                 array_index += num_curve_points
-                point_index += 3  # Skip control1, control2, and end points
+                last_point = end_point  # Update last point
+                point_index += consumed
 
             elif cmd == "Z":  # ClosePath - uses 0 points, no point data in SVG
                 if array_index == 0:
@@ -982,7 +1081,6 @@ class AvPath:
         cmds = self.commands
 
         single_paths: List[AvSinglePath] = []
-
         point_idx = 0
         cmd_idx = 0
 
@@ -1006,35 +1104,38 @@ class AvPath:
             point_idx += 1
             cmd_idx += 1
 
-            # Consume commands until next 'M' or end
+            # Consume commands until next 'M' or end using PathCommandProcessor
             while cmd_idx < len(cmds) and cmds[cmd_idx] != "M":
                 cmd = cmds[cmd_idx]
+                consumed = PathCommandProcessor.get_point_consumption(cmd)
 
                 if cmd == "L":
-                    if point_idx >= len(pts):
-                        raise ValueError("LineTo command has no corresponding point")
+                    if point_idx + consumed > len(pts):
+                        raise ValueError(f"LineTo command needs {consumed} point, got {len(pts) - point_idx}")
                     seg_cmds.append("L")
                     seg_points.append(pts[point_idx].copy())
-                    point_idx += 1
+                    point_idx += consumed
                     cmd_idx += 1
 
                 elif cmd == "Q":
-                    if point_idx + 1 >= len(pts):
-                        raise ValueError("Quadratic Bezier command needs 2 points")
+                    if point_idx + consumed > len(pts):
+                        raise ValueError(
+                            f"Quadratic Bezier command needs {consumed} points, got {len(pts) - point_idx}"
+                        )
                     seg_cmds.append("Q")
                     seg_points.append(pts[point_idx].copy())  # control
                     seg_points.append(pts[point_idx + 1].copy())  # end
-                    point_idx += 2
+                    point_idx += consumed
                     cmd_idx += 1
 
                 elif cmd == "C":
-                    if point_idx + 2 >= len(pts):
-                        raise ValueError("Cubic Bezier command needs 3 points")
+                    if point_idx + consumed > len(pts):
+                        raise ValueError(f"Cubic Bezier command needs {consumed} points, got {len(pts) - point_idx}")
                     seg_cmds.append("C")
                     seg_points.append(pts[point_idx].copy())  # control1
                     seg_points.append(pts[point_idx + 1].copy())  # control2
                     seg_points.append(pts[point_idx + 2].copy())  # end
-                    point_idx += 3
+                    point_idx += consumed
                     cmd_idx += 1
 
                 elif cmd == "Z":
