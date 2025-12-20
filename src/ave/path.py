@@ -641,7 +641,7 @@ class AvPath:
         return AvSinglePath(points_array, new_commands, path.constraints)
 
     @classmethod
-    def make_closed_single(cls, path: "AvSinglePath") -> "AvClosedSinglePath":
+    def make_closed_single(cls, path: AvSinglePath) -> AvClosedSinglePath:
         """Create a closed AvPath from an existing AvSinglePath, ensuring it's properly closed.
 
         Args:
@@ -670,16 +670,30 @@ class AvPath:
             # Calculate distance between first and last points
             distance = np.linalg.norm(first_point[:2] - last_point[:2])
 
-            # If points are very close (within a small tolerance), remove the duplicate
+            # If points are very close (within a small tolerance), check command type
             tolerance = 1e-10
             if distance < tolerance:
-                points = points[:-1]  # Remove last point
-                # Also remove one command to maintain point/command ratio
-                # Remove the command before Z (which should be the last command)
-                if len(commands) > 1 and commands[-1] == "Z":
-                    commands = commands[:-2] + ["Z"]
-                else:
-                    commands = commands[:-1]
+                # Find the actual drawing command (not Z)
+                if len(commands) > 1:
+                    last_draw_cmd_idx = -2 if commands[-1] == "Z" else -1
+                    last_draw_cmd = commands[last_draw_cmd_idx]
+
+                    # Only remove duplicate for line commands (L, M)
+                    # Preserve curve endpoints (Q, C) to maintain geometric integrity
+                    if last_draw_cmd in ["L", "M"]:
+                        # Special case: don't remove M if it would leave only Z command
+                        if last_draw_cmd == "M" and len(commands) == 2 and commands[0] == "M" and commands[1] == "Z":
+                            # Keep the M command for single point paths
+                            pass
+                        else:
+                            points = points[:-1]  # Remove last point
+                            # Also remove one command to maintain point/command ratio
+                            # Remove the command before Z (which should be the last command)
+                            if len(commands) > 1 and commands[-1] == "Z":
+                                commands = commands[:-2] + ["Z"]
+                            else:
+                                commands = commands[:-1]
+                    # For curve commands (Q, C), keep the duplicate point
 
         return AvClosedSinglePath(points, commands, CLOSED_SINGLE_PATH_CONSTRAINTS)
 

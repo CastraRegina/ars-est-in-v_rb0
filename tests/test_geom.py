@@ -979,3 +979,208 @@ class TestAvPathSinglePath:
 
         np.testing.assert_array_equal(reversed_twice.points, original_path.points)
         assert reversed_twice.commands == original_path.commands
+
+
+###############################################################################
+# make_closed_single() Tests
+###############################################################################
+
+
+class TestMakeClosedSingle:
+    """Test class for AvPath.make_closed_single() functionality."""
+
+    def test_empty_path(self):
+        """Test make_closed_single with empty path."""
+        points = np.array([], dtype=np.float64).reshape(0, 3)
+        commands = []
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        assert closed.points.shape == (0, 3)
+        assert closed.commands == []
+
+    def test_single_point_path(self):
+        """Test make_closed_single with single point."""
+        points = np.array([[1.0, 2.0, 0.0]], dtype=np.float64)
+        commands = ["M"]
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # For single point, adding Z creates a closed path
+        np.testing.assert_array_equal(closed.points, points)
+        assert closed.commands == ["M", "Z"]
+
+    def test_line_command_with_duplicate_endpoint(self):
+        """Test line command where last point duplicates first point."""
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should remove duplicate point for line command
+        expected_points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L", "Z"]
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_line_command_without_duplicate_endpoint(self):
+        """Test line command where last point does not duplicate first point."""
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should keep all points and add Z
+        expected_points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L", "L", "Z"]
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_quadratic_command_with_duplicate_endpoint(self):
+        """Test quadratic curve command where last point duplicates first point."""
+        points = np.array([[0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "Q"]  # Q is the last drawing command
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should keep duplicate point for curve command
+        expected_points = np.array([[0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "Q", "Z"]
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_cubic_command_with_duplicate_endpoint(self):
+        """Test cubic curve command where last point duplicates first point."""
+        points = np.array([[0.0, 0.0, 0.0], [0.3, 0.5, 0.0], [0.7, 0.5, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "C"]  # C is the last drawing command
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should keep duplicate point for curve command
+        expected_points = np.array(
+            [[0.0, 0.0, 0.0], [0.3, 0.5, 0.0], [0.7, 0.5, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64
+        )
+        expected_commands = ["M", "C", "Z"]
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_mixed_commands_with_duplicate_endpoint(self):
+        """Test mixed commands where last command is line with duplicate endpoint."""
+        points = np.array([[0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "Q", "L"]  # L is the last drawing command
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Last command is L, should remove duplicate L command and its point
+        expected_points = np.array([[0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "Q", "Z"]  # L removed, Z added
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_path_already_closed_with_z(self):
+        """Test path that already ends with Z command."""
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "Z"]
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should handle existing Z correctly
+        expected_points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L", "Z"]
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_near_duplicate_points_within_tolerance(self):
+        """Test points that are very close but not exactly equal."""
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1e-11, 1e-11, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should remove near-duplicate point for line command
+        expected_points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L", "Z"]
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_points_outside_tolerance(self):
+        """Test points that are close but outside tolerance."""
+        points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1e-9, 1e-9, 0.0]], dtype=np.float64)
+        commands = ["M", "L", "L"]
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should keep all points as they're outside tolerance
+        expected_points = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1e-9, 1e-9, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "L", "L", "Z"]
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_move_command_with_duplicate_endpoint(self):
+        """Test line command where last point duplicates first point."""
+        points = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float64)
+        commands = ["M", "L"]  # M moves to first point, L draws to second (duplicate) point
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Should remove duplicate point and L command since L endpoint duplicates M startpoint
+        expected_points = np.array([[0.0, 0.0, 0.0]], dtype=np.float64)
+        expected_commands = ["M", "Z"]  # L removed, Z added
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
+
+    def test_complex_curve_path(self):
+        """Test complex path with multiple curve commands."""
+        points = np.array(
+            [
+                [0.0, 0.0, 0.0],  # M
+                [0.5, 1.0, 0.0],  # Q control
+                [1.0, 0.0, 0.0],  # Q end
+                [1.5, -0.5, 0.0],  # C control1
+                [2.0, 0.5, 0.0],  # C control2
+                [2.5, 0.0, 0.0],  # C end
+                [0.0, 0.0, 0.0],  # L duplicate
+            ],
+            dtype=np.float64,
+        )
+        commands = ["M", "Q", "C", "L"]
+        path = AvPath(points, commands, SINGLE_PATH_CONSTRAINTS)
+
+        closed = AvPath.make_closed_single(path)
+
+        # Last command is L, should remove duplicate L command and its point
+        expected_points = np.array(
+            [
+                [0.0, 0.0, 0.0],  # M
+                [0.5, 1.0, 0.0],  # Q control
+                [1.0, 0.0, 0.0],  # Q end
+                [1.5, -0.5, 0.0],  # C control1
+                [2.0, 0.5, 0.0],  # C control2
+                [2.5, 0.0, 0.0],  # C end
+            ],
+            dtype=np.float64,
+        )
+        expected_commands = ["M", "Q", "C", "Z"]  # L removed, Z added
+
+        np.testing.assert_array_equal(closed.points, expected_points)
+        assert closed.commands == expected_commands
