@@ -105,6 +105,51 @@ class AvPolygon:
         cross = x * y_next - x_next * y
         return bool(cross.sum() > 0.0)
 
+    @staticmethod
+    def ray_casting_single(points: NDArray[np.float64], point: Tuple[float, float]) -> bool:
+        """Check if a point lies inside a single polygon using ray casting algorithm.
+
+        Args:
+            points: Array of polygon vertices (shape: n_points, 3 or n_points, 2)
+            point: Point to test as (x, y) tuple
+
+        Returns:
+            bool: True if point is inside the polygon, False otherwise
+
+        Raises:
+            ValueError: If point is not a tuple/list of 2 numeric values
+        """
+        # Input validation
+        if not isinstance(point, (tuple, list)) or len(point) != 2:
+            raise ValueError("Point must be a tuple or list of 2 numeric values")
+
+        n = points.shape[0]
+        if n == 0:
+            return False
+
+        x, y = float(point[0]), float(point[1])
+        inside = False
+        j = n - 1
+
+        # Optimized ray casting with local variables for speed
+        pts_x = points[:, 0]
+        pts_y = points[:, 1]
+
+        for i in range(n):
+            xi, yi = float(pts_x[i]), float(pts_y[i])
+            xj, yj = float(pts_x[j]), float(pts_y[j])
+
+            # Check if ray intersects edge
+            if (yi > y) != (yj > y):
+                # Calculate intersection point
+                dy = yj - yi
+                if dy != 0:  # Avoid division by zero
+                    x_intersect = xi + (y - yi) * (xj - xi) / dy
+                    if x < x_intersect:
+                        inside = not inside
+            j = i
+        return inside
+
 
 ###############################################################################
 # AvBox

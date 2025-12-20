@@ -280,3 +280,208 @@ class TestAvPolygon:
 
         # Should be counter-clockwise
         assert AvPolygon.is_ccw(points)
+
+    # Tests for ray_casting_single method
+    def test_ray_casting_single_input_validation(self):
+        """Test input validation for ray casting."""
+        # Empty polygon
+        points = np.array([], dtype=np.float64).reshape(0, 3)
+        assert not AvPolygon.ray_casting_single(points, (0.5, 0.5))
+
+        # Invalid point inputs
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        with pytest.raises(ValueError, match="Point must be a tuple or list of 2 numeric values"):
+            AvPolygon.ray_casting_single(square, (0.5,))  # Too few coordinates
+
+        with pytest.raises(ValueError, match="Point must be a tuple or list of 2 numeric values"):
+            AvPolygon.ray_casting_single(square, (0.5, 0.5, 0.5))  # Too many coordinates
+
+        with pytest.raises(ValueError, match="Point must be a tuple or list of 2 numeric values"):
+            AvPolygon.ray_casting_single(square, "invalid")  # Wrong type
+
+    def test_ray_casting_single_unit_square(self):
+        """Test ray casting on unit square."""
+        # Unit square vertices
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        # Points inside square
+        assert AvPolygon.ray_casting_single(square, (0.5, 0.5))
+        assert AvPolygon.ray_casting_single(square, (0.1, 0.1))
+        assert AvPolygon.ray_casting_single(square, (0.9, 0.9))
+
+        # Points outside square
+        assert not AvPolygon.ray_casting_single(square, (-0.1, 0.5))
+        assert not AvPolygon.ray_casting_single(square, (1.1, 0.5))
+        assert not AvPolygon.ray_casting_single(square, (0.5, -0.1))
+        assert not AvPolygon.ray_casting_single(square, (0.5, 1.1))
+
+    def test_ray_casting_single_triangle(self):
+        """Test ray casting on triangle."""
+        # Right triangle with vertices (0,0), (2,0), (0,2)
+        triangle = np.array([[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 2.0, 0.0]], dtype=np.float64)
+
+        # Points inside triangle
+        assert AvPolygon.ray_casting_single(triangle, (0.5, 0.5))
+        assert AvPolygon.ray_casting_single(triangle, (0.1, 0.1))
+        assert AvPolygon.ray_casting_single(triangle, (1.0, 0.5))
+
+        # Points outside triangle
+        assert not AvPolygon.ray_casting_single(triangle, (1.5, 1.5))
+        assert not AvPolygon.ray_casting_single(triangle, (-0.5, 0.5))
+        assert not AvPolygon.ray_casting_single(triangle, (0.5, -0.5))
+
+    def test_ray_casting_single_edge_cases(self):
+        """Test ray casting on edge cases."""
+        # Unit square
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        # Points on edges (implementation dependent, but should be consistent)
+        edge_points = [(0.5, 0.0), (1.0, 0.5), (0.5, 1.0), (0.0, 0.5)]
+        for point in edge_points:
+            result = AvPolygon.ray_casting_single(square, point)
+            assert isinstance(result, bool)  # Should return a boolean
+
+    def test_ray_casting_single_vertices(self):
+        """Test ray casting on polygon vertices."""
+        # Unit square
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        # Test each vertex
+        vertices = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+        for vertex in vertices:
+            result = AvPolygon.ray_casting_single(square, vertex)
+            assert isinstance(result, bool)  # Should return a boolean
+
+    def test_ray_casting_single_complex_polygon(self):
+        """Test ray casting on complex polygon."""
+        # Octagon
+        n_sides = 8
+        points = []
+        for i in range(n_sides):
+            angle = 2 * np.pi * i / n_sides
+            points.append([np.cos(angle), np.sin(angle), 0.0])
+        octagon = np.array(points, dtype=np.float64)
+
+        # Center should be inside
+        assert AvPolygon.ray_casting_single(octagon, (0.0, 0.0))
+
+        # Point far outside should be outside
+        assert not AvPolygon.ray_casting_single(octagon, (2.0, 2.0))
+
+    def test_ray_casting_single_concave_polygon(self):
+        """Test ray casting on concave polygon."""
+        # Concave L-shaped polygon
+        concave = np.array(
+            [[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 1.0, 0.0], [1.0, 1.0, 0.0], [1.0, 2.0, 0.0], [0.0, 2.0, 0.0]],
+            dtype=np.float64,
+        )
+
+        # Points in the solid parts of the L-shape
+        assert AvPolygon.ray_casting_single(concave, (0.5, 0.5))  # Lower-left area
+        assert AvPolygon.ray_casting_single(concave, (1.5, 0.5))  # Lower-right area
+        assert AvPolygon.ray_casting_single(concave, (0.5, 1.5))  # Upper-left area
+
+        # Point in the "hole" (concave part - upper-right missing area)
+        assert not AvPolygon.ray_casting_single(concave, (1.5, 1.5))
+
+        # Points outside the entire shape
+        assert not AvPolygon.ray_casting_single(concave, (2.5, 1.0))
+        assert not AvPolygon.ray_casting_single(concave, (0.5, 2.5))
+
+    def test_ray_casting_single_clockwise_vs_counterclockwise(self):
+        """Test that ray casting works regardless of vertex order."""
+        # Square vertices
+        square_ccw = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+        square_cw = square_ccw[::-1]  # Reverse order
+
+        test_point = (0.5, 0.5)
+
+        # Should give same result regardless of orientation
+        result_ccw = AvPolygon.ray_casting_single(square_ccw, test_point)
+        result_cw = AvPolygon.ray_casting_single(square_cw, test_point)
+        assert result_ccw == result_cw == True
+
+    def test_ray_casting_single_degenerate_cases(self):
+        """Test ray casting on degenerate polygons."""
+        # Single point
+        single_point = np.array([[1.0, 1.0, 0.0]], dtype=np.float64)
+        assert not AvPolygon.ray_casting_single(single_point, (1.0, 1.0))
+        assert not AvPolygon.ray_casting_single(single_point, (2.0, 2.0))
+
+        # Line segment (2 points)
+        line = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0]], dtype=np.float64)
+        assert not AvPolygon.ray_casting_single(line, (0.5, 0.5))
+        assert not AvPolygon.ray_casting_single(line, (2.0, 2.0))
+
+        # Collinear points
+        collinear = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 0.0], [2.0, 2.0, 0.0]], dtype=np.float64)
+        assert not AvPolygon.ray_casting_single(collinear, (1.0, 1.0))
+
+    def test_ray_casting_single_large_coordinates(self):
+        """Test ray casting with large coordinate values."""
+        # Large square
+        large_square = np.array(
+            [[1000.0, 1000.0, 0.0], [2000.0, 1000.0, 0.0], [2000.0, 2000.0, 0.0], [1000.0, 2000.0, 0.0]],
+            dtype=np.float64,
+        )
+
+        # Point inside large square
+        assert AvPolygon.ray_casting_single(large_square, (1500.0, 1500.0))
+
+        # Point outside large square
+        assert not AvPolygon.ray_casting_single(large_square, (500.0, 1500.0))
+
+    def test_ray_casting_single_small_coordinates(self):
+        """Test ray casting with very small coordinate values."""
+        # Small square
+        small_square = np.array(
+            [[0.001, 0.001, 0.0], [0.002, 0.001, 0.0], [0.002, 0.002, 0.0], [0.001, 0.002, 0.0]], dtype=np.float64
+        )
+
+        # Point inside small square
+        assert AvPolygon.ray_casting_single(small_square, (0.0015, 0.0015))
+
+        # Point outside small square
+        assert not AvPolygon.ray_casting_single(small_square, (0.003, 0.0015))
+
+    def test_ray_casting_single_negative_coordinates(self):
+        """Test ray casting with negative coordinate values."""
+        # Square in negative quadrant
+        neg_square = np.array(
+            [[-2.0, -2.0, 0.0], [-1.0, -2.0, 0.0], [-1.0, -1.0, 0.0], [-2.0, -1.0, 0.0]], dtype=np.float64
+        )
+
+        # Point inside negative square
+        assert AvPolygon.ray_casting_single(neg_square, (-1.5, -1.5))
+
+        # Point outside negative square
+        assert not AvPolygon.ray_casting_single(neg_square, (0.0, -1.5))
+
+    def test_ray_casting_single_2d_points(self):
+        """Test ray casting with 2D points (without type column)."""
+        # 2D square
+        square_2d = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]], dtype=np.float64)
+
+        # Should work the same as 3D points
+        assert AvPolygon.ray_casting_single(square_2d, (0.5, 0.5))
+        assert not AvPolygon.ray_casting_single(square_2d, (1.5, 0.5))
+
+    def test_ray_casting_single_performance_consistency(self):
+        """Test that ray casting gives consistent results across multiple calls."""
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+        test_point = (0.5, 0.5)
+
+        # Multiple calls should give same result
+        results = [AvPolygon.ray_casting_single(square, test_point) for _ in range(10)]
+        assert all(results)  # All should be True
+
+    def test_ray_casting_single_numeric_types(self):
+        """Test ray casting with different numeric types for points."""
+        square = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64)
+
+        # Test with different numeric types
+        assert AvPolygon.ray_casting_single(square, (0.5, 0.5))  # float
+        assert AvPolygon.ray_casting_single(square, (0, 0))  # int
+        assert AvPolygon.ray_casting_single(square, (0.5, 0))  # mixed
+        assert AvPolygon.ray_casting_single(square, [0.5, 0.5])  # list instead of tuple

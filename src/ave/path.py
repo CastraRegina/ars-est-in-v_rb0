@@ -506,6 +506,11 @@ class AvPath:
         return self.constraints == MULTI_POLYGON_CONSTRAINTS
 
     @cached_property
+    def has_curves(self) -> bool:
+        """Return True if this path contains curve commands (Q, C)."""
+        return any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands)
+
+    @cached_property
     def area(self) -> float:
         """
         Return the area of this path if it's polygon-like.
@@ -517,10 +522,11 @@ class AvPath:
             float: The area of the path. Returns 0.0 if path has fewer than 3 points.
 
         Raises:
-            ValueError: If the path is not closed (must_close constraint required).
+            ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
-        if not self.constraints.must_close:
-            raise ValueError("Area calculation requires a closed path (must_close=True)")
+        # Check if path is closed - either by constraint (which guarantees Z) or by Z command
+        if not self.constraints.must_close and not (self.commands and self.commands[-1] == "Z"):
+            raise ValueError("Area calculation requires a closed path (must_close=True or Z command)")
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
@@ -541,10 +547,11 @@ class AvPath:
             Tuple[float, float]: The x and y coordinates of the centroid.
 
         Raises:
-            ValueError: If the path is not closed (must_close constraint required).
+            ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
-        if not self.constraints.must_close:
-            raise ValueError("Centroid calculation requires a closed path (must_close=True)")
+        # Check if path is closed - either by constraint (which guarantees Z) or by Z command
+        if not self.constraints.must_close and not (self.commands and self.commands[-1] == "Z"):
+            raise ValueError("Centroid calculation requires a closed path (must_close=True or Z command)")
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
@@ -565,10 +572,11 @@ class AvPath:
             bool: True if counter-clockwise, False otherwise.
 
         Raises:
-            ValueError: If the path is not closed (must_close constraint required).
+            ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
-        if not self.constraints.must_close:
-            raise ValueError("CCW check requires a closed path (must_close=True)")
+        # Check if path is closed - either by constraint (which guarantees Z) or by Z command
+        if not self.constraints.must_close and not (self.commands and self.commands[-1] == "Z"):
+            raise ValueError("CCW check requires a closed path (must_close=True or Z command)")
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
@@ -744,54 +752,53 @@ class AvPath:
 
         This method is most meaningful for closed polygon-like paths.
         For paths with curves, the path is first polygonized.
+        For multi-segment paths, handles polygons with holes using winding rule.
         """
-        # For paths with curves, polygonize first using PathCommandProcessor
-        if any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands):
+        # Input validation
+        if not isinstance(point, (tuple, list)) or len(point) != 2:
+            raise ValueError("Point must be a tuple or list of 2 numeric values")
+
+        # For paths with curves, polygonize first using cached curve detection
+        if self.has_curves:
             return self.polygonized_path().contains_point(point)
 
-        pts = self.points
-        n = pts.shape[0]
-        if n == 0:
+        # Handle empty path
+        if self.points.shape[0] == 0:
             return False
-        x, y = point
-        inside = False
-        j = n - 1
-        for i in range(n):
-            xi, yi = pts[i][:2]
-            xj, yj = pts[j][:2]
-            intersects = (yi > y) != (yj > y)
-            if intersects:
-                slope = (xj - xi) / (yj - yi)
-                x_intersect = slope * (y - yi) + xi
-                if x < x_intersect:
-                    inside = not inside
-            j = i
-        return inside
 
-    def representative_point(self, samples: int = 9, epsilon: float = 1e-9) -> Tuple[float, float]:
-        """Return a point intended to lie inside the path.
+        # For single-segment paths, use direct ray casting
+        if self.commands.count("M") <= 1:
+            return AvPolygon.ray_casting_single(self.points, point)
 
-        The centroid of a concave polygon can lie outside the filled region.
-        This method finds interior points by intersecting several horizontal
-        scanlines with the polygon edges and returning the midpoint of an
-        interior interval.
+        # For multi-segment paths, handle each segment and apply winding rule
+        segments = self.split_into_single_paths()
+        winding_number = 0
 
-        For paths with curves, the path is first polygonized.
+        for segment in segments:
+            if segment.points.shape[0] == 0:
+                continue
 
-        Args:
-            samples: Number of scanlines to try between ymin and ymax.
-            epsilon: Small relative offset applied to the scanline y value to
-                avoid pathological cases where the scanline hits vertices
-                exactly.
+            # Check if point is in this segment
+            if AvPolygon.ray_casting_single(segment.points, point):
+                # Determine winding direction based on segment's orientation
+                if segment.is_ccw:
+                    winding_number += 1
+                else:
+                    winding_number -= 1
 
-        Returns:
-            Tuple[float, float]: A point inside the path when the contour is
-                a simple (non self-intersecting) ring. For degenerate cases a
-                best-effort fallback is returned.
-        """
-        # For paths with curves, polygonize first using PathCommandProcessor
-        if any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands):
-            return self.polygonized_path().representative_point(samples, epsilon)
+        # Point is inside if winding number is non-zero
+        return winding_number != 0
+
+    @cached_property
+    def _representative_point_cache(self) -> Tuple[float, float]:
+        """Cached representative point for performance."""
+        return self._compute_representative_point()
+
+    def _compute_representative_point(self, samples: int = 9, epsilon: float = 1e-9) -> Tuple[float, float]:
+        """Internal method to compute representative point."""
+        # For paths with curves, polygonize first using cached curve detection
+        if self.has_curves:
+            return self.polygonized_path()._compute_representative_point(samples, epsilon)
 
         pts = self.points
         if pts.shape[0] == 0:
@@ -852,6 +859,33 @@ class AvPath:
 
         return (float(pts[:, 0].mean()), float(pts[:, 1].mean()))
 
+    def representative_point(self, samples: int = 9, epsilon: float = 1e-9) -> Tuple[float, float]:
+        """Return a point intended to lie inside the path.
+
+        The centroid of a concave polygon can lie outside the filled region.
+        This method finds interior points by intersecting several horizontal
+        scanlines with the polygon edges and returning the midpoint of an
+        interior interval.
+
+        For paths with curves, the path is first polygonized.
+
+        Args:
+            samples: Number of scanlines to try between ymin and ymax.
+            epsilon: Small relative offset applied to the scanline y value to
+                avoid pathological cases where the scanline hits vertices
+                exactly.
+
+        Returns:
+            Tuple[float, float]: A point inside the path when the contour is
+                a simple (non self-intersecting) ring. For degenerate cases a
+                best-effort fallback is returned.
+        """
+        # Use cached version for default parameters, compute for custom params
+        if samples == 9 and epsilon == 1e-9:
+            return self._representative_point_cache
+        else:
+            return self._compute_representative_point(samples, epsilon)
+
     def bounding_box(self) -> AvBox:
         """
         Returns bounding box (tightest box around Path)
@@ -868,7 +902,7 @@ class AvPath:
             return self._bounding_box
 
         # Check if path contains curves that need polygonization for accurate bounding box
-        has_curves = any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands)
+        has_curves = self.has_curves
 
         if not has_curves:
             # No curves, use simple min/max calculation on existing points
@@ -943,9 +977,16 @@ class AvPath:
         }
 
     def polygonized_path(self) -> AvMultiPolylinePath:
-        """Return the polygonized path."""
+        """Return the polygonized path with lazy evaluation and caching."""
         if self._polygonized_path is None:
-            self._polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
+            # Only polygonize if we actually have curves
+            if self.has_curves:
+                self._polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
+            else:
+                # No curves - return a copy with polyline constraints
+                self._polygonized_path = AvMultiPolylinePath(
+                    self.points.copy(), list(self.commands), MULTI_POLYLINE_CONSTRAINTS
+                )
         return self._polygonized_path
 
     def polygonize(self, steps: int) -> AvMultiPolylinePath:
@@ -962,8 +1003,8 @@ class AvPath:
         if steps == 0:
             return self
 
-        # Check if path already has no curves using PathCommandProcessor
-        if not any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands):
+        # Check if path already has no curves using cached curve detection
+        if not self.has_curves:
             return self
 
         points = self.points
@@ -973,9 +1014,17 @@ class AvPath:
         if points.shape[1] == 2:
             points = self._process_2d_to_3d(points, commands)
 
-        # Pre-allocation: estimate final size using PathCommandProcessor
-        num_curves = sum(1 for cmd in commands if PathCommandProcessor.is_curve_command(cmd))
-        estimated_points = len(points) + num_curves * steps
+        # Pre-allocation: estimate final size more accurately
+        # Count actual curves and estimate points needed
+        num_quadratic = commands.count("Q")
+        num_cubic = commands.count("C")
+        # Each Q becomes (steps) L's, each C becomes (steps) L's
+        estimated_points = (
+            len(points)  # Original points
+            - num_quadratic * 2  # Remove original curve points
+            - num_cubic * 3  # Remove original curve points
+            + (num_quadratic + num_cubic) * steps  # Add polygonized points
+        )
         new_points_array = np.empty((estimated_points, 3), dtype=np.float64)
         new_commands_list = []
 
