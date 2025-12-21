@@ -450,67 +450,64 @@ class BezierCurve:
         start_point = xy_points[0]
         end_point = xy_points[-1]
 
-        def _solve_control(parameters: NDArray[np.float64]) -> Union[NDArray[np.float64], None]:
-            params = np.clip(parameters, 0.0, 1.0)
-            interior_mask = (params > 0.0) & (params < 1.0)
-            if not np.any(interior_mask):
-                return None
-
-            t_values = params[interior_mask]
-            omt = 1.0 - t_values
-            weights = 2.0 * omt * t_values
-            denominator = float(np.dot(weights, weights))
-            if denominator <= 0.0 or not np.isfinite(denominator):
-                return None
-
-            base = (omt**2)[:, None] * start_point + (t_values**2)[:, None] * end_point
-            residual = xy_points[interior_mask] - base
-            numerator = np.sum(weights[:, None] * residual, axis=0)
-            control_candidate = numerator / denominator
-            if not np.all(np.isfinite(control_candidate)):
-                return None
-            return control_candidate
-
-        def _evaluate_error(parameters: NDArray[np.float64], control_point: NDArray[np.float64]) -> float:
-            params = np.clip(parameters, 0.0, 1.0)
-            omt = 1.0 - params
-            omt2 = omt * omt
-            t2 = params * params
-            curve_points = (
-                omt2[:, None] * start_point
-                + 2.0 * omt[:, None] * params[:, None] * control_point
-                + t2[:, None] * end_point
-            )
-            residual = xy_points - curve_points
-            return float(np.sum(residual * residual))
-
-        parameter_candidates = []
-
-        # Uniform parameterization (evenly spaced samples by index)
-        parameter_candidates.append(np.linspace(0.0, 1.0, num_points, dtype=np.float64))
-
-        # Chord-length parameterization for irregular sampling
-        diffs = np.linalg.norm(np.diff(xy_points, axis=0), axis=1)
-        total_length = np.sum(diffs)
-        if total_length > 0.0 and np.isfinite(total_length):
-            cumulative = np.concatenate(([0.0], np.cumsum(diffs)))
-            parameter_candidates.append(cumulative / total_length)
-
         best_control = None
         best_error = np.inf
-        best_params = None
 
-        for params in parameter_candidates:
-            control_candidate = _solve_control(params)
-            if control_candidate is None:
-                continue
-            error = _evaluate_error(params, control_candidate)
-            if error < best_error:
-                best_error = error
-                best_control = control_candidate
-                best_params = params
+        # Uniform parameterization (most common case)
+        if num_points == 1:
+            inv_span = 0.0
+        else:
+            inv_span = 1.0 / float(num_points - 1)
+        params_uniform = np.arange(num_points, dtype=np.float64) * inv_span
+        control_uniform = cls._solve_control_optimized(params_uniform, xy_points, start_point, end_point)
+        if control_uniform is not None:
+            best_control = control_uniform
 
-        if best_control is None or best_params is None:
+            # For small inputs, the extra error computation is overhead and chord-length
+            # parameterization is not attempted anyway.
+            if num_points <= 10:
+                result = np.empty((3, 3), dtype=np.float64)
+                result[0, :2] = start_point
+                result[1, :2] = best_control
+                result[2, :2] = end_point
+                result[:, 2] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+                return result
+
+            error_uniform = cls._evaluate_error_optimized(
+                params_uniform, xy_points, start_point, end_point, control_uniform
+            )
+            best_error = error_uniform
+
+            # Exact fits cannot be improved by re-parameterization.
+            if best_error == 0.0:
+                result = np.empty((3, 3), dtype=np.float64)
+                result[0, :2] = start_point
+                result[1, :2] = best_control
+                result[2, :2] = end_point
+                result[:, 2] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+                return result
+
+        # Chord-length parameterization only if uniform sampling is not sufficient
+        # or if points appear irregularly spaced
+        if num_points > 10:
+            deltas = np.diff(xy_points, axis=0)
+            diffs = np.hypot(deltas[:, 0], deltas[:, 1])
+            total_length = np.sum(diffs)
+            if total_length > 0.0 and np.isfinite(total_length):
+                cumulative = np.empty(num_points, dtype=np.float64)
+                cumulative[0] = 0.0
+                cumulative[1:] = np.cumsum(diffs) / total_length
+
+                control_chord = cls._solve_control_optimized(cumulative, xy_points, start_point, end_point)
+                if control_chord is not None:
+                    error_chord = cls._evaluate_error_optimized(
+                        cumulative, xy_points, start_point, end_point, control_chord
+                    )
+                    if error_chord < best_error:
+                        best_control = control_chord
+                        best_error = error_chord
+
+        if best_control is None:
             raise ValueError("Unable to approximate quadratic control point from provided samples.")
 
         result = np.empty((3, 3), dtype=np.float64)
@@ -519,3 +516,68 @@ class BezierCurve:
         result[2, :2] = end_point
         result[:, 2] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
         return result
+
+    @staticmethod
+    def _solve_control_optimized(
+        params: NDArray[np.float64],
+        xy_points: NDArray[np.float64],
+        start_point: NDArray[np.float64],
+        end_point: NDArray[np.float64],
+    ) -> Union[NDArray[np.float64], None]:
+        """Optimized control point solver for given parameterization."""
+        if len(params) < 3:
+            return None
+
+        # Params are expected to cover [0, 1] with endpoints included.
+        t_values = params[1:-1]
+        if len(t_values) == 0:
+            return None
+
+        omt = 1.0 - t_values
+        weights = 2.0 * omt * t_values
+
+        denominator = float(np.dot(weights, weights))
+        if denominator <= 0.0 or not np.isfinite(denominator):
+            return None
+
+        interior_xy = xy_points[1:-1]
+        omt2 = omt * omt
+        t2 = t_values * t_values
+
+        base_x = omt2 * float(start_point[0]) + t2 * float(end_point[0])
+        base_y = omt2 * float(start_point[1]) + t2 * float(end_point[1])
+        residual_x = interior_xy[:, 0] - base_x
+        residual_y = interior_xy[:, 1] - base_y
+
+        numerator_x = float(np.dot(weights, residual_x))
+        numerator_y = float(np.dot(weights, residual_y))
+        control_candidate = np.array([numerator_x / denominator, numerator_y / denominator], dtype=np.float64)
+
+        if not np.all(np.isfinite(control_candidate)):
+            return None
+        return control_candidate
+
+    @staticmethod
+    def _evaluate_error_optimized(
+        params: NDArray[np.float64],
+        xy_points: NDArray[np.float64],
+        start_point: NDArray[np.float64],
+        end_point: NDArray[np.float64],
+        control_point: NDArray[np.float64],
+    ) -> float:
+        """Optimized error evaluation for given parameterization and control point."""
+        omt = 1.0 - params
+        omt2 = omt * omt
+        t2 = params * params
+
+        bx = omt2 * float(start_point[0])
+        bx += 2.0 * omt * params * float(control_point[0])
+        bx += t2 * float(end_point[0])
+
+        by = omt2 * float(start_point[1])
+        by += 2.0 * omt * params * float(control_point[1])
+        by += t2 * float(end_point[1])
+
+        rx = xy_points[:, 0] - bx
+        ry = xy_points[:, 1] - by
+        return float(np.dot(rx, rx) + np.dot(ry, ry))
