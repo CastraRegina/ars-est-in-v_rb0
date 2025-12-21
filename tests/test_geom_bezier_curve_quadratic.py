@@ -401,6 +401,41 @@ class TestQuadraticInplaceDebugging:
 
 
 ###############################################################################
+# Quadratic Approximation Tests
+###############################################################################
+
+
+class TestQuadraticApproximation:
+    """Tests for approximating quadratic control points from sampled data."""
+
+    def test_quadratic_control_approximation_matches_original(self):
+        """Ensure approximation recovers the original control point."""
+        start = np.array([0.0, 0.0], dtype=np.float64)
+        control = np.array([1.0, 2.0], dtype=np.float64)
+        end = np.array([2.0, 0.0], dtype=np.float64)
+
+        control_points = np.array([start, control, end], dtype=np.float64)
+        sampled_points = BezierCurve.polygonize_quadratic_curve(control_points, steps=20)
+
+        approximated = BezierCurve.approximate_quadratic_control_points(sampled_points)
+
+        assert approximated.shape == (3, 3)
+        assert np.allclose(approximated[0, :2], start)
+        assert np.allclose(approximated[2, :2], end)
+        assert np.allclose(approximated[1, :2], control, atol=1e-9, rtol=1e-9)
+        assert approximated[0, 2] == pytest.approx(0.0)
+        assert approximated[1, 2] == pytest.approx(2.0)
+        assert approximated[2, 2] == pytest.approx(0.0)
+
+    def test_quadratic_control_approximation_requires_enough_points(self):
+        """Ensure approximation fails when interior points are missing."""
+        insufficient_points = np.array([[0.0, 0.0], [1.0, 1.0]], dtype=np.float64)
+
+        with pytest.raises(ValueError):
+            BezierCurve.approximate_quadratic_control_points(insufficient_points)
+
+
+###############################################################################
 # Quadratic BezierCurve Core Tests
 ###############################################################################
 

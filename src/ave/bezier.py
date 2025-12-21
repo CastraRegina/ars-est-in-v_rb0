@@ -416,3 +416,106 @@ class BezierCurve:
         result = np.empty((steps + 1, 3), dtype=np.float64)
         cls.polygonize_quadratic_curve_inplace(points, steps, result, start_index=0, skip_first=False)
         return result
+
+    @classmethod
+    def approximate_quadratic_control_points(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]
+    ) -> NDArray[np.float64]:
+        """Approximate quadratic Bezier control points from sampled curve points.
+
+        Uses a least-squares fit assuming the first and last points are the start and
+        end of the desired quadratic Bezier curve. The remaining points are used to
+        compute the single quadratic control point that best fits the samples.
+
+        Args:
+            points: Sampled points along the curve as (x, y) or (x, y, type) tuples.
+
+        Returns:
+            Array of shape (3, 3) containing the start point, fitted control point,
+            and end point, each encoded as (x, y, type).
+
+        Raises:
+            ValueError: If fewer than three points are provided or if the input does
+                not contain at least two coordinate columns.
+        """
+        points_array = np.asarray(points, dtype=np.float64)
+        if points_array.ndim != 2 or points_array.shape[1] < 2:
+            raise ValueError("Quadratic control approximation requires (x, y) formatted points.")
+
+        num_points = len(points_array)
+        if num_points < 3:
+            raise ValueError("At least three points are required to approximate a quadratic curve.")
+
+        xy_points = points_array[:, :2]
+        start_point = xy_points[0]
+        end_point = xy_points[-1]
+
+        def _solve_control(parameters: NDArray[np.float64]) -> Union[NDArray[np.float64], None]:
+            params = np.clip(parameters, 0.0, 1.0)
+            interior_mask = (params > 0.0) & (params < 1.0)
+            if not np.any(interior_mask):
+                return None
+
+            t_values = params[interior_mask]
+            omt = 1.0 - t_values
+            weights = 2.0 * omt * t_values
+            denominator = float(np.dot(weights, weights))
+            if denominator <= 0.0 or not np.isfinite(denominator):
+                return None
+
+            base = (omt**2)[:, None] * start_point + (t_values**2)[:, None] * end_point
+            residual = xy_points[interior_mask] - base
+            numerator = np.sum(weights[:, None] * residual, axis=0)
+            control_candidate = numerator / denominator
+            if not np.all(np.isfinite(control_candidate)):
+                return None
+            return control_candidate
+
+        def _evaluate_error(parameters: NDArray[np.float64], control_point: NDArray[np.float64]) -> float:
+            params = np.clip(parameters, 0.0, 1.0)
+            omt = 1.0 - params
+            omt2 = omt * omt
+            t2 = params * params
+            curve_points = (
+                omt2[:, None] * start_point
+                + 2.0 * omt[:, None] * params[:, None] * control_point
+                + t2[:, None] * end_point
+            )
+            residual = xy_points - curve_points
+            return float(np.sum(residual * residual))
+
+        parameter_candidates = []
+
+        # Uniform parameterization (evenly spaced samples by index)
+        parameter_candidates.append(np.linspace(0.0, 1.0, num_points, dtype=np.float64))
+
+        # Chord-length parameterization for irregular sampling
+        diffs = np.linalg.norm(np.diff(xy_points, axis=0), axis=1)
+        total_length = np.sum(diffs)
+        if total_length > 0.0 and np.isfinite(total_length):
+            cumulative = np.concatenate(([0.0], np.cumsum(diffs)))
+            parameter_candidates.append(cumulative / total_length)
+
+        best_control = None
+        best_error = np.inf
+        best_params = None
+
+        for params in parameter_candidates:
+            control_candidate = _solve_control(params)
+            if control_candidate is None:
+                continue
+            error = _evaluate_error(params, control_candidate)
+            if error < best_error:
+                best_error = error
+                best_control = control_candidate
+                best_params = params
+
+        if best_control is None or best_params is None:
+            raise ValueError("Unable to approximate quadratic control point from provided samples.")
+
+        result = np.empty((3, 3), dtype=np.float64)
+        result[0, :2] = start_point
+        result[1, :2] = best_control
+        result[2, :2] = end_point
+        result[:, 2] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+        return result
