@@ -351,7 +351,7 @@ class AvPath:
             # Multi-segment path: split, reverse each, join
             single_paths = self.split_into_single_paths()
             reversed_segments = [self._reverse_single_segment(seg) for seg in single_paths]
-            return AvPath.join_paths(reversed_segments)
+            return AvPath.join_paths(reversed_segments, constraints=self.constraints)
 
         # Single-segment path: reverse directly
         return self._reverse_single_segment(self)
@@ -723,7 +723,7 @@ class AvPath:
         # Use the extracted PathSplitter
         return PathSplitter.split_into_single_paths(self.points, self.commands)
 
-    def append(self, *paths: Union[AvPath, Sequence[AvPath]]) -> AvPath:
+    def append(self, *paths: Union[AvPath, Sequence[AvPath]], constraints: Optional[PathConstraints] = None) -> AvPath:
         """Return a new AvPath consisting of this path followed by other paths.
 
         The given paths are concatenated by keeping each segment's initial 'M'
@@ -759,7 +759,7 @@ class AvPath:
 
         if not points_arrays:
             # All paths were empty (including self)
-            return AvPath()
+            return AvPath(constraints=constraints or GENERAL_CONSTRAINTS)
 
         if len(points_arrays) == 1:
             new_points = points_arrays[0].copy()
@@ -770,10 +770,12 @@ class AvPath:
         for cmds in commands_lists:
             new_commands.extend(cmds)
 
-        return AvPath(new_points, new_commands)
+        return AvPath(new_points, new_commands, constraints or GENERAL_CONSTRAINTS)
 
     @classmethod
-    def join_paths(cls, *paths: Union[AvPath, Sequence[AvPath]]) -> AvPath:
+    def join_paths(
+        cls, *paths: Union[AvPath, Sequence[AvPath]], constraints: Optional[PathConstraints] = None
+    ) -> AvPath:
         """Join one or more paths into a single AvPath using append()."""
 
         # Flatten arguments: accept single AvPath, multiple AvPaths, or
@@ -793,14 +795,16 @@ class AvPath:
 
         # No paths -> return empty path
         if not flat_paths:
-            return cls()
+            return cls(constraints=constraints or GENERAL_CONSTRAINTS)
 
         # Use the first path as base and append the rest
         base = flat_paths[0]
         if len(flat_paths) == 1:
-            return base
+            if constraints is None:
+                return base
+            return cls(base.points.copy(), list(base.commands), constraints)
 
-        return base.append(flat_paths[1:])
+        return base.append(flat_paths[1:], constraints=constraints or GENERAL_CONSTRAINTS)
 
 
 ###############################################################################
