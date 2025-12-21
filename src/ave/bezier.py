@@ -797,7 +797,7 @@ class BezierCurve:
         ):
             return None
 
-        return (float(ctrl1_x), float(ctrl1_y), float(ctrl2_x), float(ctrl2_y))
+        return (ctrl1_x, ctrl1_y, ctrl2_x, ctrl2_y)
 
     @staticmethod
     def _approximate_cubic_evaluate_error(
@@ -814,16 +814,16 @@ class BezierCurve:
     ) -> float:
         """Optimized cubic error evaluation for given parameterization and control points."""
         omt = 1.0 - params
-        omt2 = omt * omt
-        omt3 = omt2 * omt
         t2 = params * params
-        t3 = t2 * params
+        omt2 = omt * omt
 
+        w0 = omt2 * omt
         w1 = 3.0 * omt2 * params
         w2 = 3.0 * omt * t2
+        w3 = t2 * params
 
-        bx = omt3 * start_x + w1 * ctrl1_x + w2 * ctrl2_x + t3 * end_x
-        by = omt3 * start_y + w1 * ctrl1_y + w2 * ctrl2_y + t3 * end_y
+        bx = w0 * start_x + w1 * ctrl1_x + w2 * ctrl2_x + w3 * end_x
+        by = w0 * start_y + w1 * ctrl1_y + w2 * ctrl2_y + w3 * end_y
 
         rx = xy_points[:, 0] - bx
         ry = xy_points[:, 1] - by
