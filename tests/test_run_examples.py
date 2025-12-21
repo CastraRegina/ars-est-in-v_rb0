@@ -5,8 +5,8 @@ The tests are run using pytest.
 
 import pytest  # pylint: disable=unused-import
 
-import ave.page
-from examples.ave import font_check_variable_fonts
+import ave.page  # pylint: disable=unused-import
+from examples.ave import font_check_variable_fonts  # pylint: disable=unused-import
 from examples.fonts import (
     find_ttf_files_for_font_family_name,
     print_fonttools_glyph_metrics,
@@ -35,8 +35,3 @@ def test_examples_print_fonttools_glyph_metrics():
     """Test function for print_fonttools_glyph_metrics example"""
     print_fonttools_glyph_metrics.main()
     assert True
-
-
-# def test_main():
-#     """A test function"""
-#     assert True

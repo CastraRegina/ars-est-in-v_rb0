@@ -1,7 +1,6 @@
 """Tests for _process_2d_to_3d() method reuse and functionality."""
 
-import numpy as np
-import pytest
+import pytest  # pylint: disable=unused-import
 
 from ave.path import AvPath, PathCommandProcessor
 
@@ -153,7 +152,6 @@ class TestProcess2DTo3DIntegration:
         for i, cmd in enumerate(commands):
             if cmd == "Z":
                 continue
-            consumed = PathCommandProcessor.get_point_consumption(cmd)
 
             if cmd in ["M", "L"]:
                 assert path.points[i, 2] == 0.0  # Regular points

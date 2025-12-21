@@ -1,7 +1,7 @@
 """Test cases for AvPathCleaner.resolve_polygonized_path_intersections."""
 
 import numpy as np
-import pytest
+import pytest  # pylint: disable=unused-import
 
 from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath
 from ave.path_processing import AvPathCleaner
