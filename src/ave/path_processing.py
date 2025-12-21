@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import numpy as np
 import shapely.geometry
@@ -286,3 +286,278 @@ class AvPathCleaner:
         else:
             print("Warning: No valid paths to join. Returning empty path.")
             return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
+
+
+###############################################################################
+# AvPathMatcher
+###############################################################################
+class AvPathMatcher:
+    """Transfer type information from original path points to new path points.
+
+    This class matches points between an original path (with type information)
+    and a new path (without type information), typically used after intersection
+    resolution where new points may have been introduced.
+
+    The matching uses segment-wise correspondence with KD-tree spatial search
+    to efficiently find matching points within a small tolerance.
+    """
+
+    TOLERANCE: float = 1e-10
+    UNMATCHED_TYPE: float = -1.0
+
+    @classmethod
+    def match_points(
+        cls,
+        points_org: NDArray[np.float64],
+        points_new: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Transfer type information from original points to new points.
+
+        Args:
+            points_org: Original points as array (N, 3)
+                with columns (x, y, type). Type values are in {0.0, 2.0, 3.0}.
+            points_new: New points as array (M, 2) or (M, 3)
+                with columns (x, y) or (x, y, ignored).
+
+        Returns:
+            NDArray of shape (M, 3) with columns (x, y, type) where type is:
+            - The matched type from points_org if found within tolerance
+            - -1.0 if no match found (typically segment jump points)
+
+        Raises:
+            ValueError: If input arrays have invalid shapes.
+        """
+        org_arr = cls._validate_points_array(points_org, require_type=True)
+        new_arr = cls._validate_points_array(points_new, require_type=False)
+
+        cls._warn_duplicate_neighbors(org_arr, "points_org")
+        cls._warn_duplicate_neighbors(new_arr, "points_new")
+
+        return cls._transfer_types(org_arr, new_arr)
+
+    @classmethod
+    def match_paths(
+        cls,
+        path_org: AvMultiPolylinePath,
+        path_new: AvMultiPolylinePath,
+    ) -> AvMultiPolylinePath:
+        """Transfer type information between paths, returning a new path.
+
+        This is a convenience method that wraps match_points and returns
+        an AvMultiPolylinePath with the matched type information.
+
+        Args:
+            path_org: Original path with type information.
+            path_new: New path to receive type information.
+
+        Returns:
+            New AvMultiPolylinePath with matched type information.
+        """
+        matched_points = cls.match_points(path_org.points, path_new.points)
+        return AvMultiPolylinePath(
+            matched_points,
+            list(path_new.commands),
+            MULTI_POLYLINE_CONSTRAINTS,
+        )
+
+    @classmethod
+    def _validate_points_array(
+        cls,
+        data: NDArray[np.float64],
+        require_type: bool,
+    ) -> NDArray[np.float64]:
+        """Validate points array shape.
+
+        Args:
+            data: Input as numpy array.
+            require_type: If True, array must have shape (N, 3).
+
+        Returns:
+            NDArray of shape (N, 2) or (N, 3) depending on require_type.
+
+        Raises:
+            ValueError: If array shape is invalid.
+        """
+        arr = np.asarray(data, dtype=np.float64)
+
+        if arr.ndim != 2:
+            raise ValueError(f"Points array must be 2D, got {arr.ndim}D")
+
+        if require_type:
+            if arr.shape[1] != 3:
+                raise ValueError(f"Original points must have shape (N, 3), got {arr.shape}")
+        else:
+            if arr.shape[1] not in (2, 3):
+                raise ValueError(f"New points must have shape (M, 2) or (M, 3), got {arr.shape}")
+
+        return arr
+
+    @classmethod
+    def _warn_duplicate_neighbors(
+        cls,
+        points: NDArray[np.float64],
+        name: str,
+    ) -> None:
+        """Warn if consecutive points have identical coordinates.
+
+        Args:
+            points: Points array of shape (N, 2) or (N, 3).
+            name: Name of the array for warning messages.
+        """
+        if points.shape[0] < 2:
+            return
+
+        xy = points[:, :2]
+        diffs = np.linalg.norm(np.diff(xy, axis=0), axis=1)
+        duplicates = np.where(diffs < cls.TOLERANCE)[0]
+
+        for idx in duplicates:
+            print(f"Warning: {name} has duplicate neighboring points at " f"indices {idx} and {idx + 1}: {xy[idx]}")
+
+    @classmethod
+    def _transfer_types(
+        cls,
+        org: NDArray[np.float64],
+        new: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Transfer type information using KD-tree and segment propagation.
+
+        Args:
+            org: Original points array of shape (N, 3) with (x, y, type).
+            new: New points array of shape (M, 2) or (M, 3).
+
+        Returns:
+            NDArray of shape (M, 3) with (x, y, type).
+        """
+        n_new = new.shape[0]
+        if n_new == 0:
+            return np.empty((0, 3), dtype=np.float64)
+
+        n_org = org.shape[0]
+        if n_org == 0:
+            result = np.empty((n_new, 3), dtype=np.float64)
+            result[:, :2] = new[:, :2]
+            result[:, 2] = cls.UNMATCHED_TYPE
+            return result
+
+        result = np.empty((n_new, 3), dtype=np.float64)
+        result[:, :2] = new[:, :2]
+        result[:, 2] = cls.UNMATCHED_TYPE
+
+        matched = np.zeros(n_new, dtype=bool)
+
+        org_xy = org[:, :2]
+        new_xy = new[:, :2]
+        org_types = org[:, 2]
+
+        tree = KDTree(org_xy)
+
+        distances, indices = tree.query(new_xy, distance_upper_bound=cls.TOLERANCE)
+
+        direct_matches = distances < cls.TOLERANCE
+        for i in range(n_new):
+            if direct_matches[i]:
+                result[i, 2] = org_types[indices[i]]
+                matched[i] = True
+
+        cls._propagate_matches(result, matched, org_xy, org_types, new_xy, tree)
+
+        return result
+
+    @classmethod
+    def _propagate_matches(
+        cls,
+        result: NDArray[np.float64],
+        matched: NDArray[np.bool_],
+        org_xy: NDArray[np.float64],
+        org_types: NDArray[np.float64],
+        new_xy: NDArray[np.float64],
+        tree: KDTree,
+    ) -> None:
+        """Propagate type assignments along segment correspondences.
+
+        When a match is found, attempt to propagate in both directions
+        along the segment to find additional matches. This exploits
+        the fact that segments often match partially, even if reversed.
+
+        Args:
+            result: Result array to update in place.
+            matched: Boolean array tracking matched points.
+            org_xy: Original XY coordinates.
+            org_types: Original type values.
+            new_xy: New XY coordinates.
+            tree: KD-tree built from org_xy.
+        """
+        n_new = new_xy.shape[0]
+        n_org = org_xy.shape[0]
+
+        match_indices = np.where(matched)[0]
+
+        for new_idx in match_indices:
+            dist, org_idx = tree.query(new_xy[new_idx])
+            if dist >= cls.TOLERANCE:
+                continue
+
+            cls._propagate_direction(
+                result, matched, org_xy, org_types, new_xy, new_idx, org_idx, 1, n_new, n_org, tree
+            )
+            cls._propagate_direction(
+                result, matched, org_xy, org_types, new_xy, new_idx, org_idx, -1, n_new, n_org, tree
+            )
+
+    @classmethod
+    def _propagate_direction(
+        cls,
+        result: NDArray[np.float64],
+        matched: NDArray[np.bool_],
+        org_xy: NDArray[np.float64],
+        org_types: NDArray[np.float64],
+        new_xy: NDArray[np.float64],
+        start_new: int,
+        start_org: int,
+        direction: int,
+        n_new: int,
+        n_org: int,
+        tree: KDTree,
+    ) -> None:
+        """Propagate matches in a single direction along segments.
+
+        Tries both forward and reversed segment directions in the original
+        array to handle partial reversals.
+
+        Args:
+            result: Result array to update in place.
+            matched: Boolean array tracking matched points.
+            org_xy: Original XY coordinates.
+            org_types: Original type values.
+            new_xy: New XY coordinates.
+            start_new: Starting index in new array.
+            start_org: Starting index in original array.
+            direction: +1 for forward, -1 for backward in new array.
+            n_new: Length of new array.
+            n_org: Length of original array.
+            tree: KD-tree built from org_xy.
+        """
+        for org_direction in (1, -1):
+            new_idx = start_new + direction
+            org_idx = start_org + org_direction
+
+            while 0 <= new_idx < n_new and 0 <= org_idx < n_org:
+                if matched[new_idx]:
+                    break
+
+                dist = np.linalg.norm(new_xy[new_idx] - org_xy[org_idx])
+                if dist < cls.TOLERANCE:
+                    result[new_idx, 2] = org_types[org_idx]
+                    matched[new_idx] = True
+                    new_idx += direction
+                    org_idx += org_direction
+                else:
+                    query_dist, query_idx = tree.query(new_xy[new_idx])
+                    if query_dist < cls.TOLERANCE:
+                        result[new_idx, 2] = org_types[query_idx]
+                        matched[new_idx] = True
+                        org_idx = query_idx + org_direction
+                        new_idx += direction
+                    else:
+                        break
