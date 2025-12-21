@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import math
 from typing import Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
+
+# Pre-allocated constant for quadratic control point type values
+_QUADRATIC_TYPES: NDArray[np.float64] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
 
 
 class BezierCurve:
@@ -438,92 +442,105 @@ class BezierCurve:
             ValueError: If fewer than three points are provided or if the input does
                 not contain at least two coordinate columns.
         """
-        points_array = np.asarray(points, dtype=np.float64)
+        if isinstance(points, np.ndarray) and points.dtype == np.float64:
+            points_array = points
+        else:
+            points_array = np.asarray(points, dtype=np.float64)
         if points_array.ndim != 2 or points_array.shape[1] < 2:
             raise ValueError("Quadratic control approximation requires (x, y) formatted points.")
 
-        num_points = len(points_array)
+        num_points = points_array.shape[0]
         if num_points < 3:
             raise ValueError("At least three points are required to approximate a quadratic curve.")
 
         xy_points = points_array[:, :2]
-        start_point = xy_points[0]
-        end_point = xy_points[-1]
+        start_x, start_y = xy_points[0, 0], xy_points[0, 1]
+        end_x, end_y = xy_points[-1, 0], xy_points[-1, 1]
 
-        best_control = None
-        best_error = np.inf
+        best_ctrl_x: float = 0.0
+        best_ctrl_y: float = 0.0
+        best_error = float("inf")
+        have_solution = False
 
         # Uniform parameterization (most common case)
-        if num_points == 1:
-            inv_span = 0.0
-        else:
-            inv_span = 1.0 / float(num_points - 1)
+        inv_span = 1.0 / float(num_points - 1)
         params_uniform = np.arange(num_points, dtype=np.float64) * inv_span
-        control_uniform = cls._solve_control_optimized(params_uniform, xy_points, start_point, end_point)
-        if control_uniform is not None:
-            best_control = control_uniform
+        ctrl_result = cls._solve_control_optimized(params_uniform, xy_points, start_x, start_y, end_x, end_y)
+        if ctrl_result is not None:
+            best_ctrl_x, best_ctrl_y = ctrl_result
+            have_solution = True
 
-            # For small inputs, the extra error computation is overhead and chord-length
-            # parameterization is not attempted anyway.
+            # For small inputs, skip error computation and chord-length parameterization
             if num_points <= 10:
                 result = np.empty((3, 3), dtype=np.float64)
-                result[0, :2] = start_point
-                result[1, :2] = best_control
-                result[2, :2] = end_point
-                result[:, 2] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+                result[0, 0] = start_x
+                result[0, 1] = start_y
+                result[1, 0] = best_ctrl_x
+                result[1, 1] = best_ctrl_y
+                result[2, 0] = end_x
+                result[2, 1] = end_y
+                result[:, 2] = _QUADRATIC_TYPES
                 return result
 
-            error_uniform = cls._evaluate_error_optimized(
-                params_uniform, xy_points, start_point, end_point, control_uniform
+            best_error = cls._evaluate_error_optimized(
+                params_uniform, xy_points, start_x, start_y, end_x, end_y, best_ctrl_x, best_ctrl_y
             )
-            best_error = error_uniform
 
-            # Exact fits cannot be improved by re-parameterization.
+            # Exact fits cannot be improved by re-parameterization
             if best_error == 0.0:
                 result = np.empty((3, 3), dtype=np.float64)
-                result[0, :2] = start_point
-                result[1, :2] = best_control
-                result[2, :2] = end_point
-                result[:, 2] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+                result[0, 0] = start_x
+                result[0, 1] = start_y
+                result[1, 0] = best_ctrl_x
+                result[1, 1] = best_ctrl_y
+                result[2, 0] = end_x
+                result[2, 1] = end_y
+                result[:, 2] = _QUADRATIC_TYPES
                 return result
 
-        # Chord-length parameterization only if uniform sampling is not sufficient
-        # or if points appear irregularly spaced
+        # Chord-length parameterization for larger inputs
         if num_points > 10:
             deltas = np.diff(xy_points, axis=0)
             diffs = np.hypot(deltas[:, 0], deltas[:, 1])
-            total_length = np.sum(diffs)
-            if total_length > 0.0 and np.isfinite(total_length):
+            total_length = float(np.sum(diffs))
+            if total_length > 0.0 and math.isfinite(total_length):
                 cumulative = np.empty(num_points, dtype=np.float64)
                 cumulative[0] = 0.0
                 cumulative[1:] = np.cumsum(diffs) / total_length
 
-                control_chord = cls._solve_control_optimized(cumulative, xy_points, start_point, end_point)
-                if control_chord is not None:
+                ctrl_chord = cls._solve_control_optimized(cumulative, xy_points, start_x, start_y, end_x, end_y)
+                if ctrl_chord is not None:
+                    chord_ctrl_x, chord_ctrl_y = ctrl_chord
                     error_chord = cls._evaluate_error_optimized(
-                        cumulative, xy_points, start_point, end_point, control_chord
+                        cumulative, xy_points, start_x, start_y, end_x, end_y, chord_ctrl_x, chord_ctrl_y
                     )
                     if error_chord < best_error:
-                        best_control = control_chord
+                        best_ctrl_x, best_ctrl_y = chord_ctrl_x, chord_ctrl_y
                         best_error = error_chord
+                        have_solution = True
 
-        if best_control is None:
+        if not have_solution:
             raise ValueError("Unable to approximate quadratic control point from provided samples.")
 
         result = np.empty((3, 3), dtype=np.float64)
-        result[0, :2] = start_point
-        result[1, :2] = best_control
-        result[2, :2] = end_point
-        result[:, 2] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+        result[0, 0] = start_x
+        result[0, 1] = start_y
+        result[1, 0] = best_ctrl_x
+        result[1, 1] = best_ctrl_y
+        result[2, 0] = end_x
+        result[2, 1] = end_y
+        result[:, 2] = _QUADRATIC_TYPES
         return result
 
     @staticmethod
     def _solve_control_optimized(
         params: NDArray[np.float64],
         xy_points: NDArray[np.float64],
-        start_point: NDArray[np.float64],
-        end_point: NDArray[np.float64],
-    ) -> Union[NDArray[np.float64], None]:
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+    ) -> Union[Tuple[float, float], None]:
         """Optimized control point solver for given parameterization."""
         if len(params) < 3:
             return None
@@ -537,46 +554,44 @@ class BezierCurve:
         weights = 2.0 * omt * t_values
 
         denominator = float(np.dot(weights, weights))
-        if denominator <= 0.0 or not np.isfinite(denominator):
+        if denominator <= 0.0 or not math.isfinite(denominator):
             return None
 
         interior_xy = xy_points[1:-1]
         omt2 = omt * omt
         t2 = t_values * t_values
 
-        base_x = omt2 * float(start_point[0]) + t2 * float(end_point[0])
-        base_y = omt2 * float(start_point[1]) + t2 * float(end_point[1])
+        base_x = omt2 * start_x + t2 * end_x
+        base_y = omt2 * start_y + t2 * end_y
         residual_x = interior_xy[:, 0] - base_x
         residual_y = interior_xy[:, 1] - base_y
 
-        numerator_x = float(np.dot(weights, residual_x))
-        numerator_y = float(np.dot(weights, residual_y))
-        control_candidate = np.array([numerator_x / denominator, numerator_y / denominator], dtype=np.float64)
+        ctrl_x = float(np.dot(weights, residual_x)) / denominator
+        ctrl_y = float(np.dot(weights, residual_y)) / denominator
 
-        if not np.all(np.isfinite(control_candidate)):
+        if not (math.isfinite(ctrl_x) and math.isfinite(ctrl_y)):
             return None
-        return control_candidate
+        return (ctrl_x, ctrl_y)
 
     @staticmethod
     def _evaluate_error_optimized(
         params: NDArray[np.float64],
         xy_points: NDArray[np.float64],
-        start_point: NDArray[np.float64],
-        end_point: NDArray[np.float64],
-        control_point: NDArray[np.float64],
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+        ctrl_x: float,
+        ctrl_y: float,
     ) -> float:
         """Optimized error evaluation for given parameterization and control point."""
         omt = 1.0 - params
         omt2 = omt * omt
         t2 = params * params
+        two_omt_t = 2.0 * omt * params
 
-        bx = omt2 * float(start_point[0])
-        bx += 2.0 * omt * params * float(control_point[0])
-        bx += t2 * float(end_point[0])
-
-        by = omt2 * float(start_point[1])
-        by += 2.0 * omt * params * float(control_point[1])
-        by += t2 * float(end_point[1])
+        bx = omt2 * start_x + two_omt_t * ctrl_x + t2 * end_x
+        by = omt2 * start_y + two_omt_t * ctrl_y + t2 * end_y
 
         rx = xy_points[:, 0] - bx
         ry = xy_points[:, 1] - by
