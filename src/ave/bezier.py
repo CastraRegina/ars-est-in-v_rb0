@@ -11,6 +11,9 @@ from numpy.typing import NDArray
 # Pre-allocated constant for quadratic control point type values
 _QUADRATIC_TYPES: NDArray[np.float64] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
 
+# Pre-allocated constant for cubic control point type values
+_CUBIC_TYPES: NDArray[np.float64] = np.array([0.0, 3.0, 3.0, 0.0], dtype=np.float64)
+
 
 class BezierCurve:
     """Class to handle quadratic and cubic Bezier curve operations.
@@ -465,7 +468,9 @@ class BezierCurve:
         # Uniform parameterization (most common case)
         inv_span = 1.0 / float(num_points - 1)
         params_uniform = np.arange(num_points, dtype=np.float64) * inv_span
-        ctrl_result = cls._solve_control_optimized(params_uniform, xy_points, start_x, start_y, end_x, end_y)
+        ctrl_result = cls._approximate_quadratic_solve_control(
+            params_uniform, xy_points, start_x, start_y, end_x, end_y
+        )
         if ctrl_result is not None:
             best_ctrl_x, best_ctrl_y = ctrl_result
             have_solution = True
@@ -482,7 +487,7 @@ class BezierCurve:
                 result[:, 2] = _QUADRATIC_TYPES
                 return result
 
-            best_error = cls._evaluate_error_optimized(
+            best_error = cls._approximate_quadratic_evaluate_error(
                 params_uniform, xy_points, start_x, start_y, end_x, end_y, best_ctrl_x, best_ctrl_y
             )
 
@@ -508,10 +513,12 @@ class BezierCurve:
                 cumulative[0] = 0.0
                 cumulative[1:] = np.cumsum(diffs) / total_length
 
-                ctrl_chord = cls._solve_control_optimized(cumulative, xy_points, start_x, start_y, end_x, end_y)
+                ctrl_chord = cls._approximate_quadratic_solve_control(
+                    cumulative, xy_points, start_x, start_y, end_x, end_y
+                )
                 if ctrl_chord is not None:
                     chord_ctrl_x, chord_ctrl_y = ctrl_chord
-                    error_chord = cls._evaluate_error_optimized(
+                    error_chord = cls._approximate_quadratic_evaluate_error(
                         cumulative, xy_points, start_x, start_y, end_x, end_y, chord_ctrl_x, chord_ctrl_y
                     )
                     if error_chord < best_error:
@@ -533,7 +540,7 @@ class BezierCurve:
         return result
 
     @staticmethod
-    def _solve_control_optimized(
+    def _approximate_quadratic_solve_control(
         params: NDArray[np.float64],
         xy_points: NDArray[np.float64],
         start_x: float,
@@ -574,7 +581,7 @@ class BezierCurve:
         return (ctrl_x, ctrl_y)
 
     @staticmethod
-    def _evaluate_error_optimized(
+    def _approximate_quadratic_evaluate_error(
         params: NDArray[np.float64],
         xy_points: NDArray[np.float64],
         start_x: float,
@@ -592,6 +599,231 @@ class BezierCurve:
 
         bx = omt2 * start_x + two_omt_t * ctrl_x + t2 * end_x
         by = omt2 * start_y + two_omt_t * ctrl_y + t2 * end_y
+
+        rx = xy_points[:, 0] - bx
+        ry = xy_points[:, 1] - by
+        return float(np.dot(rx, rx) + np.dot(ry, ry))
+
+    @classmethod
+    def approximate_cubic_control_points(
+        cls, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]
+    ) -> NDArray[np.float64]:
+        """Approximate cubic Bezier control points from sampled curve points.
+
+        Uses a least-squares fit assuming the first and last points are the start and
+        end of the desired cubic Bezier curve. The remaining points are used to
+        compute the two cubic control points that best fit the samples.
+
+        Args:
+            points: Sampled points along the curve as (x, y) or (x, y, type) tuples.
+
+        Returns:
+            Array of shape (4, 3) containing the start point, fitted control points,
+            and end point, each encoded as (x, y, type).
+
+        Raises:
+            ValueError: If fewer than four points are provided or if the input does
+                not contain at least two coordinate columns.
+        """
+        if isinstance(points, np.ndarray) and points.dtype == np.float64:
+            points_array = points
+        else:
+            points_array = np.asarray(points, dtype=np.float64)
+        if points_array.ndim != 2 or points_array.shape[1] < 2:
+            raise ValueError("Cubic control approximation requires (x, y) formatted points.")
+
+        num_points = points_array.shape[0]
+        if num_points < 4:
+            raise ValueError("At least four points are required to approximate a cubic curve.")
+
+        xy_points = points_array[:, :2]
+        start_x, start_y = xy_points[0, 0], xy_points[0, 1]
+        end_x, end_y = xy_points[-1, 0], xy_points[-1, 1]
+
+        best_ctrl1_x: float = 0.0
+        best_ctrl1_y: float = 0.0
+        best_ctrl2_x: float = 0.0
+        best_ctrl2_y: float = 0.0
+        best_error = float("inf")
+        have_solution = False
+
+        inv_span = 1.0 / float(num_points - 1)
+        params_uniform = np.arange(num_points, dtype=np.float64) * inv_span
+        ctrl_result = cls._approximate_cubic_solve_controls(params_uniform, xy_points, start_x, start_y, end_x, end_y)
+        if ctrl_result is not None:
+            best_ctrl1_x, best_ctrl1_y, best_ctrl2_x, best_ctrl2_y = ctrl_result
+            have_solution = True
+
+            if num_points <= 10:
+                result = np.empty((4, 3), dtype=np.float64)
+                result[0, 0] = start_x
+                result[0, 1] = start_y
+                result[1, 0] = best_ctrl1_x
+                result[1, 1] = best_ctrl1_y
+                result[2, 0] = best_ctrl2_x
+                result[2, 1] = best_ctrl2_y
+                result[3, 0] = end_x
+                result[3, 1] = end_y
+                result[:, 2] = _CUBIC_TYPES
+                return result
+
+            best_error = cls._approximate_cubic_evaluate_error(
+                params_uniform,
+                xy_points,
+                start_x,
+                start_y,
+                end_x,
+                end_y,
+                best_ctrl1_x,
+                best_ctrl1_y,
+                best_ctrl2_x,
+                best_ctrl2_y,
+            )
+
+            if best_error == 0.0:
+                result = np.empty((4, 3), dtype=np.float64)
+                result[0, 0] = start_x
+                result[0, 1] = start_y
+                result[1, 0] = best_ctrl1_x
+                result[1, 1] = best_ctrl1_y
+                result[2, 0] = best_ctrl2_x
+                result[2, 1] = best_ctrl2_y
+                result[3, 0] = end_x
+                result[3, 1] = end_y
+                result[:, 2] = _CUBIC_TYPES
+                return result
+
+        if num_points > 10:
+            deltas = np.diff(xy_points, axis=0)
+            diffs = np.hypot(deltas[:, 0], deltas[:, 1])
+            total_length = float(np.sum(diffs))
+            if total_length > 0.0 and math.isfinite(total_length):
+                cumulative = np.empty(num_points, dtype=np.float64)
+                cumulative[0] = 0.0
+                cumulative[1:] = np.cumsum(diffs) / total_length
+
+                ctrl_chord = cls._approximate_cubic_solve_controls(
+                    cumulative, xy_points, start_x, start_y, end_x, end_y
+                )
+                if ctrl_chord is not None:
+                    chord_ctrl1_x, chord_ctrl1_y, chord_ctrl2_x, chord_ctrl2_y = ctrl_chord
+                    error_chord = cls._approximate_cubic_evaluate_error(
+                        cumulative,
+                        xy_points,
+                        start_x,
+                        start_y,
+                        end_x,
+                        end_y,
+                        chord_ctrl1_x,
+                        chord_ctrl1_y,
+                        chord_ctrl2_x,
+                        chord_ctrl2_y,
+                    )
+                    if error_chord < best_error:
+                        best_ctrl1_x, best_ctrl1_y = chord_ctrl1_x, chord_ctrl1_y
+                        best_ctrl2_x, best_ctrl2_y = chord_ctrl2_x, chord_ctrl2_y
+                        best_error = error_chord
+                        have_solution = True
+
+        if not have_solution:
+            raise ValueError("Unable to approximate cubic control points from provided samples.")
+
+        result = np.empty((4, 3), dtype=np.float64)
+        result[0, 0] = start_x
+        result[0, 1] = start_y
+        result[1, 0] = best_ctrl1_x
+        result[1, 1] = best_ctrl1_y
+        result[2, 0] = best_ctrl2_x
+        result[2, 1] = best_ctrl2_y
+        result[3, 0] = end_x
+        result[3, 1] = end_y
+        result[:, 2] = _CUBIC_TYPES
+        return result
+
+    @staticmethod
+    def _approximate_cubic_solve_controls(
+        params: NDArray[np.float64],
+        xy_points: NDArray[np.float64],
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+    ) -> Union[Tuple[float, float, float, float], None]:
+        """Optimized cubic control point solver for given parameterization."""
+        if len(params) < 4:
+            return None
+
+        t_values = params[1:-1]
+        if len(t_values) < 2:
+            return None
+
+        omt = 1.0 - t_values
+        omt2 = omt * omt
+        t2 = t_values * t_values
+
+        w1 = 3.0 * omt2 * t_values
+        w2 = 3.0 * omt * t2
+
+        s11 = float(np.dot(w1, w1))
+        s12 = float(np.dot(w1, w2))
+        s22 = float(np.dot(w2, w2))
+
+        det = s11 * s22 - s12 * s12
+        if det <= 0.0 or not math.isfinite(det):
+            return None
+
+        interior_xy = xy_points[1:-1]
+        omt3 = omt2 * omt
+        t3 = t2 * t_values
+        base_x = omt3 * start_x + t3 * end_x
+        base_y = omt3 * start_y + t3 * end_y
+
+        residual_x = interior_xy[:, 0] - base_x
+        residual_y = interior_xy[:, 1] - base_y
+
+        r1x = float(np.dot(w1, residual_x))
+        r2x = float(np.dot(w2, residual_x))
+        r1y = float(np.dot(w1, residual_y))
+        r2y = float(np.dot(w2, residual_y))
+
+        inv_det = 1.0 / det
+        ctrl1_x = (r1x * s22 - r2x * s12) * inv_det
+        ctrl2_x = (r2x * s11 - r1x * s12) * inv_det
+        ctrl1_y = (r1y * s22 - r2y * s12) * inv_det
+        ctrl2_y = (r2y * s11 - r1y * s12) * inv_det
+
+        if not (
+            math.isfinite(ctrl1_x) and math.isfinite(ctrl1_y) and math.isfinite(ctrl2_x) and math.isfinite(ctrl2_y)
+        ):
+            return None
+
+        return (float(ctrl1_x), float(ctrl1_y), float(ctrl2_x), float(ctrl2_y))
+
+    @staticmethod
+    def _approximate_cubic_evaluate_error(
+        params: NDArray[np.float64],
+        xy_points: NDArray[np.float64],
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+        ctrl1_x: float,
+        ctrl1_y: float,
+        ctrl2_x: float,
+        ctrl2_y: float,
+    ) -> float:
+        """Optimized cubic error evaluation for given parameterization and control points."""
+        omt = 1.0 - params
+        omt2 = omt * omt
+        omt3 = omt2 * omt
+        t2 = params * params
+        t3 = t2 * params
+
+        w1 = 3.0 * omt2 * params
+        w2 = 3.0 * omt * t2
+
+        bx = omt3 * start_x + w1 * ctrl1_x + w2 * ctrl2_x + t3 * end_x
+        by = omt3 * start_y + w1 * ctrl1_y + w2 * ctrl2_y + t3 * end_y
 
         rx = xy_points[:, 0] - bx
         ry = xy_points[:, 1] - by

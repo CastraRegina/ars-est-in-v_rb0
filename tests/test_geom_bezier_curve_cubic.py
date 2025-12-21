@@ -125,6 +125,39 @@ class TestCubicInplaceDebugging:
         assert np.allclose(buffer_numpy[count_numpy - 1, :2], expected_end), "NumPy should end at correct point"
 
 
+class TestCubicApproximation:
+    """Tests for approximating cubic control points from sampled data."""
+
+    def test_cubic_control_approximation_matches_original(self):
+        """Ensure approximation recovers the original control points."""
+        start = np.array([0.0, 0.0], dtype=np.float64)
+        ctrl1 = np.array([1.0, 3.0], dtype=np.float64)
+        ctrl2 = np.array([2.0, 3.0], dtype=np.float64)
+        end = np.array([3.0, 0.0], dtype=np.float64)
+
+        control_points = np.array([start, ctrl1, ctrl2, end], dtype=np.float64)
+        sampled_points = BezierCurve.polygonize_cubic_curve(control_points, steps=30)
+
+        approximated = BezierCurve.approximate_cubic_control_points(sampled_points)
+
+        assert approximated.shape == (4, 3)
+        assert np.allclose(approximated[0, :2], start)
+        assert np.allclose(approximated[3, :2], end)
+        assert np.allclose(approximated[1, :2], ctrl1, atol=1e-7, rtol=1e-7)
+        assert np.allclose(approximated[2, :2], ctrl2, atol=1e-7, rtol=1e-7)
+        assert approximated[0, 2] == pytest.approx(0.0)
+        assert approximated[1, 2] == pytest.approx(3.0)
+        assert approximated[2, 2] == pytest.approx(3.0)
+        assert approximated[3, 2] == pytest.approx(0.0)
+
+    def test_cubic_control_approximation_requires_enough_points(self):
+        """Ensure approximation fails when interior points are missing."""
+        insufficient_points = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 0.0]], dtype=np.float64)
+
+        with pytest.raises(ValueError):
+            BezierCurve.approximate_cubic_control_points(insufficient_points)
+
+
 ###############################################################################
 # Cubic BezierCurve Core Tests
 ###############################################################################
