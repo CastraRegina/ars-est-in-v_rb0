@@ -11,7 +11,7 @@ from ave.glyph import (
     AvLetter,
 )
 from ave.page import AvSvgPage
-from ave.path_processing import AvPathCleaner
+from ave.path_processing import AvPathCleaner, AvPathMatcher
 
 
 def setup_avfont(ttfont_filename: str):
@@ -58,14 +58,13 @@ def create_cleaned_font(characters: str, original_font: AvFont) -> AvFont:
             # Get original glyph
             original_glyph = original_font.get_glyph(char)
 
-            # Clean the glyph using the polygonized intersection resolver
+            # Clean the glyph
             cleaned_path = AvPathCleaner.resolve_polygonized_path_intersections(original_glyph.path.polygonized_path())
             cleaned_glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=cleaned_path)
             cleaned_glyphs[char] = cleaned_glyph
 
         except (ValueError, TypeError, AttributeError) as e:
             print(f"Failed to clean glyph for '{char}': {e}")
-            # Use original glyph as fallback
             cleaned_glyphs[char] = original_glyph
 
     # Create cleaned font using AvGlyphCachedFactory
@@ -93,14 +92,13 @@ def create_cleaned_font2(characters: str, original_font: AvFont) -> AvFont:
             # Get original glyph
             original_glyph = original_font.get_glyph(char)
 
-            # Clean the glyph using resolve_polygonized_path_intersections
+            # Clean the glyph
             cleaned_path = AvPathCleaner.resolve_polygonized_path_intersections(original_glyph.path)
             cleaned_glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=cleaned_path)
             cleaned_glyphs[char] = cleaned_glyph
 
         except (ValueError, TypeError, AttributeError) as e:
             print(f"Failed to clean glyph for '{char}': {e}")
-            # Use original glyph as fallback
             cleaned_glyphs[char] = original_glyph
 
     # Create cleaned font using AvGlyphCachedFactory
@@ -207,26 +205,9 @@ def main():
     # Create polygonized font with 4 steps for detailed character analysis
     polygonized_factory = AvGlyphPolygonizeFactory(avfont.glyph_factory, polygonize_steps=2)
     polygonized_font = AvFont(polygonized_factory, avfont.props)
+
     # Create cleaned font based on polygonized font
     cleaned_font = create_cleaned_font(detail_chars, polygonized_font)
-
-    # # Print path points for each character before and after cleaning
-    # print("\nPath points for characters:")
-    # for char in detail_chars:
-    #     print(f"\n--- Character: '{char}' ---")
-    #     original_glyph = polygonized_font.get_glyph(char)
-    #     print("Original path points:")
-    #     print(original_glyph.path.points)
-    #     print("Original path commands:")
-    #     print(original_glyph.path.commands)
-
-    #     cleaned_glyph = cleaned_font.get_glyph(char)
-    #     print("Cleaned path points:")
-    #     print(cleaned_glyph.path.points)
-    #     print("Cleaned path commands:")
-    #     print(cleaned_glyph.path.commands)
-
-    # Print cleaned characters on the page
     xpos = 0.125
     ypos = 0.15
     for character in detail_chars:
@@ -249,6 +230,29 @@ def main():
         )
         svg_page.add(svg_path)
         ypos += 0.02
+
+    # Print path points before and after cleaning for create_cleaned_font2
+    print("\nPath points for create_cleaned_font2 (before and after cleaning):")
+    for char in "Ä":  # detail_chars:
+        print(f"\n--- Character: '{char}' ---")
+        original_glyph = polygonized_font.get_glyph(char)
+        print("Original path points:")
+        print(original_glyph.path.points)
+        print("Original path commands:")
+        print(original_glyph.path.commands)
+
+        cleaned_glyph = cleaned_font2.get_glyph(char)
+        print("Cleaned path points:")
+        print(cleaned_glyph.path.points)
+        print("Cleaned path commands:")
+        print(cleaned_glyph.path.commands)
+
+        # Use AvPathMatcher to define types for cleaned path points
+        original_points = original_glyph.path.points
+        cleaned_points = cleaned_glyph.path.points
+        typed_points = AvPathMatcher.match_points(original_points, cleaned_points)
+        print("Typed cleaned path points (with types from original):")
+        print(typed_points)
 
     # Save the SVG
     svg_page.save_as(output_filename, include_debug_layer=True, pretty=True)
