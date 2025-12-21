@@ -10,7 +10,7 @@ globs: .py
 - US-ASCII only.
 - Use only " ' and -.
 - Python only (python3 mandatory).
-- After ANY code-affecting change, run the FULL test suite BEFORE and AFTER the change.
+- After ANY code-affecting change, run the FULL test suite AFTER the change.
 - Non-code-only edits (comments/docstrings/whitespace) do NOT require running tests.
 - Every response that changes code MUST explicitly state that the full test suite was run and passed.
 
