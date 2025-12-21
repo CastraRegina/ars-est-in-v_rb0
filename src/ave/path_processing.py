@@ -306,11 +306,7 @@ class AvPathMatcher:
     UNMATCHED_TYPE: float = -1.0
 
     @classmethod
-    def match_points(
-        cls,
-        points_org: NDArray[np.float64],
-        points_new: NDArray[np.float64],
-    ) -> NDArray[np.float64]:
+    def match_points(cls, points_org: NDArray[np.float64], points_new: NDArray[np.float64]) -> NDArray[np.float64]:
         """Transfer type information from original points to new points.
 
         Args:
@@ -336,11 +332,7 @@ class AvPathMatcher:
         return cls._transfer_types(org_arr, new_arr)
 
     @classmethod
-    def match_paths(
-        cls,
-        path_org: AvMultiPolylinePath,
-        path_new: AvMultiPolylinePath,
-    ) -> AvMultiPolylinePath:
+    def match_paths(cls, path_org: AvMultiPolylinePath, path_new: AvMultiPolylinePath) -> AvMultiPolylinePath:
         """Transfer type information between paths, returning a new path.
 
         This is a convenience method that wraps match_points and returns
