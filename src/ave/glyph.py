@@ -110,6 +110,11 @@ class AvGlyph:
         width = glyph_set[glyph_name].width
         # Create AvPath first, then create AvGlyph
         path = AvPath(pen.points, pen.commands)
+
+        # Analyze path and set appropriate constraints
+        appropriate_constraints = path.determine_appropriate_constraints()
+        path = path.with_constraints(appropriate_constraints)
+
         return cls(character, width, path)
 
     @property

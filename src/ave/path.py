@@ -227,6 +227,61 @@ class AvPath:
         """
         return self._constraints
 
+    def with_constraints(self, constraints: PathConstraints) -> AvPath:
+        """Return a new AvPath with the specified constraints.
+
+        This method creates a new path with the same points and commands
+        but with different constraints. The new path will be validated
+        against the new constraints.
+
+        Args:
+            constraints: The new constraints to apply
+
+        Returns:
+            AvPath: A new path instance with the specified constraints
+
+        Raises:
+            ValueError: If the path violates the new constraints
+        """
+        return AvPath(self.points.copy(), list(self.commands), constraints)
+
+    def determine_appropriate_constraints(self) -> PathConstraints:
+        """Analyze this path and determine the most appropriate constraints.
+
+        Returns:
+            PathConstraints: Constraints that match the path's actual structure
+        """
+        # Check if path has curves
+        allows_curves = self.has_curves
+
+        # Count segments (number of 'M' commands)
+        segment_count = self.commands.count("M")
+        max_segments = 1 if segment_count == 1 else None
+
+        # Check if all segments are closed
+        must_close = self.are_all_segments_closed()
+
+        # Determine minimum points per segment
+        if not self.commands:
+            min_points_per_segment = None
+        else:
+            # Split into segments and find minimum points
+            segments = PathSplitter.split_commands_into_segments(self.commands)
+            if segments:
+                min_points_per_segment = min(point_count for _, point_count in segments)
+            else:
+                min_points_per_segment = None
+
+        # Create custom constraints based on analysis
+        constraints = PathConstraints(
+            allows_curves=allows_curves,
+            max_segments=max_segments,
+            must_close=must_close,
+            min_points_per_segment=min_points_per_segment,
+        )
+
+        return constraints
+
     @property
     def is_polygon_like(self) -> bool:
         """
