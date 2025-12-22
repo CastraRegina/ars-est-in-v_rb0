@@ -9,10 +9,12 @@ import numpy as np
 from numpy.typing import NDArray
 
 # Pre-allocated constant for quadratic control point type values
-_QUADRATIC_TYPES: NDArray[np.float64] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+_APPROX_QUADRATIC_TYPES: NDArray[np.float64] = np.array([0.0, 2.0, 0.0], dtype=np.float64)
+_APPROX_QUADRATIC_ERROR_EPS: float = 1.0e-14
 
 # Pre-allocated constant for cubic control point type values
-_CUBIC_TYPES: NDArray[np.float64] = np.array([0.0, 3.0, 3.0, 0.0], dtype=np.float64)
+_APPROX_CUBIC_TYPES: NDArray[np.float64] = np.array([0.0, 3.0, 3.0, 0.0], dtype=np.float64)
+_APPROX_CUBIC_ERROR_EPS: float = 1.0e-14
 
 
 class BezierCurve:
@@ -220,8 +222,7 @@ class BezierCurve:
         """
         if steps < 70:
             return cls.polygonize_cubic_curve_python_inplace(points, steps, output_buffer, start_index, skip_first)
-        else:
-            return cls.polygonize_cubic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
+        return cls.polygonize_cubic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
 
     @classmethod
     def polygonize_cubic_curve(
@@ -402,8 +403,7 @@ class BezierCurve:
         """
         if steps < 70:
             return cls.polygonize_quadratic_curve_python_inplace(points, steps, output_buffer, start_index, skip_first)
-        else:
-            return cls.polygonize_quadratic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
+        return cls.polygonize_quadratic_curve_numpy_inplace(points, steps, output_buffer, start_index, skip_first)
 
     @classmethod
     def polygonize_quadratic_curve(
@@ -484,15 +484,15 @@ class BezierCurve:
                 result[1, 1] = best_ctrl_y
                 result[2, 0] = end_x
                 result[2, 1] = end_y
-                result[:, 2] = _QUADRATIC_TYPES
+                result[:, 2] = _APPROX_QUADRATIC_TYPES
                 return result
 
             best_error = cls._approximate_quadratic_evaluate_error(
                 params_uniform, xy_points, start_x, start_y, end_x, end_y, best_ctrl_x, best_ctrl_y
             )
 
-            # Exact fits cannot be improved by re-parameterization
-            if best_error == 0.0:
+            # Near-exact fits cannot be improved by re-parameterization
+            if best_error <= _APPROX_QUADRATIC_ERROR_EPS:
                 result = np.empty((3, 3), dtype=np.float64)
                 result[0, 0] = start_x
                 result[0, 1] = start_y
@@ -500,7 +500,7 @@ class BezierCurve:
                 result[1, 1] = best_ctrl_y
                 result[2, 0] = end_x
                 result[2, 1] = end_y
-                result[:, 2] = _QUADRATIC_TYPES
+                result[:, 2] = _APPROX_QUADRATIC_TYPES
                 return result
 
         # Chord-length parameterization for larger inputs
@@ -536,7 +536,7 @@ class BezierCurve:
         result[1, 1] = best_ctrl_y
         result[2, 0] = end_x
         result[2, 1] = end_y
-        result[:, 2] = _QUADRATIC_TYPES
+        result[:, 2] = _APPROX_QUADRATIC_TYPES
         return result
 
     @staticmethod
@@ -664,7 +664,7 @@ class BezierCurve:
                 result[2, 1] = best_ctrl2_y
                 result[3, 0] = end_x
                 result[3, 1] = end_y
-                result[:, 2] = _CUBIC_TYPES
+                result[:, 2] = _APPROX_CUBIC_TYPES
                 return result
 
             best_error = cls._approximate_cubic_evaluate_error(
@@ -680,7 +680,7 @@ class BezierCurve:
                 best_ctrl2_y,
             )
 
-            if best_error == 0.0:
+            if best_error <= _APPROX_CUBIC_ERROR_EPS:
                 result = np.empty((4, 3), dtype=np.float64)
                 result[0, 0] = start_x
                 result[0, 1] = start_y
@@ -690,7 +690,7 @@ class BezierCurve:
                 result[2, 1] = best_ctrl2_y
                 result[3, 0] = end_x
                 result[3, 1] = end_y
-                result[:, 2] = _CUBIC_TYPES
+                result[:, 2] = _APPROX_CUBIC_TYPES
                 return result
 
         if num_points > 10:
@@ -737,7 +737,7 @@ class BezierCurve:
         result[2, 1] = best_ctrl2_y
         result[3, 0] = end_x
         result[3, 1] = end_y
-        result[:, 2] = _CUBIC_TYPES
+        result[:, 2] = _APPROX_CUBIC_TYPES
         return result
 
     @staticmethod
