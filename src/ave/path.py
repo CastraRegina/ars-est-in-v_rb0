@@ -20,7 +20,6 @@ from ave.path_support import (  # pylint: disable=unused-import
     MULTI_POLYLINE_CONSTRAINTS,
     SINGLE_PATH_CONSTRAINTS,
     SINGLE_POLYGON_CONSTRAINTS,
-    AvPathUtils,
     PathCommandInfo,
     PathCommandProcessor,
     PathConstraints,
@@ -150,7 +149,7 @@ class AvPath:
             return
 
         # Use PathValidator's segment parsing to validate structure and point count
-        segments = AvPathUtils.split_commands_into_segments(cmds)
+        segments = PathSplitter.split_commands_into_segments(cmds)
 
         # Validate that segments start with M and Z properly terminates segments
         idx = 0

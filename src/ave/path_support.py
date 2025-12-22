@@ -229,7 +229,7 @@ class PathValidator:
                     raise ValueError(f"Path cannot contain curve commands (found '{cmd}' at position {i})")
 
         # Count segments and validate structure
-        segments = AvPathUtils.split_commands_into_segments(commands)
+        segments = PathSplitter.split_commands_into_segments(commands)
 
         # Validate segment count
         if constraints.max_segments is not None:
@@ -253,12 +253,12 @@ class PathValidator:
 
 
 ###############################################################################
-# AvPathUtils
+# PathSplitter
 ###############################################################################
 
 
-class AvPathUtils:
-    """Collection of static utility functions for path operations."""
+class PathSplitter:
+    """Utility class for splitting paths into single-segment components."""
 
     @staticmethod
     def split_commands_into_segments(commands: List[AvGlyphCmds]) -> List[Tuple[List[AvGlyphCmds], int]]:
@@ -292,10 +292,6 @@ class AvPathUtils:
             segments.append((current_cmds, current_point_count))
 
         return segments
-
-
-class PathSplitter:
-    """Utility class for splitting paths into single-segment components."""
 
     @staticmethod
     def split_into_single_paths(points: NDArray[np.float64], commands: List[AvGlyphCmds]) -> List["AvPath"]:
