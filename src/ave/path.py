@@ -82,8 +82,8 @@ class AvPath:
         else:
             arr = np.asarray(points, dtype=np.float64)
 
-        if arr.ndim != 2:
-            raise ValueError(f"points must have 2 dimensions, got {arr.ndim}")
+        # Validate array shape and dimensions with improved empty array handling
+        self._validate_points_array(arr)
 
         commands_list = [] if commands is None else list(commands)
 
@@ -92,8 +92,6 @@ class AvPath:
             self._points = self._process_2d_to_3d(arr, commands_list)
         elif arr.shape[1] == 3:
             self._points = arr
-        else:
-            raise ValueError(f"points must have shape (n, 2) or (n, 3), got {arr.shape}")
 
         self._commands = commands_list
         self._constraints = constraints if constraints is not None else GENERAL_CONSTRAINTS
@@ -101,23 +99,25 @@ class AvPath:
         self._polygonized_path = None
         self._validate()
 
-    def _invalidate_caches(self) -> None:
-        """Invalidate all cached properties when path is modified."""
-        if hasattr(self, "_bounding_box"):
-            self._bounding_box = None
-        if hasattr(self, "_polygonized_path"):
-            self._polygonized_path = None
-        # Clear cached properties
-        if "area" in self.__dict__:
-            del self.__dict__["area"]
-        if "centroid" in self.__dict__:
-            del self.__dict__["centroid"]
-        if "is_ccw" in self.__dict__:
-            del self.__dict__["is_ccw"]
-        if "has_curves" in self.__dict__:
-            del self.__dict__["has_curves"]
-        if "_representative_point_cache" in self.__dict__:
-            del self.__dict__["_representative_point_cache"]
+    def _validate_points_array(self, arr: NDArray[np.float64]) -> None:
+        """Validate points array has correct shape and dimensions."""
+        if arr.size == 0:
+            # Empty array is valid, will be handled by validation
+            return
+        if arr.ndim != 2:
+            raise ValueError(f"AvPath.__init__: points must have 2 dimensions, got {arr.ndim}")
+        if arr.shape[1] not in (2, 3):
+            raise ValueError(f"AvPath.__init__: points must have shape (n, 2) or (n, 3), got {arr.shape}")
+
+    def _require_closed_path(self, operation: str) -> None:
+        """Helper method to check if path is closed for geometric operations."""
+        if not self.are_all_segments_closed():
+            raise ValueError(f"AvPath.{operation}: requires a closed path (must_close=True or Z command)")
+
+    def _validate_point_input(self, point: Tuple[float, float]) -> None:
+        """Validate point input for contains_point and similar methods."""
+        if not isinstance(point, (tuple, list)) or len(point) != 2:
+            raise ValueError("AvPath.contains_point: Point must be a tuple or list of 2 numeric values")
 
     def _process_2d_to_3d(self, points: NDArray[np.float64], commands: List[AvGlyphCmds]) -> NDArray[np.float64]:
         """Convert 2D points to 3D with type column based on commands using PathCommandProcessor."""
@@ -212,7 +212,7 @@ class AvPath:
         """
         The commands of this path as a list of SVG path commands.
         """
-        return self._commands
+        return list(self._commands)  # Return copy to prevent external mutation
 
     @property
     def constraints(self) -> PathConstraints:
@@ -309,8 +309,7 @@ class AvPath:
             ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
         # Check if path is closed using proper segment analysis
-        if not self.are_all_segments_closed():
-            raise ValueError("Area calculation requires a closed path (must_close=True or Z command)")
+        self._require_closed_path("area")
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
@@ -334,8 +333,7 @@ class AvPath:
             ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
         # Check if path is closed using proper segment analysis
-        if not self.are_all_segments_closed():
-            raise ValueError("Centroid calculation requires a closed path (must_close=True or Z command)")
+        self._require_closed_path("centroid")
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
@@ -359,8 +357,7 @@ class AvPath:
             ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
         # Check if path is closed using proper segment analysis
-        if not self.are_all_segments_closed():
-            raise ValueError("CCW check requires a closed path (must_close=True or Z command)")
+        self._require_closed_path("is_ccw")
 
         # For polygon-like paths, use direct calculation
         if self.is_polygon_like:
@@ -538,9 +535,11 @@ class AvPath:
         For paths with curves, the path is first polygonized.
         For multi-segment paths, handles polygons with holes using winding rule.
         """
-        # Input validation
-        if not isinstance(point, (tuple, list)) or len(point) != 2:
-            raise ValueError("Point must be a tuple or list of 2 numeric values")
+        # Input validation using standardized helper
+        self._validate_point_input(point)
+
+        # Check if path is closed for consistency with other geometric operations
+        self._require_closed_path("contains_point")
 
         # For paths with curves, polygonize first using cached curve detection
         if self.has_curves:
@@ -698,19 +697,19 @@ class AvPath:
         # Convert commands back from strings to enums
         commands = [cmd for cmd in data.get("commands", [])]
 
-        # Convert bounding box back if present
-        bounding_box = None
-        if data.get("bounding_box") is not None:
-            bounding_box = AvBox.from_dict(data["bounding_box"])
-
         # Convert constraints back if present
         constraints = None
         if data.get("constraints") is not None:
             constraints = PathConstraints.from_dict(data["constraints"])
 
-        # Create instance with 3D points (already has type column)
+        # Create instance with 3D points (already has type column) - this triggers validation
         path = cls(points, commands, constraints)
-        path._bounding_box = bounding_box
+
+        # Convert bounding box back if present and set it properly
+        if data.get("bounding_box") is not None:
+            bounding_box = AvBox.from_dict(data["bounding_box"])
+            path._bounding_box = bounding_box  # Safe to set after validation
+
         return path
 
     def to_dict(self) -> dict:
