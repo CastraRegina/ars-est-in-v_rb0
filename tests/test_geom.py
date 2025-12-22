@@ -218,6 +218,48 @@ class TestAvBox:
         with pytest.raises(AttributeError):
             box.ymax = 45.0
 
+    def test_avbox_overlaps(self):
+        """Test AvBox overlaps method."""
+        # Test overlapping boxes
+        box1 = AvBox(xmin=0.0, ymin=0.0, xmax=10.0, ymax=10.0)
+        box2 = AvBox(xmin=5.0, ymin=5.0, xmax=15.0, ymax=15.0)
+        assert box1.overlaps(box2) is True
+        assert box2.overlaps(box1) is True
+
+        # Test non-overlapping boxes (separated horizontally)
+        box3 = AvBox(xmin=20.0, ymin=0.0, xmax=30.0, ymax=10.0)
+        assert box1.overlaps(box3) is False
+        assert box3.overlaps(box1) is False
+
+        # Test non-overlapping boxes (separated vertically)
+        box4 = AvBox(xmin=0.0, ymin=20.0, xmax=10.0, ymax=30.0)
+        assert box1.overlaps(box4) is False
+        assert box4.overlaps(box1) is False
+
+        # Test touching boxes (edges touch but don't overlap)
+        box5 = AvBox(xmin=10.0, ymin=0.0, xmax=20.0, ymax=10.0)
+        assert box1.overlaps(box5) is True  # Touching edges are considered overlapping
+        assert box5.overlaps(box1) is True
+
+        # Test touching boxes (corners touch)
+        box6 = AvBox(xmin=10.0, ymin=10.0, xmax=20.0, ymax=20.0)
+        assert box1.overlaps(box6) is True  # Touching corners are considered overlapping
+        assert box6.overlaps(box1) is True
+
+        # Test one box completely inside another
+        box7 = AvBox(xmin=2.0, ymin=2.0, xmax=8.0, ymax=8.0)
+        assert box1.overlaps(box7) is True
+        assert box7.overlaps(box1) is True
+
+        # Test identical boxes
+        assert box1.overlaps(box1) is True
+
+        # Test with negative coordinates
+        box8 = AvBox(xmin=-10.0, ymin=-10.0, xmax=0.0, ymax=0.0)
+        box9 = AvBox(xmin=-5.0, ymin=-5.0, xmax=5.0, ymax=5.0)
+        assert box8.overlaps(box9) is True
+        assert box9.overlaps(box8) is True
+
 
 class TestAvBoxSerialization:
     """Tests for AvBox.to_dict and AvBox.from_dict."""

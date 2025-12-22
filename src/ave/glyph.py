@@ -212,14 +212,16 @@ class AvGlyph:
         Algorithm:
         Step 1: Split glyph into individual contours
         Step 2-3: Process each contour - check if closed, polygonize for area computation
-        Step 4: Classify contours as additive vs subtractive using geometric nesting depth:
-                - Count how many other contours contain each contour's interior point
-                - Even depth = additive, Odd depth = subtractive
+        Step 4: Classify contours as additive vs subtractive using strict geometric nesting:
+                - Check if a contour's bounding box is fully contained within another contour
+                - Only if bounding boxes are nested, verify point containment
+                - Non-nested contours are always additive (CCW)
+                - Nested contours are subtractive (CW)
         Step 5: Enforce required direction - reverse contours that don't match winding rules
         Step 6: Reassemble contours into new AvPath
 
         Returns:
-            AvGlyph: New glyph with corrected segement directions
+            AvGlyph: New glyph with corrected segment directions
         """
         # Step 1: Split glyph into individual contours
         contours: List[AvSinglePath] = self.path.split_into_single_paths()
@@ -256,8 +258,8 @@ class AvGlyph:
             processed_contours.append(contour)
             polygonized_contours.append(polygonized)
 
-        # Step 4: Classify contours as additive vs subtractive using nesting depth
-        contour_classes: List[Optional[bool]] = []  # True for additive, False for subtractive
+        # Step 4: Simple classification - only check for actual geometric nesting
+        contour_classes = []
 
         for i, (contour, polygonized) in enumerate(zip(processed_contours, polygonized_contours)):
             if polygonized is None:
@@ -265,19 +267,36 @@ class AvGlyph:
                 contour_classes.append(None)
                 continue
 
-            # Get a test point inside the contour
-            test_point: tuple[float, float] = polygonized.representative_point()
-            current_area = polygonized.area
+            # Get current area and test point
+            current_area = abs(polygonized.area)
+            test_point = polygonized.representative_point()
 
-            # Count how many other closed contours contain this point
-            containment_depth = 0
+            # Check if this contour is geometrically nested inside another contour
+            # Use strict test: bounding box must be fully contained AND area must be smaller
+            is_nested = False
+            current_bbox = polygonized.bounding_box()
+
             for j, other_polygonized in enumerate(polygonized_contours):
                 if j != i and other_polygonized is not None:
-                    if other_polygonized.area > current_area and other_polygonized.contains_point(test_point):
-                        containment_depth += 1
+                    other_area = abs(other_polygonized.area)
+                    other_bbox = other_polygonized.bounding_box()
 
-            # Even depth => additive, odd depth => subtractive
-            is_additive = containment_depth % 2 == 0
+                    # Strict test: current bbox must be fully inside other bbox
+                    bbox_fully_contained = (
+                        current_bbox.xmin >= other_bbox.xmin
+                        and current_bbox.xmax <= other_bbox.xmax
+                        and current_bbox.ymin >= other_bbox.ymin
+                        and current_bbox.ymax <= other_bbox.ymax
+                    )
+
+                    # Must also be smaller to be considered nested
+                    if bbox_fully_contained and other_area > current_area:
+                        if other_polygonized.contains_point(test_point):
+                            is_nested = True
+                            break
+
+            # Classification: non-nested = additive (CCW), nested = subtractive (CW)
+            is_additive = not is_nested
             contour_classes.append(is_additive)
 
         # Step 5: Enforce required direction
@@ -315,7 +334,7 @@ class AvGlyph:
             new_path = AvPath()
 
         # Return new AvGlyph with corrected directions
-        return AvGlyph(self.character, self.width(), new_path)
+        return AvGlyph(character=self.character, width=self.width(), path=new_path)
 
 
 ###############################################################################

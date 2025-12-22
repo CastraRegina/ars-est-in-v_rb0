@@ -351,6 +351,20 @@ class AvBox:
         """
         return self.transform_affine((scale_factor, 0, 0, scale_factor, translate_x, translate_y))
 
+    def overlaps(self, other: AvBox) -> bool:
+        """Check if this box overlaps with another box.
+
+        Args:
+            other: Another AvBox to check overlap with
+
+        Returns:
+            True if the boxes overlap, False otherwise
+        """
+        # Check if bounding boxes intersect
+        return not (
+            self.xmax < other.xmin or other.xmax < self.xmin or self.ymax < other.ymin or other.ymax < self.ymin
+        )
+
     @classmethod
     def from_dict(cls, data: dict) -> AvBox:
         """Create an AvBox instance from a dictionary."""
