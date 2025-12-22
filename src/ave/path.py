@@ -255,8 +255,7 @@ class AvPath:
         allows_curves = self.has_curves
 
         # Count segments (number of 'M' commands)
-        segment_count = self.commands.count("M")
-        max_segments = 1 if segment_count == 1 else None
+        max_segments = 1 if self.num_segments == 1 else None
 
         # Check if all segments are closed
         must_close = self.are_all_segments_closed()
@@ -305,6 +304,16 @@ class AvPath:
         Return True if this path is constrained to a single segment.
         """
         return self.constraints.max_segments == 1
+
+    @cached_property
+    def num_segments(self) -> int:
+        """
+        Return the number of segments in this path.
+
+        Segments are defined as sequences starting with 'M' commands.
+        Returns 0 for empty paths.
+        """
+        return self.commands.count("M")
 
     @property
     def is_single_path(self) -> bool:
@@ -445,8 +454,7 @@ class AvPath:
             return AvPath(self.points.copy(), list(self.commands), self.constraints)
 
         # Check if this is a multi-segment path
-        m_count = self.commands.count("M")
-        if m_count > 1:
+        if self.num_segments > 1:
             # Multi-segment path: split, reverse each, join
             single_paths = self.split_into_single_paths()
             reversed_segments = [self._reverse_single_segment(seg) for seg in single_paths]
@@ -615,7 +623,7 @@ class AvPath:
             commands = self.commands
 
         # For single-segment paths, use direct ray casting
-        if commands.count("M") <= 1:
+        if self.num_segments <= 1:
             return AvPolygon.ray_casting_single(points, point)
 
         # For multi-segment paths, handle each segment and apply winding rule
