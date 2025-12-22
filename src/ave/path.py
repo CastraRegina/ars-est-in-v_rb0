@@ -205,13 +205,19 @@ class AvPath:
         """
         The points of this path as a numpy array of shape (n_points, 3).
         """
-        return self._points
+        # For performance improvement we could return a view instead of a copy
+        # but this maintains consistency with other properties and prevents
+        # external mutation
+        return self._points.copy()  # Return copy to prevent external mutation
 
     @property
     def commands(self) -> List[AvGlyphCmds]:
         """
         The commands of this path as a list of SVG path commands.
         """
+        # For performance improvement we could return a view instead of a copy
+        # but this maintains consistency with other properties and prevents
+        # external mutation
         return list(self._commands)  # Return copy to prevent external mutation
 
     @property
@@ -541,20 +547,24 @@ class AvPath:
         # Check if path is closed for consistency with other geometric operations
         self._require_closed_path("contains_point")
 
-        # For paths with curves, polygonize first using cached curve detection
+        # For paths with curves, polygonize first and use the points directly
         if self.has_curves:
-            return self.polygonized_path().contains_point(point)
-
-        # Handle empty path
-        if self.points.shape[0] == 0:
-            return False
+            polygonized = self.polygonized_path()
+            points = polygonized.points
+            commands = polygonized.commands
+        else:
+            # Handle empty path
+            if self.points.shape[0] == 0:
+                return False
+            points = self.points
+            commands = self.commands
 
         # For single-segment paths, use direct ray casting
-        if self.commands.count("M") <= 1:
-            return AvPolygon.ray_casting_single(self.points, point)
+        if commands.count("M") <= 1:
+            return AvPolygon.ray_casting_single(points, point)
 
         # For multi-segment paths, handle each segment and apply winding rule
-        segments = self.split_into_single_paths()
+        segments = PathSplitter.split_into_single_paths(points, commands)
         winding_number = 0
 
         for segment in segments:
