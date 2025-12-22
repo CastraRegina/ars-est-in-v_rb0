@@ -101,6 +101,24 @@ class AvPath:
         self._polygonized_path = None
         self._validate()
 
+    def _invalidate_caches(self) -> None:
+        """Invalidate all cached properties when path is modified."""
+        if hasattr(self, "_bounding_box"):
+            self._bounding_box = None
+        if hasattr(self, "_polygonized_path"):
+            self._polygonized_path = None
+        # Clear cached properties
+        if "area" in self.__dict__:
+            del self.__dict__["area"]
+        if "centroid" in self.__dict__:
+            del self.__dict__["centroid"]
+        if "is_ccw" in self.__dict__:
+            del self.__dict__["is_ccw"]
+        if "has_curves" in self.__dict__:
+            del self.__dict__["has_curves"]
+        if "_representative_point_cache" in self.__dict__:
+            del self.__dict__["_representative_point_cache"]
+
     def _process_2d_to_3d(self, points: NDArray[np.float64], commands: List[AvGlyphCmds]) -> NDArray[np.float64]:
         """Convert 2D points to 3D with type column based on commands using PathCommandProcessor."""
         # Validate command sequence first
@@ -115,8 +133,13 @@ class AvPath:
 
             consumed = PathCommandProcessor.get_point_consumption(cmd)
 
+            # Check bounds before accessing type_column
+            if point_idx + consumed > points.shape[0]:
+                raise ValueError(f"Not enough points for {cmd} command at index {point_idx}")
+
             if cmd in ["M", "L"]:
-                # Regular points get type 0.0 (no change needed)
+                # Regular points get type 0.0
+                type_column[point_idx] = 0.0
                 point_idx += consumed
             elif cmd == "Q":
                 # Quadratic: control point (2.0), end point (0.0)
@@ -228,17 +251,17 @@ class AvPath:
         return self.constraints == SINGLE_PATH_CONSTRAINTS
 
     @property
-    def is_closed_path(self) -> bool:
+    def is_closed_single_path(self) -> bool:
         """Return True if this path has CLOSED_SINGLE_PATH_CONSTRAINTS."""
         return self.constraints == CLOSED_SINGLE_PATH_CONSTRAINTS
 
     @property
-    def is_polylines_path(self) -> bool:
+    def is_multi_polyline_path(self) -> bool:
         """Return True if this path has MULTI_POLYLINE_CONSTRAINTS."""
         return self.constraints == MULTI_POLYLINE_CONSTRAINTS
 
     @property
-    def is_polygon_path(self) -> bool:
+    def is_single_polygon_path(self) -> bool:
         """Return True if this path has SINGLE_POLYGON_CONSTRAINTS."""
         return self.constraints == SINGLE_POLYGON_CONSTRAINTS
 
@@ -251,6 +274,25 @@ class AvPath:
     def has_curves(self) -> bool:
         """Return True if this path contains curve commands (Q, C)."""
         return any(PathCommandProcessor.is_curve_command(cmd) for cmd in self.commands)
+
+    def are_all_segments_closed(self) -> bool:
+        """Check if path is properly closed by examining segments."""
+        # If constraints require closure, assume it's properly closed
+        if self.constraints.must_close:
+            return True
+
+        # For non-constraint paths, check if all segments end with Z
+        if not self.commands:
+            return False
+
+        segments = PathSplitter.split_commands_into_segments(self.commands)
+
+        # Check if all segments (except possibly empty ones) end with Z
+        for seg_cmds, _ in segments:
+            if seg_cmds and seg_cmds[-1] != "Z":
+                return False
+
+        return True
 
     @cached_property
     def area(self) -> float:
@@ -266,8 +308,8 @@ class AvPath:
         Raises:
             ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
-        # Check if path is closed - either by constraint (which guarantees Z) or by Z command
-        if not self.constraints.must_close and not (self.commands and self.commands[-1] == "Z"):
+        # Check if path is closed using proper segment analysis
+        if not self.are_all_segments_closed():
             raise ValueError("Area calculation requires a closed path (must_close=True or Z command)")
 
         # For polygon-like paths, use direct calculation
@@ -291,8 +333,8 @@ class AvPath:
         Raises:
             ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
-        # Check if path is closed - either by constraint (which guarantees Z) or by Z command
-        if not self.constraints.must_close and not (self.commands and self.commands[-1] == "Z"):
+        # Check if path is closed using proper segment analysis
+        if not self.are_all_segments_closed():
             raise ValueError("Centroid calculation requires a closed path (must_close=True or Z command)")
 
         # For polygon-like paths, use direct calculation
@@ -316,8 +358,8 @@ class AvPath:
         Raises:
             ValueError: If the path is not closed (must_close constraint required or Z command present).
         """
-        # Check if path is closed - either by constraint (which guarantees Z) or by Z command
-        if not self.constraints.must_close and not (self.commands and self.commands[-1] == "Z"):
+        # Check if path is closed using proper segment analysis
+        if not self.are_all_segments_closed():
             raise ValueError("CCW check requires a closed path (must_close=True or Z command)")
 
         # For polygon-like paths, use direct calculation
@@ -523,10 +565,22 @@ class AvPath:
             # Check if point is in this segment
             if AvPolygon.ray_casting_single(segment.points, point):
                 # Determine winding direction based on segment's orientation
-                if segment.is_ccw:
-                    winding_number += 1
-                else:
-                    winding_number -= 1
+                # Only use is_ccw if segment is properly closed, otherwise use polygon calculation
+                try:
+                    if segment.are_all_segments_closed():
+                        if segment.is_ccw:
+                            winding_number += 1
+                        else:
+                            winding_number -= 1
+                    else:
+                        # For unclosed segments, calculate orientation from points directly
+                        if AvPolygon.is_ccw(segment.points):
+                            winding_number += 1
+                        else:
+                            winding_number -= 1
+                except (ValueError, IndexError):
+                    # If orientation calculation fails, skip this segment
+                    continue
 
         # Point is inside if winding number is non-zero
         return winding_number != 0
@@ -811,7 +865,7 @@ class AvPath:
 ###############################################################################
 # These type aliases provide clear type hints for paths with specific constraints.
 # They are all AvPath at runtime but communicate intent in type annotations.
-# Use runtime properties (is_single_path, is_polylines_path, etc.) to verify.
+# Use runtime properties (is_single_path, is_multi_polyline_path, etc.) to verify.
 # Using string literals to avoid circular import issues.
 
 AvSinglePath = AvPath
