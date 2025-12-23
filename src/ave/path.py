@@ -128,15 +128,14 @@ class AvPath:
         point_idx = 0
 
         for cmd in commands:
-            if cmd == "Z":
-                continue
-
             consumed = PathCommandProcessor.get_point_consumption(cmd)
 
             # Check bounds before accessing type_column
             if point_idx + consumed > points.shape[0]:
                 raise ValueError(f"Not enough points for {cmd} command at index {point_idx}")
 
+            if cmd == "Z":
+                continue
             if cmd in ["M", "L"]:
                 # Regular points get type 0.0
                 type_column[point_idx] = 0.0
@@ -152,6 +151,8 @@ class AvPath:
                 type_column[point_idx + 1] = 3.0  # Control point 2
                 type_column[point_idx + 2] = 0.0  # End point
                 point_idx += consumed
+            else:
+                raise ValueError(f"Unsupported command: {cmd}")
 
         return np.column_stack([points, type_column])
 
