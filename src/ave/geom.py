@@ -232,7 +232,7 @@ class AvPolygon:
 ###############################################################################
 
 
-@dataclass
+@dataclass(frozen=True)
 class AvBox:
     """
     Represents a rectangular box with coordinates and dimensions.
@@ -258,16 +258,13 @@ class AvBox:
             xmax: The maximum x-coordinate
             ymax: The maximum y-coordinate
         """
-        self._xmin = xmin
-        self._ymin = ymin
-        self._xmax = xmax
-        self._ymax = ymax
+        x0, x1 = (xmin, xmax) if xmin <= xmax else (xmax, xmin)
+        y0, y1 = (ymin, ymax) if ymin <= ymax else (ymax, ymin)
 
-        # Normalize coordinates to ensure xmin <= xmax and ymin <= ymax
-        if self._xmin > self._xmax:
-            self._xmin, self._xmax = self._xmax, self._xmin
-        if self._ymin > self._ymax:
-            self._ymin, self._ymax = self._ymax, self._ymin
+        object.__setattr__(self, "_xmin", x0)
+        object.__setattr__(self, "_ymin", y0)
+        object.__setattr__(self, "_xmax", x1)
+        object.__setattr__(self, "_ymax", y1)
 
     @property
     def xmin(self) -> float:
@@ -375,14 +372,6 @@ class AvBox:
             ymax=data.get("ymax", 0.0),
         )
 
-    def __str__(self):
-        """Returns a string representation of the AvBox instance."""
-        return (
-            f"AvBox(xmin={self.xmin}, ymin={self.ymin}, "
-            f"xmax={self.xmax}, ymax={self.ymax}, "
-            f"width={self.width}, height={self.height})"
-        )
-
     def to_dict(self) -> dict:
         """Convert the AvBox instance to a dictionary."""
         return {
@@ -391,6 +380,15 @@ class AvBox:
             "xmax": self.xmax,
             "ymax": self.ymax,
         }
+
+    def __str__(self):
+        """Returns a string representation of the AvBox instance."""
+        return (
+            f"AvBox(xmin={self.xmin}, ymin={self.ymin}, "
+            f"xmax={self.xmax}, ymax={self.ymax}, "
+            f"width={self.width}, height={self.height}, "
+            f"area={self.area}, centroid={self.centroid})"
+        )
 
 
 ###############################################################################
