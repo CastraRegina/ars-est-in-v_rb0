@@ -62,6 +62,33 @@ def deprecated(reason: str = ""):
     return decorator
 
 
+def sgn_sci(value: float, precision: int = 3) -> str:
+    """Return sign-aligned scientific-notation text with zero-padded exponent.
+        Values are rounded using Python’s round-half-to-even rule (banker’s rounding),
+        so halfway cases like 1234.5 stay at 1.234 rather than 1.235.
+
+    Examples:
+        sgn_sci(0.1234) =  1.234e-001
+        sgn_sci(-12.34) = -1.234e+001
+        sgn_sci(1234.5) =  1.234e+003
+        sgn_sci(1234.6) =  1.235e+003
+        sgn_sci(2345.5) =  2.346e+003
+        sgn_sci(3456.5) =  3.456e+003
+
+    Args:
+        value: Number to format.
+        precision: Digits to keep to the right of the decimal. Defaults to 3.
+
+    Returns:
+        The formatted string with leading sign placeholder and fixed exponent width.
+    """
+    mantissa, exponent = f"{abs(value):.{precision}e}".split("e")
+    sign_char = "-" if value < 0 else " "
+    exponent_sign = exponent[0]
+    exponent_value = exponent[1:].rjust(3, "0")
+    return f"{sign_char}{mantissa}e{exponent_sign}{exponent_value}"
+
+
 def main() -> None:
     """Display system information and alignment enum values.
 
@@ -77,6 +104,14 @@ def main() -> None:
     print(Align.LEFT, Align.LEFT.value)
     print(Align.RIGHT, Align.RIGHT.value)
     print(Align.BOTH, Align.BOTH.value)
+
+    print()
+    print("sgn_sci(0.1234) =", sgn_sci(0.1234))
+    print("sgn_sci(-12.34) =", sgn_sci(-12.34))
+    print("sgn_sci(1234.5) =", sgn_sci(1234.5))
+    print("sgn_sci(1234.6) =", sgn_sci(1234.6))
+    print("sgn_sci(2345.5) =", sgn_sci(2345.5))
+    print("sgn_sci(3456.5) =", sgn_sci(3456.5))
 
     print()
 
