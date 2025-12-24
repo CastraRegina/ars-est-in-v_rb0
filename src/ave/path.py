@@ -942,26 +942,27 @@ class AvPath:
             formatted_commands.append(cmd)
         lines.append(f"Path: {''.join(formatted_commands)}")
         lines.append(f"  #commands: {len(self.commands)}, #points: {len(self.points)}")
-        lines.append(f"  bounding box: {self.bounding_box()}")
-        lines.append(f"  constrs set : {str(self.constraints)}")
-        appropriate_constraints: PathConstraints = self.determine_appropriate_constraints()
-        lines.append(f"  constrs real: {str(appropriate_constraints)}")
 
-        # Calculate the min_points_per_segment by iterating over all segments
-        min_points_per_segment = None
-        segments = PathSplitter.split_commands_into_segments(self.commands)
-        if segments:
-            min_points_per_segment = min(point_count for _, point_count in segments)
-        else:
-            min_points_per_segment = None
+        # lines.append(f"  bounding box: {self.bounding_box()}")
+        # lines.append(f"  constrs set : {str(self.constraints)}")
+        # appropriate_constraints: PathConstraints = self.determine_appropriate_constraints()
+        # lines.append(f"  constrs real: {str(appropriate_constraints)}")
 
-        # Additional path information
-        lines.append(
-            f"          real: num_segs: {self.num_segments},"
-            f" has_curves: {self.has_curves},"
-            f" are_all_segs_closed: {self.are_all_segments_closed()},"
-            f" min_pts_per_seg: {min_points_per_segment}"
-        )
+        # # Calculate the min_points_per_segment by iterating over all segments
+        # min_points_per_segment = None
+        # segments = PathSplitter.split_commands_into_segments(self.commands)
+        # if segments:
+        #     min_points_per_segment = min(point_count for _, point_count in segments)
+        # else:
+        #     min_points_per_segment = None
+
+        # # Additional path information
+        # lines.append(
+        #     f"          real: num_segs: {self.num_segments},"
+        #     f" has_curves: {self.has_curves},"
+        #     f" are_all_segs_closed: {self.are_all_segments_closed()},"
+        #     f" min_pts_per_seg: {min_points_per_segment}"
+        # )
 
         # Area and centroid info if all segments are closed
         if self.are_all_segments_closed():
