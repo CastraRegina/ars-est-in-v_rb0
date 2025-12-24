@@ -62,7 +62,7 @@ def deprecated(reason: str = ""):
     return decorator
 
 
-def sgn_sci(value: float, precision: int = 3) -> str:
+def sgn_sci(value: float, precision: int = 3, always_positive: bool = False) -> str:
     """Return sign-aligned scientific-notation text with zero-padded exponent.
         Values are rounded using Python’s round-half-to-even rule (banker’s rounding),
         so halfway cases like 1234.5 stay at 1.234 rather than 1.235.
@@ -78,12 +78,20 @@ def sgn_sci(value: float, precision: int = 3) -> str:
     Args:
         value: Number to format.
         precision: Digits to keep to the right of the decimal. Defaults to 3.
+        always_positive: Remove the placeholder for a leading sign when True.
+            Useful for compact representations of values that are guaranteed to
+            be non-negative. Defaults to False.
 
     Returns:
         The formatted string with leading sign placeholder and fixed exponent width.
     """
     mantissa, exponent = f"{abs(value):.{precision}e}".split("e")
-    sign_char = "-" if value < 0 else " "
+    if value < 0:
+        sign_char = "-"
+    elif always_positive:
+        sign_char = ""
+    else:
+        sign_char = " "
     exponent_sign = exponent[0]
     exponent_value = exponent[1:].rjust(3, "0")
     return f"{sign_char}{mantissa}e{exponent_sign}{exponent_value}"
