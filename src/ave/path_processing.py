@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 from scipy.spatial import KDTree
 
 from ave.bezier import BezierCurve
+from ave.geom import AvPolygon
 from ave.path import (
     MULTI_POLYGON_CONSTRAINTS,
     MULTI_POLYLINE_CONSTRAINTS,
@@ -240,6 +241,9 @@ class AvPathCleaner:
                 if len(exterior_coords) >= 4:
                     exterior_coords = exterior_coords[:-1]  # Remove closing point
                     if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+                        # Enforce CCW for exterior rings (positive polygons)
+                        if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
+                            exterior_coords = list(reversed(exterior_coords))
                         exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
                         cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
@@ -249,6 +253,9 @@ class AvPathCleaner:
                     if len(interior_coords) >= 4:
                         interior_coords = interior_coords[:-1]  # Remove closing point
                         if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+                            # Enforce CW for interior rings (holes)
+                            if AvPolygon.is_ccw(np.asarray(interior_coords)):
+                                interior_coords = list(reversed(interior_coords))
                             interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
                             cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
@@ -261,6 +268,9 @@ class AvPathCleaner:
                         if len(exterior_coords) >= 4:
                             exterior_coords = exterior_coords[:-1]
                             if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+                                # Enforce CCW for exterior rings (positive polygons)
+                                if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
+                                    exterior_coords = list(reversed(exterior_coords))
                                 exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
                                 cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
@@ -270,6 +280,9 @@ class AvPathCleaner:
                             if len(interior_coords) >= 4:
                                 interior_coords = interior_coords[:-1]
                                 if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+                                    # Enforce CW for interior rings (holes)
+                                    if AvPolygon.is_ccw(np.asarray(interior_coords)):
+                                        interior_coords = list(reversed(interior_coords))
                                     interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
                                     cleaned_paths.append(AvPath(interior_coords, interior_cmds))
         except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
@@ -555,198 +568,3 @@ class AvPathMatcher:
                         new_idx += direction
                     else:
                         break
-
-
-class AvPathCurveRebuilder:
-    """Utility class to rebuild paths with Bezier curves from point clusters."""
-
-    @staticmethod
-    def rebuild_curve_path(path: AvMultiPolylinePath) -> AvPath:
-        """
-        Rebuild a path by replacing point clusters with Bezier curves.
-
-        Takes a path with clusters of type=2 (quadratic) or type=3 (cubic) points
-        and replaces them with approximated Bezier curves while preserving
-        the original command structure (M and Z commands).
-
-        Args:
-            path: Input path from AvPathMatcher.match_paths()
-
-        Returns:
-            AvPath: Rebuilt path with Bezier curves
-        """
-        if not path.points.any():
-            return AvPath()
-
-        points = path.points.copy()
-        commands = path.commands.copy()
-        result_points = []
-        result_commands = []
-
-        # Track current position in points array
-        point_idx = 0
-        n_points = len(points)
-
-        # Iterate through commands to handle segments properly
-        for cmd in commands:
-            if cmd == "M":
-                # Move command - always preserve
-                if point_idx < n_points:
-                    result_points.append(points[point_idx])
-                    result_commands.append("M")
-                    point_idx += 1
-            elif cmd == "Z":
-                # Close path command - always preserve
-                result_commands.append("Z")
-            elif cmd in ["L", "Q", "C"]:
-                # Check if we have a curve cluster ahead
-                if point_idx < n_points:
-                    point_type = int(points[point_idx, 2])
-
-                    if point_type == 2:
-                        # Handle quadratic curve cluster
-                        cluster_start = point_idx
-                        while point_idx < n_points and int(points[point_idx, 2]) == 2:
-                            point_idx += 1
-                        cluster_end = point_idx
-
-                        # Need points before and after for approximation
-                        if cluster_start > 0 and cluster_end < n_points and len(result_points) > 0:
-                            points_for_approx = []
-
-                            # Start point is the last point in result
-                            points_for_approx.append(result_points[-1])
-
-                            # Add all type=2 points
-                            for j in range(cluster_start, cluster_end):
-                                points_for_approx.append(points[j])
-
-                            # End point
-                            points_for_approx.append(points[cluster_end])
-
-                            try:
-                                bezier_points = BezierCurve.approximate_quadratic_control_points(points_for_approx)
-
-                                # Replace the last point with the bezier start point
-                                result_points[-1] = bezier_points[0]
-
-                                # Add control and end points
-                                result_points.extend(bezier_points[1:])
-
-                                # Add Q command (regardless of original command)
-                                result_commands.append("Q")
-
-                                # Skip to point after cluster
-                                point_idx = cluster_end + 1
-                                continue
-                            except (ValueError, np.linalg.LinAlgError):
-                                # Fall back to handling points individually
-                                point_idx = cluster_start
-
-                    elif point_type == 3:
-                        # Handle cubic curve cluster
-                        cluster_start = point_idx
-                        while point_idx < n_points and int(points[point_idx, 2]) == 3:
-                            point_idx += 1
-                        cluster_end = point_idx
-                        cluster_size = cluster_end - cluster_start
-
-                        if (
-                            cluster_size >= 2
-                            and cluster_start > 0
-                            and cluster_end < n_points
-                            and len(result_points) > 0
-                        ):
-                            points_for_approx = []
-
-                            points_for_approx.append(result_points[-1])
-
-                            for j in range(cluster_start, cluster_end):
-                                points_for_approx.append(points[j])
-
-                            points_for_approx.append(points[cluster_end])
-
-                            try:
-                                bezier_points = BezierCurve.approximate_cubic_control_points(points_for_approx)
-
-                                result_points[-1] = bezier_points[0]
-                                result_points.extend(bezier_points[1:])
-
-                                # Add C command (regardless of original command)
-                                result_commands.append("C")
-
-                                point_idx = cluster_end + 1
-                                continue
-                            except (ValueError, np.linalg.LinAlgError):
-                                point_idx = cluster_start
-
-                        # Try quadratic for single type=3 point
-                        if (
-                            cluster_size == 1
-                            and cluster_start > 0
-                            and cluster_end < n_points
-                            and len(result_points) > 0
-                        ):
-                            points_for_approx = [result_points[-1], points[cluster_start], points[cluster_end]]
-
-                            try:
-                                bezier_points = BezierCurve.approximate_quadratic_control_points(points_for_approx)
-
-                                result_points[-1] = bezier_points[0]
-                                result_points.extend(bezier_points[1:])
-
-                                # Add Q command (regardless of original command)
-                                result_commands.append("Q")
-
-                                point_idx = cluster_end + 1
-                                continue
-                            except (ValueError, np.linalg.LinAlgError):
-                                point_idx = cluster_start
-
-                    # Handle regular points (type=0 or -1)
-                    # Keep the original command (L, Q, or C) for these points
-                    if point_idx < n_points:
-                        current_point_type = int(points[point_idx, 2])
-                        if current_point_type == 0 or current_point_type == -1:
-                            # Regular point - preserve original command
-                            # Use PathCommandProcessor to determine point consumption
-                            points_to_consume = PathCommandProcessor.get_point_consumption(cmd)
-
-                            # Check if we have enough points
-                            if point_idx + points_to_consume <= n_points:
-                                # Verify all required points are regular (type=0 or -1)
-                                can_preserve_command = True
-                                for i in range(points_to_consume):
-                                    check_point_type = int(points[point_idx + i, 2])
-                                    if check_point_type != 0 and check_point_type != -1:
-                                        can_preserve_command = False
-                                        break
-
-                                if can_preserve_command:
-                                    # Add all required points
-                                    for i in range(points_to_consume):
-                                        result_points.append(points[point_idx + i])
-                                    result_commands.append(cmd)
-                                    point_idx += points_to_consume
-                                else:
-                                    # Mixed point types, fall back to L
-                                    result_points.append(points[point_idx])
-                                    result_commands.append("L")
-                                    point_idx += 1
-                            else:
-                                # Not enough points, fall back to L
-                                result_points.append(points[point_idx])
-                                result_commands.append("L")
-                                point_idx += 1
-                        else:
-                            # Fallback for unhandled point types
-                            result_points.append(points[point_idx])
-                            result_commands.append("L")
-                            point_idx += 1
-
-        # Convert result to numpy array
-        if result_points:
-            result_array = np.array(result_points, dtype=np.float64)
-            return AvPath(result_array, result_commands)
-        else:
-            return AvPath()
