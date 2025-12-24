@@ -997,7 +997,7 @@ class AvPath:
         lines.append("  commands and points:")
         # Format all points with proper formatting
         cmd_idx = 0
-        point_idx = 0
+        points_in_current_cmd = 0
 
         segment_start_point: Optional[NDArray[np.float64]] = None
         next_cmd_width = 2
@@ -1017,12 +1017,25 @@ class AvPath:
                     segment_start_point = point
                     next_cmd = " "  # Move commands do not close path
                 else:
-                    next_cmd = " Z" if (cmd_idx + 1 < len(self.commands) and self.commands[cmd_idx + 1] == "Z") else ""
+                    # Only show Z if this is the last point of the current command
+                    # and the next command is Z
+                    consumed = PathCommandProcessor.get_point_consumption(cmd)
+                    is_last_point_of_cmd = points_in_current_cmd + 1 >= consumed
+                    next_cmd = (
+                        " Z"
+                        if (
+                            is_last_point_of_cmd
+                            and cmd_idx + 1 < len(self.commands)
+                            and self.commands[cmd_idx + 1] == "Z"
+                        )
+                        else ""
+                    )
 
                 consumed = PathCommandProcessor.get_point_consumption(cmd)
-                if (point_idx + 1) % consumed == 0:
+                points_in_current_cmd += 1
+                if points_in_current_cmd >= consumed:
                     cmd_idx += 1
-                point_idx += 1
+                    points_in_current_cmd = 0
             else:
                 cmd_display = " "
                 next_cmd = ""
