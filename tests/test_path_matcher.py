@@ -8,7 +8,8 @@ import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
 from ave.path import AvMultiPolylinePath
-from ave.path_processing import MULTI_POLYLINE_CONSTRAINTS, AvPathMatcher
+from ave.path_processing import AvPathMatcher
+from ave.path_support import MULTI_POLYLINE_CONSTRAINTS
 
 
 class TestAvPathMatcherBasic:

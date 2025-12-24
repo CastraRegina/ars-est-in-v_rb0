@@ -13,13 +13,12 @@ from ave.bezier import BezierCurve
 from ave.geom import AvPolygon
 from ave.path import (
     MULTI_POLYGON_CONSTRAINTS,
-    MULTI_POLYLINE_CONSTRAINTS,
     AvMultiPolygonPath,
     AvMultiPolylinePath,
     AvPath,
     AvSinglePolygonPath,
+    PathConstraints,
 )
-from ave.path_support import PathCommandProcessor
 
 
 ###############################################################################
@@ -400,7 +399,12 @@ class AvPathMatcher:
         return AvMultiPolylinePath(
             matched_points,
             list(path_new.commands),
-            MULTI_POLYLINE_CONSTRAINTS,
+            PathConstraints.from_attributes(
+                allows_curves=False,
+                max_segments=None,
+                must_close=False,
+                min_points_per_segment=None,
+            ),
         )
 
     @classmethod
