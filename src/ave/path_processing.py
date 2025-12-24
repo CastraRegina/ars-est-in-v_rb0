@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 import shapely.geometry
@@ -98,6 +98,11 @@ class AvPathCleaner:
 
         # Split path into individual segments
         segments = path.split_into_single_paths()
+
+        # Store the original first point to preserve it after Shapely operations
+        original_first_point = None
+        if path.points.shape[0] > 0:
+            original_first_point = path.points[0, :2].copy()
 
         # Process each segment to ensure it's closed
         polygons: List[AvSinglePolygonPath] = []
@@ -234,6 +239,21 @@ class AvPathCleaner:
         # Convert final Shapely geometry back to AvMultiPolygonPath
         cleaned_paths: List[AvSinglePolygonPath] = []
 
+        # Helper function to rotate coordinates to start from original first point
+        def rotate_to_start_point(
+            coords: List[Tuple[float, float]], start_point: Optional[np.ndarray]
+        ) -> List[Tuple[float, float]]:
+            """Rotate coordinate list to start from the point closest to start_point."""
+            if start_point is None or not coords:
+                return coords
+
+            # Find index of point closest to original start point
+            distances = [np.linalg.norm(np.array(coord) - start_point) for coord in coords]
+            min_idx = distances.index(min(distances))
+
+            # Rotate list to start from min_idx
+            return coords[min_idx:] + coords[:min_idx]
+
         try:
             if isinstance(result, shapely.geometry.Polygon) and not result.is_empty:
                 # Convert exterior
@@ -242,8 +262,16 @@ class AvPathCleaner:
                     exterior_coords = exterior_coords[:-1]  # Remove closing point
                     if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
                         # Enforce CCW for exterior rings (positive polygons)
+                        was_reversed = False
                         if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
                             exterior_coords = list(reversed(exterior_coords))
+                            was_reversed = True
+                        # Rotate to start from original first point
+                        exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
+                        # If we reversed for CCW, we need to rotate again since reversal changed start
+                        if was_reversed:
+                            # After reversing, the point closest to original might be at different position
+                            exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
                         exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
                         cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
@@ -269,8 +297,16 @@ class AvPathCleaner:
                             exterior_coords = exterior_coords[:-1]
                             if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
                                 # Enforce CCW for exterior rings (positive polygons)
+                                was_reversed = False
                                 if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
                                     exterior_coords = list(reversed(exterior_coords))
+                                    was_reversed = True
+                                # Rotate to start from original first point
+                                exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
+                                # If we reversed for CCW, we need to rotate again since reversal changed start
+                                if was_reversed:
+                                    # After reversing, the point closest to original might be at different position
+                                    exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
                                 exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
                                 cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
