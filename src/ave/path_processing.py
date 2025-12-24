@@ -604,3 +604,151 @@ class AvPathMatcher:
                         new_idx += direction
                     else:
                         break
+
+
+class AvPathCurveRebuilder:
+    """Rebuild polygon paths by replacing point clusters with SVG Bezier curves.
+
+    This class provides functionality to convert polygonized paths back to
+    smooth Bezier curves using least-squares fitting. Input paths must be
+    AvMultiPolygonPath or AvSinglePolygonPath with properly closed segments.
+    """
+
+    @staticmethod
+    def rebuild_curve_path(path: AvMultiPolylinePath) -> AvPath:
+        """Rebuild a polygon path by replacing point clusters with Bezier curves.
+
+        Iterates through the input path linearly, replacing clusters of sampled
+        curve points (type=2 for quadratic, type=3 for cubic) with proper SVG
+        Bezier curve commands (Q, C) using least-squares fitting.
+
+        Args:
+            path: Input polygon path with point type annotations.
+                    Must have segments starting with M and ending with Z.
+
+        Returns:
+            New AvPath with Bezier curves replacing point clusters.
+            Non-curve vertices are preserved exactly.
+        """
+        points = path.points
+        commands = path.commands
+
+        # Handle empty path
+        if points.shape[0] == 0:
+            return AvPath()
+
+        # Output buffers
+        out_points: List[NDArray[np.float64]] = []
+        out_commands: List[str] = []
+
+        # State tracking
+        n_points = points.shape[0]
+        point_idx = 0
+        cmd_idx = 0
+        segment_start_point: Optional[NDArray[np.float64]] = None
+
+        while cmd_idx < len(commands):
+            cmd = commands[cmd_idx]
+
+            if cmd == "M":
+                # Start of new segment
+                segment_start_point = points[point_idx].copy()
+                out_points.append(points[point_idx].copy())
+                out_commands.append("M")
+                point_idx += 1
+                cmd_idx += 1
+
+            elif cmd == "L":
+                pt = points[point_idx]
+                pt_type = pt[2]
+
+                if pt_type in (0.0, -1.0):
+                    # Regular vertex - emit as L
+                    out_points.append(pt.copy())
+                    out_commands.append("L")
+                    point_idx += 1
+                    cmd_idx += 1
+
+                elif pt_type in (2.0, 3.0):
+                    # Start of a Bezier cluster
+                    cluster_type = pt_type
+
+                    # The predecessor point is the last emitted point
+                    if not out_points:
+                        raise ValueError("Bezier cluster without predecessor point")
+                    predecessor = out_points[-1]
+
+                    # Collect all consecutive points of the same cluster type
+                    cluster_points: List[NDArray[np.float64]] = []
+                    while point_idx < n_points and cmd_idx < len(commands):
+                        if commands[cmd_idx] != "L":
+                            break
+                        current_pt = points[point_idx]
+                        if current_pt[2] != cluster_type:
+                            break
+                        cluster_points.append(current_pt.copy())
+                        point_idx += 1
+                        cmd_idx += 1
+
+                    # Determine the successor (endpoint)
+                    # Check if next command is Z (closure) or another point
+                    if cmd_idx < len(commands) and commands[cmd_idx] == "Z":
+                        # Cluster ends at segment closure - use segment start as endpoint
+                        successor = segment_start_point
+                    elif point_idx < n_points and commands[cmd_idx] == "L":
+                        # Next point is the endpoint
+                        successor = points[point_idx].copy()
+                        # Consume the endpoint
+                        point_idx += 1
+                        cmd_idx += 1
+                    else:
+                        raise ValueError("Bezier cluster without successor point")
+
+                    # Build sample list: [predecessor, cluster_points..., successor]
+                    sample_list = [predecessor] + cluster_points + [successor]
+                    sample_array = np.array(sample_list, dtype=np.float64)
+
+                    # Call appropriate approximation method
+                    if cluster_type == 2.0:
+                        # Quadratic Bezier
+                        approx = BezierCurve.approximate_quadratic_control_points(sample_array)
+                        # approx shape: (3, 3) = [start, ctrl, end]
+                        # Skip start (already emitted), emit ctrl and end
+                        ctrl_pt = approx[1].copy()
+                        end_pt = approx[2].copy()
+                        out_points.append(ctrl_pt)
+                        out_points.append(end_pt)
+                        out_commands.append("Q")
+                    else:
+                        # Cubic Bezier (cluster_type == 3.0)
+                        approx = BezierCurve.approximate_cubic_control_points(sample_array)
+                        # approx shape: (4, 3) = [start, ctrl1, ctrl2, end]
+                        # Skip start (already emitted), emit ctrl1, ctrl2, end
+                        ctrl1_pt = approx[1].copy()
+                        ctrl2_pt = approx[2].copy()
+                        end_pt = approx[3].copy()
+                        out_points.append(ctrl1_pt)
+                        out_points.append(ctrl2_pt)
+                        out_points.append(end_pt)
+                        out_commands.append("C")
+                else:
+                    # Unknown type - treat as regular vertex
+                    out_points.append(pt.copy())
+                    out_commands.append("L")
+                    point_idx += 1
+                    cmd_idx += 1
+
+            elif cmd == "Z":
+                # Segment closure
+                out_commands.append("Z")
+                cmd_idx += 1
+
+            else:
+                # Skip unknown commands
+                cmd_idx += 1
+
+        # Build output path
+        if out_points:
+            points_array = np.array(out_points, dtype=np.float64)
+            return AvPath(points_array, out_commands)
+        return AvPath()

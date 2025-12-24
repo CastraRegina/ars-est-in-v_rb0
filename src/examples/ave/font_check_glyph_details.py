@@ -11,7 +11,7 @@ from ave.glyph import (
     AvLetter,
 )
 from ave.page import AvSvgPage
-from ave.path_processing import AvPathCleaner, AvPathMatcher
+from ave.path_processing import AvPathCleaner, AvPathCurveRebuilder, AvPathMatcher
 
 
 def setup_avfont(ttfont_filename: str):
@@ -146,11 +146,11 @@ def create_cleaned_font3(characters: str, original_font: AvFont) -> AvFont:
             print("After matching:")
             print(matched_path)
 
-            # rebuild_path = AvPathCurveRebuilder.rebuild_curve_path(matched_path)
-            # print("After rebuild (skipped):")
-            # print(rebuild_path)
+            rebuild_path = AvPathCurveRebuilder.rebuild_curve_path(matched_path)  # step 5
+            print("After rebuild:")
+            print(rebuild_path)
 
-            cleaned_glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=matched_path)
+            cleaned_glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=rebuild_path)
             cleaned_glyphs[char] = cleaned_glyph
         except (ValueError, TypeError, AttributeError) as e:
             print(f"Failed to clean glyph for '{char}': {e}")
@@ -289,7 +289,7 @@ def main():
     ###########################################################################
     # clean font 3
     ###########################################################################
-    characters = detail_chars
+    characters = "U"
     ttfont = TTFont(font_filename)
     glyph_factory = AvGlyphFromTTFontFactory(ttfont)
     avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))
