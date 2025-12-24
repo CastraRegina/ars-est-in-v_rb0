@@ -9,7 +9,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from ave.common import AvGlyphCmds
+from ave.common import AvGlyphCmds, sgn_sci
 from ave.geom import AvBox, AvPolygon
 from ave.path_polygonizer import PathPolygonizer
 from ave.path_support import (  # pylint: disable=unused-import
@@ -273,14 +273,12 @@ class AvPath:
                 min_points_per_segment = None
 
         # Create custom constraints based on analysis
-        constraints = PathConstraints(
+        return PathConstraints.from_attributes(
             allows_curves=allows_curves,
             max_segments=max_segments,
             must_close=must_close,
             min_points_per_segment=min_points_per_segment,
         )
-
-        return constraints
 
     @property
     def is_polygon_like(self) -> bool:
@@ -931,6 +929,139 @@ class AvPath:
             return cls(base.points.copy(), list(base.commands), constraints)
 
         return base.append(flat_paths[1:], constraints=constraints or GENERAL_CONSTRAINTS)
+
+    def __str__(self) -> str:
+        """Return detailed information about the path including points, commands, and distances as a string."""
+        lines = []
+
+        # Header
+        formatted_commands: List[str] = []
+        for cmd in self.commands:
+            if cmd == "M" and formatted_commands:
+                formatted_commands.append(" ")
+            formatted_commands.append(cmd)
+        lines.append(f"\nPath: {''.join(formatted_commands)}")
+        lines.append(f"  #commands: {len(self.commands)}, #points: {len(self.points)}")
+        lines.append(f"  bounding box: {self.bounding_box()}")
+        lines.append(f"  constrs set : {str(self.constraints)}")
+        appropriate_constraints: PathConstraints = self.determine_appropriate_constraints()
+        lines.append(f"  constrs real: {str(appropriate_constraints)}")
+
+        # Calculate the min_points_per_segment by iterating over all segments
+        min_points_per_segment = None
+        segments = PathSplitter.split_commands_into_segments(self.commands)
+        if segments:
+            min_points_per_segment = min(point_count for _, point_count in segments)
+        else:
+            min_points_per_segment = None
+
+        # Additional path information
+        lines.append(
+            f"          real: num_segs: {self.num_segments},"
+            f" has_curves: {self.has_curves},"
+            f" are_all_segs_closed: {self.are_all_segments_closed()},"
+            f" min_pts_per_seg: {min_points_per_segment}"
+        )
+
+        # Area and centroid info if all segments are closed
+        if self.are_all_segments_closed():
+            area = self.area
+            centroid = self.centroid
+            rep_point = self.representative_point()
+            fmt_area = sgn_sci(area, always_positive=True)
+            fmt_centroid = f"({sgn_sci(centroid[0])}, {sgn_sci(centroid[1])})"
+            fmt_rep_point = f"({sgn_sci(rep_point[0])}, {sgn_sci(rep_point[1])})"
+            lines.append(f"  segments \\     overall_area={fmt_area} centroid={fmt_centroid} repr_pt={fmt_rep_point}")
+
+        # Segment information
+        if self.num_segments > 0:
+            segments = self.split_into_single_paths()
+            for i, segment in enumerate(segments):
+                if segment.are_all_segments_closed():
+                    is_ccw = segment.is_ccw
+                    area = segment.area
+                    centroid = segment.centroid
+                    rep_point = segment.representative_point()
+                    fmt_area = sgn_sci(area, always_positive=True)
+                    fmt_centroid = f"({sgn_sci(centroid[0])}, {sgn_sci(centroid[1])})"
+                    fmt_rep_point = f"({sgn_sci(rep_point[0])}, {sgn_sci(rep_point[1])})"
+                    lines.append(
+                        f"    [{i:5d}] is_ccw={str(is_ccw):5s}"
+                        f" area={fmt_area}"
+                        f" centroid={fmt_centroid}"
+                        f" repr_pt={fmt_rep_point}"
+                    )
+                else:  # not closed
+                    lines.append(f"    [{i:5d}] not closed")
+
+        lines.append("  commands and points:")
+        # Format all points with proper formatting
+        cmd_idx = 0
+        point_idx = 0
+
+        segment_start_point: Optional[NDArray[np.float64]] = None
+        next_cmd_width = 2
+        distance_column_width = 10
+
+        for i, point in enumerate(self.points):
+            cmd_display = ""
+            next_cmd = ""
+            # Skip Z commands to find active command
+            while cmd_idx < len(self.commands) and self.commands[cmd_idx] == "Z":
+                cmd_idx += 1
+
+            if cmd_idx < len(self.commands):
+                cmd = self.commands[cmd_idx]
+                cmd_display = cmd
+                if cmd == "M":
+                    segment_start_point = point
+                    next_cmd = " "  # Move commands do not close path
+                else:
+                    next_cmd = " Z" if (cmd_idx + 1 < len(self.commands) and self.commands[cmd_idx + 1] == "Z") else ""
+
+                consumed = PathCommandProcessor.get_point_consumption(cmd)
+                if (point_idx + 1) % consumed == 0:
+                    cmd_idx += 1
+                point_idx += 1
+            else:
+                cmd_display = " "
+                next_cmd = ""
+
+            # Format: [index] cmd (x, y, type) Z
+            type_val = int(point[2]) if point[2].is_integer() else point[2]
+
+            # Calculate distance to next point if Z is not shown
+            distance_text = ""
+            if next_cmd == " Z":
+                if segment_start_point is not None:
+                    dx = segment_start_point[0] - point[0]
+                    dy = segment_start_point[1] - point[1]
+                    distance = (dx**2 + dy**2) ** 0.5
+                    distance_text = sgn_sci(distance, always_positive=True)
+            else:
+                if i + 1 < len(self.points):
+                    next_point = self.points[i + 1]
+                    dx = next_point[0] - point[0]
+                    dy = next_point[1] - point[1]
+                    distance = (dx**2 + dy**2) ** 0.5
+                    distance_text = sgn_sci(distance, always_positive=True)
+
+            if distance_text:
+                distance_str = f"{distance_text:>{distance_column_width}}"
+            else:
+                distance_str = " " * distance_column_width
+
+            next_cmd_display = f"{next_cmd or '':>{next_cmd_width}}"
+
+            lines.append(
+                f"    [{i:5d}]"
+                f" {cmd_display}"  # command
+                f" ({sgn_sci(point[0])}, {sgn_sci(point[1])}, {type_val:2d})"  # point
+                f"{next_cmd_display}"
+                f" {distance_str}"  # next command and distance
+            )
+
+        return "\n".join(lines)
 
 
 ###############################################################################
