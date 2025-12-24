@@ -153,6 +153,89 @@ class PathConstraints:
             min_points_per_segment=data.get("min_points_per_segment"),
         )
 
+    @classmethod
+    def from_attributes(
+        cls,
+        *,
+        allows_curves: bool,
+        max_segments: Optional[int],
+        must_close: bool,
+        min_points_per_segment: Optional[int],
+    ) -> PathConstraints:
+        """Return the most specific predefined constraints matching the attributes.
+
+        Falls back to a generic PathConstraints instance if no preset matches.
+        """
+        candidate = cls(
+            allows_curves=allows_curves,
+            max_segments=max_segments,
+            must_close=must_close,
+            min_points_per_segment=min_points_per_segment,
+        )
+
+        for preset in _PRIORITIZED_CONSTRAINTS:
+            if cls._matches_attributes(
+                preset,
+                allows_curves=allows_curves,
+                max_segments=max_segments,
+                must_close=must_close,
+                min_points_per_segment=min_points_per_segment,
+            ):
+                return preset
+
+        return candidate
+
+    @classmethod
+    def _matches_attributes(
+        cls,
+        preset: PathConstraints,
+        *,
+        allows_curves: bool,
+        max_segments: Optional[int],
+        must_close: bool,
+        min_points_per_segment: Optional[int],
+    ) -> bool:
+        """Return True if the preset satisfies the detected attributes."""
+        if preset.allows_curves != allows_curves:
+            return False
+
+        if preset.must_close != must_close:
+            return False
+
+        if preset.max_segments is not None:
+            if max_segments is None or max_segments > preset.max_segments:
+                return False
+        # If preset.max_segments is None it imposes no constraint.
+
+        if preset.min_points_per_segment is not None:
+            if min_points_per_segment is None or min_points_per_segment < preset.min_points_per_segment:
+                return False
+
+        return True
+
+    def __str__(self) -> str:
+        base_name = "      PathConstraints"
+        if self == GENERAL_CONSTRAINTS:
+            base_name = "         GENERAL_CSTR"
+        elif self == MULTI_POLYLINE_CONSTRAINTS:
+            base_name = "  MULTI_POLYLINE_CSTR"
+        elif self == SINGLE_PATH_CONSTRAINTS:
+            base_name = "     SINGLE_PATH_CSTR"
+        elif self == CLOSED_SINGLE_PATH_CONSTRAINTS:
+            base_name = "CLSD_SINGLE_PATH_CSTR"
+        elif self == SINGLE_POLYGON_CONSTRAINTS:
+            base_name = "  SINGLE_POLYGON_CSTR"
+        elif self == MULTI_POLYGON_CONSTRAINTS:
+            base_name = "   MULTI_POLYGON_CSTR"
+
+        constraint_str = (
+            f"curves_ok={str(self.allows_curves):>5}"
+            f", max_segs={str(self.max_segments):>5}"
+            f", must_close={str(self.must_close):>5}"
+            f", min_pts_per_seg={str(self.min_points_per_segment):>5}"
+        )
+        return f"{base_name}({constraint_str})"
+
 
 # Constraint constants for different path types
 GENERAL_CONSTRAINTS = PathConstraints()
@@ -191,6 +274,42 @@ MULTI_POLYGON_CONSTRAINTS = PathConstraints(
     must_close=True,
     min_points_per_segment=3,
 )
+
+_PRIORITIZED_CONSTRAINTS = [
+    SINGLE_POLYGON_CONSTRAINTS,
+    MULTI_POLYGON_CONSTRAINTS,
+    CLOSED_SINGLE_PATH_CONSTRAINTS,
+    SINGLE_PATH_CONSTRAINTS,
+    MULTI_POLYLINE_CONSTRAINTS,
+    GENERAL_CONSTRAINTS,
+]
+
+
+def _matches_attributes(
+    preset: PathConstraints,
+    *,
+    allows_curves: bool,
+    max_segments: Optional[int],
+    must_close: bool,
+    min_points_per_segment: Optional[int],
+) -> bool:
+    """Return True if the preset satisfies the detected attributes."""
+    if preset.allows_curves != allows_curves:
+        return False
+
+    if preset.must_close != must_close:
+        return False
+
+    if preset.max_segments is not None:
+        if max_segments is None or max_segments > preset.max_segments:
+            return False
+    # If preset.max_segments is None it imposes no constraint.
+
+    if preset.min_points_per_segment is not None:
+        if min_points_per_segment is None or min_points_per_segment < preset.min_points_per_segment:
+            return False
+
+    return True
 
 
 ###############################################################################
