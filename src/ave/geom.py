@@ -8,6 +8,8 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 
+from ave.common import sgn_sci
+
 ###############################################################################
 # GeomMath
 ###############################################################################
@@ -384,10 +386,14 @@ class AvBox:
     def __str__(self):
         """Returns a string representation of the AvBox instance."""
         return (
-            f"AvBox(xmin={self.xmin}, ymin={self.ymin}, "
-            f"xmax={self.xmax}, ymax={self.ymax}, "
-            f"width={self.width}, height={self.height}, "
-            f"area={self.area}, centroid={self.centroid})"
+            f"AvBox(xmin={sgn_sci(self.xmin)}, "
+            f"ymin={sgn_sci(self.ymin)}, "
+            f"xmax={sgn_sci(self.xmax)}, "
+            f"ymax={sgn_sci(self.ymax)}, "
+            f"width={sgn_sci(self.width, always_positive=True)}, "
+            f"height={sgn_sci(self.height, always_positive=True)}, "
+            f"area={sgn_sci(self.area, always_positive=True)}, "
+            f"centroid=({sgn_sci(self.centroid[0])}, {sgn_sci(self.centroid[1])}))"
         )
 
 
@@ -398,6 +404,8 @@ class AvBox:
 
 def main():
     """Main"""
+    example_box = AvBox(xmin=10.0, ymin=20.0, xmax=40.0, ymax=60.0)
+    print(example_box)
 
 
 if __name__ == "__main__":

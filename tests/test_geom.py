@@ -8,6 +8,7 @@ remain working correctly after changes and refactoring.
 import numpy as np
 import pytest
 
+from ave.common import sgn_sci
 from ave.geom import AvBox, GeomMath
 from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath
 
@@ -194,12 +195,12 @@ class TestAvBox:
         str_repr = str(box)
 
         assert "AvBox" in str_repr
-        assert "xmin=10.0" in str_repr
-        assert "ymin=20.0" in str_repr
-        assert "xmax=30.0" in str_repr
-        assert "ymax=40.0" in str_repr
-        assert "width=20.0" in str_repr
-        assert "height=20.0" in str_repr
+        assert f"xmin={sgn_sci(10.0)}" in str_repr
+        assert f"ymin={sgn_sci(20.0)}" in str_repr
+        assert f"xmax={sgn_sci(30.0)}" in str_repr
+        assert f"ymax={sgn_sci(40.0)}" in str_repr
+        assert f"width={sgn_sci(20.0, always_positive=True)}" in str_repr
+        assert f"height={sgn_sci(20.0, always_positive=True)}" in str_repr
 
     def test_avbox_immutability(self):
         """Test that AvBox properties are read-only."""
