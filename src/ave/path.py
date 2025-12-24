@@ -940,7 +940,7 @@ class AvPath:
             if cmd == "M" and formatted_commands:
                 formatted_commands.append(" ")
             formatted_commands.append(cmd)
-        lines.append(f"\nPath: {''.join(formatted_commands)}")
+        lines.append(f"Path: {''.join(formatted_commands)}")
         lines.append(f"  #commands: {len(self.commands)}, #points: {len(self.points)}")
         lines.append(f"  bounding box: {self.bounding_box()}")
         lines.append(f"  constrs set : {str(self.constraints)}")
