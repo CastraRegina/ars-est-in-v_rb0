@@ -26,6 +26,11 @@ globs: .py
 - Do NOT claim performance gains without measurements.
 - Do NOT modify tests to hide failures.
 
+## SYMBOL VERIFICATION
+
+- Before referencing any function, class, file, or path, locate it via search/read and cite with `@filepath#L-L`.
+- If not found, state that explicitly—never fabricate.
+
 ## LIBRARIES
 
 - Allowed: stdlib, numpy, fontTools, shapely, svgwrite, pillow.
