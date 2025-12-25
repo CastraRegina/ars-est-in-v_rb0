@@ -246,9 +246,12 @@ class AvPathCleaner:
         deferring CW polygons until the first CCW polygon is found.
 
         Step-by-step process:
-        1. Split input path into individual segments (sub-paths)
-        2. Convert each segment to closed path and then to polygonized format
-        3. Store CCW orientation from each closed path for later processing
+        1. Split input path into individual segments (sub-paths) using path.split_into_single_paths()
+        2. Store the original first point to preserve it after Shapely operations
+        3. Convert each segment to closed path and then to polygonized format:
+           - Use _analyze_segment() for segment validation and analysis
+           - Handle invalid segments with warnings and continue processing
+           - Store CCW orientation from each closed path for later processing
         4. Apply buffer(0) operation to each polygon to remove self-intersections:
             - buffer(0) cleans up topology and resolves intersections
             - Handles Polygon, MultiPolygon, and GeometryCollection results
@@ -259,12 +262,20 @@ class AvPathCleaner:
             - Once first CCW is found, process deferred CW polygons as holes
             - Subsequent CCW polygons are unioned (additive)
             - Subsequent CW polygons are differenced (subtractive)
+            - Use _process_cleaned_geometry() helper for geometry processing:
+              * Calls _process_single_geometry() for individual polygon processing
+              * Handles MultiPolygon by processing each sub-polygon
+              * Handles GeometryCollection by extracting Polygon types
         6. Handle different geometry types from buffer(0):
-            - Polygon: processed directly
+            - Polygon: processed directly via _process_single_geometry()
             - MultiPolygon: each sub-polygon processed with same orientation
             - GeometryCollection: Polygon types extracted and processed
             - LineString/Point: skipped with warning
         7. Convert final Shapely geometry back to AvMultiPolygonPath format:
+            - Use _convert_shapely_to_paths() helper for geometry conversion:
+              * Calls convert_polygon_to_paths() for individual polygon conversion
+              * Uses rotate_to_start_point() to preserve original first point
+              * Enforces CCW for exterior rings, CW for interior rings
             - Extract exterior rings as closed paths with 'Z' command
             - Extract interior rings (holes) as separate paths
             - Join all paths using AvPath.join_paths
@@ -275,9 +286,12 @@ class AvPathCleaner:
         - Implements deferred processing for CW polygons before first CCW
         - Comprehensive error handling with empty path fallback
         - Removes duplicate closing points when converting coordinates
+        - Preserves original first point coordinate through Shapely operations
+        - Uses helper methods: _analyze_segment(), _process_cleaned_geometry(), _convert_shapely_to_paths()
 
         The function handles the following cases:
         - Empty input paths: returns empty AvMultiPolygonPath
+        - Invalid segment structure: skips with warning using _analyze_segment() validation
         - Degenerate polygons (< 3 points): skips with warning
         - Invalid geometries after buffer(0): skips with warning
         - Different geometry types from buffer(0):
