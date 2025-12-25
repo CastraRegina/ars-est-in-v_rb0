@@ -194,17 +194,10 @@ class AvPathCleaner:
                 exterior_coords = exterior_coords[:-1]  # Remove closing point
                 if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
                     # Enforce CCW for exterior rings (positive polygons)
-                    was_reversed = False
                     if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
                         exterior_coords = list(reversed(exterior_coords))
-                        was_reversed = True
-                    # Rotate to start from original first point
+                    # Rotate to start from original first point (independent of orientation)
                     exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
-                    # If we reversed for CCW, we need to rotate again since reversal changed start
-                    if was_reversed:
-                        # After reversing, the point closest to original might be at
-                        # different position
-                        exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
                     exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
                     cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
@@ -217,6 +210,8 @@ class AvPathCleaner:
                         # Enforce CW for interior rings (holes)
                         if AvPolygon.is_ccw(np.asarray(interior_coords)):
                             interior_coords = list(reversed(interior_coords))
+                        # Rotate to start from original first point (independent of orientation)
+                        interior_coords = rotate_to_start_point(interior_coords, original_first_point)
                         interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
                         cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
