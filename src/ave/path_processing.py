@@ -19,6 +19,7 @@ from ave.path import (
     AvSinglePolygonPath,
     PathConstraints,
 )
+from ave.path_support import PathCommandProcessor
 
 
 ###############################################################################
@@ -28,12 +29,214 @@ class AvPathCleaner:
     """Collection of static path-cleaning utilities."""
 
     @staticmethod
+    def _analyze_segment(segment: AvPath) -> dict:
+        """Analyze a path segment using PathCommandProcessor.
+
+        Args:
+            segment: The path segment to analyze
+
+        Returns:
+            Dictionary with analysis results
+        """
+        analysis = {
+            "has_curves": False,
+            "num_drawing_commands": 0,
+            "num_move_commands": 0,
+            "num_close_commands": 0,
+            "is_valid": True,
+        }
+
+        try:
+            # Validate command sequence
+            PathCommandProcessor.validate_command_sequence(segment.commands, segment.points)
+
+            # Analyze commands
+            for cmd in segment.commands:
+                if PathCommandProcessor.is_curve_command(cmd):
+                    analysis["has_curves"] = True
+                if PathCommandProcessor.is_drawing_command(cmd):
+                    analysis["num_drawing_commands"] += 1
+                if cmd == "M":
+                    analysis["num_move_commands"] += 1
+                if cmd == "Z":
+                    analysis["num_close_commands"] += 1
+
+        except (TypeError, ValueError) as e:
+            analysis["is_valid"] = False
+            analysis["error"] = str(e)
+
+        return analysis
+
+    @staticmethod
+    def _process_cleaned_geometry(
+        cleaned: shapely.geometry.base.BaseGeometry,
+        is_ccw: bool,
+        result: Optional[shapely.geometry.base.BaseGeometry],
+        first_ccw_found: bool,
+        deferred_cw_polygons: List[shapely.geometry.base.BaseGeometry],
+    ) -> Tuple[Optional[shapely.geometry.base.BaseGeometry], bool]:
+        """Process a cleaned geometry (Polygon, MultiPolygon, or GeometryCollection).
+
+        Args:
+            cleaned: The cleaned geometry from buffer(0)
+            is_ccw: Whether the original polygon was CCW
+            result: Current result geometry
+            first_ccw_found: Whether first CCW polygon has been found
+            deferred_cw_polygons: List of deferred CW polygons
+
+        Returns:
+            Tuple of (updated_result, updated_first_ccw_found)
+        """
+        # Handle different geometry types from buffer(0)
+        if isinstance(cleaned, shapely.geometry.MultiPolygon):
+            # Process each sub-polygon with the same orientation
+            for sub_poly in cleaned.geoms:
+                if not sub_poly.is_empty:
+                    result, first_ccw_found = AvPathCleaner._process_single_geometry(
+                        sub_poly, is_ccw, result, first_ccw_found, deferred_cw_polygons
+                    )
+        elif isinstance(cleaned, shapely.geometry.Polygon) and not cleaned.is_empty:
+            result, first_ccw_found = AvPathCleaner._process_single_geometry(
+                cleaned, is_ccw, result, first_ccw_found, deferred_cw_polygons
+            )
+        elif isinstance(cleaned, shapely.geometry.GeometryCollection):
+            # Extract Polygon types from GeometryCollection
+            for geom in cleaned.geoms:
+                if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
+                    result, first_ccw_found = AvPathCleaner._process_single_geometry(
+                        geom, is_ccw, result, first_ccw_found, deferred_cw_polygons
+                    )
+                # Skip other geometry types (LineString, Point) with warning
+                elif isinstance(geom, (shapely.geometry.LineString, shapely.geometry.Point)):
+                    print(f"Warning: Skipping {geom.geom_type} geometry in GeometryCollection.")
+
+        return result, first_ccw_found
+
+    @staticmethod
+    def _process_single_geometry(
+        geometry: shapely.geometry.Polygon,
+        is_ccw: bool,
+        result: Optional[shapely.geometry.base.BaseGeometry],
+        first_ccw_found: bool,
+        deferred_cw_polygons: List[shapely.geometry.base.BaseGeometry],
+    ) -> Tuple[Optional[shapely.geometry.base.BaseGeometry], bool]:
+        """Process a single polygon geometry.
+
+        Args:
+            geometry: The polygon geometry to process
+            is_ccw: Whether the original polygon was CCW
+            result: Current result geometry
+            first_ccw_found: Whether first CCW polygon has been found
+            deferred_cw_polygons: List of deferred CW polygons
+
+        Returns:
+            Tuple of (updated_result, updated_first_ccw_found)
+        """
+        if result is None:
+            # Wait for first CCW polygon to initialize result
+            if is_ccw:
+                result = geometry
+                first_ccw_found = True
+                # Now process any deferred CW polygons
+                for cw_poly in deferred_cw_polygons:
+                    result = result.difference(cw_poly)
+                deferred_cw_polygons.clear()
+            else:
+                # Defer CW polygon until we find first CCW
+                deferred_cw_polygons.append(geometry)
+        elif first_ccw_found:
+            # We have a base, now process all polygons
+            if is_ccw:
+                # CCW polygons are additive
+                result = result.union(geometry)
+            else:
+                # CW polygons are subtractive (holes)
+                result = result.difference(geometry)
+
+        return result, first_ccw_found
+
+    @staticmethod
+    def _convert_shapely_to_paths(
+        result: shapely.geometry.base.BaseGeometry,
+        original_first_point: Optional[np.ndarray],
+    ) -> List[AvPath]:
+        """Convert Shapely geometry back to AvPath objects.
+
+        Args:
+            result: The Shapely geometry to convert
+            original_first_point: Original first point for coordinate preservation
+
+        Returns:
+            List of AvPath objects
+        """
+        cleaned_paths: List[AvPath] = []
+
+        # Helper function to rotate coordinates to start from original first point
+        def rotate_to_start_point(
+            coords: List[Tuple[float, float]], start_point: Optional[np.ndarray]
+        ) -> List[Tuple[float, float]]:
+            """Rotate coordinate list to start from the point closest to start_point."""
+            if start_point is None or not coords:
+                return coords
+
+            # Find index of point closest to original start point
+            distances = [np.linalg.norm(np.array(coord) - start_point) for coord in coords]
+            min_idx = distances.index(min(distances))
+
+            # Rotate list to start from min_idx
+            return coords[min_idx:] + coords[:min_idx]
+
+        def convert_polygon_to_paths(polygon: shapely.geometry.Polygon) -> None:
+            """Convert a single polygon to paths (exterior + interiors)."""
+            # Convert exterior
+            exterior_coords = list(polygon.exterior.coords)
+            if len(exterior_coords) >= 4:
+                exterior_coords = exterior_coords[:-1]  # Remove closing point
+                if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
+                    # Enforce CCW for exterior rings (positive polygons)
+                    was_reversed = False
+                    if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
+                        exterior_coords = list(reversed(exterior_coords))
+                        was_reversed = True
+                    # Rotate to start from original first point
+                    exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
+                    # If we reversed for CCW, we need to rotate again since reversal changed start
+                    if was_reversed:
+                        # After reversing, the point closest to original might be at
+                        # different position
+                        exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
+                    exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+                    cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
+
+            # Convert interiors (holes)
+            for interior in polygon.interiors:
+                interior_coords = list(interior.coords)
+                if len(interior_coords) >= 4:
+                    interior_coords = interior_coords[:-1]  # Remove closing point
+                    if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
+                        # Enforce CW for interior rings (holes)
+                        if AvPolygon.is_ccw(np.asarray(interior_coords)):
+                            interior_coords = list(reversed(interior_coords))
+                        interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
+                        cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+
+        if isinstance(result, shapely.geometry.Polygon) and not result.is_empty:
+            convert_polygon_to_paths(result)
+        elif isinstance(result, shapely.geometry.MultiPolygon):
+            # Handle MultiPolygon result
+            for poly in result.geoms:
+                if not poly.is_empty:
+                    convert_polygon_to_paths(poly)
+
+        return cleaned_paths
+
+    @staticmethod
     def resolve_polygonized_path_intersections(path: AvMultiPolylinePath) -> AvMultiPolygonPath:
         """Resolve self-intersections in a polygonized path with winding direction rules.
 
-        The input path consists of 0..n closed segments. Each segment must end with 'Z',
-        and if a segment is not explicitly closed, it will be automatically closed by
-        appending a 'Z' command. Segments follow the standard winding rule where:
+        The input path consists of 0..n segments. Segments that are not explicitly closed
+        will be automatically closed by appending a 'Z' command. Segments follow the
+        standard winding rule where:
         - Counter-clockwise (CCW) segments represent positive/additive polygons
         - Clockwise (CW) segments represent subtractive polygons (holes)
 
@@ -51,7 +254,7 @@ class AvPathCleaner:
             - Handles Polygon, MultiPolygon, and GeometryCollection results
             - Skips invalid or empty geometries with warnings
         5. Perform sequential boolean operations with special ordering:
-            - Wait for first CCW polygon to initialize the result
+            - Wait for first CCW polygon to initialize result
             - Defer all CW polygons encountered before first CCW
             - Once first CCW is found, process deferred CW polygons as holes
             - Subsequent CCW polygons are unioned (additive)
@@ -60,6 +263,7 @@ class AvPathCleaner:
             - Polygon: processed directly
             - MultiPolygon: each sub-polygon processed with same orientation
             - GeometryCollection: Polygon types extracted and processed
+            - LineString/Point: skipped with warning
         7. Convert final Shapely geometry back to AvMultiPolygonPath format:
             - Extract exterior rings as closed paths with 'Z' command
             - Extract interior rings (holes) as separate paths
@@ -69,7 +273,7 @@ class AvPathCleaner:
         Key technical details:
         - Uses orientation from closed path's is_ccw() to determine winding
         - Implements deferred processing for CW polygons before first CCW
-        - Comprehensive error handling with fallback to original path
+        - Comprehensive error handling with empty path fallback
         - Removes duplicate closing points when converting coordinates
 
         The function handles the following cases:
@@ -80,6 +284,7 @@ class AvPathCleaner:
             - Polygon: processed directly
             - MultiPolygon: each sub-polygon processed with same orientation
             - GeometryCollection: Polygon types extracted and processed
+            - LineString/Point: skipped with warning
         - CW polygons before first CCW: deferred until first CCW is found
         - No CCW polygon found: returns empty AvMultiPolygonPath with warning
         - Empty result after operations: returns empty AvMultiPolygonPath with warning
@@ -110,6 +315,18 @@ class AvPathCleaner:
         for segment in segments:
             # Create closed path, then get polygonized path
             try:
+                # Analyze segment using PathCommandProcessor
+                analysis = AvPathCleaner._analyze_segment(segment)
+
+                if not analysis["is_valid"]:
+                    print(f"Warning: Invalid segment structure. Skipping. Error: {analysis.get('error', 'Unknown')}")
+                    continue
+
+                # Optional: Log segment analysis for debugging
+                if analysis["has_curves"]:
+                    # Curves will be polygonized by make_closed_single()
+                    pass
+
                 closed_path = AvPath.make_closed_single(segment)
                 polygonized = closed_path.polygonized_path()
                 polygons.append(polygonized)
@@ -151,76 +368,9 @@ class AvPathCleaner:
                     continue
 
                 # Handle different geometry types from buffer(0)
-                if isinstance(cleaned, shapely.geometry.MultiPolygon):
-                    # Process each sub-polygon with the same orientation
-                    for sub_poly in cleaned.geoms:
-                        if not sub_poly.is_empty:
-                            if result is None:
-                                # Wait for first CCW polygon to initialize result
-                                if is_ccw:
-                                    result = sub_poly
-                                    first_ccw_found = True
-                                    # Now process any deferred CW polygons
-                                    for cw_poly in deferred_cw_polygons:
-                                        result = result.difference(cw_poly)
-                                    deferred_cw_polygons.clear()
-                                else:
-                                    # Defer CW polygon until we find first CCW
-                                    deferred_cw_polygons.append(sub_poly)
-                            elif first_ccw_found:
-                                # We have a base, now process all polygons
-                                if is_ccw:
-                                    # CCW polygons are additive
-                                    result = result.union(sub_poly)
-                                else:
-                                    # CW polygons are subtractive (holes)
-                                    result = result.difference(sub_poly)
-                elif isinstance(cleaned, shapely.geometry.Polygon) and not cleaned.is_empty:
-                    if result is None:
-                        # Wait for first CCW polygon to initialize result
-                        if is_ccw:
-                            result = cleaned
-                            first_ccw_found = True
-                            # Now process any deferred CW polygons
-                            for cw_poly in deferred_cw_polygons:
-                                result = result.difference(cw_poly)
-                            deferred_cw_polygons.clear()
-                        else:
-                            # Defer CW polygon until we find first CCW
-                            deferred_cw_polygons.append(cleaned)
-                    elif first_ccw_found:
-                        # We have a base, now process all polygons
-                        if is_ccw:
-                            # CCW polygons are additive
-                            result = result.union(cleaned)
-                        else:
-                            # CW polygons are subtractive (holes)
-                            result = result.difference(cleaned)
-                elif isinstance(cleaned, shapely.geometry.GeometryCollection):
-                    # Extract Polygon types from GeometryCollection
-                    for geom in cleaned.geoms:
-                        if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
-                            if result is None:
-                                # Wait for first CCW polygon to initialize result
-                                if is_ccw:
-                                    result = geom
-                                    first_ccw_found = True
-                                    # Now process any deferred CW polygons
-                                    for cw_poly in deferred_cw_polygons:
-                                        result = result.difference(cw_poly)
-                                    deferred_cw_polygons.clear()
-                                else:
-                                    # Defer CW polygon until we find first CCW
-                                    deferred_cw_polygons.append(geom)
-                            elif first_ccw_found:
-                                # We have a base, now process all polygons
-                                if is_ccw:
-                                    # CCW polygons are additive
-                                    result = result.union(geom)
-                                else:
-                                    # CW polygons are subtractive (holes)
-                                    result = result.difference(geom)
-                # Skip empty geometries
+                result, first_ccw_found = AvPathCleaner._process_cleaned_geometry(
+                    cleaned, is_ccw, result, first_ccw_found, deferred_cw_polygons
+                )
 
             # If no CCW polygon was found, return empty path
             if result is None or not first_ccw_found:
@@ -236,90 +386,8 @@ class AvPathCleaner:
             return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
 
         # Convert final Shapely geometry back to AvMultiPolygonPath
-        cleaned_paths: List[AvSinglePolygonPath] = []
-
-        # Helper function to rotate coordinates to start from original first point
-        def rotate_to_start_point(
-            coords: List[Tuple[float, float]], start_point: Optional[np.ndarray]
-        ) -> List[Tuple[float, float]]:
-            """Rotate coordinate list to start from the point closest to start_point."""
-            if start_point is None or not coords:
-                return coords
-
-            # Find index of point closest to original start point
-            distances = [np.linalg.norm(np.array(coord) - start_point) for coord in coords]
-            min_idx = distances.index(min(distances))
-
-            # Rotate list to start from min_idx
-            return coords[min_idx:] + coords[:min_idx]
-
         try:
-            if isinstance(result, shapely.geometry.Polygon) and not result.is_empty:
-                # Convert exterior
-                exterior_coords = list(result.exterior.coords)
-                if len(exterior_coords) >= 4:
-                    exterior_coords = exterior_coords[:-1]  # Remove closing point
-                    if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
-                        # Enforce CCW for exterior rings (positive polygons)
-                        was_reversed = False
-                        if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
-                            exterior_coords = list(reversed(exterior_coords))
-                            was_reversed = True
-                        # Rotate to start from original first point
-                        exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
-                        # If we reversed for CCW, we need to rotate again since reversal changed start
-                        if was_reversed:
-                            # After reversing, the point closest to original might be at different position
-                            exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
-                        exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                        cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
-
-                # Convert interiors (holes)
-                for interior in result.interiors:
-                    interior_coords = list(interior.coords)
-                    if len(interior_coords) >= 4:
-                        interior_coords = interior_coords[:-1]  # Remove closing point
-                        if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
-                            # Enforce CW for interior rings (holes)
-                            if AvPolygon.is_ccw(np.asarray(interior_coords)):
-                                interior_coords = list(reversed(interior_coords))
-                            interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                            cleaned_paths.append(AvPath(interior_coords, interior_cmds))
-
-            elif isinstance(result, shapely.geometry.MultiPolygon):
-                # Handle MultiPolygon result
-                for poly in result.geoms:
-                    if not poly.is_empty:
-                        # Convert exterior
-                        exterior_coords = list(poly.exterior.coords)
-                        if len(exterior_coords) >= 4:
-                            exterior_coords = exterior_coords[:-1]
-                            if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
-                                # Enforce CCW for exterior rings (positive polygons)
-                                was_reversed = False
-                                if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
-                                    exterior_coords = list(reversed(exterior_coords))
-                                    was_reversed = True
-                                # Rotate to start from original first point
-                                exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
-                                # If we reversed for CCW, we need to rotate again since reversal changed start
-                                if was_reversed:
-                                    # After reversing, the point closest to original might be at different position
-                                    exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
-                                exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
-                                cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
-
-                        # Convert interiors
-                        for interior in poly.interiors:
-                            interior_coords = list(interior.coords)
-                            if len(interior_coords) >= 4:
-                                interior_coords = interior_coords[:-1]
-                                if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
-                                    # Enforce CW for interior rings (holes)
-                                    if AvPolygon.is_ccw(np.asarray(interior_coords)):
-                                        interior_coords = list(reversed(interior_coords))
-                                    interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
-                                    cleaned_paths.append(AvPath(interior_coords, interior_cmds))
+            cleaned_paths = AvPathCleaner._convert_shapely_to_paths(result, original_first_point)
         except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
             print(f"Error during geometry conversion: {e}. Returning empty path.")
             return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
