@@ -1,210 +1,110 @@
-"""Path matching module for transferring type information between polygon paths."""
+"""Path matching module for transferring type information between polygon paths.
+
+This module provides functionality to transfer point type information from an
+original path to a new path that may have been modified by intersection resolution.
+
+After resolve_polygonized_path_intersections():
+- Segments may be split, merged, or completely reorganized
+- Winding directions are enforced (CCW for exteriors, CW for holes)
+- New intersection points may be introduced
+- Original points should remain at the same coordinates
+
+The matching algorithm uses spatial proximity (KD-tree) to find corresponding
+points within a tight tolerance, regardless of segment structure or order.
+"""
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
 import numpy as np
-from numpy.typing import NDArray
 from scipy.spatial import KDTree
 
 from ave.path import AvMultiPolygonPath, AvPath
 from ave.path_support import MULTI_POLYGON_CONSTRAINTS
 
 
-class AvPathMatcher:
-    """Transfer type information between polygon paths using segment-wise matching.
+class AvPathMatcher:  # pylint: disable=too-few-public-methods
+    """Transfer type information between polygon paths using spatial point matching.
 
-    This class matches segments between two polygon paths by:
-    1. Splitting both paths into individual segments
-    2. Finding segments with overlapping bounding boxes
-    3. Selecting the best match for each segment based on spatial proximity
-    4. Using KD-tree to match points within matched segments
-    5. Handling intersecting segments that may have been reordered or split
+    This class matches points between an original path (with type information)
+    and a new path (typically output from resolve_polygonized_path_intersections),
+    transferring type values from original to new based on coordinate proximity.
 
-    The matching uses segment-wise correspondence with KD-tree spatial search
-    to efficiently find matching points within a small tolerance.
+    After intersection resolution:
+    - Segments may be split, merged, or reorganized
+    - Winding directions may change (original could be any, new is enforced)
+    - Points that existed in original should be at same coordinates
+    - New intersection points will not match and remain UNMATCHED
+
+    The algorithm:
+    1. Build KD-tree from ALL original points
+    2. For each new point, find nearest original point
+    3. If within tolerance, copy type; otherwise mark as UNMATCHED
     """
 
     TOLERANCE: float = 1e-10
     UNMATCHED_TYPE: float = -1.0
 
     @classmethod
-    def match_paths(cls, path_org: AvMultiPolygonPath, path_new: AvMultiPolygonPath) -> AvMultiPolygonPath:
-        """Transfer type information between polygon paths using segment-wise matching.
+    def match_paths(
+        cls,
+        path_org: AvMultiPolygonPath,
+        path_new: AvMultiPolygonPath,
+    ) -> AvMultiPolygonPath:
+        """Transfer type information from original path to new path.
 
-        This method matches segments between two polygon paths by:
-        1. Splitting both paths into individual segments
-        2. Finding segments with overlapping bounding boxes
-        3. Selecting the best match for each segment based on spatial proximity
-        4. Using KD-tree to match points within matched segments
-        5. Handling intersecting segments that may have been reordered or split
+        Matches points by spatial proximity using KD-tree search. Points in
+        path_new that are within TOLERANCE of points in path_org receive the
+        corresponding type value. Other points are marked as UNMATCHED_TYPE.
+
+        This method makes NO assumptions about:
+        - Segment correspondence (segments may be split/merged/reordered)
+        - Winding direction (CCW vs CW is irrelevant for matching)
+        - Point order within segments (may be reversed or rotated)
 
         Args:
-            path_org: Original path with type information (3rd column of points).
+            path_org: Original path with type information in 3rd column of points.
+                Type values are typically {0.0, 2.0, 3.0} for vertex types.
             path_new: New path to receive type information.
+                Typically output from resolve_polygonized_path_intersections().
 
         Returns:
             New AvMultiPolygonPath with matched type information.
+            Points that match get their type from path_org.
+            Points without a match get UNMATCHED_TYPE (-1.0).
         """
-        # Split both paths into segments
-        segments_org = path_org.split_into_single_paths()
-        segments_new = path_new.split_into_single_paths()
+        # Handle empty paths
+        if len(path_new.points) == 0:
+            return AvPath(
+                np.empty((0, 3), dtype=np.float64),
+                list(path_new.commands),
+                MULTI_POLYGON_CONSTRAINTS,
+            )
 
-        # Build bounding boxes for all segments
-        bboxes_org = [seg.bounding_box() for seg in segments_org]
-        bboxes_new = [seg.bounding_box() for seg in segments_new]
-
-        # Track point ranges for each segment in the new path
-        segment_ranges = cls._get_segment_point_ranges(segments_new)
-
-        # Initialize result points with unmatched types
+        # Initialize result with new path coordinates and unmatched types
         result_points = path_new.points.copy()
         result_points[:, 2] = cls.UNMATCHED_TYPE
 
-        # For each new segment, find the best matching original segment
-        for new_idx, (new_segment, new_bbox, point_range) in enumerate(zip(segments_new, bboxes_new, segment_ranges)):
-            # Find all original segments with overlapping bounding boxes
-            overlapping_indices = []
-            for org_idx, org_bbox in enumerate(bboxes_org):
-                if new_bbox.overlaps(org_bbox):
-                    overlapping_indices.append(org_idx)
+        # If no original points, all new points are unmatched
+        if len(path_org.points) == 0:
+            return AvPath(result_points, list(path_new.commands), MULTI_POLYGON_CONSTRAINTS)
 
-            if not overlapping_indices:
-                # No overlapping segments, keep as unmatched
-                continue
+        # Extract coordinates and types from original path
+        org_xy = path_org.points[:, :2]
+        org_types = path_org.points[:, 2]
+        new_xy = path_new.points[:, :2]
 
-            # Find the best matching segment
-            best_match_idx = cls._find_best_segment_match(new_segment, [segments_org[i] for i in overlapping_indices])
-
-            if best_match_idx is not None:
-                # Match points within the best matching segments
-                start, end = point_range
-                segment_result = result_points[start:end]
-                segment_result[:, 2] = cls.UNMATCHED_TYPE
-
-                cls._match_segment_points(
-                    segments_org[overlapping_indices[best_match_idx]], new_segment, segment_result
-                )
-
-                result_points[start:end] = segment_result
-
-        return AvPath(result_points, list(path_new.commands), MULTI_POLYGON_CONSTRAINTS)
-
-    @classmethod
-    def _get_segment_point_ranges(cls, segments: List[AvPath]) -> List[Tuple[int, int]]:
-        """Get the start and end indices for each segment in the original path.
-
-        Args:
-            segments: List of segments from split_into_single_paths()
-
-        Returns:
-            List of (start_idx, end_idx) tuples for each segment
-        """
-        ranges = []
-        current_idx = 0
-
-        for segment in segments:
-            start_idx = current_idx
-            end_idx = current_idx + len(segment.points)
-            ranges.append((start_idx, end_idx))
-            current_idx = end_idx
-
-        return ranges
-
-    @classmethod
-    def _find_best_segment_match(cls, new_segment: AvPath, candidate_segments: List[AvPath]) -> Optional[int]:
-        """Find the best matching segment from candidates.
-
-        Args:
-            new_segment: The segment to find a match for.
-            candidate_segments: List of candidate segments to match against.
-
-        Returns:
-            Index of best matching segment, or None if no good match.
-        """
-        if not candidate_segments:
-            return None
-        if len(candidate_segments) == 1:
-            return 0
-
-        # Score each candidate based on multiple factors
-        best_score = -np.inf
-        best_idx = 0
-
-        for idx, candidate in enumerate(candidate_segments):
-            score = 0
-
-            # Factor 1: Bounding box overlap area (larger is better)
-            if new_segment.bounding_box().overlaps(candidate.bounding_box()):
-                # Calculate overlap area
-                new_bbox = new_segment.bounding_box()
-                cand_bbox = candidate.bounding_box()
-
-                overlap_xmin = max(new_bbox.xmin, cand_bbox.xmin)
-                overlap_ymin = max(new_bbox.ymin, cand_bbox.ymin)
-                overlap_xmax = min(new_bbox.xmax, cand_bbox.xmax)
-                overlap_ymax = min(new_bbox.ymax, cand_bbox.ymax)
-
-                overlap_area = max(0, overlap_xmax - overlap_xmin) * max(0, overlap_ymax - overlap_ymin)
-                score += overlap_area
-
-                # Factor 1b: For nested polygons, prefer similar sizes
-                new_area = new_bbox.area
-                cand_area = cand_bbox.area
-                area_ratio = min(new_area, cand_area) / max(new_area, cand_area)
-                score += area_ratio * 100  # Weight this heavily
-
-            # Factor 2: Similarity in point count (closer is better)
-            point_diff = abs(len(new_segment.points) - len(candidate.points))
-            score -= point_diff * 0.1
-
-            # Factor 3: Centroid distance (closer is better)
-            centroid_dist = np.linalg.norm(np.array(new_segment.centroid) - np.array(candidate.centroid))
-            score -= centroid_dist * 0.01
-
-            # Factor 4: For holes (CW polygons), match with other CW polygons
-            new_is_ccw = new_segment.is_ccw
-            cand_is_ccw = candidate.is_ccw
-            if new_is_ccw == cand_is_ccw:
-                score += 50  # Bonus for matching winding direction
-
-            if score > best_score:
-                best_score = score
-                best_idx = idx
-
-        # Only return match if score is reasonable
-        if best_score > -100:  # Threshold to avoid bad matches
-            return best_idx
-        return None
-
-    @classmethod
-    def _match_segment_points(
-        cls, org_segment: AvPath, new_segment: AvPath, segment_result: NDArray[np.float64]
-    ) -> None:
-        """Match points between two segments using KD-tree.
-
-        Args:
-            org_segment: Original segment with type information.
-            new_segment: New segment to receive type information.
-            segment_result: Result array for this segment to update with matched types.
-        """
-        # Get points for matching
-        org_points = org_segment.points[:, :2]  # Use only x, y for matching
-        new_points = new_segment.points[:, :2]
-        org_types = org_segment.points[:, 2]
-
-        if len(org_points) == 0 or len(new_points) == 0:
-            return
-
-        # Build KD-tree for original points
-        tree = KDTree(org_points)
+        # Build KD-tree from all original points for efficient nearest-neighbor search
+        tree = KDTree(org_xy)
 
         # Find nearest original point for each new point
-        distances, indices = tree.query(new_points, k=1)
+        distances, indices = tree.query(new_xy, k=1)
 
-        # Match types for points within tolerance
-        matched_types = np.where(distances < cls.TOLERANCE, org_types[indices], cls.UNMATCHED_TYPE)
+        # Flatten arrays (query returns 2D even for k=1)
+        distances = distances.flatten()
+        indices = indices.flatten()
 
-        # Update segment result
-        segment_result[:, 2] = matched_types
+        # Transfer types for points within tolerance
+        within_tolerance = distances < cls.TOLERANCE
+        result_points[within_tolerance, 2] = org_types[indices[within_tolerance]]
+
+        return AvPath(result_points, list(path_new.commands), MULTI_POLYGON_CONSTRAINTS)
