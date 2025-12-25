@@ -218,7 +218,7 @@ def main():
     # NON-ASCII EXCEPTION: German characters for font testing
     detail_chars += "Ä"  # intersection and hole, several polygons
     # NON-ASCII EXCEPTION: German characters for font testing
-    detail_chars += "BDÖä"  # holes
+    detail_chars += "BOÖä"  # holes
     detail_chars += 'i:%"'  # several polygons
 
     xpos = 0.05
@@ -289,7 +289,7 @@ def main():
     ###########################################################################
     # clean font 3
     ###########################################################################
-    characters = "U"
+    characters = detail_chars
     ttfont = TTFont(font_filename)
     glyph_factory = AvGlyphFromTTFontFactory(ttfont)
     avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))

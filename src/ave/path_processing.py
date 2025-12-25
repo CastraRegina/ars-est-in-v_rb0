@@ -480,33 +480,43 @@ class AvPathMatcher:
         if n_new == 0:
             return np.empty((0, 3), dtype=np.float64)
 
-        n_org = org.shape[0]
-        if n_org == 0:
+        if org.shape[0] == 0:
+            # No original points to match from - all new points are unmatched
             result = np.empty((n_new, 3), dtype=np.float64)
             result[:, :2] = new[:, :2]
             result[:, 2] = cls.UNMATCHED_TYPE
             return result
 
+        # Initialize result array with new point coordinates and unmatched type
         result = np.empty((n_new, 3), dtype=np.float64)
         result[:, :2] = new[:, :2]
         result[:, 2] = cls.UNMATCHED_TYPE
 
+        # Track which new points have been successfully matched
         matched = np.zeros(n_new, dtype=bool)
 
-        org_xy = org[:, :2]
-        new_xy = new[:, :2]
-        org_types = org[:, 2]
+        # Extract coordinates and types for easier access
+        org_xy = org[:, :2]  # Original point coordinates (N, 2)
+        new_xy = new[:, :2]  # New point coordinates (M, 2)
+        org_types = org[:, 2]  # Original point types (N,)
 
+        # Build KD-tree for efficient spatial nearest neighbor search
         tree = KDTree(org_xy)
 
+        # Find nearest original points for each new point within tolerance
+        # distance_upper_bound ensures we only get matches within TOLERANCE
         distances, indices = tree.query(new_xy, distance_upper_bound=cls.TOLERANCE)
 
+        # Process direct matches: new points that are within tolerance of original points
         direct_matches = distances < cls.TOLERANCE
         for i in range(n_new):
             if direct_matches[i]:
+                # Transfer type from the matched original point
                 result[i, 2] = org_types[indices[i]]
                 matched[i] = True
 
+        # Propagate types to unmatched points along segments
+        # This handles cases where points are slightly shifted but still belong to the same segment
         cls._propagate_matches(result, matched, org_xy, org_types, new_xy, tree)
 
         return result
