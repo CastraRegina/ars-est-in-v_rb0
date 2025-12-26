@@ -494,8 +494,25 @@ class AvPathCurveRebuilder:
     AvMultiPolygonPath or AvSinglePolygonPath with properly closed segments.
     """
 
+    # Constants
+    TOLERANCE = 1e-9  # pylint: disable=C0103
+
     @staticmethod
-    def rebuild_curve_path(path: AvMultiPolylinePath) -> AvPath:
+    def _distance(p1: NDArray[np.float64], p2: NDArray[np.float64]) -> float:
+        """Calculate Euclidean distance between two points."""
+        return np.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+
+    @staticmethod
+    def _join_segments(segments: List[AvPath]) -> AvPath:
+        """Join multiple segments into a single path."""
+        if not segments:
+            return AvPath()
+        if len(segments) == 1:
+            return segments[0]
+        return AvPath.join_paths(*segments)
+
+    @staticmethod
+    def rebuild_curve_path(path: AvMultiPolygonPath) -> AvPath:
         """Rebuild a polygon path by replacing point clusters with Bezier curves.
 
         Iterates through the input path linearly, replacing clusters of sampled
@@ -532,10 +549,7 @@ class AvPathCurveRebuilder:
             return AvPath()
 
         # Join segments
-        if len(processed_segments) == 1:
-            result = processed_segments[0]
-        else:
-            result = AvPath.join_paths(*processed_segments)
+        result = AvPathCurveRebuilder._join_segments(processed_segments)
 
         # Post-process: fix any remaining degenerate Z lines that couldn't be
         # handled by pre-rotation (e.g., segments with only one type=0 point)
@@ -658,7 +672,7 @@ class AvPathCurveRebuilder:
                 # Skip unknown commands
                 cmd_idx += 1
 
-        # Build output path (no post-processing needed - rotation done upfront)
+        # Build output path
         if out_points:
             points_array = np.array(out_points, dtype=np.float64)
             return AvPath(points_array, out_commands)
@@ -678,7 +692,6 @@ class AvPathCurveRebuilder:
         Returns:
             Rotated segment if degenerate Z would occur, otherwise original.
         """
-        TOLERANCE = 1e-9  # pylint: disable=C0103
         pts = segment.points
         cmds = segment.commands
 
@@ -737,9 +750,9 @@ class AvPathCurveRebuilder:
 
             target_pt = pts[target_idx, :2]
             prev_pt = pts[prev_idx, :2]
-            dist = np.sqrt((target_pt[0] - prev_pt[0]) ** 2 + (target_pt[1] - prev_pt[1]) ** 2)
+            dist = AvPathCurveRebuilder._distance(target_pt, prev_pt)
 
-            if dist > TOLERANCE:
+            if dist > AvPathCurveRebuilder.TOLERANCE:
                 # Found non-degenerate rotation target - rotate segment
                 return AvPathCurveRebuilder._rotate_segment_points(segment, target_idx)
 
@@ -782,8 +795,6 @@ class AvPathCurveRebuilder:
         Returns:
             Path with segments rotated to avoid degenerate Z lines.
         """
-        TOLERANCE = 1e-9  # pylint: disable=C0103
-
         segments = path.split_into_single_paths()
         if not segments:
             return path
@@ -801,9 +812,9 @@ class AvPathCurveRebuilder:
 
             first_pt = pts[0, :2]
             last_pt = pts[-1, :2]
-            dist = np.sqrt((first_pt[0] - last_pt[0]) ** 2 + (first_pt[1] - last_pt[1]) ** 2)
+            dist = AvPathCurveRebuilder._distance(first_pt, last_pt)
 
-            if dist > TOLERANCE:
+            if dist > AvPathCurveRebuilder.TOLERANCE:
                 # Not degenerate
                 fixed_segments.append(seg)
                 continue
@@ -818,9 +829,7 @@ class AvPathCurveRebuilder:
                 # No L commands - can't rotate, accept degenerate Z
                 fixed_segments.append(seg)
 
-        if len(fixed_segments) == 1:
-            return fixed_segments[0]
-        return AvPath.join_paths(*fixed_segments)
+        return AvPathCurveRebuilder._join_segments(fixed_segments)
 
     @staticmethod
     def _rotate_reconstructed_segment(seg: AvPath) -> AvPath:
@@ -835,7 +844,6 @@ class AvPathCurveRebuilder:
         Returns:
             Rotated segment, or original if no suitable rotation found.
         """
-        TOLERANCE = 1e-9  # pylint: disable=C0103
         pts = seg.points
         cmds = seg.commands
 
@@ -884,9 +892,9 @@ class AvPathCurveRebuilder:
 
             curr_pt = pts[curr_endpoint, :2]
             prev_pt = pts[prev_endpoint, :2]
-            d = np.sqrt((curr_pt[0] - prev_pt[0]) ** 2 + (curr_pt[1] - prev_pt[1]) ** 2)
+            d = AvPathCurveRebuilder._distance(curr_pt, prev_pt)
 
-            if d > TOLERANCE:
+            if d > AvPathCurveRebuilder.TOLERANCE:
                 # Found non-degenerate rotation - rebuild path
                 rotated_middle = middle[list_idx:] + middle[:list_idx]
 
