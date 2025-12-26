@@ -808,7 +808,6 @@ class AvLetter:
                     raise ValueError(f"Not enough points for command {cmd}")
                 x, y = points_transformed[p_idx]
                 parts.append(f"M {x:g} {y:g}")
-                segment_start_point = (x, y)  # Remember start for potential Z
                 p_idx += 1
             elif cmd == "L":
                 # Line-to: one point (x,y)
