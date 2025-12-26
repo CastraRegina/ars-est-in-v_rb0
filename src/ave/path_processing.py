@@ -195,8 +195,8 @@ class AvPathCleaner:
             Algorithm:
             1. Iterate through original points in order (preferring first point)
             2. For each original point with type=0:
-               - Check if it exists in coords within TOLERANCE
-               - If found, return that index in coords
+                - Check if it exists in coords within TOLERANCE
+                - If found, return that index in coords
             3. If no match found, return 0 (no rotation)
 
             This algorithm correctly handles all edge cases including:
@@ -311,9 +311,9 @@ class AvPathCleaner:
         1. Split input path into individual segments (sub-paths) using path.split_into_single_paths()
         2. Store all original points with types for rotation target selection
         3. Convert each segment to closed path and then to polygonized format:
-           - Use _analyze_segment() for segment validation and analysis
-           - Handle invalid segments with warnings and continue processing
-           - Store CCW orientation from each closed path for later processing
+            - Use _analyze_segment() for segment validation and analysis
+            - Handle invalid segments with warnings and continue processing
+            - Store CCW orientation from each closed path for later processing
         4. Apply buffer(0) operation to each polygon to remove self-intersections:
             - buffer(0) cleans up topology and resolves intersections
             - Handles Polygon, MultiPolygon, and GeometryCollection results
@@ -350,7 +350,7 @@ class AvPathCleaner:
         - Comprehensive error handling with empty path fallback
         - Removes duplicate closing points when converting coordinates
         - Rotation algorithm: finds first type=0 point from original that matches
-          coordinates in result (within TOLERANCE=1e-10), preferring earlier points
+            coordinates in result (within TOLERANCE=1e-10), preferring earlier points
         - Rotation correctly handles all positions including last point (index n-1)
         - Uses helper methods: _analyze_segment(), _process_cleaned_geometry(), _convert_shapely_to_paths()
 
@@ -626,8 +626,179 @@ class AvPathCurveRebuilder:
                 # Skip unknown commands
                 cmd_idx += 1
 
-        # Build output path
+        # Build output path and fix degenerate Z lines
         if out_points:
             points_array = np.array(out_points, dtype=np.float64)
-            return AvPath(points_array, out_commands)
+            result = AvPath(points_array, out_commands)
+            return AvPathCurveRebuilder._fix_degenerate_z_lines(result)
         return AvPath()
+
+    @staticmethod
+    def _fix_degenerate_z_lines(path: AvPath) -> AvPath:
+        """Fix degenerate Z lines by rotating segments where first == last.
+
+        A degenerate Z line occurs when the last point before Z equals the
+        first point after M. This method rotates such segments to start at
+        a different point, creating a non-zero Z line.
+
+        Only L-only segments are rotated. Segments with curves (Q, C) are
+        returned unchanged as curve rotation is complex.
+
+        Args:
+            path: Path that may contain degenerate Z lines.
+
+        Returns:
+            Path with L-only segments rotated to avoid degenerate Z lines.
+        """
+        TOLERANCE = 1e-9
+
+        segments = path.split_into_single_paths()
+        if not segments:
+            return path
+
+        fixed_segments: List[AvPath] = []
+
+        for seg in segments:
+            pts = seg.points
+            cmds = seg.commands
+
+            # Check if closed and degenerate
+            if len(cmds) < 2 or cmds[-1] != "Z" or len(pts) < 2:
+                fixed_segments.append(seg)
+                continue
+
+            first_pt = pts[0, :2]
+            last_pt = pts[-1, :2]
+            dist = np.sqrt((first_pt[0] - last_pt[0]) ** 2 + (first_pt[1] - last_pt[1]) ** 2)
+
+            if dist > TOLERANCE:
+                # Not degenerate
+                fixed_segments.append(seg)
+                continue
+
+            # Check if has curves
+            has_curves = any(c in ("Q", "C") for c in cmds)
+
+            if not has_curves:
+                # L-only segment - simple rotation
+                if cmds[-2] == "L":
+                    unique_pts = pts[:-1]
+                    unique_cmds = cmds[:-2] + ["Z"]
+
+                    if len(unique_pts) >= 3:
+                        for i in range(1, len(unique_pts)):
+                            curr = unique_pts[i, :2]
+                            prev = unique_pts[i - 1, :2]
+                            d = np.sqrt((curr[0] - prev[0]) ** 2 + (curr[1] - prev[1]) ** 2)
+                            if d > TOLERANCE:
+                                rotated = np.concatenate([unique_pts[i:], unique_pts[:i]])
+                                fixed_segments.append(AvPath(rotated, unique_cmds))
+                                break
+                        else:
+                            fixed_segments.append(seg)
+                    else:
+                        fixed_segments.append(seg)
+                else:
+                    fixed_segments.append(seg)
+            else:
+                # Curve segment - find L command to rotate to
+                rotated = AvPathCurveRebuilder._rotate_curve_segment(seg)
+                fixed_segments.append(rotated)
+
+        if len(fixed_segments) == 1:
+            return fixed_segments[0]
+        return AvPath.join_paths(*fixed_segments)
+
+    @staticmethod
+    def _rotate_curve_segment(seg: AvPath) -> AvPath:
+        """Rotate a curve segment to avoid degenerate Z line.
+
+        Finds an L command endpoint to rotate to (simpler than rotating to
+        curve endpoints), then rebuilds the path with rotated command order.
+
+        Args:
+            seg: Curve segment with degenerate Z line.
+
+        Returns:
+            Rotated segment, or original if no suitable rotation found.
+        """
+        TOLERANCE = 1e-9
+        pts = seg.points
+        cmds = seg.commands
+
+        if len(pts) < 3:
+            return seg
+
+        # Build command groups: (cmd, point_indices, endpoint_index)
+        groups: List[Tuple[str, List[int], int]] = []
+        pt_idx = 0
+
+        for cmd in cmds:
+            if cmd == "M":
+                groups.append(("M", [pt_idx], pt_idx))
+                pt_idx += 1
+            elif cmd == "L":
+                groups.append(("L", [pt_idx], pt_idx))
+                pt_idx += 1
+            elif cmd == "Q":
+                groups.append(("Q", [pt_idx, pt_idx + 1], pt_idx + 1))
+                pt_idx += 2
+            elif cmd == "C":
+                groups.append(("C", [pt_idx, pt_idx + 1, pt_idx + 2], pt_idx + 2))
+                pt_idx += 3
+            elif cmd == "Z":
+                groups.append(("Z", [], -1))
+
+        # Get middle groups (skip M and Z)
+        middle = [(i, g) for i, g in enumerate(groups) if g[0] not in ("M", "Z")]
+
+        if len(middle) < 2:
+            return seg
+
+        # Find L commands as rotation candidates
+        l_indices = [(list_idx, grp_idx) for list_idx, (grp_idx, g) in enumerate(middle) if g[0] == "L"]
+
+        for list_idx, grp_idx in l_indices:
+            # Check if rotating here creates non-degenerate Z
+            curr_endpoint = middle[list_idx][1][2]
+            prev_list_idx = list_idx - 1 if list_idx > 0 else len(middle) - 1
+            prev_endpoint = middle[prev_list_idx][1][2]
+
+            if curr_endpoint < 0 or prev_endpoint < 0:
+                continue
+            if curr_endpoint >= len(pts) or prev_endpoint >= len(pts):
+                continue
+
+            curr_pt = pts[curr_endpoint, :2]
+            prev_pt = pts[prev_endpoint, :2]
+            d = np.sqrt((curr_pt[0] - prev_pt[0]) ** 2 + (curr_pt[1] - prev_pt[1]) ** 2)
+
+            if d > TOLERANCE:
+                # Found non-degenerate rotation - rebuild path
+                rotated_middle = middle[list_idx:] + middle[:list_idx]
+
+                new_pts: List[np.ndarray] = []
+                new_cmds: List[str] = ["M"]
+
+                # M point is the endpoint of first rotated command
+                m_endpoint = rotated_middle[0][1][2]
+                new_pts.append(pts[m_endpoint].copy())
+
+                # Add remaining commands (skip first L which became M)
+                for i, (_, grp) in enumerate(rotated_middle):
+                    cmd, pt_indices, _ = grp
+                    if i == 0 and cmd == "L":
+                        continue  # First L became M
+                    new_cmds.append(cmd)
+                    for pi in pt_indices:
+                        new_pts.append(pts[pi].copy())
+
+                new_cmds.append("Z")
+
+                if new_pts:
+                    try:
+                        return AvPath(np.array(new_pts), new_cmds)
+                    except ValueError:
+                        continue
+
+        return seg
