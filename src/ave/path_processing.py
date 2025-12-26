@@ -183,7 +183,8 @@ class AvPathCleaner:
             - Last point (index n-1, before Z command)
             - No rotation when no type=0 points match
         """
-        TOLERANCE: float = 1e-10
+
+        TOLERANCE: float = 1e-10  # pylint: disable=C0103
         cleaned_paths: List[AvPath] = []
 
         def find_rotation_target(
@@ -650,7 +651,7 @@ class AvPathCurveRebuilder:
         Returns:
             Path with L-only segments rotated to avoid degenerate Z lines.
         """
-        TOLERANCE = 1e-9
+        TOLERANCE = 1e-9  # pylint: disable=C0103
 
         segments = path.split_into_single_paths()
         if not segments:
@@ -722,7 +723,7 @@ class AvPathCurveRebuilder:
         Returns:
             Rotated segment, or original if no suitable rotation found.
         """
-        TOLERANCE = 1e-9
+        TOLERANCE = 1e-9  # pylint: disable=C0103
         pts = seg.points
         cmds = seg.commands
 
