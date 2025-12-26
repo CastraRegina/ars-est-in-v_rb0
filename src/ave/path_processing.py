@@ -158,33 +158,98 @@ class AvPathCleaner:
     @staticmethod
     def _convert_shapely_to_paths(
         result: shapely.geometry.base.BaseGeometry,
-        original_first_point: Optional[np.ndarray],
+        original_points_with_types: Optional[np.ndarray],
     ) -> List[AvPath]:
         """Convert Shapely geometry back to AvPath objects.
 
+        The rotation algorithm prioritizes the first point of the input path,
+        but the target point MUST be of type=0. If the first point is not found
+        or is not type=0, it searches for the next matching type=0 point from
+        the original path. The algorithm correctly handles all edge cases,
+        including when the target point is the last point (before Z command).
+
         Args:
             result: The Shapely geometry to convert
-            original_first_point: Original first point for coordinate preservation
+            original_points_with_types: Original points array with types (x, y, type)
+                for coordinate preservation and type=0 matching
 
         Returns:
-            List of AvPath objects
+            List of AvPath objects with proper rotation applied
+
+        Note:
+            The rotation works correctly for all positions including:
+            - First point (index 0)
+            - Middle points (indices 1 to n-2)
+            - Last point (index n-1, before Z command)
+            - No rotation when no type=0 points match
         """
+        TOLERANCE: float = 1e-10
         cleaned_paths: List[AvPath] = []
 
-        # Helper function to rotate coordinates to start from original first point
-        def rotate_to_start_point(
-            coords: List[Tuple[float, float]], start_point: Optional[np.ndarray]
-        ) -> List[Tuple[float, float]]:
-            """Rotate coordinate list to start from the point closest to start_point."""
-            if start_point is None or not coords:
+        def find_rotation_target(
+            coords: List[Tuple[float, float]],
+            original_pts: Optional[np.ndarray],
+        ) -> int:
+            """Find the index to rotate to: first matching type=0 point from original.
+
+            Algorithm:
+            1. Iterate through original points in order (preferring first point)
+            2. For each original point with type=0:
+               - Check if it exists in coords within TOLERANCE
+               - If found, return that index in coords
+            3. If no match found, return 0 (no rotation)
+
+            This algorithm correctly handles all edge cases including:
+            - Target point being the last point (index n-1)
+            - Multiple matching points (returns first occurrence)
+            - Coordinate tolerance matching within TOLERANCE
+
+            Args:
+                coords: List of (x, y) coordinates from Shapely result
+                original_pts: Original points array with types (x, y, type)
+
+            Returns:
+                Index in coords to rotate to (0 if no match found)
+            """
+            if original_pts is None or len(coords) == 0:
+                return 0
+
+            # Iterate through original points in order (prefer first point)
+            for orig_pt in original_pts:
+                orig_x, orig_y = orig_pt[0], orig_pt[1]
+                orig_type = orig_pt[2] if len(orig_pt) > 2 else 0.0
+
+                # Skip if not type=0
+                if orig_type != 0.0:
+                    continue
+
+                # Check if this point exists in coords within TOLERANCE
+                for i, (cx, cy) in enumerate(coords):
+                    distance = np.sqrt((cx - orig_x) ** 2 + (cy - orig_y) ** 2)
+                    if distance <= TOLERANCE:
+                        return i
+
+            # No matching type=0 point found, return 0 (no rotation)
+            return 0
+
+        def rotate_coords(coords: List[Tuple[float, float]], idx: int) -> List[Tuple[float, float]]:
+            """Rotate coordinate list to start from given index.
+
+            This function correctly handles all edge cases including:
+            - idx = 0 (no rotation needed)
+            - idx = len(coords) - 1 (rotation to last point)
+            - Empty coordinate lists
+
+            Args:
+                coords: List of (x, y) coordinates
+                idx: Index to rotate to (0-based)
+
+            Returns:
+                Rotated coordinate list starting at idx
+            """
+            if idx == 0 or not coords:
                 return coords
-
-            # Find index of point closest to original start point
-            distances = [np.linalg.norm(np.array(coord) - start_point) for coord in coords]
-            min_idx = distances.index(min(distances))
-
-            # Rotate list to start from min_idx
-            return coords[min_idx:] + coords[:min_idx]
+            return coords[idx:] + coords[:idx]
 
         def convert_polygon_to_paths(polygon: shapely.geometry.Polygon) -> None:
             """Convert a single polygon to paths (exterior + interiors)."""
@@ -196,8 +261,9 @@ class AvPathCleaner:
                     # Enforce CCW for exterior rings (positive polygons)
                     if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
                         exterior_coords = list(reversed(exterior_coords))
-                    # Rotate to start from original first point (independent of orientation)
-                    exterior_coords = rotate_to_start_point(exterior_coords, original_first_point)
+                    # Rotate to first matching type=0 point from original
+                    rotation_idx = find_rotation_target(exterior_coords, original_points_with_types)
+                    exterior_coords = rotate_coords(exterior_coords, rotation_idx)
                     exterior_cmds = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
                     cleaned_paths.append(AvPath(exterior_coords, exterior_cmds))
 
@@ -210,8 +276,9 @@ class AvPathCleaner:
                         # Enforce CW for interior rings (holes)
                         if AvPolygon.is_ccw(np.asarray(interior_coords)):
                             interior_coords = list(reversed(interior_coords))
-                        # Rotate to start from original first point (independent of orientation)
-                        interior_coords = rotate_to_start_point(interior_coords, original_first_point)
+                        # Rotate to first matching type=0 point from original
+                        rotation_idx = find_rotation_target(interior_coords, original_points_with_types)
+                        interior_coords = rotate_coords(interior_coords, rotation_idx)
                         interior_cmds = ["M"] + ["L"] * (len(interior_coords) - 1) + ["Z"]
                         cleaned_paths.append(AvPath(interior_coords, interior_cmds))
 
@@ -242,7 +309,7 @@ class AvPathCleaner:
 
         Step-by-step process:
         1. Split input path into individual segments (sub-paths) using path.split_into_single_paths()
-        2. Store the original first point to preserve it after Shapely operations
+        2. Store all original points with types for rotation target selection
         3. Convert each segment to closed path and then to polygonized format:
            - Use _analyze_segment() for segment validation and analysis
            - Handle invalid segments with warnings and continue processing
@@ -269,7 +336,8 @@ class AvPathCleaner:
         7. Convert final Shapely geometry back to AvMultiPolygonPath format:
             - Use _convert_shapely_to_paths() helper for geometry conversion:
               * Calls convert_polygon_to_paths() for individual polygon conversion
-              * Uses rotate_to_start_point() to preserve original first point
+              * Uses find_rotation_target() to find first matching type=0 point
+              * Rotates each polygon to start at first matching type=0 point
               * Enforces CCW for exterior rings, CW for interior rings
             - Extract exterior rings as closed paths with 'Z' command
             - Extract interior rings (holes) as separate paths
@@ -281,7 +349,9 @@ class AvPathCleaner:
         - Implements deferred processing for CW polygons before first CCW
         - Comprehensive error handling with empty path fallback
         - Removes duplicate closing points when converting coordinates
-        - Preserves original first point coordinate through Shapely operations
+        - Rotation algorithm: finds first type=0 point from original that matches
+          coordinates in result (within TOLERANCE=1e-10), preferring earlier points
+        - Rotation correctly handles all positions including last point (index n-1)
         - Uses helper methods: _analyze_segment(), _process_cleaned_geometry(), _convert_shapely_to_paths()
 
         The function handles the following cases:
@@ -312,10 +382,10 @@ class AvPathCleaner:
         # Split path into individual segments
         segments = path.split_into_single_paths()
 
-        # Store the original first point to preserve it after Shapely operations
-        original_first_point = None
+        # Store the original points with types to preserve after Shapely operations
+        original_points_with_types = None
         if path.points.shape[0] > 0:
-            original_first_point = path.points[0, :2].copy()
+            original_points_with_types = path.points.copy()
 
         # Process each segment to ensure it's closed
         polygons: List[AvSinglePolygonPath] = []
@@ -396,7 +466,7 @@ class AvPathCleaner:
 
         # Convert final Shapely geometry back to AvMultiPolygonPath
         try:
-            cleaned_paths = AvPathCleaner._convert_shapely_to_paths(result, original_first_point)
+            cleaned_paths = AvPathCleaner._convert_shapely_to_paths(result, original_points_with_types)
         except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
             print(f"Error during geometry conversion: {e}. Returning empty path.")
             return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
