@@ -502,6 +502,10 @@ class AvPathCurveRebuilder:
         curve points (type=2 for quadratic, type=3 for cubic) with proper SVG
         Bezier curve commands (Q, C) using least-squares fitting.
 
+        The algorithm proactively avoids degenerate Z lines by pre-analyzing
+        each segment and rotating if a curve cluster would end at Z with the
+        same endpoint as the segment start.
+
         Args:
             path: Input polygon path with point type annotations.
                     Must have segments starting with M and ending with Z.
@@ -510,18 +514,45 @@ class AvPathCurveRebuilder:
             New AvPath with Bezier curves replacing point clusters.
             Non-curve vertices are preserved exactly.
         """
-        points = path.points
-        commands = path.commands
+        # Split into segments and process each with potential pre-rotation
+        segments = path.split_into_single_paths()
+        if not segments:
+            return AvPath()
 
-        # Handle empty path
+        processed_segments: List[AvPath] = []
+        for segment in segments:
+            # Pre-rotate segment if it would create degenerate Z (when possible)
+            rotated_segment = AvPathCurveRebuilder._rotate_if_degenerate_z(segment)
+            # Process the (possibly rotated) segment
+            processed = AvPathCurveRebuilder._rebuild_single_segment(rotated_segment)
+            if processed.points.shape[0] > 0:
+                processed_segments.append(processed)
+
+        if not processed_segments:
+            return AvPath()
+
+        # Join segments
+        if len(processed_segments) == 1:
+            result = processed_segments[0]
+        else:
+            result = AvPath.join_paths(*processed_segments)
+
+        # Post-process: fix any remaining degenerate Z lines that couldn't be
+        # handled by pre-rotation (e.g., segments with only one type=0 point)
+        return AvPathCurveRebuilder._fix_degenerate_z_lines(result)
+
+    @staticmethod
+    def _rebuild_single_segment(segment: AvPath) -> AvPath:
+        """Rebuild curves for a single segment."""
+        points = segment.points
+        commands = segment.commands
+
         if points.shape[0] == 0:
             return AvPath()
 
-        # Output buffers
         out_points: List[NDArray[np.float64]] = []
         out_commands: List[str] = []
 
-        # State tracking
         n_points = points.shape[0]
         point_idx = 0
         cmd_idx = 0
@@ -627,29 +658,129 @@ class AvPathCurveRebuilder:
                 # Skip unknown commands
                 cmd_idx += 1
 
-        # Build output path and fix degenerate Z lines
+        # Build output path (no post-processing needed - rotation done upfront)
         if out_points:
             points_array = np.array(out_points, dtype=np.float64)
-            result = AvPath(points_array, out_commands)
-            return AvPathCurveRebuilder._fix_degenerate_z_lines(result)
+            return AvPath(points_array, out_commands)
         return AvPath()
 
     @staticmethod
+    def _rotate_if_degenerate_z(segment: AvPath) -> AvPath:
+        """Pre-rotate segment if curve reconstruction would create degenerate Z.
+
+        Analyzes the segment to detect if a curve cluster ends at Z, which would
+        make the reconstructed curve's endpoint equal to segment_start_point.
+        If so, rotates the segment to start at a different type=0 point.
+
+        Args:
+            segment: Input segment to analyze and potentially rotate.
+
+        Returns:
+            Rotated segment if degenerate Z would occur, otherwise original.
+        """
+        TOLERANCE = 1e-9  # pylint: disable=C0103
+        pts = segment.points
+        cmds = segment.commands
+
+        if len(pts) < 3 or len(cmds) < 3:
+            return segment
+        if cmds[-1] != "Z":
+            return segment
+
+        # Check if there's a curve cluster ending at Z
+        # A curve cluster ends at Z if the last L commands before Z have type 2 or 3
+        last_l_idx = -1
+        for i in range(len(cmds) - 2, -1, -1):
+            if cmds[i] == "L":
+                last_l_idx = i
+                break
+
+        if last_l_idx < 0:
+            return segment
+
+        # Count points up to last_l_idx to find corresponding point index
+        pt_idx = 0
+        for i in range(last_l_idx + 1):
+            if cmds[i] == "M":
+                pt_idx += 1
+            elif cmds[i] == "L":
+                pt_idx += 1
+
+        # Check if the last point before Z is a curve type (2 or 3)
+        last_pt_idx = pt_idx - 1
+        if last_pt_idx < 0 or last_pt_idx >= len(pts):
+            return segment
+
+        last_pt_type = pts[last_pt_idx, 2] if pts.shape[1] > 2 else 0.0
+
+        # If last point is type 0 or -1 (not a curve sample), no degenerate Z issue
+        if last_pt_type not in (2.0, 3.0):
+            return segment
+
+        # Curve cluster ends at Z - the curve endpoint will be segment_start_point
+        # Find all type=0 points that could be rotation targets
+        type0_indices = []
+        for i, pt in enumerate(pts):
+            pt_type = pt[2] if len(pt) > 2 else 0.0
+            if pt_type == 0.0:
+                type0_indices.append(i)
+
+        if len(type0_indices) < 2:
+            return segment  # Can't rotate with fewer than 2 type=0 points
+
+        # Find a type=0 point where rotating to it avoids degenerate Z
+        # After rotation to index i, first_pt becomes pts[i], last_pt becomes pts[i-1]
+        for target_idx in type0_indices[1:]:  # Skip index 0 (current start)
+            prev_idx = target_idx - 1
+            if prev_idx < 0:
+                prev_idx = len(pts) - 1
+
+            target_pt = pts[target_idx, :2]
+            prev_pt = pts[prev_idx, :2]
+            dist = np.sqrt((target_pt[0] - prev_pt[0]) ** 2 + (target_pt[1] - prev_pt[1]) ** 2)
+
+            if dist > TOLERANCE:
+                # Found non-degenerate rotation target - rotate segment
+                return AvPathCurveRebuilder._rotate_segment_points(segment, target_idx)
+
+        return segment  # No suitable rotation found
+
+    @staticmethod
+    def _rotate_segment_points(segment: AvPath, target_idx: int) -> AvPath:
+        """Rotate segment points to start at target_idx.
+
+        Args:
+            segment: Segment to rotate.
+            target_idx: Index of point to become new start.
+
+        Returns:
+            Rotated segment.
+        """
+        pts = segment.points
+        cmds = segment.commands
+
+        if target_idx <= 0 or target_idx >= len(pts):
+            return segment
+
+        # Rotate points
+        rotated_pts = np.concatenate([pts[target_idx:], pts[:target_idx]])
+
+        # Commands stay the same (M L L ... L Z)
+        return AvPath(rotated_pts, cmds)
+
+    @staticmethod
     def _fix_degenerate_z_lines(path: AvPath) -> AvPath:
-        """Fix degenerate Z lines by rotating segments where first == last.
+        """Fix degenerate Z lines by rotating reconstructed curve segments.
 
-        A degenerate Z line occurs when the last point before Z equals the
-        first point after M. This method rotates such segments to start at
-        a different point, creating a non-zero Z line.
-
-        Only L-only segments are rotated. Segments with curves (Q, C) are
-        returned unchanged as curve rotation is complex.
+        This is a fallback for cases where pre-rotation wasn't possible
+        (e.g., segments with only one type=0 point). It operates on the
+        reconstructed path which has Q/C curve commands.
 
         Args:
             path: Path that may contain degenerate Z lines.
 
         Returns:
-            Path with L-only segments rotated to avoid degenerate Z lines.
+            Path with segments rotated to avoid degenerate Z lines.
         """
         TOLERANCE = 1e-9  # pylint: disable=C0103
 
@@ -677,48 +808,29 @@ class AvPathCurveRebuilder:
                 fixed_segments.append(seg)
                 continue
 
-            # Check if has curves
-            has_curves = any(c in ("Q", "C") for c in cmds)
-
-            if not has_curves:
-                # L-only segment - simple rotation
-                if cmds[-2] == "L":
-                    unique_pts = pts[:-1]
-                    unique_cmds = cmds[:-2] + ["Z"]
-
-                    if len(unique_pts) >= 3:
-                        for i in range(1, len(unique_pts)):
-                            curr = unique_pts[i, :2]
-                            prev = unique_pts[i - 1, :2]
-                            d = np.sqrt((curr[0] - prev[0]) ** 2 + (curr[1] - prev[1]) ** 2)
-                            if d > TOLERANCE:
-                                rotated = np.concatenate([unique_pts[i:], unique_pts[:i]])
-                                fixed_segments.append(AvPath(rotated, unique_cmds))
-                                break
-                        else:
-                            fixed_segments.append(seg)
-                    else:
-                        fixed_segments.append(seg)
-                else:
-                    fixed_segments.append(seg)
-            else:
-                # Curve segment - find L command to rotate to
-                rotated = AvPathCurveRebuilder._rotate_curve_segment(seg)
+            # Degenerate - check if we can rotate (has L commands)
+            has_l_commands = any(cmd == "L" for cmd in cmds)
+            if has_l_commands:
+                # Try to rotate to L command endpoint
+                rotated = AvPathCurveRebuilder._rotate_reconstructed_segment(seg)
                 fixed_segments.append(rotated)
+            else:
+                # No L commands - can't rotate, accept degenerate Z
+                fixed_segments.append(seg)
 
         if len(fixed_segments) == 1:
             return fixed_segments[0]
         return AvPath.join_paths(*fixed_segments)
 
     @staticmethod
-    def _rotate_curve_segment(seg: AvPath) -> AvPath:
-        """Rotate a curve segment to avoid degenerate Z line.
+    def _rotate_reconstructed_segment(seg: AvPath) -> AvPath:
+        """Rotate a reconstructed segment (with Q/C curves) to fix degenerate Z.
 
-        Finds an L command endpoint to rotate to (simpler than rotating to
-        curve endpoints), then rebuilds the path with rotated command order.
+        Finds an L command endpoint to rotate to, which is simpler than
+        rotating to curve endpoints.
 
         Args:
-            seg: Curve segment with degenerate Z line.
+            seg: Reconstructed segment with degenerate Z line.
 
         Returns:
             Rotated segment, or original if no suitable rotation found.
@@ -756,10 +868,10 @@ class AvPathCurveRebuilder:
         if len(middle) < 2:
             return seg
 
-        # Find L commands as rotation candidates
+        # Find L commands as rotation candidates (simpler than curves)
         l_indices = [(list_idx, grp_idx) for list_idx, (grp_idx, g) in enumerate(middle) if g[0] == "L"]
 
-        for list_idx, grp_idx in l_indices:
+        for list_idx, _ in l_indices:
             # Check if rotating here creates non-degenerate Z
             curr_endpoint = middle[list_idx][1][2]
             prev_list_idx = list_idx - 1 if list_idx > 0 else len(middle) - 1

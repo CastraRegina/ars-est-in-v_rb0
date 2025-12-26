@@ -1,4 +1,4 @@
-"""Tests for degenerate Z line fixing in AvPathCurveRebuilder."""
+"""Tests for degenerate Z line handling in AvPathCurveRebuilder."""
 
 import numpy as np
 import pytest
@@ -7,137 +7,105 @@ from ave.path import AvPath
 from ave.path_processing import AvPathCurveRebuilder
 
 
-class TestFixDegenerateZLines:
-    """Test _fix_degenerate_z_lines method."""
+class TestRotateIfDegenerateZ:
+    """Test _rotate_if_degenerate_z method (proactive rotation)."""
 
-    def test_non_degenerate_unchanged(self):
-        """Non-degenerate segment should be unchanged."""
+    def test_no_curve_cluster_unchanged(self):
+        """Segment without curve cluster ending at Z should be unchanged."""
         points = np.array(
             [
                 [0.0, 0.0, 0.0],
                 [10.0, 0.0, 0.0],
                 [10.0, 10.0, 0.0],
-                [5.0, 15.0, 0.0],  # Different from first
+                [5.0, 15.0, 0.0],
             ]
         )
         commands = ["M", "L", "L", "L", "Z"]
         seg = AvPath(points, commands)
 
-        result = AvPathCurveRebuilder._fix_degenerate_z_lines(seg)
+        result = AvPathCurveRebuilder._rotate_if_degenerate_z(seg)
 
-        # Should be unchanged
+        # Should be unchanged - no curve cluster ending at Z
         assert len(result.points) == 4
         assert np.allclose(result.points[0, :2], [0.0, 0.0])
 
-    def test_l_only_degenerate_rotated(self):
-        """L-only segment with degenerate Z should be rotated."""
-        # Create degenerate: first == last
+    def test_curve_cluster_ending_at_z_rotated(self):
+        """Segment with curve cluster ending at Z should be rotated."""
+        # Curve samples (type=2) at end, would create degenerate Z
         points = np.array(
             [
-                [0.0, 0.0, 0.0],
-                [10.0, 0.0, 0.0],
-                [10.0, 10.0, 0.0],
-                [0.0, 0.0, 0.0],  # Same as first - degenerate!
+                [0.0, 0.0, 0.0],  # type=0, M start
+                [10.0, 0.0, 0.0],  # type=0, L vertex
+                [10.0, 5.0, 2.0],  # type=2, curve sample
+                [10.0, 10.0, 2.0],  # type=2, curve sample (ends at Z)
             ]
         )
         commands = ["M", "L", "L", "L", "Z"]
         seg = AvPath(points, commands)
 
-        result = AvPathCurveRebuilder._fix_degenerate_z_lines(seg)
+        result = AvPathCurveRebuilder._rotate_if_degenerate_z(seg)
 
-        # Should be rotated - first != last
+        # Should be rotated to start at different type=0 point
+        # The curve would end at segment start, so rotate to avoid that
         first = result.points[0, :2]
-        last = result.points[-1, :2]
-        dist = np.linalg.norm(first - last)
-        assert dist > 1e-9, "Z line should be non-degenerate after rotation"
+        # After rotation, first point should be different from original
+        # (rotated to index 1 which is [10, 0])
+        assert np.allclose(first, [10.0, 0.0])
 
-    def test_multiple_segments(self):
-        """Multiple segments should each be fixed independently."""
-        # Segment 1: degenerate but fixable (4 unique points)
-        pts1 = np.array(
+    def test_insufficient_type0_points_unchanged(self):
+        """Segment with only one type=0 point should be unchanged."""
+        points = np.array(
+            [
+                [0.0, 0.0, 0.0],  # type=0, only one
+                [5.0, 5.0, 2.0],  # type=2
+                [10.0, 10.0, 2.0],  # type=2
+            ]
+        )
+        commands = ["M", "L", "L", "Z"]
+        seg = AvPath(points, commands)
+
+        result = AvPathCurveRebuilder._rotate_if_degenerate_z(seg)
+
+        # Should be unchanged - can't rotate with only 1 type=0 point
+        assert np.allclose(result.points[0, :2], [0.0, 0.0])
+
+
+class TestRotateSegmentPoints:
+    """Test _rotate_segment_points helper method."""
+
+    def test_rotate_to_index_1(self):
+        """Rotating to index 1 should shift points correctly."""
+        points = np.array(
             [
                 [0.0, 0.0, 0.0],
                 [10.0, 0.0, 0.0],
                 [10.0, 10.0, 0.0],
-                [0.0, 0.0, 0.0],  # Same as first - degenerate
             ]
         )
-        cmds1 = ["M", "L", "L", "L", "Z"]
-        seg1 = AvPath(pts1, cmds1)
-
-        # Segment 2: non-degenerate
-        pts2 = np.array(
-            [
-                [20.0, 0.0, 0.0],
-                [30.0, 0.0, 0.0],
-                [25.0, 10.0, 0.0],
-            ]
-        )
-        cmds2 = ["M", "L", "L", "Z"]
-        seg2 = AvPath(pts2, cmds2)
-
-        combined = AvPath.join_paths(seg1, seg2)
-        result = AvPathCurveRebuilder._fix_degenerate_z_lines(combined)
-
-        # Both segments should exist and be valid
-        segments = result.split_into_single_paths()
-        assert len(segments) == 2
-
-        for seg in segments:
-            first = seg.points[0, :2]
-            last = seg.points[-1, :2]
-            dist = np.linalg.norm(first - last)
-            assert dist > 1e-9, "Each segment should have non-degenerate Z"
-
-
-class TestRotateCurveSegment:
-    """Test _rotate_curve_segment method."""
-
-    def test_curve_segment_with_l_command(self):
-        """Curve segment with L commands should find rotation point."""
-        # M L Q Z - Q ends at start (degenerate)
-        points = np.array(
-            [
-                [0.0, 0.0, 0.0],  # M
-                [10.0, 0.0, 0.0],  # L endpoint
-                [15.0, 5.0, 2.0],  # Q control
-                [0.0, 0.0, 0.0],  # Q endpoint = start (degenerate)
-            ]
-        )
-        commands = ["M", "L", "Q", "Z"]
+        commands = ["M", "L", "L", "Z"]
         seg = AvPath(points, commands)
 
-        result = AvPathCurveRebuilder._rotate_curve_segment(seg)
+        result = AvPathCurveRebuilder._rotate_segment_points(seg, 1)
 
-        # Should be rotated to start at L endpoint
-        first = result.points[0, :2]
-        last = result.points[-1, :2]
-        dist = np.linalg.norm(first - last)
+        # New first point should be old index 1
+        assert np.allclose(result.points[0, :2], [10.0, 0.0])
+        # New last point should be old index 0
+        assert np.allclose(result.points[-1, :2], [0.0, 0.0])
 
-        # If rotation worked, Z should be non-degenerate
-        # (If no L rotation found, original is returned)
-        if not np.allclose(first, [0.0, 0.0]):
-            assert dist > 1e-9, "Rotated segment should have non-degenerate Z"
-
-    def test_no_l_commands_returns_original(self):
-        """Segment with only curves should return original."""
-        # M Q Q Z - no L commands to rotate to
+    def test_rotate_to_index_0_unchanged(self):
+        """Rotating to index 0 should return unchanged."""
         points = np.array(
             [
-                [0.0, 0.0, 0.0],  # M
-                [5.0, 5.0, 2.0],  # Q1 control
-                [10.0, 0.0, 0.0],  # Q1 endpoint
-                [5.0, -5.0, 2.0],  # Q2 control
-                [0.0, 0.0, 0.0],  # Q2 endpoint = start (degenerate)
+                [0.0, 0.0, 0.0],
+                [10.0, 0.0, 0.0],
             ]
         )
-        commands = ["M", "Q", "Q", "Z"]
+        commands = ["M", "L", "Z"]
         seg = AvPath(points, commands)
 
-        result = AvPathCurveRebuilder._rotate_curve_segment(seg)
+        result = AvPathCurveRebuilder._rotate_segment_points(seg, 0)
 
-        # No L commands to rotate to, should return original
-        assert np.allclose(result.points[0, :2], seg.points[0, :2])
+        assert np.allclose(result.points[0, :2], [0.0, 0.0])
 
 
 class TestRebuildCurvePathIntegration:
