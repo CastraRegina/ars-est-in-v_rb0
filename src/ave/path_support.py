@@ -286,33 +286,6 @@ _PRIORITIZED_CONSTRAINTS = [
 ]
 
 
-def _matches_attributes(
-    preset: PathConstraints,
-    *,
-    allows_curves: bool,
-    max_segments: Optional[int],
-    must_close: bool,
-    min_points_per_segment: Optional[int],
-) -> bool:
-    """Return True if the preset satisfies the detected attributes."""
-    if preset.allows_curves != allows_curves:
-        return False
-
-    if preset.must_close != must_close:
-        return False
-
-    if preset.max_segments is not None:
-        if max_segments is None or max_segments > preset.max_segments:
-            return False
-    # If preset.max_segments is None it imposes no constraint.
-
-    if preset.min_points_per_segment is not None:
-        if min_points_per_segment is None or min_points_per_segment < preset.min_points_per_segment:
-            return False
-
-    return True
-
-
 ###############################################################################
 # PathValidator
 ###############################################################################
