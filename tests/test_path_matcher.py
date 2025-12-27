@@ -5,7 +5,7 @@ import pytest  # pylint: disable=unused-import
 from numpy.testing import assert_allclose, assert_array_equal
 
 from ave.path import MULTI_POLYGON_CONSTRAINTS, AvPath
-from ave.path_matcher import AvPathMatcher
+from ave.path_processing import AvPathMatcher
 
 
 class TestAvPathMatcherBasic:
