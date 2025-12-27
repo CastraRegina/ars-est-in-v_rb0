@@ -156,6 +156,7 @@ def clean_chars_and_render_steps_on_page(
         clean_glyphs[char] = glyph
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
+
         # cleaning steps finished - now print overlays to check results
 
         # Step 6: Print overlay with stroke-border
@@ -178,6 +179,9 @@ def clean_chars_and_render_steps_on_page(
         print_glyph_path(original_glyph, current_xpos, current_ypos, "red", True, stroke_width)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
+
+        # printing overlays done - now validate additionally
+        glyph.validate()
 
         # after last step: move to next glyph
         current_xpos += delta_xpos

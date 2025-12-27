@@ -21,6 +21,7 @@ from ave.path import (
     AvPath,
     AvSinglePath,
     AvSinglePolygonPath,
+    PathSplitter,
 )
 
 ###############################################################################
@@ -366,6 +367,134 @@ class AvGlyph:
 
         # Return new AvGlyph with corrected directions
         return AvGlyph(character=self.character, width=self.width(), path=new_path)
+
+    def validate(self) -> None:
+        """
+        Validate the glyph.
+        Checks done:
+            Step 1: Check correct direction of segments of path (additive: CCW, subtractive: CW) by
+                calling revise_direction() and validate by comparing its result with self
+            Step 2: Check width to be in range 0 < width < 10*bounding_box.width
+                (special case: space character " " only requires width > 0)
+            Step 3: Validate path structure
+                - Check that all segments of the path are closed,
+                    i.e. each segment starts with 'M' and ends with 'Z'
+            Step 4: Check coordinates for NaN, infinity
+            Step 5: Check for reasonable coordinate ranges, i.e. -10*units_per_em < x < 10*units_per_em
+                (using units_per_em = 2048.0 as default)
+            Step 6: Check for reasonable bounding box, i.e. -10*units_per_em < x < 10*units_per_em
+            Step 7: Check for duplicate consecutive points within a relative tolerance and absolute tolerance
+            Step 8: Check for self-intersection (placeholder for future implementation)
+            Step 9: Check constraints against real properties of path
+
+        Raises:
+            ValueError: If any validation check fails
+        """
+        # Constants for validation
+        REVISE_POINTS_TOLERANCE_RTOL = 1e-9  # pylint: disable=invalid-name
+        REVISE_POINTS_TOLERANCE_ATOL = 1e-9  # pylint: disable=invalid-name
+        WIDTH_RANGE_MULTIPLIER = 10.0  # pylint: disable=invalid-name
+        COORDINATE_RANGE_MULTIPLIER = 10.0  # pylint: disable=invalid-name
+        UNITS_PER_EM_DEFAULT = 2048.0  # pylint: disable=invalid-name
+        DUPLICATE_POINT_RTOL = 1e-9  # pylint: disable=invalid-name
+        DUPLICATE_POINT_ATOL = 1e-9  # pylint: disable=invalid-name
+
+        # Step 1: Check correct direction of segments
+        revised_glyph = self.revise_direction()
+        # Compare only the geometric path (points and commands), not constraints
+        points_equal = np.allclose(
+            self._path.points,
+            revised_glyph.path.points,
+            rtol=REVISE_POINTS_TOLERANCE_RTOL,
+            atol=REVISE_POINTS_TOLERANCE_ATOL,
+        )
+        commands_equal = self._path.commands == revised_glyph.path.commands
+        if not points_equal or not commands_equal:
+            raise ValueError("Glyph path segments have incorrect winding directions")
+
+        # Step 2: Check width range
+        bbox = self.bounding_box()
+        # Special case for space character: no visual bounding box but has glyph width
+        if self._character == " " or bbox.width == 0:
+            # For space character, only check that width is positive
+            if self._width <= 0:
+                raise ValueError(f"Space character width must be positive, got {self._width}")
+        else:
+            # For normal characters, check width is within reasonable range
+            if not 0 < self._width < WIDTH_RANGE_MULTIPLIER * bbox.width:
+                raise ValueError(
+                    f"Glyph width {self._width} is not in valid range (0, {WIDTH_RANGE_MULTIPLIER * bbox.width})"
+                )
+
+        # Step 3: Validate path structure using existing path validation
+        # Use closed path constraints to ensure all segments are closed
+
+        # Check that all segments are closed
+        segments = PathSplitter.split_commands_into_segments(self._path.commands)
+        for seg_idx, (seg_cmds, _) in enumerate(segments):
+            if not seg_cmds:
+                raise ValueError(f"Segment {seg_idx} is empty")
+            if seg_cmds[0] != "M":
+                raise ValueError(f"Segment {seg_idx} must start with 'M' command")
+            if seg_cmds[-1] != "Z":
+                raise ValueError(f"Segment {seg_idx} must end with 'Z' command for closed path")
+
+        # Step 4: Check coordinates for NaN and infinity
+        points = self._path.points
+        if not np.all(np.isfinite(points)):
+            invalid_coords = np.where(~np.isfinite(points))
+            raise ValueError(f"Glyph contains invalid coordinates (NaN or infinity) at indices: {invalid_coords}")
+
+        # Step 5: Check for reasonable coordinate ranges
+        min_coord = -COORDINATE_RANGE_MULTIPLIER * UNITS_PER_EM_DEFAULT
+        max_coord = COORDINATE_RANGE_MULTIPLIER * UNITS_PER_EM_DEFAULT
+
+        if np.any(points[:, 0] < min_coord) or np.any(points[:, 0] > max_coord):
+            raise ValueError(f"Glyph x-coordinates exceed reasonable range [{min_coord}, {max_coord}]")
+        if np.any(points[:, 1] < min_coord) or np.any(points[:, 1] > max_coord):
+            raise ValueError(f"Glyph y-coordinates exceed reasonable range [{min_coord}, {max_coord}]")
+
+        # Step 6: Check for reasonable bounding box
+        if bbox.xmin < min_coord or bbox.xmax > max_coord or bbox.ymin < min_coord or bbox.ymax > max_coord:
+            raise ValueError(f"Glyph bounding box exceeds reasonable range [{min_coord}, {max_coord}]")
+
+        # Step 7: Check for duplicate consecutive points
+        if len(points) > 1:
+            # Check consecutive points for duplicates within tolerance
+            diffs = np.diff(points[:, :2], axis=0)
+            distances = np.sqrt(np.sum(diffs**2, axis=1))
+
+            duplicate_mask = distances < DUPLICATE_POINT_ATOL + DUPLICATE_POINT_RTOL * np.abs(points[:-1, :2]).max(
+                axis=1
+            )
+
+            if np.any(duplicate_mask):
+                duplicate_indices = np.where(duplicate_mask)[0]
+                raise ValueError(f"Glyph contains duplicate consecutive points at indices: {duplicate_indices}")
+
+        # Step 8: Check for self-intersection
+        # This is a complex geometric check, for now we'll do a basic check
+        # A full implementation would require segment-segment intersection testing
+        # if len(segments) > 1:
+        #     # For multiple segments, check if any segment intersects others
+        #     # This is a simplified check - full implementation would be more complex
+        #     for i in range(len(segments)):
+        #         for j in range(i + 1, len(segments)):
+        #             # Extract segment paths for intersection testing
+        #             # This is a placeholder for a full intersection test
+        #             pass
+
+        # Step 9: Check constraints against real properties of path
+        # The path already validates against its constraints during initialization
+        # Additional checks could be added here if needed
+
+        # # Check if the path's constraints match what would be determined appropriate
+        # appropriate_constraints = self._path.determine_appropriate_constraints()
+        # if self._path.constraints != appropriate_constraints:
+        #     # This is not necessarily an error, but could indicate suboptimal constraint usage
+        #     # For now, we'll just note it but not raise an error
+        #     # In the future, this could be made stricter if needed
+        #     pass
 
 
 ###############################################################################
