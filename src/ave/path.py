@@ -11,7 +11,6 @@ from numpy.typing import NDArray
 
 from ave.common import AvGlyphCmds, sgn_sci
 from ave.geom import AvBox, AvPolygon
-from ave.path_polygonizer import PathPolygonizer
 from ave.path_support import (  # pylint: disable=unused-import
     CLOSED_SINGLE_PATH_CONSTRAINTS,
     COMMAND_INFO,
@@ -23,6 +22,7 @@ from ave.path_support import (  # pylint: disable=unused-import
     PathCommandInfo,
     PathCommandProcessor,
     PathConstraints,
+    PathPolygonizer,
     PathSplitter,
     PathValidator,
 )
@@ -835,7 +835,6 @@ class AvPath:
         if not self.has_curves:
             return self
 
-        # Use the extracted PathPolygonizer
         new_points, new_commands = PathPolygonizer.polygonize_path(
             self.points, self.commands, steps, self._process_2d_to_3d
         )

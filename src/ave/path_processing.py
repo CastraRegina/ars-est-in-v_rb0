@@ -20,10 +20,11 @@ from ave.path import (
 )
 from ave.path_support import PathCommandProcessor
 
-
 ###############################################################################
 # AvPathCleaner
 ###############################################################################
+
+
 class AvPathCleaner:
     """Collection of static path-cleaning utilities."""
 
