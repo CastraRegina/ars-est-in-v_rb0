@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -143,10 +144,11 @@ class AvGlyph:
                 RIGHT: bounding_box.width + bounding_box.xmin   == official width - RSB
                 BOTH:  bounding_box.width                       == official width - LSB - RSB
         """
-        bounding_box = self.bounding_box()
         if align is None:
             return self._width
-        elif align == ave.common.Align.LEFT:
+
+        bounding_box = self.bounding_box()
+        if align == ave.common.Align.LEFT:
             return self._width - bounding_box.xmin
         elif align == ave.common.Align.RIGHT:
             return bounding_box.xmin + bounding_box.width
@@ -198,6 +200,35 @@ class AvGlyph:
         """
         # Delegate entirely to AvPath's bounding box implementation
         return self._path.bounding_box()
+
+    def approx_equal(self, other: AvGlyph, rtol: float = 1e-9, atol: float = 1e-9) -> bool:
+        """Check if two glyphs are approximately equal within numerical tolerances.
+
+        Args:
+            other: Another AvGlyph to compare with
+            rtol: Relative tolerance for floating point comparison
+            atol: Absolute tolerance for floating point comparison
+
+        Returns:
+            True if glyphs are approximately equal, False otherwise
+        """
+
+        if not isinstance(other, AvGlyph):
+            return False
+
+        # Character must match exactly
+        if self._character != other.character:
+            return False
+
+        # Width with numerical tolerance
+        if not math.isclose(self._width, other.width(), rel_tol=rtol, abs_tol=atol):
+            return False
+
+        # Path with hierarchical comparison
+        if not self._path.approx_equal(other.path, rtol, atol):
+            return False
+
+        return True
 
     def revise_direction(self) -> AvGlyph:
         """Normalize contour direction to TrueType/OpenType winding rules.

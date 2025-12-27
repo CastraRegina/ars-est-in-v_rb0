@@ -804,6 +804,34 @@ class AvPath:
             "constraints": self.constraints.to_dict(),
         }
 
+    def approx_equal(self, other: AvPath, rtol: float = 1e-9, atol: float = 1e-9) -> bool:
+        """Check if two paths are approximately equal within numerical tolerances.
+
+        Args:
+            other: Another AvPath to compare with
+            rtol: Relative tolerance for floating point comparison
+            atol: Absolute tolerance for floating point comparison
+
+        Returns:
+            True if paths are approximately equal, False otherwise
+        """
+        if not isinstance(other, AvPath):
+            return False
+
+        # Compare points with numpy allclose
+        if not np.allclose(self.points, other.points, rtol=rtol, atol=atol):
+            return False
+
+        # Compare commands exactly (they're strings/enums)
+        if self.commands != other.commands:
+            return False
+
+        # Compare constraints (simple values, direct comparison is fine)
+        if self.constraints != other.constraints:
+            return False
+
+        return True
+
     def polygonized_path(self) -> AvMultiPolylinePath:
         """Return the polygonized path with lazy evaluation and caching."""
         if self._polygonized_path is None:
