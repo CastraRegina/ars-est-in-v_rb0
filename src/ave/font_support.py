@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont

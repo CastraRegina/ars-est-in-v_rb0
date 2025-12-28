@@ -76,7 +76,7 @@ def save_font_cache(avfont: AvFont, cache_path: Path) -> None:
     """
     cache_path.parent.mkdir(parents=True, exist_ok=True)
 
-    cache_dict = avfont.to_cache_dict()
+    cache_dict = avfont.to_dict()
     with cache_path.open("w", encoding="utf-8") as file:
         json.dump(cache_dict, file, ensure_ascii=True, indent=2)
 
@@ -119,7 +119,7 @@ def load_font_cache(cache_path: Path) -> AvFont:
         with cache_path.open("r", encoding="utf-8") as file:
             cache_dict = json.load(file)
 
-    return AvFont.from_cache_dict(cache_dict)
+    return AvFont.from_dict(cache_dict)
 
 
 def main() -> None:
@@ -134,12 +134,15 @@ def main() -> None:
     warm_up_cache(avfont, text)
 
     print(f"Saving font cache to {CACHE_FILE} ...")
+    # TODO rework to call AvFont methods
     save_font_cache(avfont, CACHE_FILE)
 
     print(f"Saving zipped font cache to {ZIP_CACHE_FILE} ...")
+    # TODO rework to call AvFont methods
     zip_font_cache(CACHE_FILE, ZIP_CACHE_FILE)
 
     print("Loading font cache again from zip file ...")
+    # TODO rework to call AvFont methods
     cached_font = load_font_cache(ZIP_CACHE_FILE)
 
     if cached_font.props.to_dict() != avfont.props.to_dict():

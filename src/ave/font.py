@@ -6,18 +6,10 @@ import gzip
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Optional
-
-from fontTools.pens.boundsPen import BoundsPen
-from fontTools.ttLib import TTFont
+from typing import Optional
 
 from ave.font_support import AvFontProperties
-from ave.glyph import (
-    AvGlyph,
-    AvGlyphCachedFactory,
-    AvGlyphFactory,
-    AvGlyphFromTTFontFactory,
-)
+from ave.glyph import AvGlyph, AvGlyphCachedFactory, AvGlyphFactory
 
 
 ###############################################################################
