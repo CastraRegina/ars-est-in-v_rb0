@@ -498,7 +498,7 @@ class AvGlyph:
 
 
 ###############################################################################
-# Glyph Factory
+# AvGlyphFactory
 ###############################################################################
 
 
@@ -517,6 +517,11 @@ class AvGlyphFactory:
         Returns:
             AvGlyph: An instance representing the glyph of the specified character.
         """
+
+
+###############################################################################
+# AvGlyphCachedFactory
+###############################################################################
 
 
 @dataclass
@@ -568,6 +573,11 @@ class AvGlyphCachedFactory(AvGlyphFactory):
         return glyph
 
 
+###############################################################################
+# AvGlyphFromTTFontFactory
+###############################################################################
+
+
 @dataclass
 class AvGlyphFromTTFontFactory(AvGlyphFactory):
     """Factory class for creating glyph instances."""
@@ -589,6 +599,11 @@ class AvGlyphFromTTFontFactory(AvGlyphFactory):
 
     def get_glyph(self, character: str) -> AvGlyph:
         return AvGlyph.from_ttfont_character(self._ttfont, character)
+
+
+###############################################################################
+# AvGlyphPolygonizeFactory
+###############################################################################
 
 
 @dataclass
