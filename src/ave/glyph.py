@@ -13,6 +13,7 @@ from numpy.typing import NDArray
 
 import ave.common
 from ave.common import AvGlyphCmds
+from ave.font_support import AvFontProperties
 from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
 from ave.path import (
@@ -518,6 +519,19 @@ class AvGlyphFactory:
             AvGlyph: An instance representing the glyph of the specified character.
         """
 
+    def get_font_properties(self) -> Optional["AvFontProperties"]:
+        """
+        Return font properties if available, None otherwise.
+
+        Default implementation returns None. Child classes should override
+        this method if they can provide font properties, or forward the
+        request to their source factory.
+
+        Returns:
+            Optional[AvFontProperties]: Font properties if available
+        """
+        return None
+
 
 ###############################################################################
 # AvGlyphCachedFactory
@@ -600,6 +614,22 @@ class AvGlyphCachedFactory(AvGlyphFactory):
         self._source_factory = source_factory
 
     def get_glyph(self, character: str) -> AvGlyph:
+        """
+        Retrieve a glyph from the cache or source factory.
+
+        First attempts to return a glyph from its internal ``_glyphs`` cache.
+        If the glyph is not present and a ``_source_factory`` is configured, it will
+        delegate creation to that factory, cache the result, and return it.
+
+        Args:
+            character (str): The character to retrieve.
+
+        Returns:
+            AvGlyph: The cached glyph instance.
+
+        Raises:
+            KeyError: If glyph is not found in cache or source factory.
+        """
         if character in self._glyphs:
             return self._glyphs[character]
 
@@ -609,6 +639,20 @@ class AvGlyphCachedFactory(AvGlyphFactory):
         glyph = self._source_factory.get_glyph(character)
         self._glyphs[character] = glyph
         return glyph
+
+    def get_font_properties(self) -> Optional["AvFontProperties"]:
+        """
+        Return font properties from source factory if available.
+
+        Forwards the request to the source factory since the cached factory
+        doesn't have font properties of its own.
+
+        Returns:
+            Optional[AvFontProperties]: Font properties from source factory
+        """
+        if self._source_factory is not None:
+            return self._source_factory.get_font_properties()
+        return None
 
 
 ###############################################################################
@@ -637,6 +681,15 @@ class AvGlyphFromTTFontFactory(AvGlyphFactory):
 
     def get_glyph(self, character: str) -> AvGlyph:
         return AvGlyph.from_ttfont_character(self._ttfont, character)
+
+    def get_font_properties(self) -> Optional["AvFontProperties"]:
+        """
+        Return font properties extracted from the TTFont.
+
+        Returns:
+            Optional[AvFontProperties]: Font properties from TTFont
+        """
+        return AvFontProperties.from_ttfont(self._ttfont)
 
 
 ###############################################################################
@@ -713,6 +766,18 @@ class AvGlyphPolygonizeFactory(AvGlyphFactory):
             width=original_glyph.width(),
             path=polygonized_path,
         )
+
+    def get_font_properties(self) -> Optional["AvFontProperties"]:
+        """
+        Return font properties from the source factory.
+
+        Forwards the request to the source factory since polygonization
+        doesn't affect font properties.
+
+        Returns:
+            Optional[AvFontProperties]: Font properties from source factory
+        """
+        return self._source_factory.get_font_properties()
 
 
 ###############################################################################

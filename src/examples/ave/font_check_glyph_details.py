@@ -2,7 +2,8 @@
 
 from fontTools.ttLib import TTFont
 
-from ave.font import AvFont, AvFontProperties
+from ave.font import AvFont
+from ave.font_support import AvFontProperties
 from ave.glyph import (
     AvGlyph,
     AvGlyphCachedFactory,

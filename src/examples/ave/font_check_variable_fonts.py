@@ -4,7 +4,8 @@ from typing import Dict, List, Optional
 
 from fontTools.ttLib import TTFont
 
-from ave.font import AvFont, AvFontProperties
+from ave.font import AvFont
+from ave.font_support import AvFontProperties
 from ave.fonttools import FontHelper
 from ave.glyph import AvGlyphFromTTFontFactory, AvGlyphPolygonizeFactory, AvLetter
 from ave.page import AvSvgPage

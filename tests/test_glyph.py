@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from ave.font import AvFont, AvFontProperties
+from ave.font import AvFont
+from ave.font_support import AvFontProperties
 from ave.geom import AvBox
 from ave.glyph import AvGlyph, AvGlyphCachedFactory
 from ave.path import CLOSED_SINGLE_PATH_CONSTRAINTS, AvPath
