@@ -547,8 +547,8 @@ class AvGlyphCachedFactory(AvGlyphFactory):
     delegate creation to that factory, cache the result, and return it.
     """
 
-    _glyphs: Dict[str, AvGlyph] = field(default_factory=dict)
-    _source_factory: Optional[AvGlyphFactory] = None
+    _glyphs: Dict[str, AvGlyph] = field(default_factory=dict)  # as glyph cache
+    _source_factory: Optional[AvGlyphFactory] = None  # as glyph source factory
 
     def __init__(
         self,
@@ -575,6 +575,8 @@ class AvGlyphCachedFactory(AvGlyphFactory):
         """
         glyphs_dict: Dict[str, dict] = {character: glyph.to_dict() for character, glyph in self._glyphs.items()}
         return {
+            "format_version": 1,
+            "type": "AvGlyphCachedFactory",
             "glyphs": glyphs_dict,
         }
 

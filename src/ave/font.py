@@ -55,18 +55,15 @@ class AvFont:
     def to_dict(self) -> dict:
         """Return a dictionary representing the font.
 
-        The dictionary contains font properties and all cached glyphs
-        nested under a "Font" key.
+        The dictionary contains font properties and all cached glyphs.
 
         Returns:
             dict: Dictionary suitable for JSON serialization.
         """
         return {
-            "Font": {
-                "format_version": 1,
-                "font_properties": self._font_properties.to_dict(),
-                **self._glyph_factory.to_cache_dict(),  # Merge glyphs from factory
-            }
+            "format_version": 1,
+            "font_properties": self._font_properties.to_dict(),
+            "glyph_factory": self._glyph_factory.to_cache_dict(),
         }
 
     @classmethod
@@ -74,14 +71,13 @@ class AvFont:
         """Create an AvFont instance from a dictionary.
 
         Args:
-            data: Dictionary created by to_dict() with "Font" key.
+            data: Dictionary created by to_dict().
 
         Returns:
             AvFont: Font instance backed by a cached glyph factory.
         """
-        font_data = data["Font"]
-        font_properties = AvFontProperties.from_dict(font_data.get("font_properties", {}))
-        glyph_factory = AvGlyphCachedFactory.from_cache_dict(font_data)
+        font_properties = AvFontProperties.from_dict(data.get("font_properties", {}))
+        glyph_factory = AvGlyphCachedFactory.from_cache_dict(data.get("glyph_factory", {}))
         return cls(glyph_factory=glyph_factory, font_properties=font_properties)
 
     def to_cache_file(self, cache_file_path: str) -> None:
@@ -141,18 +137,14 @@ class AvFont:
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON in cache file {cache_file_path}: {e}") from e
 
-            # Extract font data
-            font_data = cache_data["Font"]
-            font_properties = AvFontProperties.from_dict(font_data.get("font_properties", {}))
+            # Create font from cache data
+            font = cls.from_dict(cache_data)
 
-            # Create glyph factory
+            # Add fallback factory if provided
             if fallback_factory is not None:
-                # Load cached glyphs with fallback factory
-                glyph_factory = AvGlyphCachedFactory.from_cache_dict(font_data)
-                glyph_factory.source_factory = fallback_factory
-            else:
-                # Load cached glyphs only
-                glyph_factory = AvGlyphCachedFactory.from_cache_dict(font_data)
+                font.glyph_factory.source_factory = fallback_factory
+
+            return font
         else:
             # No cache file - use fallback factory only
             # Try to get font properties from the factory
@@ -161,8 +153,7 @@ class AvFont:
                 # Factory doesn't provide properties, use defaults
                 font_properties = AvFontProperties()
             glyph_factory = AvGlyphCachedFactory(source_factory=fallback_factory)
-
-        return cls(glyph_factory=glyph_factory, font_properties=font_properties)
+            return cls(glyph_factory=glyph_factory, font_properties=font_properties)
 
     def get_info_string(self) -> str:
         """
