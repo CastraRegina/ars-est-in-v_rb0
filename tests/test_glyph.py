@@ -873,8 +873,8 @@ class TestAvFontCache:
         avfont = AvFont(glyph_factory=glyph_factory, font_properties=font_props)
 
         # Serialize to cache dict and reconstruct
-        cache_dict = avfont.to_cache_dict()
-        avfont_restored = AvFont.from_cache_dict(cache_dict)
+        cache_dict = avfont.to_dict()
+        avfont_restored = AvFont.from_dict(cache_dict)
 
         # Basic properties
         assert avfont_restored.props.family_name == avfont.props.family_name

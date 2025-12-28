@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import gzip
+import json
 from dataclasses import dataclass, field
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Optional
 
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont
 
-from ave.glyph import AvGlyph, AvGlyphCachedFactory, AvGlyphFactory
+from ave.glyph import (
+    AvGlyph,
+    AvGlyphCachedFactory,
+    AvGlyphFactory,
+    AvGlyphFromTTFontFactory,
+)
 
 
 ###############################################################################
@@ -232,8 +240,9 @@ class AvFontProperties:
 class AvFont:
     """Font abstraction with cached glyph access and font metrics.
 
-    Wraps an AvGlyphFactory in AvGlyphCachedFactory and stores the
-    corresponding AvFontProperties for the underlying font.
+    Uses an AvGlyphCachedFactory to store glyphs and provides access to
+    font properties. The cached factory can optionally have a source_factory
+    for fallback glyph loading when glyphs are not in the cache.
     """
 
     _glyph_factory: AvGlyphCachedFactory
@@ -260,44 +269,137 @@ class AvFont:
         """Returns the AvFontProperties object associated with this font."""
         return self._font_properties
 
-    def to_cache_dict(self) -> dict:
-        """Return a dictionary representing a font cache snapshot.
+    def to_dict(self) -> dict:
+        """Return a dictionary representing the font.
 
-        The cache contains the font properties and all cached glyphs.
+        The dictionary contains font properties and all cached glyphs
+        nested under a "Font" key.
 
         Returns:
-            dict: Cache dictionary suitable for JSON serialization.
+            dict: Dictionary suitable for JSON serialization.
         """
-        glyphs_dict: Dict[str, dict] = {
-            character: glyph.to_dict() for character, glyph in self._glyph_factory.glyphs.items()
-        }
         return {
-            "format_version": 1,
-            "font_properties": self._font_properties.to_dict(),
-            "glyphs": glyphs_dict,
+            "Font": {
+                "format_version": 1,
+                "font_properties": self._font_properties.to_dict(),
+                **self._glyph_factory.to_cache_dict(),  # Merge glyphs from factory
+            }
         }
 
     @classmethod
-    def from_cache_dict(cls, data: dict) -> AvFont:
-        """Create an AvFont instance from a cache dictionary.
+    def from_dict(cls, data: dict) -> AvFont:
+        """Create an AvFont instance from a dictionary.
 
         Args:
-            data: Cache dictionary created by to_cache_dict.
+            data: Dictionary created by to_dict() with "Font" key.
 
         Returns:
             AvFont: Font instance backed by a cached glyph factory.
         """
-        font_properties = AvFontProperties.from_dict(data.get("font_properties", {}))
-        glyph_entries = data.get("glyphs", {})
-        glyphs: Dict[str, AvGlyph] = {
-            character: AvGlyph.from_dict(glyph_data) for character, glyph_data in glyph_entries.items()
-        }
-        glyph_factory = AvGlyphCachedFactory(glyphs=glyphs, source_factory=None)
+        font_data = data["Font"]
+        font_properties = AvFontProperties.from_dict(font_data.get("font_properties", {}))
+        glyph_factory = AvGlyphCachedFactory.from_cache_dict(font_data)
         return cls(glyph_factory=glyph_factory, font_properties=font_properties)
+
+    @classmethod
+    def from_cache_file(cls, cache_file_path: str, ttfont_fallback: Optional[TTFont] = None) -> AvFont:
+        """
+        Load font from cache file with optional TTFont fallback for missing glyphs.
+
+        Creates an AvGlyphCachedFactory with the cached glyphs. If ttfont_fallback
+        is provided, it's set as the source_factory for automatic fallback loading.
+
+        Args:
+            cache_file_path: Path to the cache file
+            ttfont_fallback: Optional TTFont for loading missing glyphs
+
+        Returns:
+            AvFont: Font instance with cached glyphs and optional fallback
+        """
+        # Load cache data
+        cache_data = cls._load_cache_file(cache_file_path)
+
+        # Extract font data from nested structure
+        font_data = cache_data["Font"]
+
+        # Load font properties
+        font_properties = AvFontProperties.from_dict(font_data.get("font_properties", {}))
+
+        # Create glyph factory
+        if ttfont_fallback is not None:
+            # Create cached factory with TTFont as source
+            ttfont_factory = AvGlyphFromTTFontFactory(ttfont_fallback)
+
+            # Load glyphs from cache data
+            glyph_entries = font_data.get("glyphs", {})
+            glyphs: Dict[str, AvGlyph] = {}
+
+            for character, glyph_data in glyph_entries.items():
+                try:
+                    glyphs[character] = AvGlyph.from_dict(glyph_data)
+                except (ValueError, KeyError, TypeError) as e:
+                    print(f"Warning: Failed to load glyph for '{character}': {e}")
+                except Exception as e:
+                    raise RuntimeError(f"Unexpected error loading glyph '{character}': {e}") from e
+
+            # Use AvGlyphCachedFactory with TTFont as source factory
+            glyph_factory = AvGlyphCachedFactory(glyphs=glyphs, source_factory=ttfont_factory)
+        else:
+            # Simple cached factory without source
+            glyph_factory = AvGlyphCachedFactory.from_cache_dict(font_data)
+
+        return cls(glyph_factory=glyph_factory, font_properties=font_properties)
+
+    @classmethod
+    def _load_cache_file(cls, cache_file_path: str) -> dict:
+        """Load cache data from compressed or regular JSON file."""
+        path = Path(cache_file_path)
+
+        if not path.exists():
+            raise FileNotFoundError(f"Cache file not found: {cache_file_path}")
+
+        try:
+            # Try gzip first
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                return json.load(f)
+        except (gzip.BadGzipFile, OSError):
+            # Fall back to regular JSON
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in cache file {cache_file_path}: {e}") from e
 
     def get_glyph(self, character: str) -> AvGlyph:
         """Returns the AvGlyph for the given character from the factory."""
         return self._glyph_factory.get_glyph(character)
+
+    def save_cache(self, cache_file_path: str) -> None:
+        """Save current font state to file."""
+        cache_data = self.to_dict()
+
+        target_path = Path(cache_file_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with gzip.open(target_path, "wt", encoding="utf-8") as f:
+            json.dump(cache_data, f, indent=2, ensure_ascii=False)
+
+    def append_glyph_to_cache(self, glyph: AvGlyph, cache_file_path: str) -> None:
+        """Append a single glyph to the cache file."""
+        # Load existing cache
+        try:
+            cache_data = self._load_cache_file(cache_file_path)
+        except FileNotFoundError:
+            cache_data = {"format_version": 1, "font_properties": self._font_properties.to_dict(), "glyphs": {}}
+
+        # Add new glyph
+        cache_data["glyphs"][glyph.character] = glyph.to_dict()
+
+        # Save back
+        target_path = Path(cache_file_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with gzip.open(target_path, "wt", encoding="utf-8") as f:
+            json.dump(cache_data, f, indent=2, ensure_ascii=False)
 
     def get_info_string(self) -> str:
         """
@@ -307,6 +409,7 @@ class AvFont:
         font_info_string = self._font_properties.info_string()
         font_info_string += "-----Glyphs in cache:-----\n"
         glyph_count = 0
+
         for glyph_character in self._glyph_factory.glyphs:
             glyph_count += 1
             font_info_string += f"{glyph_character}"
@@ -319,6 +422,7 @@ class AvFont:
     def actual_ascender(self):
         """Returns the overall maximum ascender by iterating over all glyphs in the cache (positive value)."""
         ascender: float = 0.0
+
         for glyph in self._glyph_factory.glyphs.values():
             ascender = max(ascender, glyph.ascender)
         return ascender
@@ -326,6 +430,7 @@ class AvFont:
     def actual_descender(self):
         """Returns the overall minimum descender by iterating over all glyphs in the cache (negative value)."""
         descender: float = 0.0
+
         for glyph in self._glyph_factory.glyphs.values():
             descender = min(descender, glyph.descender)
         return descender

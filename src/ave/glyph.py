@@ -552,6 +552,44 @@ class AvGlyphCachedFactory(AvGlyphFactory):
         """Return the internal glyph cache mapping characters to glyph instances."""
         return self._glyphs
 
+    def to_cache_dict(self) -> dict:
+        """
+        Create a dictionary representation of the cached glyphs.
+
+        Returns:
+            dict: Dictionary with "glyphs" key containing glyph data.
+        """
+        glyphs_dict: Dict[str, dict] = {character: glyph.to_dict() for character, glyph in self._glyphs.items()}
+        return {
+            "glyphs": glyphs_dict,
+        }
+
+    @classmethod
+    def from_cache_dict(cls, data: dict) -> "AvGlyphCachedFactory":
+        """
+        Create a cached factory from cache data dictionary.
+
+        Args:
+            data: Dictionary with "glyphs" key containing a dictionary of glyph data.
+
+        Returns:
+            AvGlyphCachedFactory: Factory with loaded glyphs
+        """
+        glyph_entries = data.get("glyphs", {})
+        glyphs: Dict[str, AvGlyph] = {}
+
+        for character, glyph_data in glyph_entries.items():
+            try:
+                glyphs[character] = AvGlyph.from_dict(glyph_data)
+            except (ValueError, KeyError, TypeError) as e:
+                # Expected errors when glyph data is malformed
+                print(f"Warning: Failed to load glyph for '{character}': {e}")
+            except Exception as e:
+                # Unexpected error - re-raise with context
+                raise RuntimeError(f"Unexpected error loading glyph '{character}': {e}") from e
+
+        return cls(glyphs=glyphs, source_factory=None)
+
     @property
     def source_factory(self) -> Optional[AvGlyphFactory]:
         """Return the optional backing glyph factory used as a cache miss source."""
