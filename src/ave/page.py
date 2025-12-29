@@ -17,9 +17,8 @@ from svgwrite.extensions import Inkscape
 
 from ave.common import Align
 from ave.font import AvFont
-from ave.font_support import AvFontProperties
 from ave.fonttools import FontHelper
-from ave.glyph import AvGlyphFromTTFontFactory, AvLetter
+from ave.glyph import AvGlyphCachedSourceFactory, AvGlyphFromTTFontFactory, AvLetter
 
 
 @dataclass
@@ -297,8 +296,8 @@ def main():
     # load a font and place letter L on lower left corner and letter T on upper right corner
     ttfont_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
     ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), {"wght": 400})
-    glyph_factory = AvGlyphFromTTFontFactory(ttfont)
-    avfont = AvFont(glyph_factory, AvFontProperties.from_ttfont(ttfont))
+    glyph_factory = AvGlyphCachedSourceFactory(AvGlyphFromTTFontFactory(ttfont))
+    avfont = AvFont(glyph_factory)
 
     glyph = avfont.get_glyph("L")
     letter = AvLetter.from_font_size_units_per_em(glyph, font_size, avfont.props.units_per_em, 0.0, 0.0, Align.LEFT)

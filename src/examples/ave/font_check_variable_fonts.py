@@ -5,9 +5,13 @@ from typing import Dict, List, Optional
 from fontTools.ttLib import TTFont
 
 from ave.font import AvFont
-from ave.font_support import AvFontProperties
 from ave.fonttools import FontHelper
-from ave.glyph import AvGlyphFromTTFontFactory, AvGlyphPolygonizeFactory, AvLetter
+from ave.glyph import (
+    AvGlyphCachedSourceFactory,
+    AvGlyphFromTTFontFactory,
+    AvGlyphPolygonizeFactory,
+    AvLetter,
+)
 from ave.page import AvSvgPage
 
 CHARACTERS = ""
@@ -33,8 +37,8 @@ def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] =
     polygonize_steps = 0
     glyph_factory_ttfont = AvGlyphFromTTFontFactory(ttfont)
     glpyh_factory_polygonized = AvGlyphPolygonizeFactory(glyph_factory_ttfont, polygonize_steps)
-
-    avfont = AvFont(glpyh_factory_polygonized, AvFontProperties.from_ttfont(ttfont))
+    glyph_factory_cached = AvGlyphCachedSourceFactory(glpyh_factory_polygonized)
+    avfont = AvFont(glyph_factory_cached)
 
     return avfont
 

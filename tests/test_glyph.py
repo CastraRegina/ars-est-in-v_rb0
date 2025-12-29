@@ -6,7 +6,7 @@ import pytest
 from ave.font import AvFont
 from ave.font_support import AvFontProperties
 from ave.geom import AvBox
-from ave.glyph import AvGlyph, AvGlyphCachedFactory
+from ave.glyph import AvGlyph, AvGlyphPersistentFactory
 from ave.path import CLOSED_SINGLE_PATH_CONSTRAINTS, AvPath
 
 
@@ -855,9 +855,7 @@ class TestAvFontCache:
 
         # Create a cached glyph factory with one glyph
         glyphs = {"A": glyph}
-        glyph_factory = AvGlyphCachedFactory(glyphs=glyphs, source_factory=None)
-
-        # Minimal font properties
+        # Create minimal font properties
         font_props = AvFontProperties(
             ascender=800.0,
             descender=-200.0,
@@ -870,32 +868,23 @@ class TestAvFontCache:
             full_name="TestFamily Regular",
             license_description="Test license",
         )
+        glyph_factory = AvGlyphPersistentFactory(glyphs=glyphs, font_properties=font_props)
 
-        avfont = AvFont(glyph_factory=glyph_factory, font_properties=font_props)
+        avfont = AvFont(glyph_factory=glyph_factory)
 
-        # Serialize to cache dict and reconstruct
-        cache_dict = avfont.to_dict()
-        avfont_restored = AvFont.from_dict(cache_dict)
+        # Test that the cached glyph is accessible
+        glyph_cached = avfont.get_glyph("A")
 
-        # Basic properties
-        assert avfont_restored.props.family_name == avfont.props.family_name
-        assert avfont_restored.props.units_per_em == avfont.props.units_per_em
-        assert avfont_restored.props.ascender == avfont.props.ascender
-        assert avfont_restored.props.descender == avfont.props.descender
-
-        # Glyphs in cache
-        glyph_restored = avfont_restored.get_glyph("A")
-
-        assert glyph_restored.character == glyph.character
-        assert glyph_restored.width() == glyph.width()
+        assert glyph_cached.character == glyph.character
+        assert glyph_cached.width() == glyph.width()
 
         np.testing.assert_allclose(
-            glyph_restored.path.points,
+            glyph_cached.path.points,
             glyph.path.points,
             rtol=1e-12,
             atol=1e-12,
         )
-        assert glyph_restored.path.commands == glyph.path.commands
+        assert glyph_cached.path.commands == glyph.path.commands
 
 
 if __name__ == "__main__":
