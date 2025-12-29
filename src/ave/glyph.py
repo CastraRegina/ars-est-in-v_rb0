@@ -64,7 +64,7 @@ class AvGlyph:
             width (float): The width of the glyph in unitsPerEm.
             path (AvPath): The path object containing points and commands for the glyph.
         """
-        super().__init__()
+        # No super().__init__() needed - no parent class initialization required
         self._character = character
         self._width = width
         self._path = path
@@ -143,7 +143,7 @@ class AvGlyph:
         Returns the official glyph_width of this glyph if align is None.
 
         Args:
-            align (Optional[av.consts.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
+            align (Optional[ave.common.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
                 None:  official glyph_width (i.e. including LSB and RSB)
                 LEFT:  official glyph_width - bounding_box.xmin == official width - LSB
                 RIGHT: bounding_box.width + bounding_box.xmin   == official width - RSB
@@ -155,12 +155,12 @@ class AvGlyph:
         bounding_box = self.bounding_box()
         if align == ave.common.Align.LEFT:
             return self._width - bounding_box.xmin
-        elif align == ave.common.Align.RIGHT:
+        if align == ave.common.Align.RIGHT:
             return bounding_box.xmin + bounding_box.width
-        elif align == ave.common.Align.BOTH:
+        if align == ave.common.Align.BOTH:
             return bounding_box.width
-        else:
-            raise ValueError(f"Invalid align value: {align}")
+
+        raise ValueError(f"Invalid align value: {align}")
 
     @property
     def height(self) -> float:
@@ -905,7 +905,7 @@ class AvGlyphFromTTFontFactory(AvGlyphFactory):
         """
         Initializes the glyph factory.
         """
-        super().__init__()
+        # No super().__init__() needed - no parent class initialization required
         self._ttfont = ttfont
 
     @property
@@ -958,7 +958,7 @@ class AvGlyphPolygonizeFactory(AvGlyphFactory):
             polygonize_steps (int, optional): Number of steps for polygonization.
                 Defaults to 50. 0 = no polygonization
         """
-        super().__init__()
+        # No super().__init__() needed - no parent class initialization required
         self._source_factory = source_factory
         self._polygonize_steps = polygonize_steps
 
@@ -1055,8 +1055,7 @@ class AvGlyphDualSourceFactory(AvGlyphFactory):
         """Return font properties from the configured source."""
         if self._font_props_secondary:
             return self._second_source.get_font_properties()
-        else:
-            return self._first_source.get_font_properties()
+        return self._first_source.get_font_properties()
 
     def get_glyph(self, character: str) -> AvGlyph:
         """
@@ -1164,7 +1163,7 @@ class AvLetter:
         Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
         Returns: [scale, 0, 0, scale, xpos, ypos] or [scale, 0, 0, scale, xpos-lsb, ypos] if alignment is LEFT or BOTH.
         """
-        if self.align == ave.common.Align.LEFT or self.align == ave.common.Align.BOTH:
+        if self.align in (ave.common.Align.LEFT, ave.common.Align.BOTH):
             lsb_scaled = self.scale * self._glyph.left_side_bearing
             return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled, self.ypos]
         return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
@@ -1202,7 +1201,7 @@ class AvLetter:
         """
         LSB: The horizontal space on the left side of the Letter taking alignment into account.
         """
-        if self.align == ave.common.Align.LEFT or self.align == ave.common.Align.BOTH:
+        if self.align in (ave.common.Align.LEFT, ave.common.Align.BOTH):
             return 0
         return self.scale * self._glyph.left_side_bearing
 
@@ -1211,7 +1210,7 @@ class AvLetter:
         """
         RSB: The horizontal space on the right side of the Letter taking alignment into account.
         """
-        if self.align == ave.common.Align.RIGHT or self.align == ave.common.Align.BOTH:
+        if self.align in (ave.common.Align.RIGHT, ave.common.Align.BOTH):
             return 0
         return self.scale * self._glyph.right_side_bearing
 
@@ -1303,7 +1302,7 @@ class AvLetter:
         parts: List[str] = []
         p_idx = 0
         for cmd in commands:
-            if cmd == "M" or cmd == "L":
+            if cmd in ("M", "L"):
                 # Move-to or Line-to: one point (x,y)
                 if p_idx >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
@@ -1466,7 +1465,7 @@ class AvLetter:
                     temp_p_idx = 0
                     for j in range(i):
                         prev_cmd = commands[j]
-                        if prev_cmd == "M" or prev_cmd == "L":
+                        if prev_cmd in ("M", "L"):
                             temp_p_idx += 1
                         elif prev_cmd == "Q":
                             temp_p_idx += 2
