@@ -584,7 +584,7 @@ class AvGlyphCachedFactory(AvGlyphFactory):
         return {
             "format_version": 1,
             "type": self.__class__.__name__,
-            "characters": list(glyphs_dict.keys()),
+            "characters": "".join(sorted(glyphs_dict.keys())),
             "glyphs": glyphs_dict,
             "font_properties": self.get_font_properties().to_dict(),
         }
