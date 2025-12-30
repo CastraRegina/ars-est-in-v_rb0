@@ -44,6 +44,7 @@ class AvFontProperties:
     family_name: str
     subfamily_name: str
     full_name: str
+    version: str
     license_description: str
 
     @property
@@ -63,6 +64,7 @@ class AvFontProperties:
         family_name: str = "",
         subfamily_name: str = "",
         full_name: str = "",
+        version: str = "",
         license_description: str = "",
     ) -> None:
         self.ascender = ascender
@@ -75,6 +77,7 @@ class AvFontProperties:
         self.family_name = family_name
         self.subfamily_name = subfamily_name
         self.full_name = full_name
+        self.version = version
         self.license_description = license_description
 
     @classmethod
@@ -91,6 +94,7 @@ class AvFontProperties:
             family_name=data.get("family_name", ""),
             subfamily_name=data.get("subfamily_name", ""),
             full_name=data.get("full_name", ""),
+            version=data.get("version", ""),
             license_description=data.get("license_description", ""),
         )
 
@@ -107,6 +111,7 @@ class AvFontProperties:
             "family_name": self.family_name,
             "subfamily_name": self.subfamily_name,
             "full_name": self.full_name,
+            "version": self.version,
             "license_description": self.license_description,
         }
 
@@ -191,6 +196,7 @@ class AvFontProperties:
             family_name=cls._get_name_safe(name_table, 1),
             subfamily_name=cls._get_name_safe(name_table, 2),
             full_name=cls._get_name_safe(name_table, 4),
+            version=cls._get_name_safe(name_table, 5),
             license_description=cls._get_name_safe(name_table, 13),
         )
 
@@ -213,6 +219,7 @@ class AvFontProperties:
             f"family_name:         {self.family_name}\n"
             f"subfamily_name:      {self.subfamily_name}\n"
             f"full_name:           {self.full_name}\n"
+            f"version:             {self.version}\n"
             f"license_description: {self.license_description}\n"
         )
         return info_string
