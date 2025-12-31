@@ -39,12 +39,12 @@ class AvFont:
         """Returns the AvGlyph for the given character from the factory."""
         return self._glyph_factory.get_glyph(character)
 
-    def get_info_string(self) -> str:
+    def get_info_string(self, show_stats: bool = False) -> str:
         """
         Return a string containing information about the font.
         The string is formatted for display in a text box or similar.
         """
-        font_info_string = self.props.info_string()
+        font_info_string = self.props.info_string(show_stats)
         font_info_string += "-----Glyphs in cache:-----\n"
         glyph_count = 0
 

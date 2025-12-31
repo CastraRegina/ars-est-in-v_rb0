@@ -211,7 +211,7 @@ class AvFontProperties:
             font_statistics=stats,
         )
 
-    def info_string(self) -> str:
+    def info_string(self, show_stats: bool = False) -> str:
         """
         Return a string containing information about the font properties.
         The string is formatted for display in a text box or similar.
@@ -232,8 +232,9 @@ class AvFontProperties:
             f"full_name:           {self.full_name}\n"
             f"version:             {self.version}\n"
             f"license_description: {self.license_description}\n"
-            f"font_statistics:     {self.font_statistics}\n"
         )
+        if show_stats:
+            info_string += f"font_statistics:     {self.font_statistics}\n"
         return info_string
 
     def __repr__(self) -> str:
