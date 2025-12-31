@@ -187,8 +187,34 @@ def clean_chars_and_render_steps_on_page(
 
         # after last step: move to next glyph
         current_xpos += delta_xpos
-
     print("")
+
+    # Save Font
+    print("Saving cleaned glyphs to file... ", end="", flush=True)
+    clean_glyphs_factory = AvGlyphPersistentFactory(clean_glyphs, avfont.props)
+    clean_glyphs_factory.save_to_file("fonts/cache/RobotoFlex_variable_font_cache.json.zip")
+    print("done.")
+
+    # Load Font
+    print("Loading cleaned glyphs from file... ", end="", flush=True)
+    clean_glyphs_factory = AvGlyphPersistentFactory.load_from_file(
+        "fonts/cache/RobotoFlex_variable_font_cache.json.zip"
+    )
+    clean_font = AvFont(clean_glyphs_factory)
+    print("done.")
+
+    # print characters again using loaded glyphs
+    current_xpos = xpos
+    for char in characters:
+        print(f"{char}", end="", flush=True)
+        glyph = clean_font.get_glyph(char)
+        if char == characters[0]:
+            print_text(svg_page, 0.005, current_ypos, "S9-cache-loaded-font", avfont, INFO_SIZE)
+        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
+        current_xpos += delta_xpos
+    print("")
+
+    # Return Font
     return AvFont(AvGlyphPersistentFactory(clean_glyphs, avfont.props))
 
 
@@ -226,6 +252,7 @@ def main():
     characters += ',.;:+-*#_<> !"§$%&/()=?{}[] '
     # NON-ASCII EXCEPTION: German characters and special symbols for comprehensive font testing
     characters += "ÄÖÜ äöü ß€µ@²³~^°\\ "
+    characters += "\u00ff \u0066 \u0069 \u006c"
 
     # Print some individual character details
     detail_chars = "AKXf"  # intersection
