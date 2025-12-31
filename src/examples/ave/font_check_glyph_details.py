@@ -79,7 +79,7 @@ def clean_chars_and_render_steps_on_page(
         stroke_width (float): The stroke width to use.
 
     Returns:
-        AvFont: The AvFont object used.
+        AvFont: The cleaned AvFont object used.
     """
 
     def print_glyph_path(
@@ -189,33 +189,72 @@ def clean_chars_and_render_steps_on_page(
         current_xpos += delta_xpos
     print("")
 
-    # Save Font
-    print("Saving cleaned glyphs to file... ", end="", flush=True)
+    # Serialize to dict and deserialize back
+    print("Creating cleaned glyphs factory... ", end="", flush=True)
     clean_glyphs_factory = AvGlyphPersistentFactory(clean_glyphs, avfont.props)
-    clean_glyphs_factory.save_to_file("fonts/cache/RobotoFlex_variable_font_cache.json.zip")
     print("done.")
 
-    # Load Font
-    print("Loading cleaned glyphs from file... ", end="", flush=True)
-    clean_glyphs_factory = AvGlyphPersistentFactory.load_from_file(
-        "fonts/cache/RobotoFlex_variable_font_cache.json.zip"
-    )
+    print("Serializing cleaned glyphs to dict... ", end="", flush=True)
+    clean_glyphs_dict = clean_glyphs_factory.to_cache_dict()
+    print("done.")
+
+    # Deserialize from dict
+    print("Deserializing cleaned glyphs from dict... ", end="", flush=True)
+    clean_glyphs_factory = AvGlyphPersistentFactory.from_cache_dict(clean_glyphs_dict)
     clean_font = AvFont(clean_glyphs_factory)
     print("done.")
 
     # print characters again using loaded glyphs
+    print("Processing deserialized characters...")
     current_xpos = xpos
     for char in characters:
         print(f"{char}", end="", flush=True)
         glyph = clean_font.get_glyph(char)
+        original_glyph = avfont.get_glyph(char)
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S9-cache-loaded-font", avfont, INFO_SIZE)
-        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
+            print_text(svg_page, 0.005, current_ypos, "S9-(de)serialized-font", avfont, INFO_SIZE)
+        # Print original glyph filled and cleaned glyph as stroke
+        delta_xpos = print_glyph_path(original_glyph, current_xpos, current_ypos, "black", True, stroke_width)
+        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "red", False, stroke_width)
         current_xpos += delta_xpos
     print("")
 
     # Return Font
-    return AvFont(AvGlyphPersistentFactory(clean_glyphs, avfont.props))
+    return clean_font
+
+
+def process_font_to_svg(avfont: AvFont, svg_filename: str, characters: str) -> AvFont:
+    """Process font glyphs and save to SVG file.
+
+    Args:
+        avfont: The AvFont object to process
+        svg_filename: Path where the SVG file will be saved
+        characters: String of characters to process
+
+    Returns:
+        The cleaned font after processing
+    """
+    # Setup the page with A4 dimensions
+    viewbox_width = 180  # viewbox width in mm
+    viewbox_height = 120  # viewbox height in mm
+    vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
+    font_size = vb_scale * 2.7  # in mm
+    stroke_width = 0.1 * avfont.props.dash_thickness * font_size / avfont.props.units_per_em
+
+    # Create the SVG page using the factory method
+    svg_page = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
+
+    # Draw the viewbox border
+    draw_viewbox_border(svg_page, vb_scale, viewbox_width, viewbox_height)
+
+    clean_font = clean_chars_and_render_steps_on_page(svg_page, 0.05, 0.01, characters, avfont, font_size, stroke_width)
+
+    # Save the SVG
+    print(f"Saving to {svg_filename} ...")
+    svg_page.save_as(svg_filename, include_debug_layer=True, pretty=True, compressed=True)
+    print(f"Saved to  {svg_filename}")
+
+    return clean_font
 
 
 ###############################################################################
@@ -231,19 +270,6 @@ def main():
     font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
     avfont = setup_avfont(font_filename)
 
-    # Setup the page with A4 dimensions
-    viewbox_width = 180  # viewbox width in mm
-    viewbox_height = 120  # viewbox height in mm
-    vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
-    font_size = vb_scale * 2.7  # in mm
-    stroke_width = 0.1 * avfont.props.dash_thickness * font_size / avfont.props.units_per_em
-
-    # Create the SVG page using the factory method
-    svg_page = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
-
-    # Draw the viewbox border
-    draw_viewbox_border(svg_page, vb_scale, viewbox_width, viewbox_height)
-
     # Characters to display
     characters = ""
     characters += "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
@@ -251,8 +277,8 @@ def main():
     characters += "0123456789 "
     characters += ',.;:+-*#_<> !"§$%&/()=?{}[] '
     # NON-ASCII EXCEPTION: German characters and special symbols for comprehensive font testing
-    characters += "ÄÖÜ äöü ß€µ@²³~^°\\ "
-    characters += "\u00ff \u0066 \u0069 \u006c"
+    characters += "ÄÖÜ äöü ß€µ@²³~^°\\ '`"
+    # characters += "\u00ff \u0066 \u0069 \u006c"
 
     # Print some individual character details
     detail_chars = "AKXf"  # intersection
@@ -266,16 +292,12 @@ def main():
     detail_chars += "€#"  # several intersections
 
     # characters = detail_chars
-    print("Processing characters...")
-    clean_font = clean_chars_and_render_steps_on_page(svg_page, 0.05, 0.01, characters, avfont, font_size, stroke_width)
-    print("Processing characters... done")
 
-    # Save the SVG
-    print(f"Saving to {svg_filename} ...")
-    svg_page.save_as(svg_filename, include_debug_layer=True, pretty=True, compressed=True)
-    print(f"Saved to {svg_filename}")
+    # Process font and save to SVG
+    clean_font = process_font_to_svg(avfont, svg_filename, characters)
 
-    print(clean_font.get_info_string())
+    # Print font info
+    print(clean_font.get_info_string(False))
 
 
 if __name__ == "__main__":
