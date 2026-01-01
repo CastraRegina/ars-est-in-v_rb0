@@ -1,8 +1,11 @@
 """Single font glyph details SVG page example."""
 
+from typing import Dict, Optional
+
 from fontTools.ttLib import TTFont
 
 from ave.font import AvFont
+from ave.fonttools import FontHelper
 from ave.glyph import (
     AvGlyph,
     AvGlyphCachedSourceFactory,
@@ -34,9 +37,15 @@ def draw_viewbox_border(svg_page, vb_scale, viewbox_width, viewbox_height):
     )
 
 
-def setup_avfont(ttfont_filename: str):
-    """Setup an AvFont object from a given TrueType font file."""
-    ttfont = TTFont(ttfont_filename)
+def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] = None):
+    """
+    Setup an AvFont object from a given TrueType font file and optional axes values.
+    """
+
+    if axes_values is None:
+        ttfont = TTFont(ttfont_filename)
+    else:
+        ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), axes_values)
 
     # polygonize_steps=0 => no polygonization
     polygonize_steps = 0
@@ -264,12 +273,16 @@ def process_font_to_svg(avfont: AvFont, svg_filename: str, characters: str) -> A
 
 def main():
     """Main function to demonstrate glyph details."""
-    svg_filename = "data/output/example/svg/ave/example_glyph_details.svgz"
 
-    # Font setup
-    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
-    avfont = setup_avfont(font_filename)
+    font_in_fn = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    font_out_name = "RobotoFlex-VariableFont_AA_"
+    font_num_wghts = 3
+    font_wghts_min = 100
+    font_wghts_max = 1000
+    font_out_fn_base = f"fonts/cache/{font_out_name}"  # XX_wghtYYYY.json.zip
+    svg_out_fn_base = f"data/output/fonts/cache/{font_out_name}"  # XX_wghtYYYY.svgz
 
+    # -------------------------------------------------------------------------
     # Characters to display
     characters = ""
     characters += "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
@@ -291,13 +304,28 @@ def main():
     detail_chars += 'i:%"'  # several polygons
     detail_chars += "€#"  # several intersections
 
-    # characters = detail_chars
+    characters = detail_chars
+    # -------------------------------------------------------------------------
 
-    # Process font and save to SVG
-    clean_font = process_font_to_svg(avfont, svg_filename, characters)
+    # Create fonts with different weights
+    wght_range = range(font_wghts_min, font_wghts_max + 1, (font_wghts_max - font_wghts_min) // (font_num_wghts - 1))
+    for idx, wght in enumerate(wght_range, 1):
+        print(f"Processing weight {wght} ...")
 
-    # Print font info
-    print(clean_font.get_info_string(False))
+        font_out_fn = f"{font_out_fn_base}{idx:02d}_wght{wght:04d}.json.zip"
+        svg_out_fn = f"{svg_out_fn_base}{idx:02d}_wght{wght:04d}.svgz"
+
+        avfont = setup_avfont(font_in_fn, {"wght": wght})
+
+        # Save SVG:
+        clean_font = process_font_to_svg(avfont, svg_out_fn, characters)
+
+        # Save font:
+        print(f"Saving to {font_out_fn} ...")
+        clean_font.glyph_factory.save_to_file(font_out_fn)
+        print(f"Saved to  {font_out_fn}")
+
+        print("-----------------------------------------------------------------------")
 
 
 if __name__ == "__main__":
