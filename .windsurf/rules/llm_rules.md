@@ -30,8 +30,8 @@ globs: .py
 
 ## SYMBOL VERIFICATION
 
-- Before referencing any function, class, file, or path, locate it via search/read and cite with `@filepath#L-L`.
-- If not found, state that explicitly—never fabricate.
+- Before using any symbol, verify it exists on the specific target class/module via search and cite `@filepath#L-L`.
+- If not found, state explicitly — never fabricate.
 
 ## LIBRARIES
 
