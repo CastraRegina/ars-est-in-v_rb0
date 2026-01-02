@@ -6,6 +6,7 @@ from fontTools.ttLib import TTFont
 
 from ave.font import AvFont
 from ave.fonttools import FontHelper
+from ave.geom import AvBox
 from ave.glyph import (
     AvGlyph,
     AvGlyphCachedSourceFactory,
@@ -15,6 +16,7 @@ from ave.glyph import (
     AvLetter,
 )
 from ave.page import AvSvgPage
+from ave.path import AvPath
 from ave.path_processing import AvPathCleaner, AvPathCurveRebuilder, AvPathMatcher
 
 
@@ -65,6 +67,95 @@ def print_text(svg_page: AvSvgPage, xpos: float, ypos: float, text: str, avfont:
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
         current_xpos += letter.width
+
+
+def customize_glyph(glyph: AvGlyph) -> AvGlyph:
+    """Update a glyph after the revise step.
+
+    Args:
+        glyph: The glyph to potentially update
+
+    Returns:
+        A new glyph if modifications were made, or the same glyph if no changes
+    """
+    # Placeholder for glyph update logic
+    # Currently returns the same glyph without modification
+
+    if glyph.character == "Q":
+        path = glyph.path
+
+        # 1. Split the path into segments
+        segments = path.split_into_single_paths()
+
+        # 2. Filter for CCW segments (positive/exterior segments)
+        ccw_segments = []
+        for segment in segments:
+            if segment.area > 0 and hasattr(segment, "is_ccw") and segment.is_ccw:
+                ccw_segments.append(segment)
+
+        # If we have less than 2 CCW segments, return original glyph
+        if len(ccw_segments) < 2:
+            return glyph
+
+        # 3. Identify the tail segment by centroid position (most bottom-right)
+        # Use evaluation function: maximize x, minimize y
+        # Score = x - y (higher x increases score, lower y increases score)
+        tail_segment = max(ccw_segments, key=lambda s: s.bounding_box().centroid[0] - s.bounding_box().centroid[1])
+
+        # 4. Get the bounding box of the tail segment
+        small_bbox = tail_segment.bounding_box()
+
+        # 5. Create a list of all other segments (excluding the tail)
+        other_segments = [s for s in segments if s is not tail_segment]
+
+        # 6. Calculate the combined bounding box of all other segments
+        if other_segments:
+            # Start with the first segment's bbox
+            combined_bbox = other_segments[0].bounding_box()
+
+            # Expand to include all other segments
+            for segment in other_segments[1:]:
+                seg_bbox = segment.bounding_box()
+                combined_bbox = AvBox(
+                    min(combined_bbox.xmin, seg_bbox.xmin),
+                    min(combined_bbox.ymin, seg_bbox.ymin),
+                    max(combined_bbox.xmax, seg_bbox.xmax),
+                    max(combined_bbox.ymax, seg_bbox.ymax),
+                )
+
+            # 7. Calculate the shift needed to position tail at bottom-right
+            # Align tail so it extends from the bottom-right of the main body
+            shift_x = combined_bbox.xmax - small_bbox.xmax  # Align right edges
+            shift_y = combined_bbox.ymin - small_bbox.ymin  # Align bottom edges
+
+            # Apply the shift to all points in the tail segment
+            shifted_points = tail_segment.points.copy()
+            shifted_points[:, 0] += shift_x  # Shift x coordinates
+            shifted_points[:, 1] += shift_y  # Shift y coordinates
+
+            # Create a new segment with shifted points
+            shifted_segment = AvPath(shifted_points[:, :2], tail_segment.commands)  # Use only x, y coordinates
+
+            # 8. Rebuild the path with the modified segment, preserving original order
+            new_segments = []
+            for segment in segments:
+                if segment is tail_segment:
+                    new_segments.append(shifted_segment)
+                else:
+                    new_segments.append(segment)
+
+            # Join all segments back together in the same sequence
+            if len(new_segments) > 0:
+                new_path = new_segments[0]
+                for segment in new_segments[1:]:
+                    new_path = new_path.append(segment)
+            else:
+                new_path = path
+
+            return AvGlyph(glyph.character, glyph.width(), new_path)
+        return glyph
+
+    return glyph
 
 
 def clean_chars_and_render_steps_on_page(
@@ -131,37 +222,44 @@ def clean_chars_and_render_steps_on_page(
         if char == characters[0]:
             print_text(svg_page, 0.005, current_ypos, "S1-revise-direction", avfont, INFO_SIZE)
         glyph = glyph.revise_direction()
+        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
+        current_ypos += font_size
+
+        # Step 2: Update glyph (custom modifications)
+        if char == characters[0]:
+            print_text(svg_page, 0.005, current_ypos, "S2-customize-glyph", avfont, INFO_SIZE)
+        glyph = customize_glyph(glyph)
         path = glyph.path
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
-        # Step 2: Polygonize
+        # Step 3: Polygonize
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S2-polygonize", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S3-polygonize", avfont, INFO_SIZE)
         polygonized_path = path.polygonize(50)
         glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=polygonized_path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
-        # Step 3: Resolve intersections
+        # Step 4: Resolve intersections
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S3-resolve-intersections", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S4-resolve-intersections", avfont, INFO_SIZE)
         path = AvPathCleaner.resolve_polygonized_path_intersections(polygonized_path)
         glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
-        # Step 4: Match paths
+        # Step 5: Match paths
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S4-match-paths", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S5-match-paths", avfont, INFO_SIZE)
         path = AvPathMatcher.match_paths(polygonized_path, path)
         glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
-        # Step 5: Rebuild curve path
+        # Step 6: Rebuild curve path
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S5-rebuild-curve-path", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S6-rebuild-curve-path", avfont, INFO_SIZE)
         path = AvPathCurveRebuilder.rebuild_curve_path(path)
         glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=path)
         clean_glyphs[char] = glyph
@@ -170,23 +268,23 @@ def clean_chars_and_render_steps_on_page(
 
         # cleaning steps finished - now print overlays to check results
 
-        # Step 6: Print overlay with stroke-border
+        # Step 7: Print overlay with stroke-border
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S6-overlay-border-check", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S7-overlay-border-check", avfont, INFO_SIZE)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "red", False, stroke_width)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
-        # Step 7: Print overlay: original on top
+        # Step 8: Print overlay: original on top
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S7-overlay-original-on-top", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S8-overlay-original-on-top", avfont, INFO_SIZE)
         print_glyph_path(glyph, current_xpos, current_ypos, "red", True, stroke_width)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
-        # Step 8: Print overlay: cleaned on top
+        # Step 9: Print overlay: cleaned on top
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S8-overlay-cleaned-on-top", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S9-overlay-cleaned-on-top", avfont, INFO_SIZE)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "red", True, stroke_width)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
@@ -213,7 +311,7 @@ def clean_chars_and_render_steps_on_page(
     clean_font = AvFont(clean_glyphs_factory)
     print("done.")
 
-    # print characters again using loaded glyphs
+    # Step 10: Print characters again using loaded glyphs
     print("Processing deserialized characters...")
     current_xpos = xpos
     for char in characters:
@@ -221,7 +319,7 @@ def clean_chars_and_render_steps_on_page(
         glyph = clean_font.get_glyph(char)
         original_glyph = avfont.get_glyph(char)
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S9-(de)serialized-font", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S10-(de)serialized-font", avfont, INFO_SIZE)
         # Print original glyph filled and cleaned glyph as stroke
         delta_xpos = print_glyph_path(original_glyph, current_xpos, current_ypos, "black", True, stroke_width)
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "red", False, stroke_width)
@@ -276,7 +374,7 @@ def main():
 
     font_in_fn = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
     font_out_name = "RobotoFlex-VariableFont_AA_"
-    font_num_wghts = 3
+    font_num_wghts = 2
     font_wghts_min = 100
     font_wghts_max = 1000
     font_out_fn_base = f"fonts/cache/{font_out_name}"  # XX_wghtYYYY.json.zip
@@ -305,6 +403,7 @@ def main():
     detail_chars += "€#"  # several intersections
 
     characters = detail_chars
+
     # -------------------------------------------------------------------------
 
     # Create fonts with different weights
