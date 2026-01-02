@@ -371,8 +371,12 @@ class AvPath:
         For paths with curves, the path is first polygonized.
         For multi-segment paths, returns the sum of all segment areas.
 
+        Note: This method always returns 0 or a positive value, regardless of
+        the path's winding direction (clockwise or counter-clockwise).
+
         Returns:
-            float: The area of the path. Returns 0.0 if path has fewer than 3 points.
+            float: The absolute area of the path (always >= 0.0).
+                    Returns 0.0 if path has fewer than 3 points.
 
         Raises:
             ValueError: If the path is not closed (must_close constraint required or Z command present).

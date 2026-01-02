@@ -58,7 +58,17 @@ class AvPolygon:
 
     @staticmethod
     def area(points: NDArray[np.float64]) -> float:
-        """Calculate area using shoelace formula for a single polygon."""
+        """Calculate area using shoelace formula for a single polygon.
+
+        Note: This method always returns 0 or a positive value, regardless of
+        the polygon's winding direction (clockwise or counter-clockwise).
+
+        Args:
+            points: Array of 2D points defining the polygon vertices
+
+        Returns:
+            float: The absolute area of the polygon (always >= 0.0)
+        """
         if points.shape[0] < 3:
             return 0.0
         x = points[:, 0]
@@ -307,7 +317,7 @@ class AvBox:
 
     @property
     def area(self) -> float:
-        """float: The area of the box."""
+        """float: The area of the box (always >= 0.0)."""
 
         return self.width * self.height
 

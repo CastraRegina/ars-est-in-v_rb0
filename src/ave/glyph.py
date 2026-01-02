@@ -286,7 +286,7 @@ class AvGlyph:
             polygonized: AvSinglePolygonPath = closed_path.polygonized_path()
 
             # Edge case: skip degenerate contours with near-zero area
-            if abs(polygonized.area) < 1e-10:
+            if polygonized.area < 1e-10:
                 processed_contours.append(contour)
                 polygonized_contours.append(None)
                 continue
@@ -304,7 +304,7 @@ class AvGlyph:
                 continue
 
             # Get current area and test point
-            current_area = abs(polygonized.area)
+            current_area = polygonized.area
             test_point = polygonized.representative_point()
 
             # Check if this contour is geometrically nested inside another contour
@@ -314,7 +314,7 @@ class AvGlyph:
 
             for j, other_polygonized in enumerate(polygonized_contours):
                 if j != i and other_polygonized is not None:
-                    other_area = abs(other_polygonized.area)
+                    other_area = other_polygonized.area
                     other_bbox = other_polygonized.bounding_box()
 
                     # Strict test: current bbox must be fully inside other bbox

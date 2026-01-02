@@ -1103,6 +1103,10 @@ Mandatory:
     print(path1.area())  # positive, counterclockwise
     print(path2.area())  # negative, clockwise
     ```
+    
+    Note: `svgpathtools.area()` returns signed values (positive for CCW, negative for CW),
+    while the `ave` library's area methods always return 0 or positive values regardless
+    of winding direction.
 - [Shapely](https://shapely.readthedocs.io/en/stable/manual.html)
   is a Python package for working with vector geometries
   - For the defintions / conventions used by `Shapely` and `JTS` see  
