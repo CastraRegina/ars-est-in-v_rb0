@@ -2,6 +2,7 @@
 
 from typing import Dict, Optional
 
+import numpy as np
 from fontTools.ttLib import TTFont
 
 from ave.font import AvFont
@@ -69,7 +70,102 @@ def print_text(svg_page: AvSvgPage, xpos: float, ypos: float, text: str, avfont:
         current_xpos += letter.width
 
 
-def customize_glyph(glyph: AvGlyph) -> AvGlyph:
+def create_new_q_tail(bbox: AvBox, dash_thickness: float) -> AvPath:
+    """Create a new Q-tail segment with quadratic curves.
+
+    Args:
+        bbox: Bounding box of the shifted Q-tail segment
+        dash_thickness: Thickness of the dash stroke
+
+    Returns:
+        New Q-tail segment with quadratic curves at top-left and bottom-right
+    """
+    # Calculate points for a diagonal beam (top-left to bottom-right) with thickness dash_thickness
+    # The beam is a parallelogram centered on the main diagonal
+
+    # Calculate the diagonal direction vector (from top-left to bottom-right)
+    diag_x = bbox.xmax - bbox.xmin
+    diag_y = bbox.ymin - bbox.ymax
+    diag_length = np.sqrt(diag_x**2 + diag_y**2)
+
+    # Normalize diagonal direction
+    diag_dir_x = diag_x / diag_length
+    diag_dir_y = diag_y / diag_length
+
+    # Perpendicular direction (90° rotation for thickness)
+    perp_x = -diag_dir_y
+    perp_y = diag_dir_x
+
+    # Half thickness - the beam is centered on the diagonal
+    half_t = dash_thickness / 2
+
+    # The main diagonal passes through (bbox.xmin, bbox.ymax) to (bbox.xmax, bbox.ymin)
+    # Line 1 (upper edge): offset by +half_t in perpendicular direction
+    # Line 2 (lower edge): offset by -half_t in perpendicular direction
+
+    # Reference point on the diagonal (top-left corner)
+    ref_x = bbox.xmin
+    ref_y = bbox.ymax
+
+    # Line 1: upper edge of beam (offset +half_t perpendicular)
+    line1_x = ref_x + perp_x * half_t
+    line1_y = ref_y + perp_y * half_t
+
+    # Line 2: lower edge of beam (offset -half_t perpendicular)
+    line2_x = ref_x - perp_x * half_t
+    line2_y = ref_y - perp_y * half_t
+
+    # Find intersection of line 1 with top edge (y = bbox.ymax)
+    # Point 1: on top edge
+    if abs(diag_dir_y) > 1e-10:
+        t1 = (bbox.ymax - line1_y) / diag_dir_y
+        p1_x = line1_x + t1 * diag_dir_x
+    else:
+        p1_x = bbox.xmin
+    p1_y = bbox.ymax
+
+    # Find intersection of line 1 with right edge (x = bbox.xmax)
+    # Point 2: on right edge
+    if abs(diag_dir_x) > 1e-10:
+        t2 = (bbox.xmax - line1_x) / diag_dir_x
+        p2_y = line1_y + t2 * diag_dir_y
+    else:
+        p2_y = bbox.ymin
+    p2_x = bbox.xmax
+
+    # Find intersection of line 2 with bottom edge (y = bbox.ymin)
+    # Point 3: on bottom edge
+    if abs(diag_dir_y) > 1e-10:
+        t3 = (bbox.ymin - line2_y) / diag_dir_y
+        p3_x = line2_x + t3 * diag_dir_x
+    else:
+        p3_x = bbox.xmax
+    p3_y = bbox.ymin
+
+    # Find intersection of line 2 with left edge (x = bbox.xmin)
+    # Point 4: on left edge
+    if abs(diag_dir_x) > 1e-10:
+        t4 = (bbox.xmin - line2_x) / diag_dir_x
+        p4_y = line2_y + t4 * diag_dir_y
+    else:
+        p4_y = bbox.ymax
+    p4_x = bbox.xmin
+
+    # CCW order: 1 (top) -> 4 (left) -> 3 (bottom) -> 2 (right)
+    points = np.array(
+        [
+            [p1_x, p1_y, 0],  # 1: top edge
+            [p4_x, p4_y, 0],  # 4: left edge
+            [p3_x, p3_y, 0],  # 3: bottom edge
+            [p2_x, p2_y, 0],  # 2: right edge
+        ]
+    )
+
+    segment = AvPath(points, np.array(["M", "L", "L", "L", "Z"]))
+    return segment
+
+
+def customize_glyph(glyph: AvGlyph, dash_thickness: float) -> AvGlyph:
     """Update a glyph after the revise step.
 
     Algorithm Steps (for 'Q' glyph):
@@ -171,10 +267,52 @@ def customize_glyph(glyph: AvGlyph) -> AvGlyph:
             # Create a new segment with shifted points
             shifted_segment = AvPath(shifted_points[:, :2], tail_segment.commands)  # Use only x, y coordinates
 
-            # 8. Replace line with quadratic curve in the shifted tail segment
-            shifted_segment = replace_line_with_quadratic_curve(shifted_segment)
+            # # 8. Ensure the segment starts with the topmost point for proper L-command connections
+            # # Find the index of the point with maximum y-coordinate
+            # points = shifted_segment.points[:, :2]
+            # max_y_idx = np.argmax(points[:, 1])
 
-            # 9. Rebuild the path with the modified segment, preserving original order
+            # # Rotate sequence so the topmost point becomes the first point
+            # if max_y_idx != 0:
+            #     # Copy of rotate_segment_points logic to avoid calling private method
+            #     pts = shifted_segment.points
+            #     rotated_pts = np.concatenate([pts[max_y_idx:], pts[:max_y_idx]])
+            #     shifted_segment = AvPath(rotated_pts, shifted_segment.commands)
+
+            # # IMPORTANT: Get the bounding box NOW, before any curve modifications
+            # # This ensures both control points are calculated from the original polygon
+            # original_bbox = shifted_segment.bounding_box()
+
+            # # Find top-left points
+            # points_tl = shifted_segment.points[:, :2]
+            # scores_tl = -points_tl[:, 0] + points_tl[:, 1]
+            # sorted_indices_tl = np.argsort(scores_tl)[::-1]
+            # tl_idx1, tl_idx2 = sorted_indices_tl[0], sorted_indices_tl[1]
+
+            # # Find bottom-right points (before any modifications)
+            # scores_br = points_tl[:, 0] - points_tl[:, 1]
+            # sorted_indices_br = np.argsort(scores_br)[::-1]
+            # br_idx1, br_idx2 = sorted_indices_br[0], sorted_indices_br[1]
+
+            # # 9. Apply top-left curve (control point at min-x, max-y)
+            # tl_control = np.array([original_bbox.xmin, original_bbox.ymax])
+            # shifted_segment = replace_line_with_curve(shifted_segment, tl_idx1, tl_idx2, tl_control)
+
+            # # Adjust bottom-right indices if they shifted due to control point insertion
+            # # The top-left curve inserts a point at tl_idx2 (the larger index after sorting)
+            # insert_idx = max(tl_idx1, tl_idx2)
+            # if br_idx1 >= insert_idx:
+            #     br_idx1 += 1
+            # if br_idx2 >= insert_idx:
+            #     br_idx2 += 1
+
+            # # 10. Apply bottom-right curve (control point at max-x, min-y)
+            # br_control = np.array([original_bbox.xmax, original_bbox.ymin])
+            # shifted_segment = replace_line_with_curve(shifted_segment, br_idx1, br_idx2, br_control)
+
+            shifted_segment = create_new_q_tail(shifted_segment.bounding_box(), dash_thickness)
+
+            # 11. Rebuild the path with the modified segment, preserving original order
             new_segments = []
             for segment in segments:
                 if segment is tail_segment:
@@ -196,140 +334,129 @@ def customize_glyph(glyph: AvGlyph) -> AvGlyph:
     return glyph
 
 
-def replace_line_with_quadratic_curve(segment: AvPath) -> AvPath:
-    """Replace the line between the two most bottom-right points with a quadratic curve.
-
-    Algorithm Steps:
-    1. Find the two most bottom-right points using scoring function:
-        - Score = x - y (higher x increases score, lower y increases score)
-        - This correctly identifies points that are most right (high x) and most bottom (low y)
-
-    2. Check if the two points are directly connected:
-        - Consecutive points: abs(idx1 - idx2) == 1
-        - Z connection: one point is first (index 0) and other is last (index n-1)
-
-    3. Handle Z connections by rotating the path:
-        - Rotate the path so the Z edge becomes a regular edge (between indices 0 and 1)
-        - This simplifies processing by treating all edges uniformly
-        - After modification, rotate the path back to original position
-
-    4. Calculate the quadratic curve control point:
-        - Position at segment's maximum x-coordinate (rightmost point)
-        - Position at segment's minimum y-coordinate (bottommost point)
-        - This creates an outward bulging curve
-
-    5. Replace the line command with quadratic curve:
-        - For regular edges: Replace 'L' command with 'Q' and insert control point
-        - For Z edges: Process after rotation, then rotate back
-        - Maintain proper point/command correspondence for valid AvPath
+def replace_line_with_curve(segment: AvPath, idx1: int, idx2: int, control_point: np.ndarray) -> AvPath:
+    """Replace the line between two points with a quadratic curve.
 
     Args:
         segment: The path segment to modify
+        idx1, idx2: Indices of the two points to connect with a curve
+        control_point: The control point for the quadratic curve
 
     Returns:
-        Modified segment with quadratic curve replacing the identified line,
-        or original segment if points are not directly connected
-
-    Example:
-        For a tail segment with points [A, B, C, D] where A and B are most bottom-right:
-        - Original: M A L B L C L D Z
-        - Modified: M A Q control_point B L C L D Z
+        Modified segment with quadratic curve
     """
-    import numpy as np
-
-    from ave.path_processing import AvPathCurveRebuilder
-
     if len(segment.points) < 2:
         return segment
 
-    # Find the two most bottom-right points
-    # Score = x - y (higher x increases score, lower y increases score)
-    points = segment.points[:, :2]
-    scores = points[:, 0] - points[:, 1]
+    # Ensure idx1 < idx2
+    if idx1 > idx2:
+        idx1, idx2 = idx2, idx1
 
-    # Get indices of two points with highest scores
-    sorted_indices = np.argsort(scores)[::-1]  # Sort in descending order
-    idx1, idx2 = sorted_indices[0], sorted_indices[1]
-
-    # Check if these points are connected by a line
-    # They could be consecutive or connected by Z (first and last)
-    is_z_connection = (idx1 == 0 and idx2 == len(points) - 1) or (idx1 == len(points) - 1 and idx2 == 0)
-    is_consecutive = abs(idx1 - idx2) == 1
-
-    if not (is_z_connection or is_consecutive):
-        # Points are not directly connected, return original
+    # Must be consecutive
+    if abs(idx1 - idx2) != 1:
         return segment
 
-    # Get the connection points in order
-    if is_z_connection:
-        # For Z connection, rotate the path to make it a regular edge
-        # Ensure idx1 is the start point
-        if idx1 != 0:
-            idx1, idx2 = idx2, idx1
+    new_points = segment.points.copy()
+    new_commands = segment.commands.copy()
 
-        # Rotate so the Z edge becomes the first edge
-        rotated_segment = AvPathCurveRebuilder._rotate_segment_points(segment, -idx1)
+    if idx2 < len(new_commands) and new_commands[idx2] in ("L", "Z"):
+        is_closing = new_commands[idx2] == "Z"
+        new_commands[idx2] = "Q"
+        control_with_type = np.array([control_point[0], control_point[1], 2.0])
+        new_points = np.insert(new_points, idx2, control_with_type, axis=0)
+        if is_closing:
+            new_commands = np.append(new_commands, "Z")
+            start_point = new_points[0].copy()
+            new_points = np.vstack([new_points, start_point])
 
-        # Now the connection is between points 0 and 1
-        start_point = rotated_segment.points[0][:2]
-        end_point = rotated_segment.points[1][:2]
+    return AvPath(new_points, new_commands)
 
-        # Calculate control point at max-x, min-y of the segment
-        segment_bbox = segment.bounding_box()
-        control_point = np.array([segment_bbox.xmax, segment_bbox.ymin])
 
-        # Build new path with curve
-        new_points = []
-        new_commands = []
+def replace_line_with_quadratic_curve_top_left_simple(segment: AvPath, idx1: int, idx2: int) -> AvPath:
+    """Replace the line between two specified points (top-left) with a quadratic curve.
 
-        # Add start point
-        new_points.append([start_point[0], start_point[1], 0.0])
-        new_commands.append("M")
+    Simplified version - assumes points are consecutive and no Z-connection handling needed.
 
-        # Add quadratic curve (control point + end point)
-        new_points.append([control_point[0], control_point[1], 2.0])
-        new_commands.append("Q")
-        new_points.append([end_point[0], end_point[1], 0.0])
-        new_commands.append("L")
+    Args:
+        segment: The path segment to modify
+        idx1, idx2: Indices of the two points to connect with a curve (must be consecutive)
 
-        # Add remaining points (skip first 2 which we've processed)
-        for i in range(2, len(rotated_segment.points)):
-            new_points.append(rotated_segment.points[i])
-            new_commands.append("L")
+    Returns:
+        Modified segment with quadratic curve
+    """
+    if len(segment.points) < 2:
+        return segment
 
-        # Ensure Z is at the end if it was there
-        if rotated_segment.commands[-1] == "Z":
-            new_commands[-1] = "Z"
+    # Ensure idx1 < idx2
+    if idx1 > idx2:
+        idx1, idx2 = idx2, idx1
 
-        # Create new segment and rotate back
-        new_segment = AvPath(np.array(new_points), new_commands)
-        final_segment = AvPathCurveRebuilder._rotate_segment_points(new_segment, idx1)
+    # Must be consecutive
+    if abs(idx1 - idx2) != 1:
+        return segment
 
-        return final_segment
+    # Control point at min-x, max-y
+    segment_bbox = segment.bounding_box()
+    control_point = np.array([segment_bbox.xmin, segment_bbox.ymax])
 
-    else:  # is_consecutive
-        # Ensure idx1 < idx2 for consistency
-        if idx1 > idx2:
-            idx1, idx2 = idx2, idx1
+    # Replace L with Q and insert control point
+    new_points = segment.points.copy()
+    new_commands = segment.commands.copy()
 
-        start_point = segment.points[idx1][:2]
-        end_point = segment.points[idx2][:2]
+    if idx2 < len(new_commands) and new_commands[idx2] == "L":
+        new_commands[idx2] = "Q"
+        control_with_type = np.array([control_point[0], control_point[1], 2.0])
+        new_points = np.insert(new_points, idx2, control_with_type, axis=0)
 
-        # Calculate control point at max-x, min-y of the segment
-        segment_bbox = segment.bounding_box()
-        control_point = np.array([segment_bbox.xmax, segment_bbox.ymin])
+    return AvPath(new_points, new_commands)
 
-        # Simple approach: replace the L command at idx2 with Q and add control point
-        new_points = segment.points.copy()
-        new_commands = segment.commands.copy()
 
-        # Replace L with Q and insert control point
-        if idx2 < len(new_commands) and new_commands[idx2] == "L":
-            new_commands[idx2] = "Q"
-            control_with_type = np.array([control_point[0], control_point[1], 2.0])
-            new_points = np.insert(new_points, idx2, control_with_type, axis=0)
+def replace_line_with_quadratic_curve_bottom_right_simple(segment: AvPath, idx1: int, idx2: int) -> AvPath:
+    """Replace the line between two specified points (bottom-right) with a quadratic curve.
 
-        return AvPath(new_points, new_commands)
+    Simplified version - assumes points are consecutive and no Z-connection handling needed.
+
+    Args:
+        segment: The path segment to modify
+        idx1, idx2: Indices of the two points to connect with a curve (must be consecutive)
+
+    Returns:
+        Modified segment with quadratic curve
+    """
+    if len(segment.points) < 2:
+        return segment
+
+    # Ensure idx1 < idx2
+    if idx1 > idx2:
+        idx1, idx2 = idx2, idx1
+
+    # Must be consecutive
+    if abs(idx1 - idx2) != 1:
+        return segment
+
+    # Control point at max-x, min-y
+    segment_bbox = segment.bounding_box()
+    control_point = np.array([segment_bbox.xmax, segment_bbox.ymin])
+
+    # Replace L or Z with Q and insert control point
+    new_points = segment.points.copy()
+    new_commands = segment.commands.copy()
+
+    if idx2 < len(new_commands) and new_commands[idx2] in ("L", "Z"):
+        is_closing = new_commands[idx2] == "Z"
+        new_commands[idx2] = "Q"
+        control_with_type = np.array([control_point[0], control_point[1], 2.0])
+        new_points = np.insert(new_points, idx2, control_with_type, axis=0)
+        # If it was a Z command, add L for the endpoint and Z to close the path
+        if is_closing:
+            # The Q command now uses ctrl and the original endpoint
+            # Add L command for the closing line and Z for close
+            new_commands = np.append(new_commands, "Z")
+            # Z needs a point - use the starting point
+            start_point = new_points[0].copy()
+            new_points = np.vstack([new_points, start_point])
+
+    return AvPath(new_points, new_commands)
 
 
 def clean_chars_and_render_steps_on_page(
@@ -402,7 +529,7 @@ def clean_chars_and_render_steps_on_page(
         # Step 2: Update glyph (custom modifications)
         if char == characters[0]:
             print_text(svg_page, 0.005, current_ypos, "S2-customize-glyph", avfont, INFO_SIZE)
-        glyph = customize_glyph(glyph)
+        glyph = customize_glyph(glyph, avfont.props.dash_thickness)
         path = glyph.path
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
@@ -576,7 +703,7 @@ def main():
     detail_chars += 'i:%"'  # several polygons
     detail_chars += "€#"  # several intersections
 
-    characters = detail_chars
+    characters = detail_chars + "-"
 
     # -------------------------------------------------------------------------
 
