@@ -152,16 +152,19 @@ def create_new_q_tail(bbox: AvBox, dash_thickness: float) -> AvPath:
     p4_x = bbox.xmin
 
     # CCW order: 1 (top) -> 4 (left) -> 3 (bottom) -> 2 (right)
+    # Add control points at bbox corners for quadratic curves
     points = np.array(
         [
             [p1_x, p1_y, 0],  # 1: top edge
-            [p4_x, p4_y, 0],  # 4: left edge
-            [p3_x, p3_y, 0],  # 3: bottom edge
-            [p2_x, p2_y, 0],  # 2: right edge
+            [bbox.xmin, bbox.ymax, 2.0],  # 2: control point (top-left corner)
+            [p4_x, p4_y, 0],  # 3: left edge
+            [p3_x, p3_y, 0],  # 4: bottom edge
+            [bbox.xmax, bbox.ymin, 2.0],  # 5: control point (bottom-right corner)
+            [p2_x, p2_y, 0],  # 6: right edge
         ]
     )
 
-    segment = AvPath(points, np.array(["M", "L", "L", "L", "Z"]))
+    segment = AvPath(points, np.array(["M", "Q", "L", "Q", "Z"]))
     return segment
 
 
