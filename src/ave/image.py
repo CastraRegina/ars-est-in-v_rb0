@@ -17,6 +17,26 @@ class AvImage:
     The image data is stored as Pillow Type L (8-bit pixels, grayscale),
     where black=0 and white=255. The internal representation uses NumPy
     arrays for efficient processing.
+
+    Two coordinate systems are supported:
+
+    1. Pixel Coordinate System (_px suffix):
+        - Origin (0, 0) is at the top-left corner
+        - X increases from left to right
+        - Y increases from top to bottom
+        - Valid pixel coordinates: X in [0, width-1], Y in [0, height-1]
+        - Example: For a 100x200 image, pixels range from (0,0) to (99,199)
+
+    2. Relative Coordinate System (_rel suffix):
+        - Origin (0, 0) is at the bottom-left corner
+        - X increases from left to right
+        - Y increases from bottom to top
+        - X normalized to [0, 1] where 1 = width_px
+        - Y normalized to [0, height_px*scale] where scale = 1/width_px
+        - Uses float parameters for precise positioning
+
+    Region extraction uses zero-copy NumPy views for maximum performance.
+    Coordinates are automatically clipped to bounds and swapped if needed.
     """
 
     _image: np.ndarray[np.uint8, :]
@@ -68,6 +88,33 @@ class AvImage:
         """
         return self._image.shape[0]
 
+    @property
+    def width_rel(self) -> float:
+        """Get the image width in relative coordinates.
+
+        Returns:
+            Width as 1.0 (normalized)
+        """
+        return 1.0
+
+    @property
+    def height_rel(self) -> float:
+        """Get the image height in relative coordinates.
+
+        Returns:
+            Height normalized to width (height_px / width_px)
+        """
+        return self.height_px / self.width_px
+
+    @property
+    def scale_rel(self) -> float:
+        """Get the scale factor for relative coordinates.
+
+        Returns:
+            Scale factor (1.0 / width_px)
+        """
+        return 1.0 / self.width_px
+
     def get_region_px(self, x1: int, y1: int, x2: int, y2: int) -> np.ndarray[np.uint8, :]:
         """Get a read-only view of a rectangular region of the image.
 
@@ -104,8 +151,10 @@ class AvImage:
         Returns:
             Read-only view of the specified region as NumPy array
 
-        Raises:
-            ValueError: If image is empty (width or height is 0)
+        Note:
+            This function never raises errors for invalid coordinates. Coordinates are
+            automatically clipped to image bounds, swapped if needed, and adjusted to
+            ensure at least one pixel is returned.
         """
         # Ensure x1 <= x2 and y1 <= y2 by swapping if needed
         if x1 > x2:
@@ -135,6 +184,43 @@ class AvImage:
         region.flags.writeable = False
 
         return region
+
+    def get_region_rel(self, x1: float, y1: float, x2: float, y2: float) -> np.ndarray[np.uint8, :]:
+        """Get a read-only view of a rectangular region using relative coordinates.
+
+        This method works with the relative coordinate system where:
+        - Origin (0, 0) is at the bottom-left corner
+        - X increases from left to right, normalized to [0, 1]
+        - Y increases from bottom to top, normalized to [0, height_px*scale]
+
+        The method converts relative coordinates to pixel coordinates
+        and delegates to get_region_px() for actual region extraction.
+
+        Args:
+            x1: Left coordinate in relative units (float, 0 to 1)
+            y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
+            x2: Right coordinate in relative units (float, 0 to 1)
+            y2: Top coordinate in relative units (float, 0 to height_px*scale)
+
+        Returns:
+            Read-only view of the specified region as NumPy array
+
+        Note:
+            This function never raises errors for invalid coordinates. Coordinates are
+            converted to pixel space and then processed by get_region_px(), which
+            automatically clips to bounds and ensures at least one pixel is returned.
+        """
+        # Convert relative X coordinates to pixel coordinates
+        px1 = int(round(x1 / self.scale_rel))
+        px2 = int(round(x2 / self.scale_rel))
+
+        # Convert relative Y coordinates to pixel coordinates
+        # Y is inverted because relative system starts from bottom
+        py1 = int(round((self.height_rel - y1) / self.scale_rel))
+        py2 = int(round((self.height_rel - y2) / self.scale_rel))
+
+        # Delegate to pixel-based method
+        return self.get_region_px(px1, py1, px2, py2)
 
     @classmethod
     def from_file(cls, filename: Union[str, Path]) -> AvImage:
