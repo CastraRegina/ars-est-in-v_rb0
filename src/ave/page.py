@@ -25,9 +25,22 @@ from ave.glyph import AvGlyphCachedSourceFactory, AvGlyphFromTTFontFactory, AvLe
 class AvSvgPage:
     """A page (canvas) described by SVG with a viewbox to draw inside.
 
-    The viewbox has its own coordinate-system left-to-right and bottom-to-top.
+    Coordinate System:
+        - The canvas uses physical dimensions in millimeters (e.g., A4: 210x297 mm)
+        - The viewbox defines a drawable area with its own coordinate system
+        - Viewbox coordinates start at (0, 0) in the bottom-left corner
+        - X increases from left to right, Y increases from bottom to top
+        - Maximum coordinates are (viewbox_width, viewbox_height) in the top-right
+        - A scale factor (viewbox_scale) can be applied to normalize coordinates
+            (e.g., scale=1/width makes X range from 0 to 1)
+
+    Example: With viewbox_width=170mm, viewbox_height=120mm, scale=1/170:
+        - Bottom-left corner: (0, 0)
+        - Top-right corner: (1.0, 120/170 ≈ 0.706)
+        - Center point: (0.5, 0.353)
+
     Contains groups/layers:
-        - root       -- (group) just contains the y-flip and translation to bottom left
+        - root       -- (group) contains y-flip and translation to bottom-left origin
             - main   -- editable->locked=False  --  hidden->display="block"
             - debug  -- editable->locked=False  --  hidden->display="none"
     """
