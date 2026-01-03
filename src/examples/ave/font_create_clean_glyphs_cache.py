@@ -9,6 +9,7 @@ from ave.font import AvFont
 from ave.fonttools import FontHelper
 from ave.geom import AvBox
 from ave.glyph import (
+    AvFontProperties,
     AvGlyph,
     AvGlyphCachedSourceFactory,
     AvGlyphFromTTFontFactory,
@@ -105,7 +106,7 @@ def create_new_q_tail(bbox: AvBox, dash_thickness: float) -> AvPath:
     return AvPath(points, ["M", "Q", "L", "Q", "Z"])
 
 
-def customize_glyph(glyph: AvGlyph, dash_thickness: float) -> AvGlyph:
+def customize_glyph(glyph: AvGlyph, props: AvFontProperties) -> AvGlyph:
     """Update a glyph after the revise step.
 
     Algorithm Steps (for 'Q' glyph):
@@ -113,8 +114,8 @@ def customize_glyph(glyph: AvGlyph, dash_thickness: float) -> AvGlyph:
         - This separates the outer circle, inner hole, and tail into distinct paths
 
     2. Filter for CCW segments (exterior polygons):
-        - Use segment.is_ccw to identify exterior contours (counter-clockwise)
-        - Exclude interior holes (clockwise) from processing
+        - Use segment.area > 0 and segment.is_ccw to identify exterior contours
+        - Exclude interior holes from processing
         - The Q glyph typically has 2 CCW segments: outer circle and tail
 
     3. Identify the tail segment:
@@ -131,272 +132,104 @@ def customize_glyph(glyph: AvGlyph, dash_thickness: float) -> AvGlyph:
         - shift_y = combined_bbox.ymin - tail_bbox.ymin (align bottom edges)
         - This positions the tail at the bottom-right of the main body
 
-    6. Apply transformation:
+    6. Apply transformation and create new tail:
         - Shift all points in the tail segment by (shift_x, shift_y)
-        - Create new segment with shifted coordinates
+        - Use shifted bounding box to create a new stylized tail via
+            create_new_q_tail() with the specified dash_thickness
 
-    7. Replace line with quadratic curve:
-        - Find two most bottom-right points in the shifted tail
-        - Replace the line between them with a quadratic curve
-        - Control point positioned at max-x, min-y of the segment
-
-    8. Reconstruct the glyph:
-        - Replace original tail with shifted, curved tail
+    7. Reconstruct the glyph:
+        - Replace original tail with the new stylized tail
         - Preserve original segment order
         - Join all segments back into a single path
 
     Args:
-        glyph: The glyph to potentially update
+        glyph: The glyph to potentially update.
+        props: Font properties containing dash_thickness and font information.
 
     Returns:
-        A new glyph if modifications were made, or the same glyph if no changes
+        A new glyph if modifications were made, or the same glyph if no changes.
     """
 
-    if glyph.character == "Q":
-        path = glyph.path
+    if props.full_name == "Roboto Flex Regular":
+        if glyph.character == "Q":
+            path = glyph.path
 
-        # 1. Split the path into segments
-        segments = path.split_into_single_paths()
+            # 1. Split the path into segments
+            segments = path.split_into_single_paths()
 
-        # 2. Filter for CCW segments (positive/exterior segments)
-        ccw_segments = []
-        for segment in segments:
-            if segment.area > 0 and hasattr(segment, "is_ccw") and segment.is_ccw:
-                ccw_segments.append(segment)
+            # 2. Filter for CCW segments (positive/exterior segments)
+            ccw_segments = []
+            for segment in segments:
+                if segment.area > 0 and hasattr(segment, "is_ccw") and segment.is_ccw:
+                    ccw_segments.append(segment)
 
-        # If we have less than 2 CCW segments, return original glyph
-        if len(ccw_segments) < 2:
+            # If we have less than 2 CCW segments, return original glyph
+            if len(ccw_segments) < 2:
+                return glyph
+
+            # 3. Identify the tail segment by centroid position (most bottom-right)
+            # Use evaluation function: maximize x, minimize y
+            # Score = x - y (higher x increases score, lower y increases score)
+            tail_segment: AvPath = max(
+                ccw_segments, key=lambda s: s.bounding_box().centroid[0] - s.bounding_box().centroid[1]
+            )
+
+            # 4. Get the bounding box of the tail segment
+            tail_bbox = tail_segment.bounding_box()
+
+            # 5. Create a list of all other segments (excluding the tail)
+            other_segments = [s for s in segments if s is not tail_segment]
+
+            # 6. Calculate the combined bounding box of all other segments
+            if other_segments:
+                # Start with the first segment's bbox
+                combined_bbox = other_segments[0].bounding_box()
+
+                # Expand to include all other segments
+                for segment in other_segments[1:]:
+                    seg_bbox = segment.bounding_box()
+                    combined_bbox = AvBox(
+                        min(combined_bbox.xmin, seg_bbox.xmin),
+                        min(combined_bbox.ymin, seg_bbox.ymin),
+                        max(combined_bbox.xmax, seg_bbox.xmax),
+                        max(combined_bbox.ymax, seg_bbox.ymax),
+                    )
+
+                # 7. Calculate the shift needed to position tail at bottom-right
+                shift_x = combined_bbox.xmax - tail_bbox.xmax  # Align right edges
+                shift_y = combined_bbox.ymin - tail_bbox.ymin  # Align bottom edges
+
+                # Apply the shift to all points in the tail segment
+                shifted_points = tail_segment.points.copy()
+                shifted_points[:, 0] += shift_x
+                shifted_points[:, 1] += shift_y
+
+                # Create a temporary segment to get the shifted bounding box
+                shifted_segment = AvPath(shifted_points[:, :2], tail_segment.commands)
+
+                # 8. Create a new stylized tail using the shifted bounding box
+                shifted_segment = create_new_q_tail(shifted_segment.bounding_box(), props.dash_thickness)
+
+                # 9. Rebuild the path with the new tail, preserving original order
+                new_segments = []
+                for segment in segments:
+                    if segment is tail_segment:
+                        new_segments.append(shifted_segment)
+                    else:
+                        new_segments.append(segment)
+
+                # Join all segments back together in the same sequence
+                if len(new_segments) > 0:
+                    new_path = new_segments[0]
+                    for segment in new_segments[1:]:
+                        new_path = new_path.append(segment)
+                else:
+                    new_path = path
+
+                return AvGlyph(glyph.character, glyph.width(), new_path)
             return glyph
 
-        # 3. Identify the tail segment by centroid position (most bottom-right)
-        # Use evaluation function: maximize x, minimize y
-        # Score = x - y (higher x increases score, lower y increases score)
-        tail_segment = max(ccw_segments, key=lambda s: s.bounding_box().centroid[0] - s.bounding_box().centroid[1])
-
-        # 4. Get the bounding box of the tail segment
-        small_bbox = tail_segment.bounding_box()
-
-        # 5. Create a list of all other segments (excluding the tail)
-        other_segments = [s for s in segments if s is not tail_segment]
-
-        # 6. Calculate the combined bounding box of all other segments
-        if other_segments:
-            # Start with the first segment's bbox
-            combined_bbox = other_segments[0].bounding_box()
-
-            # Expand to include all other segments
-            for segment in other_segments[1:]:
-                seg_bbox = segment.bounding_box()
-                combined_bbox = AvBox(
-                    min(combined_bbox.xmin, seg_bbox.xmin),
-                    min(combined_bbox.ymin, seg_bbox.ymin),
-                    max(combined_bbox.xmax, seg_bbox.xmax),
-                    max(combined_bbox.ymax, seg_bbox.ymax),
-                )
-
-            # 7. Calculate the shift needed to position tail at bottom-right
-            # Align tail so it extends from the bottom-right of the main body
-            shift_x = combined_bbox.xmax - small_bbox.xmax  # Align right edges
-            shift_y = combined_bbox.ymin - small_bbox.ymin  # Align bottom edges
-
-            # Apply the shift to all points in the tail segment
-            shifted_points = tail_segment.points.copy()
-            shifted_points[:, 0] += shift_x  # Shift x coordinates
-            shifted_points[:, 1] += shift_y  # Shift y coordinates
-
-            # Create a new segment with shifted points
-            shifted_segment = AvPath(shifted_points[:, :2], tail_segment.commands)  # Use only x, y coordinates
-
-            # # 8. Ensure the segment starts with the topmost point for proper L-command connections
-            # # Find the index of the point with maximum y-coordinate
-            # points = shifted_segment.points[:, :2]
-            # max_y_idx = np.argmax(points[:, 1])
-
-            # # Rotate sequence so the topmost point becomes the first point
-            # if max_y_idx != 0:
-            #     # Copy of rotate_segment_points logic to avoid calling private method
-            #     pts = shifted_segment.points
-            #     rotated_pts = np.concatenate([pts[max_y_idx:], pts[:max_y_idx]])
-            #     shifted_segment = AvPath(rotated_pts, shifted_segment.commands)
-
-            # # IMPORTANT: Get the bounding box NOW, before any curve modifications
-            # # This ensures both control points are calculated from the original polygon
-            # original_bbox = shifted_segment.bounding_box()
-
-            # # Find top-left points
-            # points_tl = shifted_segment.points[:, :2]
-            # scores_tl = -points_tl[:, 0] + points_tl[:, 1]
-            # sorted_indices_tl = np.argsort(scores_tl)[::-1]
-            # tl_idx1, tl_idx2 = sorted_indices_tl[0], sorted_indices_tl[1]
-
-            # # Find bottom-right points (before any modifications)
-            # scores_br = points_tl[:, 0] - points_tl[:, 1]
-            # sorted_indices_br = np.argsort(scores_br)[::-1]
-            # br_idx1, br_idx2 = sorted_indices_br[0], sorted_indices_br[1]
-
-            # # 9. Apply top-left curve (control point at min-x, max-y)
-            # tl_control = np.array([original_bbox.xmin, original_bbox.ymax])
-            # shifted_segment = replace_line_with_curve(shifted_segment, tl_idx1, tl_idx2, tl_control)
-
-            # # Adjust bottom-right indices if they shifted due to control point insertion
-            # # The top-left curve inserts a point at tl_idx2 (the larger index after sorting)
-            # insert_idx = max(tl_idx1, tl_idx2)
-            # if br_idx1 >= insert_idx:
-            #     br_idx1 += 1
-            # if br_idx2 >= insert_idx:
-            #     br_idx2 += 1
-
-            # # 10. Apply bottom-right curve (control point at max-x, min-y)
-            # br_control = np.array([original_bbox.xmax, original_bbox.ymin])
-            # shifted_segment = replace_line_with_curve(shifted_segment, br_idx1, br_idx2, br_control)
-
-            shifted_segment = create_new_q_tail(shifted_segment.bounding_box(), dash_thickness)
-
-            # 11. Rebuild the path with the modified segment, preserving original order
-            new_segments = []
-            for segment in segments:
-                if segment is tail_segment:
-                    new_segments.append(shifted_segment)
-                else:
-                    new_segments.append(segment)
-
-            # Join all segments back together in the same sequence
-            if len(new_segments) > 0:
-                new_path = new_segments[0]
-                for segment in new_segments[1:]:
-                    new_path = new_path.append(segment)
-            else:
-                new_path = path
-
-            return AvGlyph(glyph.character, glyph.width(), new_path)
-        return glyph
-
-    return glyph
-
-
-def replace_line_with_curve(segment: AvPath, idx1: int, idx2: int, control_point: np.ndarray) -> AvPath:
-    """Replace the line between two points with a quadratic curve.
-
-    Args:
-        segment: The path segment to modify
-        idx1, idx2: Indices of the two points to connect with a curve
-        control_point: The control point for the quadratic curve
-
-    Returns:
-        Modified segment with quadratic curve
-    """
-    if len(segment.points) < 2:
-        return segment
-
-    # Ensure idx1 < idx2
-    if idx1 > idx2:
-        idx1, idx2 = idx2, idx1
-
-    # Must be consecutive
-    if abs(idx1 - idx2) != 1:
-        return segment
-
-    new_points = segment.points.copy()
-    new_commands = segment.commands.copy()
-
-    if idx2 < len(new_commands) and new_commands[idx2] in ("L", "Z"):
-        is_closing = new_commands[idx2] == "Z"
-        new_commands[idx2] = "Q"
-        control_with_type = np.array([control_point[0], control_point[1], 2.0])
-        new_points = np.insert(new_points, idx2, control_with_type, axis=0)
-        if is_closing:
-            new_commands = np.append(new_commands, "Z")
-            start_point = new_points[0].copy()
-            new_points = np.vstack([new_points, start_point])
-
-    return AvPath(new_points, new_commands)
-
-
-def replace_line_with_quadratic_curve_top_left_simple(segment: AvPath, idx1: int, idx2: int) -> AvPath:
-    """Replace the line between two specified points (top-left) with a quadratic curve.
-
-    Simplified version - assumes points are consecutive and no Z-connection handling needed.
-
-    Args:
-        segment: The path segment to modify
-        idx1, idx2: Indices of the two points to connect with a curve (must be consecutive)
-
-    Returns:
-        Modified segment with quadratic curve
-    """
-    if len(segment.points) < 2:
-        return segment
-
-    # Ensure idx1 < idx2
-    if idx1 > idx2:
-        idx1, idx2 = idx2, idx1
-
-    # Must be consecutive
-    if abs(idx1 - idx2) != 1:
-        return segment
-
-    # Control point at min-x, max-y
-    segment_bbox = segment.bounding_box()
-    control_point = np.array([segment_bbox.xmin, segment_bbox.ymax])
-
-    # Replace L with Q and insert control point
-    new_points = segment.points.copy()
-    new_commands = segment.commands.copy()
-
-    if idx2 < len(new_commands) and new_commands[idx2] == "L":
-        new_commands[idx2] = "Q"
-        control_with_type = np.array([control_point[0], control_point[1], 2.0])
-        new_points = np.insert(new_points, idx2, control_with_type, axis=0)
-
-    return AvPath(new_points, new_commands)
-
-
-def replace_line_with_quadratic_curve_bottom_right_simple(segment: AvPath, idx1: int, idx2: int) -> AvPath:
-    """Replace the line between two specified points (bottom-right) with a quadratic curve.
-
-    Simplified version - assumes points are consecutive and no Z-connection handling needed.
-
-    Args:
-        segment: The path segment to modify
-        idx1, idx2: Indices of the two points to connect with a curve (must be consecutive)
-
-    Returns:
-        Modified segment with quadratic curve
-    """
-    if len(segment.points) < 2:
-        return segment
-
-    # Ensure idx1 < idx2
-    if idx1 > idx2:
-        idx1, idx2 = idx2, idx1
-
-    # Must be consecutive
-    if abs(idx1 - idx2) != 1:
-        return segment
-
-    # Control point at max-x, min-y
-    segment_bbox = segment.bounding_box()
-    control_point = np.array([segment_bbox.xmax, segment_bbox.ymin])
-
-    # Replace L or Z with Q and insert control point
-    new_points = segment.points.copy()
-    new_commands = segment.commands.copy()
-
-    if idx2 < len(new_commands) and new_commands[idx2] in ("L", "Z"):
-        is_closing = new_commands[idx2] == "Z"
-        new_commands[idx2] = "Q"
-        control_with_type = np.array([control_point[0], control_point[1], 2.0])
-        new_points = np.insert(new_points, idx2, control_with_type, axis=0)
-        # If it was a Z command, add L for the endpoint and Z to close the path
-        if is_closing:
-            # The Q command now uses ctrl and the original endpoint
-            # Add L command for the closing line and Z for close
-            new_commands = np.append(new_commands, "Z")
-            # Z needs a point - use the starting point
-            start_point = new_points[0].copy()
-            new_points = np.vstack([new_points, start_point])
-
-    return AvPath(new_points, new_commands)
+    return glyph  # no change, return original glyph
 
 
 def clean_chars_and_render_steps_on_page(
@@ -469,7 +302,7 @@ def clean_chars_and_render_steps_on_page(
         # Step 2: Update glyph (custom modifications)
         if char == characters[0]:
             print_text(svg_page, 0.005, current_ypos, "S2-customize-glyph", avfont, INFO_SIZE)
-        glyph = customize_glyph(glyph, avfont.props.dash_thickness)
+        glyph = customize_glyph(glyph, avfont.props)
         path = glyph.path
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
@@ -555,15 +388,25 @@ def clean_chars_and_render_steps_on_page(
     # Step 10: Print characters again using loaded glyphs
     print("Processing deserialized characters...")
     current_xpos = xpos
+    ypos = current_ypos
     for char in characters:
         print(f"{char}", end="", flush=True)
+        current_ypos = ypos
         glyph = clean_font.get_glyph(char)
         original_glyph = avfont.get_glyph(char)
         if char == characters[0]:
             print_text(svg_page, 0.005, current_ypos, "S10-(de)serialized-font", avfont, INFO_SIZE)
         # Print original glyph filled and cleaned glyph as stroke
-        delta_xpos = print_glyph_path(original_glyph, current_xpos, current_ypos, "black", True, stroke_width)
-        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "red", False, stroke_width)
+        delta_xpos = print_glyph_path(original_glyph, current_xpos, current_ypos, "red", True, stroke_width)
+        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
+        current_ypos += font_size
+
+        # Step 11: Print clean end result
+        if char == characters[0]:
+            print_text(svg_page, 0.005, current_ypos, "S11-end-result", avfont, INFO_SIZE)
+        print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
+        current_ypos += font_size
+
         current_xpos += delta_xpos
     print("")
 
@@ -643,7 +486,7 @@ def main():
     detail_chars += 'i:%"'  # several polygons
     detail_chars += "€#"  # several intersections
 
-    characters = detail_chars + "-"
+    # characters = detail_chars + "-"
 
     # -------------------------------------------------------------------------
 
@@ -666,6 +509,8 @@ def main():
         print(f"Saved to  {font_out_fn}")
 
         print("-----------------------------------------------------------------------")
+
+    print(avfont.props.info_string())
 
 
 if __name__ == "__main__":
