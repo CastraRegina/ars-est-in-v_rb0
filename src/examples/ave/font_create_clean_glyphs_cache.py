@@ -80,92 +80,29 @@ def create_new_q_tail(bbox: AvBox, dash_thickness: float) -> AvPath:
     Returns:
         New Q-tail segment with quadratic curves at top-left and bottom-right
     """
-    # Calculate points for a diagonal beam (top-left to bottom-right) with thickness dash_thickness
-    # The beam is a parallelogram centered on the main diagonal
-
-    # Calculate the diagonal direction vector (from top-left to bottom-right)
-    diag_x = bbox.xmax - bbox.xmin
-    diag_y = bbox.ymin - bbox.ymax
-    diag_length = np.sqrt(diag_x**2 + diag_y**2)
-
-    # Normalize diagonal direction
-    diag_dir_x = diag_x / diag_length
-    diag_dir_y = diag_y / diag_length
-
-    # Perpendicular direction (90° rotation for thickness)
-    perp_x = -diag_dir_y
-    perp_y = diag_dir_x
-
-    # Half thickness - the beam is centered on the diagonal
+    # Calculate diagonal length and offsets for the beam thickness
+    width = bbox.xmax - bbox.xmin
+    height = bbox.ymax - bbox.ymin
+    diag_length = np.sqrt(width**2 + height**2)
     half_t = dash_thickness / 2
 
-    # The main diagonal passes through (bbox.xmin, bbox.ymax) to (bbox.xmax, bbox.ymin)
-    # Line 1 (upper edge): offset by +half_t in perpendicular direction
-    # Line 2 (lower edge): offset by -half_t in perpendicular direction
+    # Offset along each edge from corner (derived from perpendicular thickness)
+    offset_x = half_t * diag_length / height  # offset along horizontal edges
+    offset_y = half_t * diag_length / width  # offset along vertical edges
 
-    # Reference point on the diagonal (top-left corner)
-    ref_x = bbox.xmin
-    ref_y = bbox.ymax
-
-    # Line 1: upper edge of beam (offset +half_t perpendicular)
-    line1_x = ref_x + perp_x * half_t
-    line1_y = ref_y + perp_y * half_t
-
-    # Line 2: lower edge of beam (offset -half_t perpendicular)
-    line2_x = ref_x - perp_x * half_t
-    line2_y = ref_y - perp_y * half_t
-
-    # Find intersection of line 1 with top edge (y = bbox.ymax)
-    # Point 1: on top edge
-    if abs(diag_dir_y) > 1e-10:
-        t1 = (bbox.ymax - line1_y) / diag_dir_y
-        p1_x = line1_x + t1 * diag_dir_x
-    else:
-        p1_x = bbox.xmin
-    p1_y = bbox.ymax
-
-    # Find intersection of line 1 with right edge (x = bbox.xmax)
-    # Point 2: on right edge
-    if abs(diag_dir_x) > 1e-10:
-        t2 = (bbox.xmax - line1_x) / diag_dir_x
-        p2_y = line1_y + t2 * diag_dir_y
-    else:
-        p2_y = bbox.ymin
-    p2_x = bbox.xmax
-
-    # Find intersection of line 2 with bottom edge (y = bbox.ymin)
-    # Point 3: on bottom edge
-    if abs(diag_dir_y) > 1e-10:
-        t3 = (bbox.ymin - line2_y) / diag_dir_y
-        p3_x = line2_x + t3 * diag_dir_x
-    else:
-        p3_x = bbox.xmax
-    p3_y = bbox.ymin
-
-    # Find intersection of line 2 with left edge (x = bbox.xmin)
-    # Point 4: on left edge
-    if abs(diag_dir_x) > 1e-10:
-        t4 = (bbox.xmin - line2_x) / diag_dir_x
-        p4_y = line2_y + t4 * diag_dir_y
-    else:
-        p4_y = bbox.ymax
-    p4_x = bbox.xmin
-
-    # CCW order: 1 (top) -> 4 (left) -> 3 (bottom) -> 2 (right)
-    # Add control points at bbox corners for quadratic curves
+    # 6 points in CCW order with control points at corners
     points = np.array(
         [
-            [p1_x, p1_y, 0],  # 1: top edge
+            [bbox.xmin + offset_x, bbox.ymax, 0.0],  # 1: top edge
             [bbox.xmin, bbox.ymax, 2.0],  # 2: control point (top-left corner)
-            [p4_x, p4_y, 0],  # 3: left edge
-            [p3_x, p3_y, 0],  # 4: bottom edge
+            [bbox.xmin, bbox.ymax - offset_y, 0.0],  # 3: left edge
+            [bbox.xmax - offset_x, bbox.ymin, 0.0],  # 4: bottom edge
             [bbox.xmax, bbox.ymin, 2.0],  # 5: control point (bottom-right corner)
-            [p2_x, p2_y, 0],  # 6: right edge
+            [bbox.xmax, bbox.ymin + offset_y, 0.0],  # 6: right edge
         ]
     )
 
-    segment = AvPath(points, np.array(["M", "Q", "L", "Q", "Z"]))
-    return segment
+    return AvPath(points, ["M", "Q", "L", "Q", "Z"])
 
 
 def customize_glyph(glyph: AvGlyph, dash_thickness: float) -> AvGlyph:
