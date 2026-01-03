@@ -1,0 +1,172 @@
+"""Image representation module for handling grayscale images using NumPy arrays."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Union
+
+import numpy as np
+import PIL.Image
+
+
+@dataclass
+class AvImage:
+    """An image representation storing grayscale data as NumPy array.
+
+    The image data is stored as Pillow Type L (8-bit pixels, grayscale),
+    where black=0 and white=255. The internal representation uses NumPy
+    arrays for efficient processing.
+    """
+
+    _image: np.ndarray[np.uint8, :]
+
+    def __init__(self, image: np.ndarray[np.uint8, :]):
+        """Initialize with a grayscale image as NumPy array.
+
+        Args:
+            image: NumPy array of type uint8 representing grayscale image
+        """
+        if not isinstance(image, np.ndarray):
+            raise TypeError("Image must be a NumPy array")
+
+        if image.dtype != np.uint8:
+            raise ValueError("Image array must be of type uint8")
+
+        if len(image.shape) != 2:
+            raise ValueError("Image must be 2-dimensional (grayscale)")
+
+        if image.shape[0] == 0 or image.shape[1] == 0:
+            raise ValueError("Image cannot have zero width or height")
+
+        self._image = image
+
+    @property
+    def image(self) -> np.ndarray:
+        """Get the image as NumPy array.
+
+        Returns:
+            NumPy array of shape (height, width) with uint8 values
+        """
+        return self._image
+
+    @property
+    def width_px(self) -> int:
+        """Get the image width in pixels.
+
+        Returns:
+            Width of the image in pixels
+        """
+        return self._image.shape[1]
+
+    @property
+    def height_px(self) -> int:
+        """Get the image height in pixels.
+
+        Returns:
+            Height of the image in pixels
+        """
+        return self._image.shape[0]
+
+    def get_region(self, x1: int, y1: int, x2: int, y2: int) -> np.ndarray[np.uint8, :]:
+        """Get a read-only view of a rectangular region of the image.
+
+        This method returns a NumPy array view, which is zero-copy and
+        extremely efficient. The view shares memory with the original
+        image, so modifications to the view will affect the original.
+
+        Coordinates are automatically clipped to image bounds and swapped
+        if provided in wrong order for convenience.
+
+        Coordinate System:
+            - Origin (0, 0) is at the top-left corner
+            - X increases from left to right
+            - Y increases from top to bottom
+            - Valid pixel coordinates: X in [0, width-1], Y in [0, height-1]
+            - Example: For a 100x200 image, pixels range from (0,0) to (99,199)
+
+        Examples:
+            # Get the entire image:
+            region = img.get_region(0, 0, img.width_px, img.height_px)
+
+            # Get a single pixel at (10, 20):
+            pixel = img.get_region(10, 20, 11, 21)
+
+            # Get a 50x50 region starting at top-left:
+            region = img.get_region(0, 0, 50, 50)
+
+        Args:
+            x1: Left coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based)
+            x2: Right coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based)
+
+        Returns:
+            Read-only view of the specified region as NumPy array
+
+        Raises:
+            ValueError: If image is empty (width or height is 0)
+        """
+        # Ensure x1 <= x2 and y1 <= y2 by swapping if needed
+        if x1 > x2:
+            x1, x2 = x2, x1
+        if y1 > y2:
+            y1, y2 = y2, y1
+
+        # Clip coordinates to image bounds
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(self.width_px, x2)
+        y2 = min(self.height_px, y2)
+
+        # Ensure at least one pixel is returned (x1,y1 is always inclusive)
+        if x1 >= x2 and x1 > 0:
+            x1 = x1 - 1
+        elif x1 >= x2:
+            x2 = min(1, self.width_px)
+
+        if y1 >= y2 and y1 > 0:
+            y1 = y1 - 1
+        elif y1 >= y2:
+            y2 = min(1, self.height_px)
+
+        # Return a view of the region (zero-copy operation)
+        region = self._image[y1:y2, x1:x2]
+
+        # Make the array read-only to prevent accidental modification
+        region.flags.writeable = False
+
+        return region
+
+    @classmethod
+    def from_file(cls, filename: Union[str, Path]) -> AvImage:
+        """Load an image from file and convert to grayscale.
+
+        Args:
+            filename: Path to the image file
+
+        Returns:
+            AvImage instance with grayscale data
+        """
+        # Load image using Pillow
+        with PIL.Image.open(filename) as img:
+            # Convert to grayscale (Type L) if not already
+            if img.mode != "L":
+                img = img.convert("L")
+
+            # Convert to NumPy array
+            image_array = np.array(img, dtype=np.uint8)
+
+        return cls(image_array)
+
+    def to_file(self, filename: Union[str, Path]) -> None:
+        """Save the image to file.
+
+        Args:
+            filename: Path where to save the image file
+        """
+        # Convert NumPy array back to Pillow Image
+        img = PIL.Image.fromarray(self._image, mode="L")
+
+        # Save to file
+        img.save(filename)
