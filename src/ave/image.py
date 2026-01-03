@@ -68,7 +68,7 @@ class AvImage:
         """
         return self._image.shape[0]
 
-    def get_region(self, x1: int, y1: int, x2: int, y2: int) -> np.ndarray[np.uint8, :]:
+    def get_region_px(self, x1: int, y1: int, x2: int, y2: int) -> np.ndarray[np.uint8, :]:
         """Get a read-only view of a rectangular region of the image.
 
         This method returns a NumPy array view, which is zero-copy and
@@ -87,13 +87,13 @@ class AvImage:
 
         Examples:
             # Get the entire image:
-            region = img.get_region(0, 0, img.width_px, img.height_px)
+            region = img.get_region_px(0, 0, img.width_px, img.height_px)
 
             # Get a single pixel at (10, 20):
-            pixel = img.get_region(10, 20, 11, 21)
+            pixel = img.get_region_px(10, 20, 11, 21)
 
             # Get a 50x50 region starting at top-left:
-            region = img.get_region(0, 0, 50, 50)
+            region = img.get_region_px(0, 0, 50, 50)
 
         Args:
             x1: Left coordinate (inclusive, 0-based)
@@ -119,16 +119,14 @@ class AvImage:
         x2 = min(self.width_px, x2)
         y2 = min(self.height_px, y2)
 
-        # Ensure at least one pixel is returned (x1,y1 is always inclusive)
-        if x1 >= x2 and x1 > 0:
-            x1 = x1 - 1
-        elif x1 >= x2:
-            x2 = min(1, self.width_px)
+        # Ensure at least one pixel is returned (simplified logic)
+        if x1 >= x2:
+            x1 = max(0, x1 - 1)
+            x2 = min(x1 + 1, self.width_px)
 
-        if y1 >= y2 and y1 > 0:
-            y1 = y1 - 1
-        elif y1 >= y2:
-            y2 = min(1, self.height_px)
+        if y1 >= y2:
+            y1 = max(0, y1 - 1)
+            y2 = min(y1 + 1, self.height_px)
 
         # Return a view of the region (zero-copy operation)
         region = self._image[y1:y2, x1:x2]
