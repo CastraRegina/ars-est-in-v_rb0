@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 from scipy.spatial import KDTree
 
 from ave.bezier import BezierCurve
-from ave.geom import AvPolygon
+from ave.geom import AvBox, AvPolygon
 from ave.path import (
     MULTI_POLYGON_CONSTRAINTS,
     AvMultiPolygonPath,
@@ -1019,5 +1019,130 @@ class AvPathCurveRebuilder:
                         return AvPath(np.array(new_pts), new_cmds)
                     except ValueError:
                         continue
-
         return seg
+
+
+class AvPathCreator:
+    """Utility class for creating common geometric paths.
+
+    Provides static methods to create AvPath objects for basic shapes
+    like circles and rectangles with proper SVG path commands.
+    """
+
+    @staticmethod
+    def circle(cx: float, cy: float, diameter: float) -> AvPath:
+        """Create a circular path using 4 quadratic Bezier curves.
+
+        The circle is approximated using 4 quadratic Bezier curve segments.
+        Each segment uses two control points to approximate a 90-degree arc.
+        The circle starts and ends on the perimeter.
+
+        Args:
+            cx (float): X coordinate of the circle center
+            cy (float): Y coordinate of the circle center
+            diameter (float): Diameter of the circle
+
+        Returns:
+            AvPath: A closed circular path
+
+        Note:
+            - The circle is centered at (cx, cy)
+            - Uses 4 control points for 4 curve segments
+            - Path starts and ends on perimeter at (cx + r, cy)
+            - Uses magic constant k = 0.552284749831 for optimal approximation
+            - Total commands: M + 4*Q + Z = 6
+            - Total points: 5 (start + 4 control/end pairs, Z has no point)
+        """
+        r = diameter / 2.0
+        k = 0.552284749831  # Magic constant for 4-curve circle approximation
+
+        # Generate 4 points for 4 quadratic Bezier curves
+        # Each curve has: start (current position), control point, end point
+        pts = np.array(
+            [
+                [cx + r, cy],  # Start on perimeter (rightmost point)
+                # First quadrant (bottom-right)
+                [cx + r, cy - k * r],  # Control point 1
+                [cx + k * r, cy - r],  # End of curve 1
+                # Second quadrant (bottom-left)
+                [cx - k * r, cy - r],  # Control point 2
+                [cx - r, cy - k * r],  # End of curve 2
+                # Third quadrant (top-left)
+                [cx - r, cy + k * r],  # Control point 3
+                [cx - k * r, cy + r],  # End of curve 3
+                # Fourth quadrant (top-right) - needs to connect back to start
+                [cx + k * r, cy + r],  # Control point 4
+                [cx + r, cy],  # End of curve 4 at start point (Z will close cleanly)
+            ]
+        )
+
+        # Build command list: M + 4*Q + Z
+        cmds = ["M"]
+        for _ in range(4):
+            cmds.append("Q")  # One quadratic curve per quadrant
+        cmds.append("Z")  # Close path
+
+        return AvPath(pts, cmds)
+
+    @staticmethod
+    def rectangle(x1: float, y1: float, x2: float, y2: float) -> AvPath:
+        """Create a rectangular path from corner coordinates.
+
+        Creates a rectangle using the specified corner coordinates.
+        The rectangle is drawn starting from (x1, y1), proceeding
+        counter-clockwise, and returning to the start point.
+
+        Args:
+            x1 (float): X coordinate of first corner (typically bottom-left)
+            y1 (float): Y coordinate of first corner (typically bottom-left)
+            x2 (float): X coordinate of opposite corner (typically top-right)
+            y2 (float): Y coordinate of opposite corner (typically top-right)
+
+        Returns:
+            AvPath: A closed rectangular path
+
+        Note:
+            - Rectangle corners are (x1,y1), (x2,y1), (x2,y2), (x1,y2)
+            - Starts at (x1, y1) and proceeds counter-clockwise
+            - Uses linear commands (L) for straight edges
+            - 'Z' command automatically closes the path back to start
+            - Total commands: M + 4*L + Z = 6
+            - Total points: 4 (Z command has no point)
+        """
+        # Define rectangle corners in counter-clockwise order
+        # Start at (x1, y1). The 'Z' command will close the path automatically.
+        pts = np.array(
+            [
+                [x1, y1],  # First corner (start)
+                [x2, y1],  # Second corner
+                [x2, y2],  # Third corner
+                [x1, y2],  # Fourth corner
+            ]
+        )
+
+        # Build command list: Move + 4 Lines + Close
+        cmds = ["M"]  # Move to start point
+        for _ in range(4):
+            cmds.append("L")  # Line to next corner
+        cmds.append("Z")  # Close path
+
+        return AvPath(pts, cmds)
+
+    @staticmethod
+    def rect_by_avbox(avbox: AvBox) -> AvPath:
+        """Create a rectangular path from an AvBox.
+
+        Convenience function that extracts coordinates from an AvBox
+        and creates a rectangular path using those coordinates.
+
+        Args:
+            avbox: An AvBox object with xmin, ymin, xmax, ymax properties
+
+        Returns:
+            AvPath: A closed rectangular path matching the AvBox bounds
+
+        Note:
+            - Delegates to rectangle() for the actual path creation
+            - Uses AvBox extent: (xmin, ymin, xmax, ymax)
+        """
+        return AvPathCreator.rectangle(avbox.xmin, avbox.ymin, avbox.xmax, avbox.ymax)
