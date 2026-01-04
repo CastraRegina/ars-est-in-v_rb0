@@ -39,7 +39,7 @@ class AvImage:
     Coordinates are automatically clipped to bounds and swapped if needed.
     """
 
-    _image: np.ndarray[np.uint8, :]
+    _image: np.ndarray[np.uint8, :]  # the image data
 
     def __init__(self, image: np.ndarray[np.uint8, :]):
         """Initialize with a grayscale image as NumPy array.
@@ -221,6 +221,135 @@ class AvImage:
 
         # Delegate to pixel-based method
         return self.get_region_px(px1, py1, px2, py2)
+
+    def get_region_mean_px(self, x1: int, y1: int, x2: int, y2: int) -> float:
+        """Get the mean gray value of a rectangular region using pixel coordinates.
+
+        This is a convenience method that combines region extraction and mean calculation
+        in a single operation for optimal performance.
+
+        Args:
+            x1: Left coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based)
+            x2: Right coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based)
+
+        Returns:
+            Mean gray value (0.0 for black, 255.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_px() - coordinates are
+            clipped, swapped if needed, and adjusted to ensure at least one pixel.
+        """
+        region = self.get_region_px(x1, y1, x2, y2)
+        return float(region.mean())
+
+    def get_region_mean_rel(self, x1: float, y1: float, x2: float, y2: float) -> float:
+        """Get the mean gray value of a rectangular region using relative coordinates.
+
+        This is a convenience method that combines region extraction and mean calculation
+        in a single operation for optimal performance.
+
+        Args:
+            x1: Left coordinate in relative units (float, 0 to 1)
+            y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
+            x2: Right coordinate in relative units (float, 0 to 1)
+            y2: Top coordinate in relative units (float, 0 to height_px*scale)
+
+        Returns:
+            Mean gray value (0.0 for black, 255.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_rel() - coordinates are
+            converted to pixel space and then processed with automatic clipping.
+        """
+        region = self.get_region_rel(x1, y1, x2, y2)
+        return float(region.mean())
+
+    def get_region_weighted_mean_px(self, x1: int, y1: int, x2: int, y2: int) -> float:
+        """Get weighted mean of a region where inner center (1/4 area) weighs 2/3.
+
+        This function efficiently calculates the weighted mean using only two mean
+        calculations:
+        1. Mean of the entire region
+        2. Mean of the inner center (half width, half height)
+
+        The weighted mean formula is:
+        weighted_mean = (5/9) * mean_inner + (4/9) * mean_full
+
+        Args:
+            x1: Left coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based)
+            x2: Right coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based)
+
+        Returns:
+            Weighted mean gray value (0.0 for black, 255.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_px().
+        """
+        # Calculate inner region coordinates (center half width, center half height)
+        width = x2 - x1
+        height = y2 - y1
+
+        if width < 2 or height < 2:
+            # Region too small for inner area, return regular mean
+            return self.get_region_mean_px(x1, y1, x2, y2)
+
+        # Inner region is centered and half width/height
+        inner_x1 = x1 + width // 4
+        inner_y1 = y1 + height // 4
+        inner_x2 = x1 + 3 * width // 4
+        inner_y2 = y1 + 3 * height // 4
+
+        # Get both regions in single operations
+        region_full = self.get_region_px(x1, y1, x2, y2)
+        region_inner = self.get_region_px(inner_x1, inner_y1, inner_x2, inner_y2)
+
+        # Calculate means directly from regions
+        mean_full = float(region_full.mean())
+        mean_inner = float(region_inner.mean())
+
+        # Apply weighted formula: weighted = 0.555555556 * inner + 0.444444444 * full
+        # (5/9 = 0.555555556, 4/9 = 0.444444444)
+        # This ensures inner 1/4 area has weight 2/3, outer 3/4 area has weight 1/3
+        weighted_mean = 0.555555556 * mean_inner + 0.444444444 * mean_full
+
+        return weighted_mean
+
+    def get_region_weighted_mean_rel(self, x1: float, y1: float, x2: float, y2: float) -> float:
+        """Get weighted mean of a region where inner center (1/4 area) weighs 2/3.
+
+        This function efficiently calculates the weighted mean by converting to
+        pixel coordinates and delegating to the faster integer-based pixel version.
+
+        The weighted mean formula is:
+        weighted_mean = (5/9) * mean_inner + (4/9) * mean_full
+
+        Args:
+            x1: Left coordinate in relative units (float, 0 to 1)
+            y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
+            x2: Right coordinate in relative units (float, 0 to 1)
+            y2: Top coordinate in relative units (float, 0 to height_px*scale)
+
+        Returns:
+            Weighted mean gray value (0.0 for black, 255.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_rel().
+        """
+        # Convert relative coordinates to pixel coordinates
+        px1 = int(round(x1 / self.scale_rel))
+        px2 = int(round(x2 / self.scale_rel))
+
+        # Convert relative Y coordinates to pixel coordinates
+        # Y is inverted because relative system starts from bottom
+        py1 = int(round((self.height_rel - y1) / self.scale_rel))
+        py2 = int(round((self.height_rel - y2) / self.scale_rel))
+
+        # Delegate to the faster pixel-based version
+        return self.get_region_weighted_mean_px(px1, py1, px2, py2)
 
     @classmethod
     def from_file(cls, filename: Union[str, Path]) -> AvImage:
