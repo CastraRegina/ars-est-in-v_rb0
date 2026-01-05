@@ -302,7 +302,7 @@ class ImageToSvgDotConverter:
         # Define circles per row to the SVG page
         circles_per_row = 100
 
-        # Calculate spacing to fit exactly 50 circles horizontally
+        # Calculate spacing to fit exactly circles_per_row horizontally
         spacing_x = 1.0 / circles_per_row
 
         # Use the same spacing in y direction for absolute uniform spacing
@@ -312,7 +312,7 @@ class ImageToSvgDotConverter:
         viewport_height = viewbox_scale * viewbox_height_mm
         circles_per_col = int(viewport_height / spacing_y)
 
-        # Add circles to the SVG page - exactly 50x50 grid with varying sizes
+        # Add circles to the SVG page
         for row in range(circles_per_col):
             for col in range(circles_per_row):
                 # Calculate position - centered in each grid cell
@@ -326,10 +326,14 @@ class ImageToSvgDotConverter:
                     x - region_size / 2, y - region_size / 2, x + region_size / 2, y + region_size / 2
                 )
 
-                # Map gray value to circle diameter:
-                # black (0) -> 90% of spacing, white (255) -> 10% of spacing
-                # Formula: diameter = 0.9 - (gray_value / 255) * 0.8
-                diameter_factor = 0.9 - (gray_value / 255.0) * 0.8
+                # Map gray value to circle area, then calculate diameter:
+                # black (0) -> 99% of spacing diameter, white (255) -> 5% of spacing diameter
+                # Since we want diameter range of 5% to 99%, we need to work backwards:
+                # Area at 99% diameter = (0.99)^2 = 0.9801 or 98.01%
+                # Area at 5% diameter = (0.05)^2 = 0.0025 or 0.25%
+                # Formula: area_factor = 0.9801 - (gray_value / 255) * (0.9801 - 0.0025)
+                area_factor = 0.9801 - (gray_value / 255.0) * 0.9776
+                diameter_factor = area_factor**0.5  # Square root for area-to-diameter conversion
                 current_diameter = min(spacing_x, spacing_y) * diameter_factor
 
                 # Create a circle at this position with varying diameter
