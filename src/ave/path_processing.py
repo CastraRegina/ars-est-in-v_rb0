@@ -1106,7 +1106,7 @@ class AvPathCreator:
             - Starts at (x1, y1) and proceeds counter-clockwise
             - Uses linear commands (L) for straight edges
             - 'Z' command automatically closes the path back to start
-            - Total commands: M + 4*L + Z = 6
+            - Total commands: M + 3*L + Z = 5
             - Total points: 4 (Z command has no point)
         """
         # Define rectangle corners in counter-clockwise order
@@ -1120,9 +1120,9 @@ class AvPathCreator:
             ]
         )
 
-        # Build command list: Move + 4 Lines + Close
+        # Build command list: Move + 3 Lines + Close
         cmds = ["M"]  # Move to start point
-        for _ in range(4):
+        for _ in range(3):
             cmds.append("L")  # Line to next corner
         cmds.append("Z")  # Close path
 
