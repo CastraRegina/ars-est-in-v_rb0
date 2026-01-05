@@ -12,10 +12,8 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from fontTools.ttLib import TTFont
-from numpy.typing import NDArray
 
 import ave.common
-from ave.common import AvGlyphCmds
 from ave.font_support import AvFontProperties
 from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
