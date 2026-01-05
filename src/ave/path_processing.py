@@ -1031,9 +1031,9 @@ class AvPathCreator:
 
     @staticmethod
     def circle(cx: float, cy: float, diameter: float) -> AvPath:
-        """Create a circular path using 4 quadratic Bezier curves.
+        """Create a circular path using 4 cubic Bezier curves.
 
-        The circle is approximated using 4 quadratic Bezier curve segments.
+        The circle is approximated using 4 cubic Bezier curve segments.
         Each segment uses two control points to approximate a 90-degree arc.
         The circle starts and ends on the perimeter.
 
@@ -1047,39 +1047,43 @@ class AvPathCreator:
 
         Note:
             - The circle is centered at (cx, cy)
-            - Uses 4 control points for 4 curve segments
+            - Uses 8 control points for 4 curve segments
             - Path starts and ends on perimeter at (cx + r, cy)
             - Uses magic constant k = 0.552284749831 for optimal approximation
-            - Total commands: M + 4*Q + Z = 6
-            - Total points: 5 (start + 4 control/end pairs, Z has no point)
+            - Total commands: M + 4*C + Z = 6
+            - Total points: 13 (start + 4*3 points for curves, Z has no point)
         """
         r = diameter / 2.0
         k = 0.552284749831  # Magic constant for 4-curve circle approximation
 
-        # Generate 4 points for 4 quadratic Bezier curves
-        # Each curve has: start (current position), control point, end point
+        # Generate points for 4 cubic Bezier curves
+        # Each curve has: start (current position), control point 1, control point 2, end point
         pts = np.array(
             [
                 [cx + r, cy],  # Start on perimeter (rightmost point)
                 # First quadrant (bottom-right)
                 [cx + r, cy - k * r],  # Control point 1
-                [cx + k * r, cy - r],  # End of curve 1
+                [cx + k * r, cy - r],  # Control point 2
+                [cx, cy - r],  # End of curve 1
                 # Second quadrant (bottom-left)
-                [cx - k * r, cy - r],  # Control point 2
-                [cx - r, cy - k * r],  # End of curve 2
+                [cx - k * r, cy - r],  # Control point 1
+                [cx - r, cy - k * r],  # Control point 2
+                [cx - r, cy],  # End of curve 2
                 # Third quadrant (top-left)
-                [cx - r, cy + k * r],  # Control point 3
-                [cx - k * r, cy + r],  # End of curve 3
-                # Fourth quadrant (top-right) - needs to connect back to start
-                [cx + k * r, cy + r],  # Control point 4
+                [cx - r, cy + k * r],  # Control point 1
+                [cx - k * r, cy + r],  # Control point 2
+                [cx, cy + r],  # End of curve 3
+                # Fourth quadrant (top-right)
+                [cx + k * r, cy + r],  # Control point 1
+                [cx + r, cy + k * r],  # Control point 2
                 [cx + r, cy],  # End of curve 4 at start point (Z will close cleanly)
             ]
         )
 
-        # Build command list: M + 4*Q + Z
+        # Build command list: M + 4*C + Z
         cmds = ["M"]
         for _ in range(4):
-            cmds.append("Q")  # One quadratic curve per quadrant
+            cmds.append("C")  # One cubic curve per quadrant
         cmds.append("Z")  # Close path
 
         return AvPath(pts, cmds)
