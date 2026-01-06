@@ -39,7 +39,7 @@ class AvImage:
     Coordinates are automatically clipped to bounds and swapped if needed.
     """
 
-    _image: np.ndarray[np.uint8, :]  # the image data
+    _image: np.ndarray[np.uint8, :]  # the image data array [y1:y2, x1:x2]
 
     def __init__(self, image: np.ndarray[np.uint8, :]):
         """Initialize with a grayscale image as NumPy array.
@@ -144,9 +144,9 @@ class AvImage:
 
         Args:
             x1: Left coordinate (inclusive, 0-based)
-            y1: Top coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based, smaller value)
             x2: Right coordinate (exclusive, 0-based)
-            y2: Bottom coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based, larger value)
 
         Returns:
             Read-only view of the specified region as NumPy array
@@ -230,9 +230,9 @@ class AvImage:
 
         Args:
             x1: Left coordinate (inclusive, 0-based)
-            y1: Top coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based, smaller value)
             x2: Right coordinate (exclusive, 0-based)
-            y2: Bottom coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based, larger value)
 
         Returns:
             Mean gray value (0.0 for black, 255.0 for white)
@@ -279,9 +279,9 @@ class AvImage:
 
         Args:
             x1: Left coordinate (inclusive, 0-based)
-            y1: Top coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based, smaller value)
             x2: Right coordinate (exclusive, 0-based)
-            y2: Bottom coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based, larger value)
 
         Returns:
             Weighted mean gray value (0.0 for black, 255.0 for white)
@@ -351,6 +351,63 @@ class AvImage:
         # Delegate to the faster pixel-based version
         return self.get_region_weighted_mean_px(px1, py1, px2, py2)
 
+    def get_region_threshold_px(self, x1: int, y1: int, x2: int, y2: int, threshold: int) -> float:
+        """Get ratio of pixels in region with values <= threshold.
+
+        Args:
+            x1: Left pixel coordinate (inclusive)
+            y1: Top pixel coordinate (inclusive, smaller value)
+            x2: Right pixel coordinate (exclusive)
+            y2: Bottom pixel coordinate (exclusive, larger value)
+            threshold: Threshold value (0-255) (0.0 for black, 255.0 for white)
+
+        Returns:
+            Ratio of pixels with values <= threshold (0.0 to 1.0)
+        """
+        # Validate threshold
+        if not 0 <= threshold <= 255:
+            raise ValueError("Threshold must be between 0 and 255")
+
+        # Get the region
+        region = self.get_region_px(x1, y1, x2, y2)
+
+        # Count pixels <= threshold
+        count = np.sum(region <= threshold)
+        total = region.size
+
+        return float(count / total) if total > 0 else 0.0
+
+    def get_region_threshold_rel(self, x1: float, y1: float, x2: float, y2: float, threshold: int) -> float:
+        """Get ratio of pixels in region with values <= threshold.
+
+        This function efficiently calculates the threshold ratio by converting to
+        pixel coordinates and delegating to the faster integer-based pixel version.
+
+        Args:
+            x1: Left coordinate in relative units (float, 0 to 1)
+            y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
+            x2: Right coordinate in relative units (float, 0 to 1)
+            y2: Top coordinate in relative units (float, 0 to height_px*scale)
+            threshold: Threshold value (0-255) (0.0 for black, 255.0 for white)
+
+        Returns:
+            Ratio of pixels with values <= threshold (0.0 to 1.0)
+
+        Note:
+            Uses the same coordinate handling as get_region_rel().
+        """
+        # Convert relative coordinates to pixel coordinates
+        px1 = int(round(x1 / self.scale_rel))
+        px2 = int(round(x2 / self.scale_rel))
+
+        # Convert relative Y coordinates to pixel coordinates
+        # Y is inverted because relative system starts from bottom
+        py1 = int(round((self.height_rel - y1) / self.scale_rel))
+        py2 = int(round((self.height_rel - y2) / self.scale_rel))
+
+        # Delegate to the faster pixel-based version
+        return self.get_region_threshold_px(px1, py1, px2, py2, threshold)
+
     @classmethod
     def from_file(cls, filename: Union[str, Path]) -> AvImage:
         """Load an image from file and convert to grayscale.
@@ -365,6 +422,7 @@ class AvImage:
         with PIL.Image.open(filename) as img:
             # Convert to grayscale (Type L) if not already
             if img.mode != "L":
+                print(f"Converting image from {img.mode} to L")
                 img = img.convert("L")
 
             # Convert to NumPy array
