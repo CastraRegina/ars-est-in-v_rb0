@@ -129,6 +129,7 @@ dmypy.json
 .pyre/
 
 # my own settings
+data/input/example/pics
 data/output/
 fonts/*.ttf
 fonts/*.odt
