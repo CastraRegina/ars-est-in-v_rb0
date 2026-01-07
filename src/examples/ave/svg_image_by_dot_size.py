@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
 
 from ave.glyph import AvGlyph
 from ave.image import AvImage
@@ -373,19 +372,31 @@ def main() -> None:
     Main function for the ImageToSvgDotConverter example.
     """
 
-    # Demonstrate ImageToSvgConverter
-    print("\n" + "=" * 50)
-    print("Image to SVG Conversion:")
-    print("=" * 50)
+    # Process multiple example files
+    input_files = [
+        (
+            "data/output/example/png/test_board_07x07_10grays.png",
+            "data/output/example/svg/dots/test_board_07x07_10grays.svgz",
+        ),
+        (
+            "data/output/example/png/test_board_09x09_10grays.png",
+            "data/output/example/svg/dots/test_board_09x09_10grays.svgz",
+        ),
+        (
+            "data/input/example/pics/MC.jpg",
+            "data/output/example/svg/dots/MC.svgz",
+        ),
+        (
+            "data/input/example/pics/BT.png",
+            "data/output/example/svg/dots/BT.svgz",
+        ),
+    ]
 
-    # Create converter for the test board image
-    image_path = "data/output/example/png/test_board_09x09_10grays.png"
-    converter = ImageToSvgDotConverter(image_path)
-
-    # Save the SVG as .svgz (zipped SVG)
-    output_svg = "data/output/example/svg/test_board_09x09_10grays.svgz"
-    converter.svg_page().save_as(output_svg, compressed=True)
-    print(f"\nSVG saved to: {output_svg}")
+    for image_path, output_svg in input_files:
+        print(f"\nProcessing: {image_path}")
+        converter = ImageToSvgDotConverter(image_path)
+        converter.svg_page().save_as(output_svg, compressed=True)
+        print(f"SVG saved to: {output_svg}")
 
 
 if __name__ == "__main__":
