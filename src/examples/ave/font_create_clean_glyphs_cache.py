@@ -15,8 +15,8 @@ from ave.glyph import (
     AvGlyphFromTTFontFactory,
     AvGlyphPersistentFactory,
     AvGlyphPolygonizeFactory,
-    AvLetter,
 )
+from ave.letter import AvLetter
 from ave.page import AvSvgPage
 from ave.path import AvPath
 from ave.path_processing import AvPathCleaner, AvPathCurveRebuilder, AvPathMatcher

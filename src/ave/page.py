@@ -18,7 +18,8 @@ from svgwrite.extensions import Inkscape
 from ave.common import Align
 from ave.font import AvFont
 from ave.fonttools import FontHelper
-from ave.glyph import AvGlyphCachedSourceFactory, AvGlyphFromTTFontFactory, AvLetter
+from ave.glyph import AvGlyphCachedSourceFactory, AvGlyphFromTTFontFactory
+from ave.letter import AvLetter
 
 
 @dataclass

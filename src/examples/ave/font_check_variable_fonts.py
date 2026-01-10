@@ -10,8 +10,8 @@ from ave.glyph import (
     AvGlyphCachedSourceFactory,
     AvGlyphFromTTFontFactory,
     AvGlyphPolygonizeFactory,
-    AvLetter,
 )
+from ave.letter import AvLetter
 from ave.page import AvSvgPage
 
 CHARACTERS = ""
