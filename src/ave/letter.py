@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import gzip
+import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 from ave.common import Align
 from ave.geom import AvBox
-from ave.glyph import AvGlyph
+from ave.glyph import AvGlyph, AvGlyphCachedFactory, AvGlyphPersistentFactory
 from ave.path import AvPath
 
 ###############################################################################
@@ -205,6 +208,7 @@ class AvMultiGlyphLetter:
 
     _glyphs: List[AvGlyph] = field(default_factory=list)
     _x_positions: List[float] = field(default_factory=list)  # X positions for each glyph
+    _weights: List[float] = field(default_factory=list)  # Weights for each glyph
     _scale: float = 1.0  # = font_size / units_per_em
     _xpos: float = 0.0  # left-to-right
     _ypos: float = 0.0  # bottom-to-top
@@ -214,6 +218,7 @@ class AvMultiGlyphLetter:
         self,
         glyphs: List[AvGlyph],
         x_positions: List[float],
+        weights: List[float],
         scale: float,
         xpos: float = 0.0,
         ypos: float = 0.0,
@@ -234,6 +239,28 @@ class AvMultiGlyphLetter:
                 raise ValueError("x_positions must have the same length as glyphs")
         else:
             self._x_positions = x_positions
+
+        # Validate and set weights
+        if len(weights) != len(glyphs):
+            if len(weights) == 0 and len(glyphs) > 0:
+                # Initialize with values from 0 to 1 for all glyphs if empty list provided
+                if len(glyphs) == 1:
+                    self._weights = [0.5]
+                else:
+                    self._weights = [i / (len(glyphs) - 1) for i in range(len(glyphs))]
+            else:
+                raise ValueError("weights must have the same length as glyphs")
+        else:
+            # Check for strict monotonic increase and uniqueness
+            for i in range(1, len(weights)):
+                if weights[i] <= weights[i - 1]:
+                    raise ValueError(
+                        f"weights must be strictly monotonically increasing: "
+                        f"weights[{i}]={weights[i]} <= weights[{i-1}]={weights[i-1]}"
+                    )
+            if len(set(weights)) != len(weights):
+                raise ValueError("weights must contain unique values only")
+            self._weights = weights
 
         for i, glyph in enumerate(self._glyphs):
             if not isinstance(glyph, AvGlyph):
@@ -280,6 +307,11 @@ class AvMultiGlyphLetter:
     def x_positions(self) -> List[float]:
         """Get the x positions list."""
         return self._x_positions
+
+    @property
+    def weights(self) -> List[float]:
+        """Get the weights list."""
+        return self._weights
 
     # TODO: implement correct implementation
     @property
@@ -405,3 +437,87 @@ class AvMultiGlyphLetter:
 
         scale, _, _, _, translate_x, translate_y = self.trafo
         return self._glyphs[0].path.svg_path_string(scale, translate_x, translate_y)
+
+
+def main():
+    """Test function for AvMultiGlyphLetter."""
+
+    def load_cached_fonts(path_name: str, font_fn_base: str) -> Tuple[List[float], List[AvGlyphCachedFactory]]:
+        """
+        Load cached font files and extract weights and fonts.
+
+        Args:
+            path_name: Directory path where cached files are stored (e.g., "fonts/cache")
+            font_fn_base: Base filename pattern (e.g., "RobotoFlex-VariableFont_AA_")
+
+        Returns:
+            Tuple[List[float], List[AvGlyphCachedFactory]]: Ordered weights and corresponding font factories
+        """
+        cache_dir = Path(path_name)
+        if not cache_dir.exists():
+            raise FileNotFoundError(f"Cache directory not found: {path_name}")
+
+        # Find all matching files
+        pattern = f"{font_fn_base}*_wght*.json.zip"
+        files = list(cache_dir.glob(pattern))
+
+        if not files:
+            raise FileNotFoundError(f"No cached font files found with pattern: {pattern}")
+
+        # Extract weights and sort files
+        weight_file_pairs = []
+        for file_path in files:
+            # Extract weight from filename like "RobotoFlex-VariableFont_AA_01_wght0100.json.zip"
+            match = re.search(r"_wght(\d+)\.json\.zip$", file_path.name)
+            if match:
+                weight = int(match.group(1))
+                weight_file_pairs.append((weight, file_path))
+
+        # Sort by weight
+        weight_file_pairs.sort(key=lambda x: x[0])
+
+        # Load factories and extract weights
+        weights = []
+        factories = []
+
+        for weight, file_path in weight_file_pairs:
+            try:
+                factory = AvGlyphPersistentFactory.load_from_file(str(file_path))
+                weights.append(weight)
+                factories.append(factory)
+                print(f"Loaded: {file_path.name} -> weight: {weight}")
+            except (FileNotFoundError, ValueError, RuntimeError, OSError, gzip.BadGzipFile) as e:
+                print(f"Warning: Failed to load {file_path.name}: {e}")
+
+        if not weights:
+            raise ValueError("No valid cached font files could be loaded")
+
+        return weights, factories
+
+    # Example usage
+    try:
+        weights, factories = load_cached_fonts("fonts/cache", "RobotoFlex-VariableFont_AA_")
+        print(f"Loaded {len(weights)} fonts with weights: {weights}")
+
+        # Print font properties for each factory
+        for i, factory in enumerate(factories):
+            font_props = factory.get_font_properties()
+            print(
+                f"Font {i+1} (weight {weights[i]:04d}): "
+                f"ascender={font_props.ascender}, "
+                f"descender={font_props.descender}, "
+                f"units_per_em={font_props.units_per_em}"
+            )
+
+            # Get glyph for character "I"
+            # try:
+            #     glyph_i = factory.get_glyph("I")
+            #     print(f"  Glyph 'I': {glyph_i}")
+            # except Exception as e:
+            #     print(f"  Error getting glyph 'I': {e}")
+    except (FileNotFoundError, ValueError, RuntimeError, OSError, gzip.BadGzipFile) as e:
+        print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    main()
