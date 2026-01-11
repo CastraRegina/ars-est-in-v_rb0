@@ -458,7 +458,7 @@ def main():
 
     font_in_fn = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
     font_out_name = "RobotoFlex-VariableFont_AA_"
-    font_num_wghts = 2
+    font_num_wghts = 3
     font_wghts_min = 100
     font_wghts_max = 1000
     font_out_fn_base = f"fonts/cache/{font_out_name}"  # XX_wghtYYYY.json.zip
@@ -515,3 +515,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# Support point patterns: numbered points with fractional spacing
+# Each line shows N points creating N-1 intervals, where fraction × (N-1) = 1 total width
+#   1               2               3    1/2  --> font_num_wghts=3
+#   1       2       3       4       5    1/4  --> font_num_wghts=5
+#   1     2   3     4     5   6     7    1/6  --> font_num_wghts=7
+#   1   2   3   4   5   6   7   8   9    1/8  --> font_num_wghts=9
+#   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7    1/16 --> font_num_wghts=17
