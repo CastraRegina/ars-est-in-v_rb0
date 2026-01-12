@@ -65,7 +65,7 @@ def print_text(svg_page: AvSvgPage, xpos: float, ypos: float, text: str, avfont:
     current_xpos = xpos
     for character in text:
         glyph = avfont.get_glyph(character)
-        letter = AvLetter.from_font_size_units_per_em(glyph, font_size, avfont.props.units_per_em, current_xpos, ypos)
+        letter = AvLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
         current_xpos += letter.width
@@ -259,7 +259,7 @@ def clean_chars_and_render_steps_on_page(
     def print_glyph_path(
         glyph: AvGlyph, current_xpos: float, ypos: float, color: str, filled: bool, stroke_width: float
     ) -> float:
-        letter = AvLetter.from_font_size_units_per_em(glyph, font_size, avfont.props.units_per_em, current_xpos, ypos)
+        letter = AvLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
         if filled:
             svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
         else:

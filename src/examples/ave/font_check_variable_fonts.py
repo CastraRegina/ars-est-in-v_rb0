@@ -50,7 +50,7 @@ def print_text_on_page(
     current_xpos = xpos
     for character in text:
         glyph = avfont.get_glyph(character)
-        letter = AvLetter.from_font_size_units_per_em(glyph, font_size, avfont.props.units_per_em, current_xpos, ypos)
+        letter = AvLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
         current_xpos += letter.width
