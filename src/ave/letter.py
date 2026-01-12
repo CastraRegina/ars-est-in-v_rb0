@@ -10,8 +10,12 @@ from typing import List, Optional, Tuple
 
 from ave.common import Align
 from ave.geom import AvBox
-from ave.glyph import AvGlyph, AvGlyphCachedFactory, AvGlyphPersistentFactory
-from ave.path import AvPath
+from ave.glyph import (
+    AvGlyph,
+    AvGlyphCachedFactory,
+    AvGlyphFactory,
+    AvGlyphPersistentFactory,
+)
 
 ###############################################################################
 # Letter
@@ -43,22 +47,6 @@ class AvLetter:
         self._xpos = xpos
         self._ypos = ypos
         self._align = align
-
-    @classmethod
-    def from_font_size_units_per_em(
-        cls,
-        glyph: AvGlyph,
-        font_size: float,
-        units_per_em: float,
-        xpos: float = 0.0,
-        ypos: float = 0.0,
-        align: Optional[Align] = None,
-    ) -> AvLetter:
-        """
-        Factory method to create an AvLetter from font_size and units_per_em.
-        """
-
-        return cls(glyph, font_size / units_per_em, xpos, ypos, align)
 
     @property
     def xpos(self) -> float:
@@ -196,19 +184,20 @@ class AvLetter:
 
 
 ###############################################################################
-# MultiGlyphLetter
+# MultiWeightLetter
 ###############################################################################
 
 
 @dataclass
-class AvMultiGlyphLetter:
+class AvMultiWeightLetter:
     """
-    MultiGlyphLetter: Container for managing collections of AvGlyph objects.
+    MultiWeightLetter: Container for managing collections of AvGlyph objects with weight support.
+    Can handle multiple glyphs of the same character with different weights, all at the same position.
+    Internal weights are normalized from 0 to 1 with equal spacing.
     """
 
     _glyphs: List[AvGlyph] = field(default_factory=list)
-    _x_positions: List[float] = field(default_factory=list)  # X positions for each glyph
-    _weights: List[float] = field(default_factory=list)  # Weights for each glyph
+    _x_positions: List[float] = field(default_factory=list)  # X positions for each glyph (for fine-tuning)
     _scale: float = 1.0  # = font_size / units_per_em
     _xpos: float = 0.0  # left-to-right
     _ypos: float = 0.0  # bottom-to-top
@@ -218,7 +207,6 @@ class AvMultiGlyphLetter:
         self,
         glyphs: List[AvGlyph],
         x_positions: List[float],
-        weights: List[float],
         scale: float,
         xpos: float = 0.0,
         ypos: float = 0.0,
@@ -233,40 +221,87 @@ class AvMultiGlyphLetter:
         # Validate and set x positions
         if len(x_positions) != len(glyphs):
             if len(x_positions) == 0 and len(glyphs) > 0:
-                # Initialize with 0.0 for all glyphs if empty list provided
+                # Initialize with 0.0 for all glyphs if empty list provided (stacked at same position)
                 self._x_positions = [0.0] * len(glyphs)
             else:
                 raise ValueError("x_positions must have the same length as glyphs")
         else:
             self._x_positions = x_positions
 
-        # Validate and set weights
-        if len(weights) != len(glyphs):
-            if len(weights) == 0 and len(glyphs) > 0:
-                # Initialize with values from 0 to 1 for all glyphs if empty list provided
-                if len(glyphs) == 1:
-                    self._weights = [0.5]
-                else:
-                    self._weights = [i / (len(glyphs) - 1) for i in range(len(glyphs))]
-            else:
-                raise ValueError("weights must have the same length as glyphs")
-        else:
-            # Check for strict monotonic increase and uniqueness
-            for i in range(1, len(weights)):
-                if weights[i] <= weights[i - 1]:
-                    raise ValueError(
-                        f"weights must be strictly monotonically increasing: "
-                        f"weights[{i}]={weights[i]} <= weights[{i-1}]={weights[i-1]}"
-                    )
-            if len(set(weights)) != len(weights):
-                raise ValueError("weights must contain unique values only")
-            self._weights = weights
-
+        # Validate all glyphs are AvGlyph objects
         for i, glyph in enumerate(self._glyphs):
             if not isinstance(glyph, AvGlyph):
                 raise TypeError(f"Glyph at index {i} is not an AvGlyph object")
 
-    # TODO add constructor from font_size and units_per_em   def from_font_size_units_per_em(..)
+        # Validate all glyphs have the same character (for multi-weight use case)
+        if len(self._glyphs) > 1:
+            first_char = self._glyphs[0].character
+            for i, glyph in enumerate(self._glyphs[1:], 1):
+                if glyph.character != first_char:
+                    print(
+                        f"Warning: Glyph at index {i} has character '{glyph.character}' "
+                        f"but expected '{first_char}' for multi-weight letter"
+                    )
+
+    @classmethod
+    def from_factories(
+        cls,
+        character: str,
+        factories: List[AvGlyphFactory],
+        scale: float = 1.0,
+        xpos: float = 0.0,
+        ypos: float = 0.0,
+        align: Optional[Align] = None,
+        x_positions: Optional[List[float]] = None,
+    ) -> "AvMultiWeightLetter":
+        """
+        Create AvMultiWeightLetter from multiple factories.
+        Internal weights will be automatically assigned from 0 to 1 with equal spacing.
+
+        Args:
+            character: The character to create glyphs for
+            factories: List of factories (ordered from lightest to heaviest weight)
+            scale: Scale factor
+            xpos: X position
+            ypos: Y position
+            align: Alignment
+            x_positions: Optional X positions for each glyph (defaults to all 0.0 for stacked)
+        """
+        glyphs = []
+
+        for factory in factories:
+            glyph = factory.get_glyph(character)
+            glyphs.append(glyph)
+
+        if x_positions is None:
+            x_positions = [0.0] * len(glyphs)  # Stack all at same position
+
+        return cls(
+            glyphs=glyphs,
+            x_positions=x_positions,
+            scale=scale,
+            xpos=xpos,
+            ypos=ypos,
+            align=align,
+        )
+
+    @property
+    def character(self) -> str:
+        """Get the character (from first glyph)."""
+        if not self._glyphs:
+            return ""
+        return self._glyphs[0].character
+
+    # @property
+    # def weights(self) -> List[float]:
+    #     """Get internal normalized weights (0 to 1 with equal spacing)."""
+    #     if not self._glyphs:
+    #         return []
+
+    #     if len(self._glyphs) == 1:
+    #         return [0.5]
+
+    #     return [i / (len(self._glyphs) - 1) for i in range(len(self._glyphs))]
 
     @property
     def xpos(self) -> float:
@@ -307,11 +342,6 @@ class AvMultiGlyphLetter:
     def x_positions(self) -> List[float]:
         """Get the x positions list."""
         return self._x_positions
-
-    @property
-    def weights(self) -> List[float]:
-        """Get the weights list."""
-        return self._weights
 
     # TODO: implement correct implementation
     @property
@@ -440,18 +470,18 @@ class AvMultiGlyphLetter:
 
 
 def main():
-    """Test function for AvMultiGlyphLetter."""
+    """Test function for AvMultiWeightLetter."""
 
-    def load_cached_fonts(path_name: str, font_fn_base: str) -> Tuple[List[float], List[AvGlyphCachedFactory]]:
+    def load_cached_fonts(path_name: str, font_fn_base: str) -> List[AvGlyphCachedFactory]:
         """
-        Load cached font files and extract weights and fonts.
+        Load cached font files from directory.
 
         Args:
             path_name: Directory path where cached files are stored (e.g., "fonts/cache")
             font_fn_base: Base filename pattern (e.g., "RobotoFlex-VariableFont_AA_")
 
         Returns:
-            Tuple[List[float], List[AvGlyphCachedFactory]]: Ordered weights and corresponding font factories
+            List[AvGlyphCachedFactory]: Ordered list of font factories (lightest to heaviest)
         """
         cache_dir = Path(path_name)
         if not cache_dir.exists():
@@ -459,62 +489,55 @@ def main():
 
         # Find all matching files
         pattern = f"{font_fn_base}*_wght*.json.zip"
-        files = list(cache_dir.glob(pattern))
+        file_paths = list(cache_dir.glob(pattern))
 
-        if not files:
+        if not file_paths:
             raise FileNotFoundError(f"No cached font files found with pattern: {pattern}")
 
-        # Extract weights and sort files
-        weight_file_pairs = []
-        for file_path in files:
-            # Extract weight from filename like "RobotoFlex-VariableFont_AA_01_wght0100.json.zip"
-            match = re.search(r"_wght(\d+)\.json\.zip$", file_path.name)
-            if match:
-                weight = int(match.group(1))
-                weight_file_pairs.append((weight, file_path))
-
-        # Sort by weight
-        weight_file_pairs.sort(key=lambda x: x[0])
-
-        # Load factories and extract weights
-        weights = []
+        # Load factories (files are already in light to heavy order)
         factories = []
 
-        for weight, file_path in weight_file_pairs:
+        for file_path in file_paths:
             try:
                 factory = AvGlyphPersistentFactory.load_from_file(str(file_path))
-                weights.append(weight)
                 factories.append(factory)
-                print(f"Loaded: {file_path.name} -> weight: {weight}")
+                print(f"Loaded: {file_path.name}")
             except (FileNotFoundError, ValueError, RuntimeError, OSError, gzip.BadGzipFile) as e:
                 print(f"Warning: Failed to load {file_path.name}: {e}")
 
-        if not weights:
+        if not factories:
             raise ValueError("No valid cached font files could be loaded")
 
-        return weights, factories
+        return factories
 
     # Example usage
     try:
-        weights, factories = load_cached_fonts("fonts/cache", "RobotoFlex-VariableFont_AA_")
-        print(f"Loaded {len(weights)} fonts with weights: {weights}")
+        factories = load_cached_fonts("fonts/cache", "RobotoFlex-VariableFont_AA_")
+        print(f"Loaded {len(factories)} fonts")
 
         # Print font properties for each factory
         for i, factory in enumerate(factories):
             font_props = factory.get_font_properties()
             print(
-                f"Font {i+1} (weight {weights[i]:04d}): "
+                f"Font {i+1}: "
                 f"ascender={font_props.ascender}, "
                 f"descender={font_props.descender}, "
                 f"units_per_em={font_props.units_per_em}"
             )
 
-            # Get glyph for character "I"
-            # try:
-            #     glyph_i = factory.get_glyph("I")
-            #     print(f"  Glyph 'I': {glyph_i}")
-            # except Exception as e:
-            #     print(f"  Error getting glyph 'I': {e}")
+        # Example: Create AvMultiWeightLetter with different weights stacked
+        print("\nCreating AvMultiWeightLetter with stacked weights...")
+        multi_letter = AvMultiWeightLetter.from_factories(
+            character="I",
+            factories=factories,
+            scale=50.0 / 2048.0,  # 50pt font
+            xpos=100,
+            ypos=100,
+        )
+        print(f"Created multi-weight letter for character '{multi_letter.character}'")
+        print(f"Number of weight variants: {len(multi_letter.glyphs)}")
+        print(f"Initial X positions (for fine-tuning): {multi_letter.x_positions}")
+
     except (FileNotFoundError, ValueError, RuntimeError, OSError, gzip.BadGzipFile) as e:
         print(f"Error: {e}")
 
