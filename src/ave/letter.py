@@ -471,6 +471,7 @@ class AvMultiWeightLetter:
 
 def main():
     """Test function for AvMultiWeightLetter."""
+    from ave.page import AvSvgPage
 
     def load_cached_fonts(path_name: str, font_fn_base: str) -> List[AvGlyphCachedFactory]:
         """
@@ -537,6 +538,98 @@ def main():
         print(f"Created multi-weight letter for character '{multi_letter.character}'")
         print(f"Number of weight variants: {len(multi_letter.glyphs)}")
         print(f"Initial X positions (for fine-tuning): {multi_letter.x_positions}")
+
+        #######################################################################
+
+        # Characters to display
+        characters = ""
+        characters += "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+        characters += "abcdefghijklmnopqrstuvwxyz "
+        characters += "0123456789 "
+        characters += ',.;:+-*#_<> !"§$%&/()=?{}[] '
+        # NON-ASCII EXCEPTION: German characters and special symbols for comprehensive font testing
+        characters += "ÄÖÜ äöü ß€µ@²³~^°\\ '`"
+
+        # Create SVG page for multi-weight letters
+        # Setup the page with A4 dimensions
+        viewbox_width = 180  # viewbox width in mm
+        viewbox_height = 120  # viewbox height in mm
+        vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
+        font_size = vb_scale * 2.7  # in mm (already in viewbox units)
+
+        # Get units_per_em from the first factory
+        units_per_em = factories[0].get_font_properties().units_per_em if factories else 2048.0
+        scale = font_size / units_per_em  # proper scale calculation
+        stroke_width = 0.1 * scale
+
+        # Create the SVG page
+        svg_page = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
+
+        # Draw viewbox border
+        svg_page.add(
+            svg_page.drawing.path(
+                d=(
+                    f"M 0 0 "
+                    f"L {vb_scale * viewbox_width} 0 "
+                    f"L {vb_scale * viewbox_width} {vb_scale * viewbox_height} "
+                    f"L 0 {vb_scale * viewbox_height} "
+                    f"Z"
+                ),
+                stroke="blue",
+                stroke_width=0.1 * vb_scale,
+                fill="none",
+            ),
+            False,
+        )
+
+        # Render characters with multi-weight
+        current_xpos = 0.05
+        current_ypos = 0.02
+        max_width = 0.95
+
+        for char in characters:
+            print(f"Rendering '{char}' with multi-weight...", end="", flush=True)
+
+            # Create multi-weight letter for this character
+            multi_letter = AvMultiWeightLetter.from_factories(
+                character=char,
+                factories=factories,
+                scale=scale,  # Use proper scale, not font_size
+                xpos=current_xpos,
+                ypos=current_ypos,
+            )
+
+            # Modify x positions for visual effect (stack with slight offset)
+            if len(multi_letter.glyphs) >= 3:
+                positions = multi_letter.x_positions
+                positions[0] = 0.0  # Lightest weight
+                positions[1] = 0.5  # Medium weight
+                positions[2] = 1.0  # Heaviest weight
+
+            # Render each weight variant with different opacity
+            colors = ["#E0E0E0", "#808080", "#000000"]  # Light gray to black
+            for i, (glyph, color) in enumerate(zip(multi_letter.glyphs, colors)):
+                # Create a temporary AvLetter for each glyph to get its path
+                temp_letter = AvLetter(glyph, multi_letter.scale, multi_letter.xpos + positions[i], multi_letter.ypos)
+
+                svg_path = svg_page.drawing.path(temp_letter.svg_path_string(), fill=color, stroke="none")
+                svg_page.add(svg_path)
+
+            # Move to next position
+            current_xpos += multi_letter.width + 0.005
+
+            # Check if we need to move to next line
+            if current_xpos > max_width:
+                current_xpos = 0.05
+                current_ypos += scale * 1.5  # Use scale instead of font_size
+
+            print(" done")
+
+        # Save the SVG
+        svg_filename = "data/output/example/svg/multi_weight_letters.svgz"
+        print(f"\nSaving to {svg_filename} ...")
+        svg_page.save_as(svg_filename, include_debug_layer=False, pretty=True, compressed=True)
+        print(f"Saved to {svg_filename}")
 
     except (FileNotFoundError, ValueError, RuntimeError, OSError, gzip.BadGzipFile) as e:
         print(f"Error: {e}")
