@@ -546,9 +546,9 @@ def main():
         characters += "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
         characters += "abcdefghijklmnopqrstuvwxyz "
         characters += "0123456789 "
-        characters += ',.;:+-*#_<> !"§$%&/()=?{}[] '
-        # NON-ASCII EXCEPTION: German characters and special symbols for comprehensive font testing
-        characters += "ÄÖÜ äöü ß€µ@²³~^°\\ '`"
+        # characters += ',.;:+-*#_<> !"§$%&/()=?{}[] '
+        # # NON-ASCII EXCEPTION: German characters and special symbols for comprehensive font testing
+        # characters += "ÄÖÜ äöü ß€µ@²³~^°\\ '`"
 
         # Create SVG page for multi-weight letters
         # Setup the page with A4 dimensions
@@ -603,12 +603,12 @@ def main():
             if len(multi_letter.glyphs) >= 3:
                 positions = multi_letter.x_positions
                 positions[0] = 0.0  # Lightest weight
-                positions[1] = 0.5  # Medium weight
-                positions[2] = 1.0  # Heaviest weight
+                positions[1] = 0.0  # Medium weight
+                positions[2] = 0.0  # Heaviest weight
 
             # Render each weight variant with different opacity
-            colors = ["#E0E0E0", "#808080", "#000000"]  # Light gray to black
-            for i, (glyph, color) in enumerate(zip(multi_letter.glyphs, colors)):
+            colors = ["#000000", "#808080", "#E0E0E0"]  # Black to light gray (reversed)
+            for i, (glyph, color) in enumerate(zip(reversed(multi_letter.glyphs), colors)):
                 # Create a temporary AvLetter for each glyph to get its path
                 temp_letter = AvLetter(glyph, multi_letter.scale, multi_letter.xpos + positions[i], multi_letter.ypos)
 
