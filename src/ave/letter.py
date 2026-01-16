@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import gzip
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from ave.common import Align
 from ave.geom import AvBox
@@ -184,6 +183,19 @@ class AvLetter:
 
 
 ###############################################################################
+# OffsetGlyph
+###############################################################################
+
+
+@dataclass
+class OffsetGlyph:
+    """Glyph with optional horizontal offset used for multi-weight stacks."""
+
+    glyph: AvGlyph
+    x_offset: float = 0.0
+
+
+###############################################################################
 # MultiWeightLetter
 ###############################################################################
 
@@ -196,8 +208,7 @@ class AvMultiWeightLetter:
     Internal weights are normalized from 0 to 1 with equal spacing.
     """
 
-    _glyphs: List[AvGlyph] = field(default_factory=list)
-    _x_positions: List[float] = field(default_factory=list)  # X positions for each glyph (for fine-tuning)
+    _offset_glyphs: List[OffsetGlyph] = field(default_factory=list)
     _scale: float = 1.0  # = font_size / units_per_em
     _xpos: float = 0.0  # left-to-right
     _ypos: float = 0.0  # bottom-to-top
@@ -205,8 +216,7 @@ class AvMultiWeightLetter:
 
     def __init__(
         self,
-        glyphs: List[AvGlyph],
-        x_positions: List[float],
+        offset_glyphs: List[OffsetGlyph],
         scale: float,
         xpos: float = 0.0,
         ypos: float = 0.0,
@@ -216,27 +226,19 @@ class AvMultiWeightLetter:
         self._xpos = xpos
         self._ypos = ypos
         self._align = align
-        self._glyphs = glyphs
 
-        # Validate and set x positions
-        if len(x_positions) != len(glyphs):
-            if len(x_positions) == 0 and len(glyphs) > 0:
-                # Initialize with 0.0 for all glyphs if empty list provided (stacked at same position)
-                self._x_positions = [0.0] * len(glyphs)
-            else:
-                raise ValueError("x_positions must have the same length as glyphs")
-        else:
-            self._x_positions = x_positions
+        self._offset_glyphs = offset_glyphs
 
         # Validate all glyphs are AvGlyph objects
-        for i, glyph in enumerate(self._glyphs):
-            if not isinstance(glyph, AvGlyph):
+        for i, offset_glyph in enumerate(self._offset_glyphs):
+            if not isinstance(offset_glyph.glyph, AvGlyph):
                 raise TypeError(f"Glyph at index {i} is not an AvGlyph object")
 
         # Validate all glyphs have the same character (for multi-weight use case)
-        if len(self._glyphs) > 1:
-            first_char = self._glyphs[0].character
-            for i, glyph in enumerate(self._glyphs[1:], 1):
+        if len(self._offset_glyphs) > 1:
+            first_char = self._offset_glyphs[0].glyph.character
+            for i, offset_glyph in enumerate(self._offset_glyphs[1:], 1):
+                glyph = offset_glyph.glyph
                 if glyph.character != first_char:
                     print(
                         f"Warning: Glyph at index {i} has character '{glyph.character}' "
@@ -252,7 +254,7 @@ class AvMultiWeightLetter:
         xpos: float = 0.0,
         ypos: float = 0.0,
         align: Optional[Align] = None,
-        x_positions: Optional[List[float]] = None,
+        x_offsets: Optional[List[float]] = None,
     ) -> "AvMultiWeightLetter":
         """
         Create AvMultiWeightLetter from multiple factories.
@@ -265,7 +267,7 @@ class AvMultiWeightLetter:
             xpos: X position
             ypos: Y position
             align: Alignment
-            x_positions: Optional X positions for each glyph (defaults to all 0.0 for stacked)
+            x_offsets: Optional X offsets for each glyph (defaults to all 0.0 for stacked)
         """
         glyphs = []
 
@@ -273,12 +275,15 @@ class AvMultiWeightLetter:
             glyph = factory.get_glyph(character)
             glyphs.append(glyph)
 
-        if x_positions is None:
-            x_positions = [0.0] * len(glyphs)  # Stack all at same position
+        if x_offsets is None:
+            x_offsets = [0.0] * len(glyphs)  # Stack all at same position
+        elif len(x_offsets) != len(glyphs):
+            raise ValueError("x_offsets must have the same length as factories")
+
+        offset_glyphs = [OffsetGlyph(glyph=glyph, x_offset=offset) for glyph, offset in zip(glyphs, x_offsets)]
 
         return cls(
-            glyphs=glyphs,
-            x_positions=x_positions,
+            offset_glyphs=offset_glyphs,
             scale=scale,
             xpos=xpos,
             ypos=ypos,
@@ -288,9 +293,9 @@ class AvMultiWeightLetter:
     @property
     def character(self) -> str:
         """Get the character (from first glyph)."""
-        if not self._glyphs:
+        if not self._offset_glyphs:
             return ""
-        return self._glyphs[0].character
+        return self._offset_glyphs[0].glyph.character
 
     # @property
     # def weights(self) -> List[float]:
@@ -336,12 +341,12 @@ class AvMultiWeightLetter:
     @property
     def glyphs(self) -> List[AvGlyph]:
         """Get the glyphs list."""
-        return self._glyphs
+        return [offset_glyph.glyph for offset_glyph in self._offset_glyphs]
 
     @property
-    def x_positions(self) -> List[float]:
-        """Get the x positions list."""
-        return self._x_positions
+    def x_offsets(self) -> List[float]:
+        """Get the x offsets for each glyph."""
+        return [offset_glyph.x_offset for offset_glyph in self._offset_glyphs]
 
     # TODO: implement correct implementation
     @property
@@ -350,10 +355,10 @@ class AvMultiWeightLetter:
         Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
         Returns: [scale, 0, 0, scale, xpos, ypos] or [scale, 0, 0, scale, xpos-lsb, ypos] if alignment is LEFT or BOTH.
         """
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
         if self.align in (Align.LEFT, Align.BOTH):
-            lsb_scaled = self.scale * self._glyphs[0].left_side_bearing
+            lsb_scaled = self.scale * self._offset_glyphs[0].glyph.left_side_bearing
             return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled, self.ypos]
         return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
 
@@ -363,9 +368,9 @@ class AvMultiWeightLetter:
         """
         Returns the width calculated considering the alignment.
         """
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return 0.0
-        return self.scale * self._glyphs[0].width(self.align)
+        return self.scale * self._offset_glyphs[0].glyph.width(self.align)
 
     # TODO: implement correct implementation
     @property
@@ -373,9 +378,9 @@ class AvMultiWeightLetter:
         """
         The height of the Letter, i.e. the height of the bounding box.
         """
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return 0.0
-        return self.scale * self._glyphs[0].height
+        return self.scale * self._offset_glyphs[0].glyph.height
 
     # TODO: implement correct implementation
     @property
@@ -383,9 +388,9 @@ class AvMultiWeightLetter:
         """
         The maximum distance above the baseline, i.e. the highest y-coordinate of a Letter (positive value).
         """
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return 0.0
-        return self.scale * self._glyphs[0].ascender
+        return self.scale * self._offset_glyphs[0].glyph.ascender
 
     # TODO: implement correct implementation
     @property
@@ -393,9 +398,9 @@ class AvMultiWeightLetter:
         """
         The maximum distance below the baseline, i.e. the lowest y-coordinate of a Letter (negative value).
         """
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return 0.0
-        return self.scale * self._glyphs[0].descender
+        return self.scale * self._offset_glyphs[0].glyph.descender
 
     # TODO: implement correct implementation
     @property
@@ -403,11 +408,11 @@ class AvMultiWeightLetter:
         """
         LSB: The horizontal space on the left side of the Letter taking alignment into account.
         """
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return 0.0
         if self.align in (Align.LEFT, Align.BOTH):
             return 0.0
-        return self.scale * self._glyphs[0].left_side_bearing
+        return self.scale * self._offset_glyphs[0].glyph.left_side_bearing
 
     # TODO: implement correct implementation
     @property
@@ -415,36 +420,37 @@ class AvMultiWeightLetter:
         """
         RSB: The horizontal space on the right side of the Letter taking alignment into account.
         """
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return 0.0
         if self.align in (Align.RIGHT, Align.BOTH):
             return 0.0
-        return self.scale * self._glyphs[0].right_side_bearing
+        return self.scale * self._offset_glyphs[0].glyph.right_side_bearing
 
     # TODO: implement correct implementation
     def bounding_box(self):
         """Get bounding box that encompasses all glyphs."""
-        if not self._glyphs:
+        if not self._offset_glyphs:
             return AvBox(0.0, 0.0, 0.0, 0.0)
 
-        if len(self._glyphs) == 1:
-            bbox = self._glyphs[0].bounding_box()
-            x_pos = self._x_positions[0]
+        if len(self._offset_glyphs) == 1:
+            glyph = self._offset_glyphs[0]
+            bbox = glyph.glyph.bounding_box()
+            x_pos = glyph.x_offset
             return AvBox(bbox.xmin + x_pos, bbox.ymin, bbox.xmax + x_pos, bbox.ymax)
 
         # Calculate combined bounding box using pre-calculated x positions
         # Initialize with first glyph's bounding box
-        first_bbox = self._glyphs[0].bounding_box()
-        first_x = self._x_positions[0]
+        first_bbox = self._offset_glyphs[0].glyph.bounding_box()
+        first_x = self._offset_glyphs[0].x_offset
         min_x = first_bbox.xmin + first_x
         max_x = first_bbox.xmax + first_x
         min_y = first_bbox.ymin
         max_y = first_bbox.ymax
 
         # Process remaining glyphs
-        for i, glyph in enumerate(self._glyphs[1:], 1):
-            bbox = glyph.bounding_box()
-            x_pos = self._x_positions[i]
+        for offset_glyph in self._offset_glyphs[1:]:
+            bbox = offset_glyph.glyph.bounding_box()
+            x_pos = offset_glyph.x_offset
 
             # Transform bbox to its position
             glyph_min_x = bbox.xmin + x_pos
@@ -462,16 +468,16 @@ class AvMultiWeightLetter:
     # TODO: implement correct implementation
     def svg_path_string(self) -> str:
         """SVG path string of the letter in real dimensions."""
-        if len(self._glyphs) == 0:
+        if len(self._offset_glyphs) == 0:
             return "M 0 0"
 
         scale, _, _, _, translate_x, translate_y = self.trafo
-        return self._glyphs[0].path.svg_path_string(scale, translate_x, translate_y)
+        return self._offset_glyphs[0].glyph.path.svg_path_string(scale, translate_x, translate_y)
 
 
 def main():
     """Test function for AvMultiWeightLetter."""
-    from ave.page import AvSvgPage
+    from ave.page import AvSvgPage  # pylint: disable=import-outside-toplevel
 
     def load_cached_fonts(path_name: str, font_fn_base: str) -> List[AvGlyphCachedFactory]:
         """
@@ -537,7 +543,7 @@ def main():
         )
         print(f"Created multi-weight letter for character '{multi_letter.character}'")
         print(f"Number of weight variants: {len(multi_letter.glyphs)}")
-        print(f"Initial X positions (for fine-tuning): {multi_letter.x_positions}")
+        print(f"Initial X positions (for fine-tuning): {multi_letter.x_offsets}")
 
         #######################################################################
 
@@ -560,7 +566,6 @@ def main():
         # Get units_per_em from the first factory
         units_per_em = factories[0].get_font_properties().units_per_em if factories else 2048.0
         scale = font_size / units_per_em  # proper scale calculation
-        stroke_width = 0.1 * scale
 
         # Create the SVG page
         svg_page = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
@@ -601,7 +606,7 @@ def main():
 
             # Modify x positions for visual effect (stack with slight offset)
             if len(multi_letter.glyphs) >= 3:
-                positions = multi_letter.x_positions
+                positions = multi_letter.x_offsets
                 positions[0] = 0.0  # Lightest weight
                 positions[1] = 0.0  # Medium weight
                 positions[2] = 0.0  # Heaviest weight
