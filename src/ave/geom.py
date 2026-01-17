@@ -406,6 +406,86 @@ class AvBox:
             f"centroid=({sgn_sci(self.centroid[0])}, {sgn_sci(self.centroid[1])}))"
         )
 
+    @staticmethod
+    def combine(*boxes: Union[AvBox, Sequence[AvBox]]) -> AvBox:
+        """Create a new AvBox that is the overall sum of the given AvBoxes.
+
+        The resulting box has xmin as the minimum of all xmin values and xmax as
+        the maximum of all xmax values (only from boxes with non-zero width and height).
+        The same applies to the y-direction.
+
+        If all boxes have zero width and/or height, returns a copy of the first AvBox.
+
+        Args:
+            *boxes: One or more AvBoxes, or a single iterable/list of AvBoxes
+
+        Returns:
+            AvBox: A new box representing the overall bounds
+
+        Raises:
+            ValueError: If no AvBoxes are provided
+        """
+        # Handle the case where a single iterable is passed
+        if len(boxes) == 1 and not isinstance(boxes[0], AvBox):
+            # Assume it's an iterable of AvBoxes
+            boxes_iterable = boxes[0]
+        else:
+            boxes_iterable = boxes
+
+        # Filter out boxes with zero width or height
+        valid_boxes = [box for box in boxes_iterable if isinstance(box, AvBox) and box.width != 0 and box.height != 0]
+
+        # If no boxes with non-zero area, return a copy of the first AvBox
+        if not valid_boxes:
+            # Find the first AvBox in the original iterable
+            first_box = None
+            for box in boxes_iterable:
+                if isinstance(box, AvBox):
+                    first_box = box
+                    break
+
+            if first_box is None:
+                raise ValueError("At least one AvBox must be provided")
+
+            # Return a copy of the first box (which has zero area)
+            return AvBox(xmin=first_box.xmin, ymin=first_box.ymin, xmax=first_box.xmax, ymax=first_box.ymax)
+
+        # Find the overall bounds
+        xmin = min(box.xmin for box in valid_boxes)
+        xmax = max(box.xmax for box in valid_boxes)
+        ymin = min(box.ymin for box in valid_boxes)
+        ymax = max(box.ymax for box in valid_boxes)
+
+        return AvBox(xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
+
+    def combine_with(self, *boxes: Union[AvBox, Sequence[AvBox]]) -> AvBox:
+        """Combine this AvBox with other AvBoxes to create a new overall bounding box.
+
+        This is an instance method that calls the static combine() method,
+        including this box along with the provided boxes.
+
+        If all boxes (including this one) have zero width and/or height,
+        returns a copy of self.
+
+        Args:
+            *boxes: One or more AvBoxes, or a single iterable/list of AvBoxes to combine with this box
+
+        Returns:
+            AvBox: A new box representing the overall bounds of this box and all provided boxes
+
+        Raises:
+            ValueError: If no AvBoxes are provided
+        """
+        # Prepend this box to the list of boxes to combine
+        if len(boxes) == 1 and not isinstance(boxes[0], AvBox):
+            # If boxes is a single iterable, create a new list with this box prepended
+            all_boxes = [self] + list(boxes[0])
+        else:
+            # If boxes are varargs, create a tuple with this box prepended
+            all_boxes = (self,) + boxes
+
+        return AvBox.combine(*all_boxes)
+
 
 ###############################################################################
 # main

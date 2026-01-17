@@ -1227,3 +1227,541 @@ class TestMakeClosedSingle:
 
         np.testing.assert_array_equal(closed.points, expected_points)
         assert closed.commands == expected_commands
+
+
+###############################################################################
+# AvBox Calculation Methods Tests
+###############################################################################
+
+
+class TestAvBoxCalculations:
+    """Test class for AvBox calculation methods."""
+
+    def test_width_calculation(self):
+        """Test width calculation for various box configurations."""
+        # Normal box
+        box = AvBox(0, 0, 10, 20)
+        assert box.width == 10.0
+
+        # Negative coordinates
+        box = AvBox(-10, -5, -2, -1)
+        assert box.width == 8.0
+
+        # Reversed coordinates (should auto-correct)
+        box = AvBox(10, 0, 0, 20)
+        assert box.width == 10.0
+
+        # Zero width
+        box = AvBox(5, 0, 5, 10)
+        assert box.width == 0.0
+
+    def test_height_calculation(self):
+        """Test height calculation for various box configurations."""
+        # Normal box
+        box = AvBox(0, 0, 10, 20)
+        assert box.height == 20.0
+
+        # Negative coordinates
+        box = AvBox(-10, -15, -2, -5)
+        assert box.height == 10.0
+
+        # Reversed coordinates (should auto-correct)
+        box = AvBox(0, 20, 10, 0)
+        assert box.height == 20.0
+
+        # Zero height
+        box = AvBox(0, 5, 10, 5)
+        assert box.height == 0.0
+
+    def test_area_calculation(self):
+        """Test area calculation for various box configurations."""
+        # Normal rectangle
+        box = AvBox(0, 0, 10, 20)
+        assert box.area == 200.0
+
+        # Square
+        box = AvBox(-5, -5, 5, 5)
+        assert box.area == 100.0
+
+        # Zero area (zero width)
+        box = AvBox(5, 0, 5, 10)
+        assert box.area == 0.0
+
+        # Zero area (zero height)
+        box = AvBox(0, 5, 10, 5)
+        assert box.area == 0.0
+
+        # Zero area (point)
+        box = AvBox(5, 5, 5, 5)
+        assert box.area == 0.0
+
+    def test_centroid_calculation(self):
+        """Test centroid calculation for various box configurations."""
+        # Normal box
+        box = AvBox(0, 0, 10, 20)
+        assert box.centroid == (5.0, 10.0)
+
+        # Negative coordinates
+        box = AvBox(-10, -20, 0, 0)
+        assert box.centroid == (-5.0, -10.0)
+
+        # Asymmetric box
+        box = AvBox(2, 3, 8, 15)
+        assert box.centroid == (5.0, 9.0)
+
+        # Zero area box
+        box = AvBox(5, 5, 5, 5)
+        assert box.centroid == (5.0, 5.0)
+
+    def test_extent_property(self):
+        """Test extent property returns correct tuple."""
+        box = AvBox(10, 20, 30, 40)
+        assert box.extent == (10.0, 20.0, 30.0, 40.0)
+
+        # Reversed coordinates
+        box = AvBox(30, 40, 10, 20)
+        assert box.extent == (10.0, 20.0, 30.0, 40.0)
+
+
+class TestAvBoxCombine:
+    """Test class for AvBox.combine static method."""
+
+    def test_combine_two_boxes(self):
+        """Test combining two valid boxes."""
+        box1 = AvBox(0, 0, 10, 10)
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(box1, box2)
+
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+        assert result.width == 15.0
+        assert result.height == 15.0
+
+    def test_combine_disjoint_boxes(self):
+        """Test combining non-overlapping boxes."""
+        box1 = AvBox(0, 0, 5, 5)
+        box2 = AvBox(10, 10, 15, 15)
+        box3 = AvBox(-10, -10, -5, -5)
+
+        result = AvBox.combine(box1, box2, box3)
+
+        assert result.xmin == -10.0
+        assert result.ymin == -10.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_static_method_with_list_input(self):
+        """Test combining using a list of boxes."""
+        boxes = [AvBox(0, 0, 10, 10), AvBox(5, 5, 15, 15), AvBox(-5, -5, 5, 5)]
+
+        result = AvBox.combine(boxes)
+
+        assert result.xmin == -5.0
+        assert result.ymin == -5.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_ignores_zero_width_boxes(self):
+        """Test that boxes with zero width are ignored."""
+        box1 = AvBox(0, 0, 10, 10)
+        zero_width = AvBox(20, 20, 20, 30)  # width = 0
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(box1, zero_width, box2)
+
+        # Should ignore zero_width box
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_ignores_zero_height_boxes(self):
+        """Test that boxes with zero height are ignored."""
+        box1 = AvBox(0, 0, 10, 10)
+        zero_height = AvBox(20, 20, 30, 20)  # height = 0
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(box1, zero_height, box2)
+
+        # Should ignore zero_height box
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_ignores_zero_area_boxes(self):
+        """Test that boxes with zero area (point) are ignored."""
+        box1 = AvBox(0, 0, 10, 10)
+        point = AvBox(20, 20, 20, 20)  # width = 0, height = 0
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(box1, point, box2)
+
+        # Should ignore point box
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_zero_width_box_extending_bounds_is_ignored(self):
+        """Test that zero-width box extending beyond valid bounds is ignored."""
+        box1 = AvBox(0, 0, 10, 10)
+        # Zero-width box that extends beyond valid box bounds
+        zero_width_outside = AvBox(-10, 5, -10, 15)  # Would extend xmin if considered
+        zero_width_outside2 = AvBox(20, 5, 20, 15)  # Would extend xmax if considered
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(box1, zero_width_outside, zero_width_outside2, box2)
+
+        # Should ignore zero-width boxes even though they extend bounds
+        assert result.xmin == 0.0  # Not -10
+        assert result.ymin == 0.0
+        assert result.xmax == 15.0  # Not 20
+        assert result.ymax == 15.0
+
+    def test_combine_zero_height_box_extending_bounds_is_ignored(self):
+        """Test that zero-height box extending beyond valid bounds is ignored."""
+        box1 = AvBox(0, 0, 10, 10)
+        # Zero-height box that extends beyond valid box bounds
+        zero_height_outside = AvBox(5, -10, 15, -10)  # Would extend ymin if considered
+        zero_height_outside2 = AvBox(5, 20, 15, 20)  # Would extend ymax if considered
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(box1, zero_height_outside, zero_height_outside2, box2)
+
+        # Should ignore zero-height boxes even though they extend bounds
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0  # Not -10
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0  # Not 20
+
+    def test_combine_zero_area_point_extending_bounds_is_ignored(self):
+        """Test that zero-area point extending beyond valid bounds is ignored."""
+        box1 = AvBox(0, 0, 10, 10)
+        # Points that extend beyond valid box bounds
+        point_outside1 = AvBox(-10, -10, -10, -10)  # Would extend both xmin and ymin
+        point_outside2 = AvBox(20, 20, 20, 20)  # Would extend both xmax and ymax
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(box1, point_outside1, point_outside2, box2)
+
+        # Should ignore point boxes even though they extend bounds
+        assert result.xmin == 0.0  # Not -10
+        assert result.ymin == 0.0  # Not -10
+        assert result.xmax == 15.0  # Not 20
+        assert result.ymax == 15.0  # Not 20
+
+    def test_combine_mixed_zero_area_boxes_all_ignored(self):
+        """Test that various zero-area boxes are all ignored."""
+        valid_box = AvBox(10, 10, 20, 20)
+
+        # Various types of zero-area boxes
+        zero_width1 = AvBox(5, 15, 5, 25)  # Zero width
+        zero_width2 = AvBox(25, 15, 25, 25)  # Zero width
+        zero_height1 = AvBox(15, 5, 25, 5)  # Zero height
+        zero_height2 = AvBox(15, 25, 25, 25)  # Zero height
+        point1 = AvBox(5, 5, 5, 5)  # Point
+        point2 = AvBox(30, 30, 30, 30)  # Point
+
+        result = AvBox.combine(zero_width1, valid_box, zero_width2, zero_height1, point1, zero_height2, point2)
+
+        # Should only consider the valid box
+        assert result.xmin == 10.0
+        assert result.ymin == 10.0
+        assert result.xmax == 20.0
+        assert result.ymax == 20.0
+
+    def test_combine_zero_area_boxes_with_negative_coordinates(self):
+        """Test zero-area boxes with negative coordinates are ignored."""
+        valid_box = AvBox(-5, -5, 5, 5)
+
+        # Zero-area boxes with negative coordinates
+        zero_width_neg = AvBox(-10, -5, -10, 5)  # Zero width, negative x
+        zero_height_neg = AvBox(-5, -10, 5, -10)  # Zero height, negative y
+        point_neg = AvBox(-10, -10, -10, -10)  # Point, negative coordinates
+
+        result = AvBox.combine(valid_box, zero_width_neg, zero_height_neg, point_neg)
+
+        # Should ignore zero-area boxes
+        assert result.xmin == -5.0  # Not -10
+        assert result.ymin == -5.0  # Not -10
+        assert result.xmax == 5.0
+        assert result.ymax == 5.0
+
+    def test_combine_zero_width_box_inside_valid_bounds(self):
+        """Test zero-width box inside valid bounds is ignored."""
+        valid_box = AvBox(0, 0, 20, 20)
+        zero_width_inside = AvBox(10, 5, 10, 15)  # Zero width, inside valid box
+
+        result = AvBox.combine(valid_box, zero_width_inside)
+
+        # Should ignore zero-width box
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 20.0
+        assert result.ymax == 20.0
+
+    def test_combine_zero_height_box_inside_valid_bounds(self):
+        """Test zero-height box inside valid bounds is ignored."""
+        valid_box = AvBox(0, 0, 20, 20)
+        zero_height_inside = AvBox(5, 10, 15, 10)  # Zero height, inside valid box
+
+        result = AvBox.combine(valid_box, zero_height_inside)
+
+        # Should ignore zero-height box
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 20.0
+        assert result.ymax == 20.0
+
+    def test_combine_line_boxes_ignored(self):
+        """Test that horizontal and vertical line boxes are ignored."""
+        valid_box1 = AvBox(0, 0, 10, 10)
+        valid_box2 = AvBox(20, 20, 30, 30)
+
+        # Horizontal line (zero height)
+        h_line = AvBox(5, 15, 25, 15)
+        # Vertical line (zero width)
+        v_line = AvBox(15, 5, 15, 25)
+
+        result = AvBox.combine(valid_box1, h_line, v_line, valid_box2)
+
+        # Should ignore line boxes
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 30.0
+        assert result.ymax == 30.0
+
+    def test_combine_single_box(self):
+        """Test combining a single box returns equivalent box."""
+        box = AvBox(5, 10, 15, 20)
+
+        result = AvBox.combine(box)
+
+        assert result.xmin == box.xmin
+        assert result.ymin == box.ymin
+        assert result.xmax == box.xmax
+        assert result.ymax == box.ymax
+
+    def test_combine_nested_boxes(self):
+        """Test combining boxes where one is inside another."""
+        outer = AvBox(0, 0, 20, 20)
+        inner = AvBox(5, 5, 15, 15)
+
+        result = AvBox.combine(outer, inner)
+
+        # Should return the outer box
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 20.0
+        assert result.ymax == 20.0
+
+    def test_combine_edge_touching_boxes(self):
+        """Test combining boxes that touch at edges."""
+        box1 = AvBox(0, 0, 10, 10)
+        box2 = AvBox(10, 0, 20, 10)  # Touches at right edge
+        box3 = AvBox(0, 10, 10, 20)  # Touches at top edge
+
+        result = AvBox.combine(box1, box2, box3)
+
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 20.0
+        assert result.ymax == 20.0
+
+    def test_combine_negative_coordinates(self):
+        """Test combining boxes with negative coordinates."""
+        box1 = AvBox(-20, -30, -10, -20)
+        box2 = AvBox(-15, -25, -5, -15)
+        box3 = AvBox(0, 0, 10, 10)
+
+        result = AvBox.combine(box1, box2, box3)
+
+        assert result.xmin == -20.0
+        assert result.ymin == -30.0
+        assert result.xmax == 10.0
+        assert result.ymax == 10.0
+
+    def test_combine_empty_list_raises_error(self):
+        """Test that combining empty list raises ValueError."""
+        with pytest.raises(ValueError, match="At least one AvBox must be provided"):
+            AvBox.combine([])
+
+    def test_combine_only_zero_area_boxes_returns_first(self):
+        """Test that combining only zero-area boxes returns a copy of the first box."""
+        zero_width = AvBox(5, 5, 5, 10)
+        zero_height = AvBox(5, 5, 10, 5)
+        point = AvBox(5, 5, 5, 5)
+
+        result = AvBox.combine(zero_width, zero_height, point)
+
+        # Should return a copy of the first box
+        assert result.xmin == zero_width.xmin
+        assert result.ymin == zero_width.ymin
+        assert result.xmax == zero_width.xmax
+        assert result.ymax == zero_width.ymax
+        # Ensure it's a copy, not the same object
+        assert result is not zero_width
+
+    def test_combine_with_mixed_valid_and_invalid_boxes(self):
+        """Test combining mix of valid and invalid boxes."""
+        valid1 = AvBox(0, 0, 10, 10)
+        invalid1 = AvBox(5, 5, 5, 5)  # Point
+        valid2 = AvBox(20, 20, 30, 30)
+        invalid2 = AvBox(25, 25, 25, 35)  # Zero width
+
+        result = AvBox.combine(valid1, invalid1, valid2, invalid2)
+
+        # Should only consider valid boxes
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 30.0
+        assert result.ymax == 30.0
+
+    def test_combine_preserves_input_boxes(self):
+        """Test that combine doesn't modify input boxes."""
+        box1 = AvBox(0, 0, 10, 10)
+        box2 = AvBox(5, 5, 15, 15)
+
+        original_box1 = (box1.xmin, box1.ymin, box1.xmax, box1.ymax)
+        original_box2 = (box2.xmin, box2.ymin, box2.xmax, box2.ymax)
+
+        result = AvBox.combine(box1, box2)
+
+        # Input boxes should be unchanged
+        assert (box1.xmin, box1.ymin, box1.xmax, box1.ymax) == original_box1
+        assert (box2.xmin, box2.ymin, box2.xmax, box2.ymax) == original_box2
+        # Result should be new box
+        assert result is not box1
+        assert result is not box2
+
+    def test_combine_with_generator(self):
+        """Test combining using a generator expression."""
+        boxes = (AvBox(i, i, i + 10, i + 10) for i in range(0, 30, 10))
+
+        result = AvBox.combine(boxes)
+
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 30.0
+        assert result.ymax == 30.0
+
+    def test_combine_with_tuple(self):
+        """Test combining using a tuple of boxes."""
+        boxes = (AvBox(0, 0, 10, 10), AvBox(5, 5, 15, 15), AvBox(20, 20, 30, 30))
+
+        result = AvBox.combine(boxes)
+
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 30.0
+        assert result.ymax == 30.0
+
+    def test_combine_with_single_box(self):
+        """Test combine_with instance method with a single other box."""
+        box1 = AvBox(0, 0, 10, 10)
+        box2 = AvBox(5, 5, 15, 15)
+
+        result = box1.combine_with(box2)
+
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_with_multiple_boxes(self):
+        """Test combine_with instance method with multiple other boxes."""
+        box1 = AvBox(0, 0, 10, 10)
+        box2 = AvBox(5, 5, 15, 15)
+        box3 = AvBox(-5, -5, 5, 5)
+
+        result = box1.combine_with(box2, box3)
+
+        assert result.xmin == -5.0
+        assert result.ymin == -5.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_with_instance_method_list_input(self):
+        """Test combine_with instance method with a list of boxes."""
+        box1 = AvBox(0, 0, 10, 10)
+        boxes = [AvBox(5, 5, 15, 15), AvBox(-5, -5, 5, 5)]
+
+        result = box1.combine_with(boxes)
+
+        assert result.xmin == -5.0
+        assert result.ymin == -5.0
+        assert result.xmax == 15.0
+        assert result.ymax == 15.0
+
+    def test_combine_with_ignores_zero_area_boxes(self):
+        """Test combine_with ignores zero-area boxes including itself if zero area."""
+        valid_box = AvBox(0, 0, 10, 10)
+        zero_width = AvBox(5, 5, 5, 15)
+        zero_height = AvBox(5, 5, 15, 5)
+        point = AvBox(20, 20, 20, 20)
+
+        result = valid_box.combine_with(zero_width, zero_height, point)
+
+        # Should only consider the valid box (self)
+        assert result.xmin == 0.0
+        assert result.ymin == 0.0
+        assert result.xmax == 10.0
+        assert result.ymax == 10.0
+
+    def test_combine_with_self_zero_area_returns_self(self):
+        """Test combine_with returns copy of self when self has zero area and no valid boxes provided."""
+        zero_area_self = AvBox(5, 5, 5, 5)  # Point
+        zero_width = AvBox(10, 10, 10, 20)
+        zero_height = AvBox(10, 10, 20, 10)
+
+        result = zero_area_self.combine_with(zero_width, zero_height)
+
+        # Should return a copy of self
+        assert result.xmin == zero_area_self.xmin
+        assert result.ymin == zero_area_self.ymin
+        assert result.xmax == zero_area_self.xmax
+        assert result.ymax == zero_area_self.ymax
+        # Ensure it's a copy, not the same object
+        assert result is not zero_area_self
+
+    def test_combine_with_preserves_self(self):
+        """Test combine_with doesn't modify the original box."""
+        box1 = AvBox(0, 0, 10, 10)
+        box2 = AvBox(5, 5, 15, 15)
+
+        original_box1 = (box1.xmin, box1.ymin, box1.xmax, box1.ymax)
+
+        result = box1.combine_with(box2)
+
+        # Original box should be unchanged
+        assert (box1.xmin, box1.ymin, box1.xmax, box1.ymax) == original_box1
+        # Result should be new box
+        assert result is not box1
+
+    def test_combine_with_no_arguments(self):
+        """Test combine_with no arguments returns a copy of self."""
+        box = AvBox(5, 10, 15, 20)
+
+        result = box.combine_with()
+
+        assert result.xmin == box.xmin
+        assert result.ymin == box.ymin
+        assert result.xmax == box.xmax
+        assert result.ymax == box.ymax
+        assert result is not box  # Should be a new instance
+
+    def test_combine_with_empty_list(self):
+        """Test combine_with empty list returns a copy of self."""
+        box = AvBox(5, 10, 15, 20)
+
+        result = box.combine_with([])
+
+        assert result.xmin == box.xmin
+        assert result.ymin == box.ymin
+        assert result.xmax == box.xmax
+        assert result.ymax == box.ymax
+        assert result is not box  # Should be a new instance
