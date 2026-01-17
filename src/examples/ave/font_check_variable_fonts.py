@@ -53,7 +53,7 @@ def print_text_on_page(
         letter = AvLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
-        current_xpos += letter.width
+        current_xpos += letter.width()
 
 
 def print_font_example_page(output_filename: str, avfonts: List[AvFont]) -> None:

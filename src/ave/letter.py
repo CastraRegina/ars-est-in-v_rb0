@@ -17,35 +17,48 @@ from ave.glyph import (
 )
 
 ###############################################################################
-# Letter
+# AvLetter
 ###############################################################################
 
 
 @dataclass
 class AvLetter:
     """
-    A Letter is a Glyph which is scaled to real dimensions with a position and alignment.
+    A Letter is a Glyph which is scaled to real dimensions with a position, alignment and horizontal offset.
     """
 
     _glyph: AvGlyph
-    _scale: float  # = font_size / units_per_em
-    _xpos: float  # left-to-right
-    _ypos: float  # bottom-to-top
+    _scale: float  # scale from glyph-coordinates to real dimensions (font_size / units_per_em)
+    _xpos: float  # left-to-right, value in real dimensions
+    _ypos: float  # bottom-to-top, value in real dimensions
     _align: Optional[Align] = None  # LEFT, RIGHT, BOTH. Defaults to None.
+    _x_offset: float = 0.0  # horizontal offset in real dimensions
 
     def __init__(
         self,
         glyph: AvGlyph,
-        scale: float,
-        xpos: float = 0.0,
-        ypos: float = 0.0,
-        align: Optional[Align] = None,
+        scale: float = 1.0,  # scale from glyph-coordinates to real dimensions (font_size / units_per_em)
+        xpos: float = 0.0,  # left-to-right, value in real dimensions
+        ypos: float = 0.0,  # bottom-to-top, value in real dimensions
+        align: Optional[Align] = None,  # LEFT, RIGHT, BOTH. Defaults to None.
+        x_offset: float = 0.0,  # horizontal offset in real dimensions
     ) -> None:
         self._glyph = glyph
         self._scale = scale
         self._xpos = xpos
         self._ypos = ypos
         self._align = align
+        self._x_offset = x_offset
+
+    @property
+    def scale(self) -> float:
+        """Returns the scale factor for the letter which is used to transform the glyph to real dimensions."""
+        return self._scale
+
+    @scale.setter
+    def scale(self, scale: float) -> None:
+        """Sets the scale factor for the letter which is used to transform the glyph to real dimensions."""
+        self._scale = scale
 
     @property
     def xpos(self) -> float:
@@ -68,31 +81,46 @@ class AvLetter:
         self._ypos = ypos
 
     @property
-    def scale(self) -> float:
-        """Returns the scale factor for the letter which is used to transform the glyph to real dimensions."""
-        return self._scale
+    def align(self) -> Optional[Align]:
+        """Returns the alignment of the letter; None, LEFT, RIGHT, BOTH."""
+        return self._align
+
+    @align.setter
+    def align(self, align: Optional[Align]) -> None:
+        """Sets the alignment of the letter; None, LEFT, RIGHT, BOTH."""
+        self._align = align
 
     @property
-    def align(self) -> Optional[Align]:
-        """The alignment of the letter; None, LEFT, RIGHT, BOTH."""
-        return self._align
+    def x_offset(self) -> float:
+        """Horizontal offset in real dimensions."""
+        return self._x_offset
+
+    @x_offset.setter
+    def x_offset(self, x_offset: float) -> None:
+        """Sets the horizontal offset in real dimensions."""
+        self._x_offset = x_offset
 
     @property
     def trafo(self) -> List[float]:
         """
         Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
-        Returns: [scale, 0, 0, scale, xpos, ypos] or [scale, 0, 0, scale, xpos-lsb, ypos] if alignment is LEFT or BOTH.
+        Returns:    [scale, 0, 0, scale, xpos + x_offset, ypos] or
+                    [scale, 0, 0, scale, xpos - lsb + x_offset, ypos] if alignment is LEFT or BOTH.
         """
         if self.align in (Align.LEFT, Align.BOTH):
             lsb_scaled = self.scale * self._glyph.left_side_bearing
-            return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled, self.ypos]
-        return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
+            return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled + self._x_offset, self.ypos]
+        return [self.scale, 0, 0, self.scale, self.xpos + self._x_offset, self.ypos]
 
-    @property
-    def width(self) -> float:
+    def width(self, consider_x_offset: bool = False) -> float:
         """
         Returns the width calculated considering the alignment.
+
+        Args:
+            consider_x_offset: If True, includes the horizontal offset in the calculation
         """
+        if consider_x_offset:
+            return self.scale * self._glyph.width(self.align) + self._x_offset
         return self.scale * self._glyph.width(self.align)
 
     @property
@@ -119,7 +147,7 @@ class AvLetter:
     @property
     def left_side_bearing(self) -> float:
         """
-        LSB: The horizontal space on the left side of the Letter taking alignment into account.
+        LSB: The horizontal space on the left side of the Letter taking alignment into account (sign varies +/-).
         """
         if self.align in (Align.LEFT, Align.BOTH):
             return 0.0
@@ -128,7 +156,7 @@ class AvLetter:
     @property
     def right_side_bearing(self) -> float:
         """
-        RSB: The horizontal space on the right side of the Letter taking alignment into account.
+        RSB: The horizontal space on the right side of the Letter taking alignment into account (sign varies +/-).
         """
         if self.align in (Align.RIGHT, Align.BOTH):
             return 0.0
@@ -363,7 +391,6 @@ class AvMultiWeightLetter:
         return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
 
     # TODO: implement correct implementation
-    @property
     def width(self) -> float:
         """
         Returns the width calculated considering the alignment.
@@ -621,7 +648,7 @@ def main():
                 svg_page.add(svg_path)
 
             # Move to next position
-            current_xpos += multi_letter.width + 0.005
+            current_xpos += multi_letter.width() + 0.005
 
             # Check if we need to move to next line
             if current_xpos > max_width:

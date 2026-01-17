@@ -320,7 +320,7 @@ def main():
 
     glyph = avfont.get_glyph("T")
     letter = AvLetter(glyph, font_size / avfont.props.units_per_em, align=Align.RIGHT)
-    letter.xpos = 1.0 - letter.width
+    letter.xpos = 1.0 - letter.width()
     letter.ypos = vb_scale * vb_height_mm - letter.height
 
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")

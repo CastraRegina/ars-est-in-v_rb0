@@ -68,7 +68,7 @@ def print_text(svg_page: AvSvgPage, xpos: float, ypos: float, text: str, avfont:
         letter = AvLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
-        current_xpos += letter.width
+        current_xpos += letter.width()
 
 
 def create_new_q_tail(bbox: AvBox, dash_thickness: float) -> AvPath:
@@ -274,7 +274,7 @@ def clean_chars_and_render_steps_on_page(
             stroke_width=stroke_width * 0.2,
         )
         svg_page.add(svg_path_debug, True)
-        return letter.width
+        return letter.width()
 
     INFO_SIZE = font_size * 0.2  # pylint: disable=invalid-name
 
