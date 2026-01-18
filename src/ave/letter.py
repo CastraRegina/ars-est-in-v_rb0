@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import numpy as np
+
 from ave.common import Align
 from ave.geom import AvBox
 from ave.glyph import (
@@ -513,6 +515,151 @@ class AvMultiWeightLetter:
             # Update the letter's x_offset
             letter.x_offset += offset_adjustment
 
+    @staticmethod
+    def adapt_x_offset_by_overlap(
+        multi_weight_letter: AvMultiWeightLetter,
+        step_factor: float = 0.01,
+        max_iter: int = 10,
+        num_samples: int = 10,
+    ) -> None:
+        """
+        Align the horizontal alignment of multi-weight letters by minimizing overlap.
+
+        algorithm iteratively adjusts the horizontal offset of lighter-weight letters
+        to minimize the horizontal distance between their outlines and the heaviest letter.
+        Starting from centroid alignment, it tries small horizontal shifts to minimise a cost
+        function based on the horizontal distance between the outlines. It works robustly
+        even when glyphs have different numbers of points or slightly different shapes.
+
+        The algorithm:
+        1. Starts with centroid alignment as initial guess
+        2. Samples y-positions across the glyph height
+        3. For each sample, finds horizontal intersections with the outline
+        4 Compares left/right edges between reference and other letters
+        4. Iteratively adjusts offsets to minimise the total edge distance
+
+        Args:
+            multi_weight_letter: The AvMultiWeightLetter to modify.
+            step_factor: Step size as fraction of glyph width (default 1% of width).
+            max_iter: Upper bound on the number of optimisation passes.
+            num_samples: Number of y-positions to sample for cost evaluation.
+        """
+        if not multi_weight_letter.letters or len(multi_weight_letter.letters) < 2:
+            return
+
+        # Start with centroid alignment as initial guess
+        AvMultiWeightLetter.adapt_x_offset_by_centroid(multi_weight_letter)
+
+        # The heaviest glyph stays fixed as reference
+        reference = multi_weight_letter.letters[-1]
+
+        # Calculate step size based on reference glyph width
+        ref_bbox = reference.bounding_box()
+        step = step_factor * (ref_bbox.xmax - ref_bbox.xmin)
+
+        # Pre-compute sample y-positions within the reference's vertical bounds
+        y_min = ref_bbox.ymin
+        y_max = ref_bbox.ymax
+        y_samples = np.linspace(y_min, y_max, num_samples)
+
+        # Helper: get horizontal intersections for a letter at given y
+        def _horizontal_intersections(letter: AvLetter, y: float) -> Tuple[float, float]:
+            """
+            Get the leftmost and rightmost x-coordinates of the letter outline at a given y.
+            Returns a tuple (x_left, x_right).
+            If the letter has no outline at this y, returns (inf, -inf).
+            """
+            # Transform y to glyph space
+            scale, _, _, _, translate_x, translate_y = letter.trafo
+            y_glyph = (y - translate_y) / scale
+
+            # Get the glyph path
+            path = letter.glyph.path
+
+            # Check if path is polygon-like, otherwise polygonize
+            if path.is_polygon_like:
+                points = path.points
+            else:
+                points = path.polygonized_path().points
+
+            # Find all segments that cross the y-coordinate
+            x_coords = []
+            n = len(points)
+            for i in range(n):
+                p1 = points[i]
+                p2 = points[(i + 1) % n]
+
+                # Check if segment crosses y (in glyph space)
+                if min(p1[1], p2[1]) <= y_glyph <= max(p1[1], p2[1]):
+                    # Linear interpolation to find x at this y
+                    if abs(p2[1] - p1[1]) > 1e-10:
+                        t = (y_glyph - p1[1]) / (p2[1] - p1[1])
+                        x = p1[0] + t * (p2[0] - p1[0])
+                        x_coords.append(x)
+
+            if x_coords:
+                # Transform back to real space
+                x_coords_real = [x * scale + translate_x for x in x_coords]
+                return min(x_coords_real), max(x_coords_real)
+            else:
+                return float("inf"), float("-inf")
+
+        # Helper: compute overlap cost between reference and another letter
+        def _compute_cost(letter: AvLetter) -> float:
+            """Compute horizontal overlap cost as sum of edge differences."""
+            cost = 0.0
+            for y in y_samples:
+                ref_left, ref_right = _horizontal_intersections(reference, y)
+                other_left, other_right = _horizontal_intersections(letter, y)
+
+                # Handle cases where one glyph is inside the other
+                if ref_left != float("inf") and other_left != float("inf"):
+                    # If one glyph is completely inside the other, compare centers
+                    if ref_left <= other_left and other_right <= ref_right:
+                        # Other glyph is inside reference - penalize center misalignment
+                        ref_center = (ref_left + ref_right) / 2
+                        other_center = (other_left + other_right) / 2
+                        cost += abs(ref_center - other_center) * 2  # Double penalty for center misalignment
+                    elif other_left <= ref_left and ref_right <= other_right:
+                        # Reference is inside other - penalize center misalignment
+                        ref_center = (ref_left + ref_right) / 2
+                        other_center = (other_left + other_right) / 2
+                        cost += abs(ref_center - other_center) * 2
+                    else:
+                        # Partial overlap - compare edges
+                        cost += abs(ref_left - other_left) + abs(ref_right - other_right)
+                elif ref_left == float("inf") and other_left != float("inf"):
+                    # Only reference has outline at this y - penalize heavily
+                    cost += 100.0
+                elif ref_left != float("inf") and other_left == float("inf"):
+                    # Only other has outline at this y - penalize heavily
+                    cost += 100.0
+            return cost
+
+        # Iterative optimisation
+        for _ in range(max_iter):
+            improved = False
+
+            for letter in multi_weight_letter.letters[:-1]:
+                current_cost = _compute_cost(letter)
+
+                # Try moving left and right by step
+                for delta in (-step, step):
+                    letter.x_offset += delta
+                    new_cost = _compute_cost(letter)
+
+                    if new_cost < current_cost:
+                        # Keep the improvement
+                        improved = True
+                        current_cost = new_cost
+                    else:
+                        # Revert the trial move
+                        letter.x_offset -= delta
+
+            if not improved:
+                # No further improvement - stop early
+                break
+
 
 def main():
     """Test function for AvMultiWeightLetter."""
@@ -643,7 +790,7 @@ def main():
                 ypos=current_ypos,
             )
 
-            AvMultiWeightLetter.adapt_x_offset_by_centroid(multi_letter)
+            AvMultiWeightLetter.adapt_x_offset_by_overlap(multi_letter, step_factor=0.005, max_iter=10, num_samples=12)
 
             # Modify x positions for visual effect (stack with slight offset)
             if len(multi_letter.letters) >= 3:
