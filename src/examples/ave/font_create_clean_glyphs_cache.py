@@ -279,7 +279,10 @@ def clean_chars_and_render_steps_on_page(
         # Add bounding box in yellow
         bbox = letter.bounding_box()
         svg_bbox = svg_page.drawing.path(
-            f"M {bbox.xmin:g} {bbox.ymin:g} L {bbox.xmax:g} {bbox.ymin:g} L {bbox.xmax:g} {bbox.ymax:g} L {bbox.xmin:g} {bbox.ymax:g} Z",
+            f"M {bbox.xmin:g} {bbox.ymin:g} "
+            f"L {bbox.xmax:g} {bbox.ymin:g} "
+            f"L {bbox.xmax:g} {bbox.ymax:g} "
+            f"L {bbox.xmin:g} {bbox.ymax:g} Z",
             fill="none",
             stroke="yellow",
             stroke_width=stroke_width * 0.1,
@@ -289,7 +292,10 @@ def clean_chars_and_render_steps_on_page(
         # Add letter box in green
         lbox = letter.letter_box()
         svg_lbox = svg_page.drawing.path(
-            f"M {lbox.xmin:g} {lbox.ymin:g} L {lbox.xmax:g} {lbox.ymin:g} L {lbox.xmax:g} {lbox.ymax:g} L {lbox.xmin:g} {lbox.ymax:g} Z",
+            f"M {lbox.xmin:g} {lbox.ymin:g} "
+            f"L {lbox.xmax:g} {lbox.ymin:g} "
+            f"L {lbox.xmax:g} {lbox.ymax:g} "
+            f"L {lbox.xmin:g} {lbox.ymax:g} Z",
             fill="none",
             stroke="green",
             stroke_width=stroke_width * 0.1,
