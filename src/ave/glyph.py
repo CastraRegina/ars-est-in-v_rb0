@@ -137,7 +137,7 @@ class AvGlyph:
 
     def width(self, align: Optional[ave.common.Align] = None) -> float:
         """
-        Returns the width calculated considering the alignment.
+        Returns the advance width calculated considering the alignment.
         Returns the official glyph_width of this glyph if align is None.
 
         Args:
@@ -203,6 +203,15 @@ class AvGlyph:
         """
         # Delegate entirely to AvPath's bounding box implementation
         return self._path.bounding_box()
+
+    def glyph_box(self) -> AvBox:
+        """
+        Returns the glyph box (the glyph’s advance box, not the outline bounding box).
+
+        Returns:
+            AvBox: The glyph box from x = 0 to advanceWidth and y = descender to ascender.
+        """
+        return AvBox(0, self.descender, self._width, self.ascender)
 
     def approx_equal(self, other: AvGlyph, rtol: float = 1e-9, atol: float = 1e-9) -> bool:
         """Check if two glyphs are approximately equal within numerical tolerances.
