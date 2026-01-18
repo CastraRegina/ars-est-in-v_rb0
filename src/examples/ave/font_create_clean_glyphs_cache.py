@@ -273,7 +273,29 @@ def clean_chars_and_render_steps_on_page(
             stroke="blue",
             stroke_width=stroke_width * 0.2,
         )
+
         svg_page.add(svg_path_debug, True)
+
+        # Add bounding box in yellow
+        bbox = letter.bounding_box()
+        svg_bbox = svg_page.drawing.path(
+            f"M {bbox.xmin:g} {bbox.ymin:g} L {bbox.xmax:g} {bbox.ymin:g} L {bbox.xmax:g} {bbox.ymax:g} L {bbox.xmin:g} {bbox.ymax:g} Z",
+            fill="none",
+            stroke="yellow",
+            stroke_width=stroke_width * 0.1,
+        )
+        svg_page.add(svg_bbox, True)
+
+        # Add letter box in green
+        lbox = letter.letter_box()
+        svg_lbox = svg_page.drawing.path(
+            f"M {lbox.xmin:g} {lbox.ymin:g} L {lbox.xmax:g} {lbox.ymin:g} L {lbox.xmax:g} {lbox.ymax:g} L {lbox.xmin:g} {lbox.ymax:g} Z",
+            fill="none",
+            stroke="green",
+            stroke_width=stroke_width * 0.1,
+        )
+        svg_page.add(svg_lbox, True)
+
         return letter.width()
 
     INFO_SIZE = font_size * 0.2  # pylint: disable=invalid-name
