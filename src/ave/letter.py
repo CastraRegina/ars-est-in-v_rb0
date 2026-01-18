@@ -51,6 +51,11 @@ class AvLetter:
         self._x_offset = x_offset
 
     @property
+    def glyph(self) -> AvGlyph:
+        """The glyph of the letter."""
+        return self._glyph
+
+    @property
     def scale(self) -> float:
         """Returns the scale factor for the letter which is used to transform the glyph to real dimensions."""
         return self._scale
@@ -171,6 +176,19 @@ class AvLetter:
         """
         return self._glyph.bounding_box().transform_affine(self.trafo)
 
+    def letter_box(self) -> AvBox:
+        """
+        Returns the box of the letter in real dimensions.
+
+        This box is the glyph box, which is the glyph’s advance box, not the outline bounding box.
+        It is defined by x = 0 to advanceWidth and y = descender to ascender.
+        The glyph box is transformed using the trafo of the letter.
+
+        Returns:
+            AvBox: The letter box, i.e. the glyph box after transformation.
+        """
+        return self._glyph.glyph_box().transform_affine(self.trafo)
+
     def svg_path_string(self) -> str:
         """
         Returns the SVG path representation of the letter in real dimensions.
@@ -211,19 +229,6 @@ class AvLetter:
 
 
 ###############################################################################
-# OffsetGlyph
-###############################################################################
-
-
-@dataclass
-class OffsetGlyph:
-    """Glyph with optional horizontal offset used for multi-weight stacks."""
-
-    glyph: AvGlyph
-    x_offset: float = 0.0
-
-
-###############################################################################
 # MultiWeightLetter
 ###############################################################################
 
@@ -231,45 +236,32 @@ class OffsetGlyph:
 @dataclass
 class AvMultiWeightLetter:
     """
-    MultiWeightLetter: Container for managing collections of AvGlyph objects with weight support.
-    Can handle multiple glyphs of the same character with different weights, all at the same position.
+    MultiWeightLetter: Container for managing collections of AvLetter objects with weight support.
+    Can handle multiple letters of the same character with different weights, all at the same position.
     Internal weights are normalized from 0 to 1 with equal spacing.
     """
 
-    _offset_glyphs: List[OffsetGlyph] = field(default_factory=list)
-    _scale: float = 1.0  # = font_size / units_per_em
-    _xpos: float = 0.0  # left-to-right
-    _ypos: float = 0.0  # bottom-to-top
-    _align: Optional[Align] = None  # LEFT, RIGHT, BOTH. Defaults to None.
+    _letters: List[AvLetter] = field(default_factory=list)
 
     def __init__(
         self,
-        offset_glyphs: List[OffsetGlyph],
-        scale: float,
-        xpos: float = 0.0,
-        ypos: float = 0.0,
-        align: Optional[Align] = None,
+        letters: List[AvLetter],
     ) -> None:
-        self._scale = scale
-        self._xpos = xpos
-        self._ypos = ypos
-        self._align = align
+        self._letters = letters
 
-        self._offset_glyphs = offset_glyphs
+        # Validate all letters are AvLetter objects
+        for i, letter in enumerate(self._letters):
+            if not isinstance(letter, AvLetter):
+                raise TypeError(f"Letter at index {i} is not an AvLetter object")
 
-        # Validate all glyphs are AvGlyph objects
-        for i, offset_glyph in enumerate(self._offset_glyphs):
-            if not isinstance(offset_glyph.glyph, AvGlyph):
-                raise TypeError(f"Glyph at index {i} is not an AvGlyph object")
-
-        # Validate all glyphs have the same character (for multi-weight use case)
-        if len(self._offset_glyphs) > 1:
-            first_char = self._offset_glyphs[0].glyph.character
-            for i, offset_glyph in enumerate(self._offset_glyphs[1:], 1):
-                glyph = offset_glyph.glyph
+        # Validate all letters have the same character (for multi-weight use case)
+        if len(self._letters) > 1:
+            first_char = self._letters[0]._glyph.character
+            for i, letter in enumerate(self._letters[1:], 1):
+                glyph = letter._glyph
                 if glyph.character != first_char:
                     print(
-                        f"Warning: Glyph at index {i} has character '{glyph.character}' "
+                        f"Warning: Letter at index {i} has character '{glyph.character}' "
                         f"but expected '{first_char}' for multi-weight letter"
                     )
 
@@ -297,33 +289,26 @@ class AvMultiWeightLetter:
             align: Alignment
             x_offsets: Optional X offsets for each glyph (defaults to all 0.0 for stacked)
         """
-        glyphs = []
-
-        for factory in factories:
-            glyph = factory.get_glyph(character)
-            glyphs.append(glyph)
+        letters = []
 
         if x_offsets is None:
-            x_offsets = [0.0] * len(glyphs)  # Stack all at same position
-        elif len(x_offsets) != len(glyphs):
+            x_offsets = [0.0] * len(factories)  # Stack all at same position
+        elif len(x_offsets) != len(factories):
             raise ValueError("x_offsets must have the same length as factories")
 
-        offset_glyphs = [OffsetGlyph(glyph=glyph, x_offset=offset) for glyph, offset in zip(glyphs, x_offsets)]
+        for factory, x_offset in zip(factories, x_offsets):
+            glyph = factory.get_glyph(character)
+            letter = AvLetter(glyph=glyph, scale=scale, xpos=xpos, ypos=ypos, align=align, x_offset=x_offset)
+            letters.append(letter)
 
-        return cls(
-            offset_glyphs=offset_glyphs,
-            scale=scale,
-            xpos=xpos,
-            ypos=ypos,
-            align=align,
-        )
+        return cls(letters=letters)
 
     @property
     def character(self) -> str:
-        """Get the character (from first glyph)."""
-        if not self._offset_glyphs:
+        """Get the character (from first letter)."""
+        if not self._letters:
             return ""
-        return self._offset_glyphs[0].glyph.character
+        return self._letters[0].glyph.character
 
     # @property
     # def weights(self) -> List[float]:
@@ -339,167 +324,171 @@ class AvMultiWeightLetter:
     @property
     def xpos(self) -> float:
         """The x position of the letter in real dimensions."""
-        return self._xpos
+        if not self._letters:
+            return 0.0
+        return self._letters[0].xpos
 
     @xpos.setter
     def xpos(self, xpos: float) -> None:
         """Sets the x position of the letter in real dimensions."""
-        self._xpos = xpos
+        for letter in self._letters:
+            letter.xpos = xpos
 
     @property
     def ypos(self) -> float:
         """The y position of the letter in real dimensions."""
-        return self._ypos
+        if not self._letters:
+            return 0.0
+        return self._letters[0].ypos
 
     @ypos.setter
     def ypos(self, ypos: float) -> None:
         """Sets the y position of the letter in real dimensions."""
-        self._ypos = ypos
+        for letter in self._letters:
+            letter.ypos = ypos
 
     @property
     def scale(self) -> float:
         """Returns the scale factor for the letter which is used to transform the glyph to real dimensions."""
-        return self._scale
+        if not self._letters:
+            return 1.0
+        return self._letters[0].scale
+
+    @scale.setter
+    def scale(self, scale: float) -> None:
+        """Sets the scale factor for the letter."""
+        for letter in self._letters:
+            letter.scale = scale
 
     @property
     def align(self) -> Optional[Align]:
         """The alignment of the letter; None, LEFT, RIGHT, BOTH."""
-        return self._align
+        if not self._letters:
+            return None
+        return self._letters[0].align
+
+    @align.setter
+    def align(self, align: Optional[Align]) -> None:
+        """Sets the alignment of the letter."""
+        for letter in self._letters:
+            letter.align = align
 
     @property
     def glyphs(self) -> List[AvGlyph]:
         """Get the glyphs list."""
-        return [offset_glyph.glyph for offset_glyph in self._offset_glyphs]
+        return [letter.glyph for letter in self._letters]
+
+    @property
+    def letters(self) -> List[AvLetter]:
+        """Get the letters list."""
+        return self._letters
 
     @property
     def x_offsets(self) -> List[float]:
-        """Get the x offsets for each glyph."""
-        return [offset_glyph.x_offset for offset_glyph in self._offset_glyphs]
+        """Get the x offsets for each letter."""
+        return [letter.x_offset for letter in self._letters]
 
-    # TODO: implement correct implementation
     @property
     def trafo(self) -> List[float]:
         """
         Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
         Returns: [scale, 0, 0, scale, xpos, ypos] or [scale, 0, 0, scale, xpos-lsb, ypos] if alignment is LEFT or BOTH.
         """
-        if len(self._offset_glyphs) == 0:
-            return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
-        if self.align in (Align.LEFT, Align.BOTH):
-            lsb_scaled = self.scale * self._offset_glyphs[0].glyph.left_side_bearing
-            return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled, self.ypos]
-        return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
+        if len(self._letters) == 0:
+            return [1.0, 0, 0, 1.0, 0, 0]
+        return self._letters[0].trafo
 
-    # TODO: implement correct implementation
     def width(self) -> float:
         """
         Returns the width calculated considering the alignment.
         """
-        if len(self._offset_glyphs) == 0:
+        if len(self._letters) == 0:
             return 0.0
-        return self.scale * self._offset_glyphs[0].glyph.width(self.align)
+        return self._letters[0].width(consider_x_offset=True)
 
-    # TODO: implement correct implementation
     @property
     def height(self) -> float:
         """
         The height of the Letter, i.e. the height of the bounding box.
         """
-        if len(self._offset_glyphs) == 0:
+        if len(self._letters) == 0:
             return 0.0
-        return self.scale * self._offset_glyphs[0].glyph.height
+        return self._letters[0].height
 
-    # TODO: implement correct implementation
     @property
     def ascender(self) -> float:
         """
         The maximum distance above the baseline, i.e. the highest y-coordinate of a Letter (positive value).
         """
-        if len(self._offset_glyphs) == 0:
+        if len(self._letters) == 0:
             return 0.0
-        return self.scale * self._offset_glyphs[0].glyph.ascender
+        return self._letters[0].ascender
 
-    # TODO: implement correct implementation
     @property
     def descender(self) -> float:
         """
         The maximum distance below the baseline, i.e. the lowest y-coordinate of a Letter (negative value).
         """
-        if len(self._offset_glyphs) == 0:
+        if len(self._letters) == 0:
             return 0.0
-        return self.scale * self._offset_glyphs[0].glyph.descender
+        return self._letters[0].descender
 
-    # TODO: implement correct implementation
     @property
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of the Letter taking alignment into account.
         """
-        if len(self._offset_glyphs) == 0:
+        if len(self._letters) == 0:
             return 0.0
-        if self.align in (Align.LEFT, Align.BOTH):
-            return 0.0
-        return self.scale * self._offset_glyphs[0].glyph.left_side_bearing
+        return self._letters[0].left_side_bearing
 
-    # TODO: implement correct implementation
     @property
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of the Letter taking alignment into account.
         """
-        if len(self._offset_glyphs) == 0:
+        if len(self._letters) == 0:
             return 0.0
-        if self.align in (Align.RIGHT, Align.BOTH):
-            return 0.0
-        return self.scale * self._offset_glyphs[0].glyph.right_side_bearing
+        return self._letters[0].right_side_bearing
 
-    # TODO: implement correct implementation
     def bounding_box(self):
-        """Get bounding box that encompasses all glyphs."""
-        if not self._offset_glyphs:
+        """Get bounding box that encompasses all letters."""
+        if not self._letters:
             return AvBox(0.0, 0.0, 0.0, 0.0)
 
-        if len(self._offset_glyphs) == 1:
-            glyph = self._offset_glyphs[0]
-            bbox = glyph.glyph.bounding_box()
-            x_pos = glyph.x_offset
-            return AvBox(bbox.xmin + x_pos, bbox.ymin, bbox.xmax + x_pos, bbox.ymax)
+        if len(self._letters) == 1:
+            letter = self._letters[0]
+            bbox = letter.glyph.bounding_box()
+            # Transform using the letter's transformation
+            return bbox.transform_affine(letter.trafo)
 
         # Calculate combined bounding box using pre-calculated x positions
-        # Initialize with first glyph's bounding box
-        first_bbox = self._offset_glyphs[0].glyph.bounding_box()
-        first_x = self._offset_glyphs[0].x_offset
-        min_x = first_bbox.xmin + first_x
-        max_x = first_bbox.xmax + first_x
+        # Initialize with first letter's bounding box
+        first_letter = self._letters[0]
+        first_bbox = first_letter.glyph.bounding_box().transform_affine(first_letter.trafo)
+        min_x = first_bbox.xmin
+        max_x = first_bbox.xmax
         min_y = first_bbox.ymin
         max_y = first_bbox.ymax
 
-        # Process remaining glyphs
-        for offset_glyph in self._offset_glyphs[1:]:
-            bbox = offset_glyph.glyph.bounding_box()
-            x_pos = offset_glyph.x_offset
+        # Process remaining letters
+        for letter in self._letters[1:]:
+            bbox = letter.glyph.bounding_box().transform_affine(letter.trafo)
 
-            # Transform bbox to its position
-            glyph_min_x = bbox.xmin + x_pos
-            glyph_max_x = bbox.xmax + x_pos
-            glyph_min_y = bbox.ymin
-            glyph_max_y = bbox.ymax
-
-            min_x = min(min_x, glyph_min_x)
-            max_x = max(max_x, glyph_max_x)
-            min_y = min(min_y, glyph_min_y)
-            max_y = max(max_y, glyph_max_y)
+            min_x = min(min_x, bbox.xmin)
+            max_x = max(max_x, bbox.xmax)
+            min_y = min(min_y, bbox.ymin)
+            max_y = max(max_y, bbox.ymax)
 
         return AvBox(min_x, min_y, max_x, max_y)
 
-    # TODO: implement correct implementation
     def svg_path_string(self) -> str:
         """SVG path string of the letter in real dimensions."""
-        if len(self._offset_glyphs) == 0:
+        if len(self._letters) == 0:
             return "M 0 0"
 
-        scale, _, _, _, translate_x, translate_y = self.trafo
-        return self._offset_glyphs[0].glyph.path.svg_path_string(scale, translate_x, translate_y)
+        # Return the first letter's SVG path
+        return self._letters[0].svg_path_string()
 
 
 def main():
@@ -632,19 +621,17 @@ def main():
             )
 
             # Modify x positions for visual effect (stack with slight offset)
-            if len(multi_letter.glyphs) >= 3:
-                positions = multi_letter.x_offsets
-                positions[0] = 0.0  # Lightest weight
-                positions[1] = 0.0  # Medium weight
-                positions[2] = 0.0  # Heaviest weight
+            if len(multi_letter.letters) >= 3:
+                # Update x_offset directly on each letter
+                multi_letter.letters[0].x_offset = 0.0  # Lightest weight
+                multi_letter.letters[1].x_offset = 0.0  # Medium weight
+                multi_letter.letters[2].x_offset = 0.0  # Heaviest weight
 
             # Render each weight variant with different opacity
             colors = ["#000000", "#808080", "#E0E0E0"]  # Black to light gray (reversed)
-            for i, (glyph, color) in enumerate(zip(reversed(multi_letter.glyphs), colors)):
-                # Create a temporary AvLetter for each glyph to get its path
-                temp_letter = AvLetter(glyph, multi_letter.scale, multi_letter.xpos + positions[i], multi_letter.ypos)
-
-                svg_path = svg_page.drawing.path(temp_letter.svg_path_string(), fill=color, stroke="none")
+            for i, (letter, color) in enumerate(zip(reversed(multi_letter.letters), colors)):
+                # Use the letter directly for its path
+                svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
                 svg_page.add(svg_path)
 
             # Move to next position
