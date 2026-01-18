@@ -5,7 +5,7 @@ from __future__ import annotations
 import gzip
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from ave.common import Align
 from ave.geom import AvBox
@@ -189,6 +189,27 @@ class AvLetter:
         """
         return self._glyph.glyph_box().transform_affine(self.trafo)
 
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Returns the centroid of the letter in real dimensions.
+
+        The centroid is the geometric center of the letter's outline,
+        calculated from the actual path geometry (not from the bounding box)
+        and transformed to world coordinates.
+
+        Returns:
+            Tuple[float, float]: The (x, y) coordinates of the centroid.
+        """
+        # Get the glyph's centroid and transform it using the letter's transformation
+        glyph_centroid = self._glyph.centroid()
+        scale, _, _, _, translate_x, translate_y = self.trafo
+
+        # Transform the centroid coordinates
+        centroid_x = glyph_centroid[0] * scale + translate_x
+        centroid_y = glyph_centroid[1] * scale + translate_y
+
+        return (centroid_x, centroid_y)
+
     def svg_path_string(self) -> str:
         """
         Returns the SVG path representation of the letter in real dimensions.
@@ -310,17 +331,6 @@ class AvMultiWeightLetter:
             return ""
         return self._letters[0].glyph.character
 
-    # @property
-    # def weights(self) -> List[float]:
-    #     """Get internal normalized weights (0 to 1 with equal spacing)."""
-    #     if not self._glyphs:
-    #         return []
-
-    #     if len(self._glyphs) == 1:
-    #         return [0.5]
-
-    #     return [i / (len(self._glyphs) - 1) for i in range(len(self._glyphs))]
-
     @property
     def xpos(self) -> float:
         """The x position of the letter in real dimensions."""
@@ -374,11 +384,6 @@ class AvMultiWeightLetter:
             letter.align = align
 
     @property
-    def glyphs(self) -> List[AvGlyph]:
-        """Get the glyphs list."""
-        return [letter.glyph for letter in self._letters]
-
-    @property
     def letters(self) -> List[AvLetter]:
         """Get the letters list."""
         return self._letters
@@ -389,14 +394,9 @@ class AvMultiWeightLetter:
         return [letter.x_offset for letter in self._letters]
 
     @property
-    def trafo(self) -> List[float]:
-        """
-        Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
-        Returns: [scale, 0, 0, scale, xpos, ypos] or [scale, 0, 0, scale, xpos-lsb, ypos] if alignment is LEFT or BOTH.
-        """
-        if len(self._letters) == 0:
-            return [1.0, 0, 0, 1.0, 0, 0]
-        return self._letters[0].trafo
+    def glyphs(self) -> List[AvGlyph]:
+        """Get the glyphs list."""
+        return [letter.glyph for letter in self._letters]
 
     def width(self) -> float:
         """
@@ -406,33 +406,29 @@ class AvMultiWeightLetter:
             return 0.0
         return self._letters[0].width(consider_x_offset=True)
 
-    @property
-    def height(self) -> float:
-        """
-        The height of the Letter, i.e. the height of the bounding box.
-        """
-        if len(self._letters) == 0:
-            return 0.0
-        return self._letters[0].height
+    # @property
+    # def height(self) -> float:
+    # --- not yet implemented ---
 
     @property
     def ascender(self) -> float:
         """
         The maximum distance above the baseline, i.e. the highest y-coordinate of a Letter (positive value).
         """
-        if len(self._letters) == 0:
+        if not self._letters:
             return 0.0
-        return self._letters[0].ascender
+        return max(letter.ascender for letter in self._letters)
 
     @property
     def descender(self) -> float:
         """
         The maximum distance below the baseline, i.e. the lowest y-coordinate of a Letter (negative value).
         """
-        if len(self._letters) == 0:
+        if not self._letters:
             return 0.0
-        return self._letters[0].descender
+        return min(letter.descender for letter in self._letters)
 
+    # TODO: check implementation
     @property
     def left_side_bearing(self) -> float:
         """
@@ -442,6 +438,7 @@ class AvMultiWeightLetter:
             return 0.0
         return self._letters[0].left_side_bearing
 
+    # TODO: check implementation
     @property
     def right_side_bearing(self) -> float:
         """
@@ -456,39 +453,65 @@ class AvMultiWeightLetter:
         if not self._letters:
             return AvBox(0.0, 0.0, 0.0, 0.0)
 
-        if len(self._letters) == 1:
-            letter = self._letters[0]
-            bbox = letter.glyph.bounding_box()
-            # Transform using the letter's transformation
-            return bbox.transform_affine(letter.trafo)
+        # Get bounding boxes from all letters
+        letter_bounding_boxes = [letter.bounding_box() for letter in self._letters]
 
-        # Calculate combined bounding box using pre-calculated x positions
-        # Initialize with first letter's bounding box
-        first_letter = self._letters[0]
-        first_bbox = first_letter.glyph.bounding_box().transform_affine(first_letter.trafo)
-        min_x = first_bbox.xmin
-        max_x = first_bbox.xmax
-        min_y = first_bbox.ymin
-        max_y = first_bbox.ymax
+        # Use AvBox.combine to get the overall bounding box
+        return AvBox.combine(*letter_bounding_boxes)
 
-        # Process remaining letters
-        for letter in self._letters[1:]:
-            bbox = letter.glyph.bounding_box().transform_affine(letter.trafo)
+    def letter_box(self) -> AvBox:
+        """Get letter box that encompasses all letters."""
+        if not self._letters:
+            return AvBox(0.0, 0.0, 0.0, 0.0)
 
-            min_x = min(min_x, bbox.xmin)
-            max_x = max(max_x, bbox.xmax)
-            min_y = min(min_y, bbox.ymin)
-            max_y = max(max_y, bbox.ymax)
+        # Get letter boxes from all letters
+        letter_letter_boxes = [letter.letter_box() for letter in self._letters]
 
-        return AvBox(min_x, min_y, max_x, max_y)
+        # Use AvBox.combine to get the overall letter box
+        return AvBox.combine(*letter_letter_boxes)
 
     def svg_path_string(self) -> str:
         """SVG path string of the letter in real dimensions."""
-        if len(self._letters) == 0:
+        if not self._letters:
             return "M 0 0"
 
-        # Return the first letter's SVG path
-        return self._letters[0].svg_path_string()
+        # Merge all letter path strings
+        path_strings = []
+        for letter in self._letters:
+            path_strings.append(letter.svg_path_string())
+
+        return " ".join(path_strings)
+
+    @staticmethod
+    def adapt_x_offset_by_centroid(multi_weight_letter: AvMultiWeightLetter) -> None:
+        """
+        Adapt x_offset of all letters so their bounding box centers align.
+
+        Uses the bounding box center (visual bounds) rather than centroid or
+        pole of inaccessibility, as it provides the most robust and consistent
+        alignment for all character types.
+
+        Args:
+            multi_weight_letter: The AvMultiWeightLetter to modify
+        """
+        if not multi_weight_letter.letters or len(multi_weight_letter.letters) < 2:
+            return
+
+        # Get the heaviest letter (last in the list) as reference
+        reference_letter = multi_weight_letter.letters[-1]
+        reference_bbox = reference_letter.bounding_box()
+        reference_center_x: float = (reference_bbox.xmin + reference_bbox.xmax) / 2
+
+        # Adjust x_offset for all letters except the reference
+        for letter in multi_weight_letter.letters[:-1]:
+            bbox = letter.bounding_box()
+            center_x: float = (bbox.xmin + bbox.xmax) / 2
+
+            # Calculate the offset needed to align centers
+            offset_adjustment: float = reference_center_x - center_x
+
+            # Update the letter's x_offset
+            letter.x_offset += offset_adjustment
 
 
 def main():
@@ -558,7 +581,7 @@ def main():
             ypos=100,
         )
         print(f"Created multi-weight letter for character '{multi_letter.character}'")
-        print(f"Number of weight variants: {len(multi_letter.glyphs)}")
+        print(f"Number of weight variants: {len(multi_letter.letters)}")
         print(f"Initial X positions (for fine-tuning): {multi_letter.x_offsets}")
 
         #######################################################################
@@ -620,12 +643,15 @@ def main():
                 ypos=current_ypos,
             )
 
+            AvMultiWeightLetter.adapt_x_offset_by_centroid(multi_letter)
+
             # Modify x positions for visual effect (stack with slight offset)
             if len(multi_letter.letters) >= 3:
-                # Update x_offset directly on each letter
-                multi_letter.letters[0].x_offset = 0.0  # Lightest weight
-                multi_letter.letters[1].x_offset = 0.0  # Medium weight
-                multi_letter.letters[2].x_offset = 0.0  # Heaviest weight
+                # If you want to override with manual offsets, uncomment below:
+                # multi_letter.letters[0].x_offset = 0.0  # Lightest weight
+                # multi_letter.letters[1].x_offset = 0.0  # Medium weight
+                # multi_letter.letters[2].x_offset = 0.0  # Heaviest weight
+                pass
 
             # Render each weight variant with different opacity
             colors = ["#000000", "#808080", "#E0E0E0"]  # Black to light gray (reversed)

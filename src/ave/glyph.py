@@ -8,7 +8,7 @@ import math
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from fontTools.ttLib import TTFont
@@ -138,7 +138,7 @@ class AvGlyph:
     def width(self, align: Optional[ave.common.Align] = None) -> float:
         """
         Returns the advance width calculated considering the alignment.
-        Returns the official glyph_width of this glyph if align is None.
+        Returns the official glyph_width (=advance_width) of this glyph if align is None.
 
         Args:
             align (Optional[ave.common.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
@@ -212,6 +212,18 @@ class AvGlyph:
             AvBox: The glyph box from x = 0 to advanceWidth and y = descender to ascender.
         """
         return AvBox(0, self.descender, self._width, self.ascender)
+
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Returns the centroid of the glyph.
+        For space characters, returns the middle of the advance width at baseline.
+        """
+        # Special case for space character which has no outline
+        if self.character == " ":
+            # Use middle of advance width for x, baseline (0) for y
+            return (self.width() / 2, 0.0)
+
+        return self._path.centroid
 
     def approx_equal(self, other: AvGlyph, rtol: float = 1e-9, atol: float = 1e-9) -> bool:
         """Check if two glyphs are approximately equal within numerical tolerances.
