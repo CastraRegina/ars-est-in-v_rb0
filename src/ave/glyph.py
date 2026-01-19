@@ -397,7 +397,10 @@ class AvGlyph:
         Checks done:
             Step 1: Check correct direction of segments of path (additive: CCW, subtractive: CW) by
                 calling revise_direction() and validate by comparing its result with self
-            Step 2: Check width to be in range 0 < width < 10*bounding_box.width
+            Step 2: Check width to be in range based on character class:
+                - Class 1 (NORMAL): 0 < width < 10*bounding_box.width
+                - Class 2 (PUNCTUATION): 0 < width < 15*bounding_box.width
+                - Class 3 (EXTREME): 0 < width < 25*bounding_box.width
                 (special case: space character " " only requires width > 0)
             Step 3: Validate path structure
                 - Check that all segments of the path are closed,
@@ -416,11 +419,27 @@ class AvGlyph:
         # Constants for validation
         REVISE_POINTS_TOLERANCE_RTOL = 1e-9  # pylint: disable=invalid-name
         REVISE_POINTS_TOLERANCE_ATOL = 1e-9  # pylint: disable=invalid-name
-        WIDTH_RANGE_MULTIPLIER = 10.0  # pylint: disable=invalid-name
         COORDINATE_RANGE_MULTIPLIER = 10.0  # pylint: disable=invalid-name
         UNITS_PER_EM_DEFAULT = 2048.0  # pylint: disable=invalid-name
         DUPLICATE_POINT_RTOL = 1e-9  # pylint: disable=invalid-name
         DUPLICATE_POINT_ATOL = 1e-9  # pylint: disable=invalid-name
+
+        def get_width_multiplier(character: str) -> float:
+            """Get appropriate width multiplier based on character type.
+
+            Returns:
+                float: Width multiplier for validation (10.0, 15.0, or 25.0)
+            """
+            # Class 3: Extreme cases - thin vertical/horizontal lines
+            if character in "|'\"":
+                return 25.0
+
+            # Class 2: Punctuation with moderate ratios - dots and small marks
+            if character in ".,;:!?":
+                return 15.0
+
+            # Class 1: Everything else (letters, digits, most symbols)
+            return 10.0
 
         # Step 1: Check correct direction of segments
         revised_glyph = self.revise_direction()
@@ -433,7 +452,7 @@ class AvGlyph:
         )
         commands_equal = self._path.commands == revised_glyph.path.commands
         if not points_equal or not commands_equal:
-            raise ValueError("Glyph path segments have incorrect winding directions")
+            raise ValueError(f"Glyph '{self._character}' has incorrect winding directions")
 
         # Step 2: Check width range
         bbox = self.bounding_box()
@@ -441,13 +460,19 @@ class AvGlyph:
         if self._character == " " or bbox.width == 0:
             # For space character, only check that width is positive
             if self._width <= 0:
-                raise ValueError(f"Space character width must be positive, got {self._width}")
-        else:
-            # For normal characters, check width is within reasonable range
-            if not 0 < self._width < WIDTH_RANGE_MULTIPLIER * bbox.width:
                 raise ValueError(
-                    f"Glyph width {self._width} is not in valid range (0, {WIDTH_RANGE_MULTIPLIER * bbox.width})"
+                    f"Space character width must be positive, got {self._width} for character '{self._character}'"
                 )
+        else:
+            # For normal characters, check width is within reasonable range based on character class
+            width_multiplier = get_width_multiplier(self._character)
+            if not 0 < self._width < width_multiplier * bbox.width:
+                msg = (
+                    f"Glyph '{self._character}' width {self._width} "
+                    f"is not in valid range (0, {width_multiplier * bbox.width}) "
+                    f"for character class (multiplier: {width_multiplier}x)"
+                )
+                raise ValueError(msg)
 
         # Step 3: Validate path structure using existing path validation
         # Use closed path constraints to ensure all segments are closed
@@ -456,30 +481,40 @@ class AvGlyph:
         segments = PathSplitter.split_commands_into_segments(self._path.commands)
         for seg_idx, (seg_cmds, _) in enumerate(segments):
             if not seg_cmds:
-                raise ValueError(f"Segment {seg_idx} is empty")
+                raise ValueError(f"Glyph '{self._character}' segment {seg_idx} is empty")
             if seg_cmds[0] != "M":
-                raise ValueError(f"Segment {seg_idx} must start with 'M' command")
+                raise ValueError(f"Glyph '{self._character}' segment {seg_idx} must start with 'M' command")
             if seg_cmds[-1] != "Z":
-                raise ValueError(f"Segment {seg_idx} must end with 'Z' command for closed path")
+                raise ValueError(
+                    f"Glyph '{self._character}' segment {seg_idx} must end with 'Z' command for closed path"
+                )
 
         # Step 4: Check coordinates for NaN and infinity
         points = self._path.points
         if not np.all(np.isfinite(points)):
             invalid_coords = np.where(~np.isfinite(points))
-            raise ValueError(f"Glyph contains invalid coordinates (NaN or infinity) at indices: {invalid_coords}")
+            raise ValueError(
+                f"Glyph '{self._character}' contains invalid coordinates (NaN or infinity) at indices: {invalid_coords}"
+            )
 
         # Step 5: Check for reasonable coordinate ranges
         min_coord = -COORDINATE_RANGE_MULTIPLIER * UNITS_PER_EM_DEFAULT
         max_coord = COORDINATE_RANGE_MULTIPLIER * UNITS_PER_EM_DEFAULT
 
         if np.any(points[:, 0] < min_coord) or np.any(points[:, 0] > max_coord):
-            raise ValueError(f"Glyph x-coordinates exceed reasonable range [{min_coord}, {max_coord}]")
+            raise ValueError(
+                f"Glyph '{self._character}' x-coordinates exceed reasonable range [{min_coord}, {max_coord}]"
+            )
         if np.any(points[:, 1] < min_coord) or np.any(points[:, 1] > max_coord):
-            raise ValueError(f"Glyph y-coordinates exceed reasonable range [{min_coord}, {max_coord}]")
+            raise ValueError(
+                f"Glyph '{self._character}' y-coordinates exceed reasonable range [{min_coord}, {max_coord}]"
+            )
 
         # Step 6: Check for reasonable bounding box
         if bbox.xmin < min_coord or bbox.xmax > max_coord or bbox.ymin < min_coord or bbox.ymax > max_coord:
-            raise ValueError(f"Glyph bounding box exceeds reasonable range [{min_coord}, {max_coord}]")
+            raise ValueError(
+                f"Glyph '{self._character}' bounding box exceeds reasonable range [{min_coord}, {max_coord}]"
+            )
 
         # Step 7: Check for duplicate consecutive points
         if len(points) > 1:
@@ -493,7 +528,9 @@ class AvGlyph:
 
             if np.any(duplicate_mask):
                 duplicate_indices = np.where(duplicate_mask)[0]
-                raise ValueError(f"Glyph contains duplicate consecutive points at indices: {duplicate_indices}")
+                raise ValueError(
+                    f"Glyph '{self._character}' contains duplicate consecutive points at indices: {duplicate_indices}"
+                )
 
         # Step 8: Check for self-intersection
         # This is a complex geometric check, for now we'll do a basic check
