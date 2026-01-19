@@ -233,6 +233,41 @@ class AvPathCleaner:
             # No matching type=0 point found, return 0 (no rotation)
             return 0
 
+        # TODO: check why this is needed!!!
+        def remove_duplicate_consecutive_points_from_coords(
+            coords: List[Tuple[float, float]],
+        ) -> List[Tuple[float, float]]:
+            """Remove duplicate consecutive points from a coordinate list.
+
+            Args:
+                coords: List of (x, y) coordinates
+
+            Returns:
+                List of coordinates with duplicates removed
+            """
+            if len(coords) <= 1:
+                return coords
+
+            # Use the same tolerance as in glyph.validate()
+            TOLERANCE = 1e-9  # pylint: disable=C0103
+
+            # Build a new list without duplicate consecutive points
+            clean_coords = [coords[0]]
+
+            for i in range(1, len(coords)):
+                # Check if current point is the same as the previous one (within tolerance)
+                prev_x, prev_y = clean_coords[-1]
+                curr_x, curr_y = coords[i]
+
+                # Calculate distance between points
+                distance = ((curr_x - prev_x) ** 2 + (curr_y - prev_y) ** 2) ** 0.5
+
+                # Only add the point if it's not within tolerance of the previous one
+                if distance > TOLERANCE:
+                    clean_coords.append(coords[i])
+
+            return clean_coords
+
         def rotate_coords(coords: List[Tuple[float, float]], idx: int) -> List[Tuple[float, float]]:
             """Rotate coordinate list to start from given index.
 
@@ -258,6 +293,8 @@ class AvPathCleaner:
             exterior_coords = list(polygon.exterior.coords)
             if len(exterior_coords) >= 4:
                 exterior_coords = exterior_coords[:-1]  # Remove closing point
+                # TODO: check why this is needed!!!
+                exterior_coords = remove_duplicate_consecutive_points_from_coords(exterior_coords)
                 if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
                     # Enforce CCW for exterior rings (positive polygons)
                     if not AvPolygon.is_ccw(np.asarray(exterior_coords)):
@@ -273,6 +310,8 @@ class AvPathCleaner:
                 interior_coords = list(interior.coords)
                 if len(interior_coords) >= 4:
                     interior_coords = interior_coords[:-1]  # Remove closing point
+                    # TODO: check why this is needed!!!
+                    interior_coords = remove_duplicate_consecutive_points_from_coords(interior_coords)
                     if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
                         # Enforce CW for interior rings (holes)
                         if AvPolygon.is_ccw(np.asarray(interior_coords)):
