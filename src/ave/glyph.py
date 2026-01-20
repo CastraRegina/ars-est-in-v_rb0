@@ -254,57 +254,49 @@ class AvGlyph:
 
         return True
 
-    def revise_direction(self) -> AvGlyph:
+    def revise_direction(self, largest_area_sets_ccw: bool = True) -> AvGlyph:
         """Normalize contour direction to TrueType/OpenType winding rules.
 
         TrueType/OpenType glyph outlines use contour winding to distinguish
-        filled regions vs holes. This function rewrites each contour so
-        that the glyph complies with the following standard directions:
+        filled regions vs holes. This function supports two algorithms:
 
+        Algorithm A (largest_area_sets_ccw=True):
+        - Find the contour with the largest area
+        - If it is CCW, keep all contours as-is
+        - If it is CW, reverse all contours
+
+        Algorithm B (largest_area_sets_ccw=False):
+        - Classify contours as additive vs subtractive using strict geometric nesting
         - Additive polygons (filled areas, outer contours): counter-clockwise (CCW)
         - Subtractive polygons (cut-out areas, inner contours/holes): clockwise (CW)
 
-        Algorithm:
-        Step 1: Split glyph into individual contours
-        Step 2-3: Process each contour - check if closed, polygonize for area computation
-        Step 4: Classify contours as additive vs subtractive using strict geometric nesting:
-                - Check if a contour's bounding box is fully contained within another contour
-                - Only if bounding boxes are nested, verify point containment
-                - Non-nested contours are always additive (CCW)
-                - Nested contours are subtractive (CW)
-        Step 5: Enforce required direction - reverse contours that don't match winding rules
-        Step 6: Reassemble contours into new AvPath
+        Args:
+            largest_area_sets_ccw: If True, use Algorithm A; if False, use Algorithm B
 
         Returns:
             AvGlyph: New glyph with corrected segment directions
         """
-        # Step 1: Split glyph into individual contours
+        # Step 1: Split glyph into individual contours (common to both algorithms)
         contours: List[AvSinglePath] = self.path.split_into_single_paths()
 
-        # Prepare lists for processed contours and their polygonized versions
+        # Step 2: Process each contour - check if closed, polygonize for area computation (common)
         processed_contours: List[AvSinglePath] = []
-        polygonized_contours: List[Optional[AvSinglePolygonPath]] = []  # For containment testing
+        polygonized_contours: List[Optional[AvSinglePolygonPath]] = []
 
-        # Steps 2-3: Process each contour
         for contour in contours:
-            # Check if contour is closed (ends with 'Z')
             is_closed = contour.commands and contour.commands[-1] == "Z"
 
             if not is_closed:
-                # Edge case: leave open contours untouched
                 processed_contours.append(contour)
                 polygonized_contours.append(None)
                 continue
 
-            # Create a closed path to access polygonization utilities
             closed_path: AvClosedSinglePath = AvPath(
                 contour.points.copy(), list(contour.commands), CLOSED_SINGLE_PATH_CONSTRAINTS
             )
 
-            # Polygonize the contour for robust winding computation
             polygonized: AvSinglePolygonPath = closed_path.polygonized_path()
 
-            # Edge case: skip degenerate contours with near-zero area
             if polygonized.area < 1e-10:
                 processed_contours.append(contour)
                 polygonized_contours.append(None)
@@ -313,21 +305,73 @@ class AvGlyph:
             processed_contours.append(contour)
             polygonized_contours.append(polygonized)
 
-        # Step 4: Simple classification - only check for actual geometric nesting
+        # Branch based on algorithm choice
+        if largest_area_sets_ccw:
+            final_contours = self._revise_direction_by_largest_area(processed_contours, polygonized_contours)
+        else:
+            final_contours = self._revise_direction_by_nesting(processed_contours, polygonized_contours)
+
+        # Reassemble contours into new AvPath (common)
+        if final_contours:
+            new_path = AvPath.join_paths(*final_contours)
+        else:
+            new_path = AvPath()
+
+        return AvGlyph(character=self.character, width=self.width(), path=new_path)
+
+    def _revise_direction_by_largest_area(
+        self,
+        processed_contours: List[AvSinglePath],
+        polygonized_contours: List[Optional[AvSinglePolygonPath]],
+    ) -> List[AvSinglePath]:
+        """Algorithm A: Use largest area contour to determine if all should be reversed.
+
+        Step 3: Find contour with largest area
+        Step 4: If largest area contour is CCW, keep all as-is; else reverse all
+        """
+        # Step 3: Find contour with largest area
+        largest_area = 0.0
+        largest_area_is_ccw = True
+
+        for polygonized in polygonized_contours:
+            if polygonized is not None and polygonized.area > largest_area:
+                largest_area = polygonized.area
+                largest_area_is_ccw = polygonized.is_ccw
+
+        # Step 4: Enforce direction based on largest contour
+        final_contours: List[AvSinglePath] = []
+
+        if largest_area_is_ccw:
+            # Largest is CCW (additive/positive), keep all contours as-is
+            final_contours = processed_contours
+        else:
+            # Largest is CW (negative), reverse all contours
+            for contour in processed_contours:
+                final_contours.append(contour.reverse())
+
+        return final_contours
+
+    def _revise_direction_by_nesting(
+        self,
+        processed_contours: List[AvSinglePath],
+        polygonized_contours: List[Optional[AvSinglePolygonPath]],
+    ) -> List[AvSinglePath]:
+        """Algorithm B: Classify contours by geometric nesting and enforce winding rules.
+
+        Step 4: Classify contours as additive vs subtractive using strict geometric nesting
+        Step 5: Enforce required direction - reverse contours that don't match winding rules
+        """
+        # Step 4: Classify contours by geometric nesting
         contour_classes = []
 
         for i, (contour, polygonized) in enumerate(zip(processed_contours, polygonized_contours)):
             if polygonized is None:
-                # Open contour - not classified
                 contour_classes.append(None)
                 continue
 
-            # Get current area and test point
             current_area = polygonized.area
             test_point = polygonized.representative_point()
 
-            # Check if this contour is geometrically nested inside another contour
-            # Use strict test: bounding box must be fully contained AND area must be smaller
             is_nested = False
             current_bbox = polygonized.bounding_box()
 
@@ -336,7 +380,6 @@ class AvGlyph:
                     other_area = other_polygonized.area
                     other_bbox = other_polygonized.bounding_box()
 
-                    # Strict test: current bbox must be fully inside other bbox
                     bbox_fully_contained = (
                         current_bbox.xmin >= other_bbox.xmin
                         and current_bbox.xmax <= other_bbox.xmax
@@ -344,13 +387,11 @@ class AvGlyph:
                         and current_bbox.ymax <= other_bbox.ymax
                     )
 
-                    # Must also be smaller to be considered nested
                     if bbox_fully_contained and other_area > current_area:
                         if other_polygonized.contains_point(test_point):
                             is_nested = True
                             break
 
-            # Classification: non-nested = additive (CCW), nested = subtractive (CW)
             is_additive = not is_nested
             contour_classes.append(is_additive)
 
@@ -359,37 +400,24 @@ class AvGlyph:
 
         for contour, polygonized, is_additive in zip(processed_contours, polygonized_contours, contour_classes):
             if polygonized is None or is_additive is None:
-                # Open contour - leave as is
                 final_contours.append(contour)
                 continue
 
-            # Get current winding direction
             is_ccw = polygonized.is_ccw
 
-            # Check if direction needs correction
             needs_reversal = False
             if is_additive and not is_ccw:
-                # Additive should be CCW
                 needs_reversal = True
             elif not is_additive and is_ccw:
-                # Subtractive should be CW
                 needs_reversal = True
 
             if needs_reversal:
-                # Reverse the contour while preserving geometry
                 reversed_contour = contour.reverse()
                 final_contours.append(reversed_contour)
             else:
                 final_contours.append(contour)
 
-        # Step 6: Reassemble contours into new AvPath
-        if final_contours:
-            new_path = AvPath.join_paths(*final_contours)
-        else:
-            new_path = AvPath()
-
-        # Return new AvGlyph with corrected directions
-        return AvGlyph(character=self.character, width=self.width(), path=new_path)
+        return final_contours
 
     def validate(self) -> None:
         """

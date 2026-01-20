@@ -604,7 +604,7 @@ def main():
             "out_name": "NotoSansMono-VariableFont_AA_",
             "wghts_min": 100,
             "wghts_max": 900,
-            "num_wghts": 9,
+            "num_wghts": 3,
         },
         # {
         #     "in_fn": "fonts/RobotoMono-VariableFont_wght.ttf",
@@ -643,8 +643,8 @@ def main():
         detail_chars += "€#"  # several intersections
 
         # characters = detail_chars + "-"
-        characters = "AXx&"
-        characters = ":"
+        # characters = "AXx&"
+        characters = "0"
 
         # ------------------------------------------------------------------------
 
