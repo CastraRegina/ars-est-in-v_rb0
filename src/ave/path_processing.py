@@ -569,69 +569,66 @@ class AvPathCleaner:
                 print("Warning: No valid polygons to process. Returning empty path.")
                 return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
 
-            # Step 2: Assign holes to CCW polygons using proximity
-            # Separate CCW and CW polygons
-            ccw_polygons: List[Tuple[int, shapely.geometry.Polygon]] = []
-            cw_polygons: List[Tuple[int, shapely.geometry.Polygon]] = []
+            # Step 2: Pre-assign holes to CCW polygons using proximity
+            # Build mapping: hole_index -> parent_ccw_index
+            ccw_indices = [idx for idx, (_, is_ccw) in enumerate(raw_polygons) if is_ccw]
+            cw_indices = [idx for idx, (_, is_ccw) in enumerate(raw_polygons) if not is_ccw]
+
+            hole_to_parent: Dict[int, int] = {}  # Maps CW index -> CCW index
+
+            for cw_idx in cw_indices:
+                cw_poly, _ = raw_polygons[cw_idx]
+                cw_centroid = cw_poly.centroid
+
+                # Find nearest CCW polygon by centroid distance
+                best_ccw_idx = None
+                min_dist = float("inf")
+
+                for ccw_idx in ccw_indices:
+                    ccw_poly, _ = raw_polygons[ccw_idx]
+                    ccw_centroid = ccw_poly.centroid
+                    distance = cw_centroid.distance(ccw_centroid)
+
+                    if distance < min_dist:
+                        min_dist = distance
+                        best_ccw_idx = ccw_idx
+
+                if best_ccw_idx is not None:
+                    hole_to_parent[cw_idx] = best_ccw_idx
+
+            # Step 3: Process polygons in exact input order
+            # Track which holes belong to each CCW, and defer holes until parent is encountered
+            ccw_to_holes: Dict[int, List[shapely.geometry.Polygon]] = {idx: [] for idx in ccw_indices}
+
+            for cw_idx, parent_ccw_idx in hole_to_parent.items():
+                cw_poly, _ = raw_polygons[cw_idx]
+                ccw_to_holes[parent_ccw_idx].append(cw_poly)
+
+            # Process in exact input order, creating complete polygons when encountering CCW
+            shapely_polygons: List[shapely.geometry.base.BaseGeometry] = []
 
             for idx, (poly, is_ccw) in enumerate(raw_polygons):
                 if is_ccw:
-                    ccw_polygons.append((idx, poly))
-                else:
-                    cw_polygons.append((idx, poly))
+                    # This is a CCW polygon - create it with all its assigned holes
+                    holes = ccw_to_holes.get(idx, [])
 
-            # Assign each hole to the nearest CCW polygon by centroid distance
-            polygon_groups: List[Tuple[shapely.geometry.Polygon, List[shapely.geometry.Polygon]]] = []
+                    try:
+                        # Create polygon with exterior and holes
+                        if holes:
+                            complete_poly = shapely.geometry.Polygon(
+                                poly.exterior.coords, [hole.exterior.coords for hole in holes]
+                            )
+                        else:
+                            complete_poly = poly
 
-            for ccw_idx, ccw_poly in ccw_polygons:
-                holes_for_this_ccw = []
-                ccw_centroid = ccw_poly.centroid
-
-                for cw_idx, cw_poly in cw_polygons:
-                    cw_centroid = cw_poly.centroid
-                    distance = ccw_centroid.distance(cw_centroid)
-
-                    # Find the nearest CCW for this hole
-                    min_dist = distance
-                    best_ccw_idx = ccw_idx
-
-                    for other_ccw_idx, other_ccw_poly in ccw_polygons:
-                        if other_ccw_idx != ccw_idx:
-                            other_dist = cw_centroid.distance(other_ccw_poly.centroid)
-                            if other_dist < min_dist:
-                                min_dist = other_dist
-                                best_ccw_idx = other_ccw_idx
-
-                    # If this CCW is the nearest, add this hole to it
-                    if best_ccw_idx == ccw_idx:
-                        holes_for_this_ccw.append(cw_poly)
-
-                polygon_groups.append((ccw_poly, holes_for_this_ccw))
-
-            if not polygon_groups:
-                print("Warning: No CCW polygon found. Returning empty path.")
-                return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
-
-            # Step 3: Create complete polygons with holes, then apply buffer(0)
-            shapely_polygons: List[shapely.geometry.base.BaseGeometry] = []
-
-            for exterior, holes in polygon_groups:
-                try:
-                    # Create polygon with exterior and holes
-                    if holes:
-                        complete_poly = shapely.geometry.Polygon(
-                            exterior.exterior.coords, [hole.exterior.coords for hole in holes]
-                        )
-                    else:
-                        complete_poly = exterior
-
-                    # Now apply buffer(0) to the complete polygon (with holes)
-                    cleaned = complete_poly.buffer(0)
-                    if not cleaned.is_empty and cleaned.is_valid:
-                        shapely_polygons.append(cleaned)
-                except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
-                    print(f"Warning: Failed to create/clean polygon with holes: {e}")
-                    continue
+                        # Now apply buffer(0) to the complete polygon (with holes)
+                        cleaned = complete_poly.buffer(0)
+                        if not cleaned.is_empty and cleaned.is_valid:
+                            shapely_polygons.append(cleaned)
+                    except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
+                        print(f"Warning: Failed to create/clean polygon with holes: {e}")
+                        continue
+                # else: CW polygon (hole) - skip it, already incorporated into parent
 
             if not shapely_polygons:
                 print("Warning: No valid polygons after cleaning. Returning empty path.")
