@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import shapely.geometry
@@ -333,6 +333,102 @@ class AvPathCleaner:
         return cleaned_paths
 
     @staticmethod
+    def _add_polygon_to_result(
+        result_polygons: List[shapely.geometry.Polygon],
+        new_polygon: shapely.geometry.Polygon,
+    ) -> List[shapely.geometry.Polygon]:
+        """Add a CCW polygon to result: union with overlapping, keep separate if non-overlapping.
+
+        Only unions polygons that have actual geometric overlap (shared interior area),
+        not just touching boundaries. This preserves holes in polygons.
+
+        Args:
+            result_polygons: Current list of result polygons
+            new_polygon: New polygon to add
+
+        Returns:
+            Updated list of result polygons
+        """
+        if new_polygon.is_empty:
+            return result_polygons
+
+        # Check if new polygon has actual geometric overlap with any existing result polygon
+        merged = False
+        updated_result = []
+
+        for existing in result_polygons:
+            if not merged:
+                # Check for actual overlap (shared area), not just touching
+                # Use intersection to check if there's shared interior area
+                intersection = existing.intersection(new_polygon)
+                has_overlap = not intersection.is_empty and intersection.area > 1e-10  # Meaningful shared area
+
+                if has_overlap:
+                    # Union overlapping polygons
+                    union_result = existing.union(new_polygon)
+
+                    # Handle MultiPolygon results from union
+                    if isinstance(union_result, shapely.geometry.MultiPolygon):
+                        updated_result.extend([p for p in union_result.geoms if not p.is_empty])
+                    elif not union_result.is_empty:
+                        updated_result.append(union_result)
+
+                    merged = True
+                else:
+                    # No overlap - keep existing polygon as-is
+                    updated_result.append(existing)
+            else:
+                # Keep existing polygon as-is
+                updated_result.append(existing)
+
+        if not merged:
+            # New polygon doesn't overlap with any existing - keep as separate
+            updated_result.append(new_polygon)
+
+        return updated_result
+
+    @staticmethod
+    def _subtract_polygon_from_result(
+        result_polygons: List[shapely.geometry.Polygon],
+        hole_polygon: shapely.geometry.Polygon,
+    ) -> List[shapely.geometry.Polygon]:
+        """Subtract a CW polygon from its containing polygon(s) in the result.
+
+        Args:
+            result_polygons: Current list of result polygons
+            hole_polygon: Hole polygon to subtract
+
+        Returns:
+            Updated list of result polygons with hole subtracted
+        """
+        if hole_polygon.is_empty:
+            return result_polygons
+
+        updated_result = []
+
+        for poly in result_polygons:
+            # Check if hole is fully contained within this polygon
+            # Use robust containment check
+            centroid_inside = poly.contains(hole_polygon.centroid)
+            repr_inside = poly.contains(hole_polygon.representative_point())
+            hole_smaller = hole_polygon.area < poly.area
+
+            if centroid_inside and repr_inside and hole_smaller:
+                # Subtract hole from this polygon
+                diff_result = poly.difference(hole_polygon)
+
+                # Handle MultiPolygon results from difference
+                if isinstance(diff_result, shapely.geometry.MultiPolygon):
+                    updated_result.extend([p for p in diff_result.geoms if not p.is_empty])
+                elif isinstance(diff_result, shapely.geometry.Polygon) and not diff_result.is_empty:
+                    updated_result.append(diff_result)
+            else:
+                # Hole not contained in this polygon - keep polygon as-is
+                updated_result.append(poly)
+
+        return updated_result
+
+    @staticmethod
     def resolve_polygonized_path_intersections(path: AvMultiPolylinePath) -> AvMultiPolygonPath:
         """Resolve self-intersections in a polygonized path with winding direction rules.
 
@@ -457,44 +553,115 @@ class AvPathCleaner:
         if not polygons:
             return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
 
-        # Sequentially combine polygons using the first CCW polygon as base
-        # Store early CW polygons to defer them until we find the first CCW
-        deferred_cw_polygons: List[shapely.geometry.base.BaseGeometry] = []
-        result: Optional[shapely.geometry.base.BaseGeometry] = None
-        first_ccw_found = False
-
+        # Group holes with parents BEFORE buffer(0) to preserve structure
         try:
-            for polygon, is_ccw in zip(polygons, orientations):
-                # Use stored orientation from closed path
+            # Step 1: Convert to raw Shapely polygons (no buffer yet)
+            raw_polygons: List[Tuple[shapely.geometry.Polygon, bool]] = []
 
-                # Skip degenerate polygons
+            for polygon, is_ccw in zip(polygons, orientations):
                 if polygon.points.shape[0] < 3:
                     print("Warning: Contour has fewer than 3 points. Skipping.")
                     continue
-
-                # Convert to Shapely polygon
                 shapely_poly = shapely.geometry.Polygon(polygon.points[:, :2].tolist())
+                raw_polygons.append((shapely_poly, is_ccw))
 
-                # Clean intersections with buffer(0)
-                try:
-                    cleaned = shapely_poly.buffer(0)
-                    # Skip if buffer(0) results in empty or invalid geometry
-                    if cleaned.is_empty or not cleaned.is_valid:
-                        print("Warning: Contour became empty or invalid after buffer(0). Skipping.")
-                        continue
-                except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
-                    print(f"Warning: Failed to clean contour with buffer(0): {e}. Skipping.")
-                    continue
+            if not raw_polygons:
+                print("Warning: No valid polygons to process. Returning empty path.")
+                return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
 
-                # Handle different geometry types from buffer(0)
-                result, first_ccw_found = AvPathCleaner._process_cleaned_geometry(
-                    cleaned, is_ccw, result, first_ccw_found, deferred_cw_polygons
-                )
+            # Step 2: Assign holes to CCW polygons using proximity
+            # Separate CCW and CW polygons
+            ccw_polygons: List[Tuple[int, shapely.geometry.Polygon]] = []
+            cw_polygons: List[Tuple[int, shapely.geometry.Polygon]] = []
 
-            # If no CCW polygon was found, return empty path
-            if result is None or not first_ccw_found:
+            for idx, (poly, is_ccw) in enumerate(raw_polygons):
+                if is_ccw:
+                    ccw_polygons.append((idx, poly))
+                else:
+                    cw_polygons.append((idx, poly))
+
+            # Assign each hole to the nearest CCW polygon by centroid distance
+            polygon_groups: List[Tuple[shapely.geometry.Polygon, List[shapely.geometry.Polygon]]] = []
+
+            for ccw_idx, ccw_poly in ccw_polygons:
+                holes_for_this_ccw = []
+                ccw_centroid = ccw_poly.centroid
+
+                for cw_idx, cw_poly in cw_polygons:
+                    cw_centroid = cw_poly.centroid
+                    distance = ccw_centroid.distance(cw_centroid)
+
+                    # Find the nearest CCW for this hole
+                    min_dist = distance
+                    best_ccw_idx = ccw_idx
+
+                    for other_ccw_idx, other_ccw_poly in ccw_polygons:
+                        if other_ccw_idx != ccw_idx:
+                            other_dist = cw_centroid.distance(other_ccw_poly.centroid)
+                            if other_dist < min_dist:
+                                min_dist = other_dist
+                                best_ccw_idx = other_ccw_idx
+
+                    # If this CCW is the nearest, add this hole to it
+                    if best_ccw_idx == ccw_idx:
+                        holes_for_this_ccw.append(cw_poly)
+
+                polygon_groups.append((ccw_poly, holes_for_this_ccw))
+
+            if not polygon_groups:
                 print("Warning: No CCW polygon found. Returning empty path.")
                 return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
+
+            # Step 3: Create complete polygons with holes, then apply buffer(0)
+            shapely_polygons: List[shapely.geometry.base.BaseGeometry] = []
+
+            for exterior, holes in polygon_groups:
+                try:
+                    # Create polygon with exterior and holes
+                    if holes:
+                        complete_poly = shapely.geometry.Polygon(
+                            exterior.exterior.coords, [hole.exterior.coords for hole in holes]
+                        )
+                    else:
+                        complete_poly = exterior
+
+                    # Now apply buffer(0) to the complete polygon (with holes)
+                    cleaned = complete_poly.buffer(0)
+                    if not cleaned.is_empty and cleaned.is_valid:
+                        shapely_polygons.append(cleaned)
+                except (shapely.errors.ShapelyError, ValueError, TypeError) as e:
+                    print(f"Warning: Failed to create/clean polygon with holes: {e}")
+                    continue
+
+            if not shapely_polygons:
+                print("Warning: No valid polygons after cleaning. Returning empty path.")
+                return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
+
+            # Step 4: Process polygons sequentially - union overlapping, keep separate if non-overlapping
+            # Holes are already incorporated into their parent polygons
+            result_polygons: List[shapely.geometry.Polygon] = []
+
+            for idx, poly_geom in enumerate(shapely_polygons):
+                # Handle MultiPolygon from buffer(0)
+                current_polys = (
+                    [poly_geom] if isinstance(poly_geom, shapely.geometry.Polygon) else list(poly_geom.geoms)
+                )
+
+                for poly in current_polys:
+                    if poly.is_empty:
+                        continue
+
+                    # Add polygon (union with overlapping, keep separate if non-overlapping)
+                    result_polygons = AvPathCleaner._add_polygon_to_result(result_polygons, poly)
+
+            # Step 5: Convert list of polygons to MultiPolygon or Polygon
+            if not result_polygons:
+                print("Warning: No valid polygons after processing. Returning empty path.")
+                return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
+            elif len(result_polygons) == 1:
+                result = result_polygons[0]
+            else:
+                result = shapely.geometry.MultiPolygon(result_polygons)
 
             if result.is_empty:
                 print("Warning: Result is empty after operations. Returning empty path.")
