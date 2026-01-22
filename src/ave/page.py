@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import copy
 import gzip
 import io
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Union
 
 import svgwrite
 import svgwrite.base
@@ -103,6 +102,11 @@ class AvSvgPage:
         self.main_layer = self._inkscape.layer(label="main", locked=False)
         self.debug_layer = self._inkscape.layer(label="debug", locked=False, display="none")
 
+        # Assemble the tree structure: drawing -> root_group -> [debug_layer, main_layer]
+        self.drawing.add(self.root_group)
+        self.root_group.add(self.debug_layer)
+        self.root_group.add(self.main_layer)
+
     def add(
         self,
         element: Union[svgwrite.base.BaseElement, svgwrite.elementfactory.ElementBuilder],
@@ -138,51 +142,26 @@ class AvSvgPage:
             indent (int, optional): Indention if pretty is enabled. Defaults to 2 spaces.
             compressed (bool, optional): Save as compressed svgz-file. Defaults to False.
         """
-        drawing_for_save = self.assemble_tree(
-            copy.deepcopy(self.drawing),
-            copy.deepcopy(self.root_group),
-            copy.deepcopy(self.main_layer),
-            copy.deepcopy(self.debug_layer),
-            include_debug_layer,
-        )
+        # Temporarily remove debug layer if not needed
+        if not include_debug_layer:
+            self.root_group.elements.remove(self.debug_layer)
 
-        # setup IO:
-        svg_buffer = io.StringIO()
-        drawing_for_save.write(svg_buffer, pretty=pretty, indent=indent)
-        output_data = svg_buffer.getvalue().encode("utf-8")
-        if compressed:
-            output_data = gzip.compress(output_data)
-
-        # save file:
-        with open(filename, "wb") as svg_file:
-            svg_file.write(output_data)
-
-    @classmethod
-    def assemble_tree(
-        cls,
-        drawing: svgwrite.Drawing,
-        root_group: svgwrite.container.Group,
-        main_layer: svgwrite.container.Group,
-        debug_layer: Optional[svgwrite.container.Group] = None,
-        include_debug_layer: bool = False,
-    ) -> svgwrite.Drawing:
-        """Assemble a tree out of the given SVG elements.
-
-        Args:
-            drawing (svgwrite.Drawing): The main SVG drawing element.
-            root_group (svgwrite.container.Group): The root group of the drawing.
-            main_layer (svgwrite.container.Group): The main layer of the drawing.
-            debug_layer (svgwrite.container.Group): The debug layer of the drawing.
-            include_debug_layer (bool, optional): Include the debug layer in the tree. Defaults to False.
-
-        Returns:
-            svgwrite.Drawing: The given drawing with assembled SVG drawing elements.
-        """
-        drawing.add(root_group)
-        if include_debug_layer and debug_layer:
-            root_group.add(debug_layer)
-        root_group.add(main_layer)
-        return drawing
+        try:
+            if compressed:
+                # For compressed files, use text wrapper to avoid intermediate buffer
+                with open(filename, "wb", buffering=65536) as svg_file:
+                    with gzip.GzipFile(fileobj=svg_file, mode="wb", compresslevel=6) as gz_file:
+                        with io.TextIOWrapper(gz_file, encoding="utf-8", write_through=False) as text_file:
+                            self.drawing.write(text_file, pretty=pretty, indent=indent)
+            else:
+                # For uncompressed files, write directly with buffering
+                with open(filename, "w", encoding="utf-8", buffering=65536) as svg_file:
+                    self.drawing.write(svg_file, pretty=pretty, indent=indent)
+        finally:
+            # Always restore debug layer to maintain object state
+            if not include_debug_layer:
+                # Re-add debug layer at the beginning (before main_layer)
+                self.root_group.elements.insert(0, self.debug_layer)
 
     @classmethod
     def create_page_a4(
