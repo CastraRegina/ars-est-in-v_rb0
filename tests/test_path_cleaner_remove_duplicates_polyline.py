@@ -16,7 +16,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
     def test_empty_path(self):
         """Test with empty path."""
         path = AvMultiPolylinePath()
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 0
         assert len(result.commands) == 0
@@ -26,7 +26,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         points = [(10.0, 20.0, 0.0)]
         commands = ["M"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 1
         assert len(result.commands) == 1
@@ -37,7 +37,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         points = [(0.0, 0.0, 0.0), (10.0, 0.0, 0.0), (10.0, 10.0, 0.0), (0.0, 10.0, 0.0)]
         commands = ["M", "L", "L", "L", "Z"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 4
         assert len(result.commands) == 5
@@ -48,7 +48,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         points = [(0.0, 0.0, 0.0), (10.0, 10.0, 0.0), (10.0, 10.0, 0.0), (20.0, 20.0, 0.0)]  # Duplicate type=0
         commands = ["M", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 3
         assert len(result.commands) == 3
@@ -62,7 +62,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         points = [(0.0, 0.0, 0.0), (5.0, 5.0, 2.0), (5.0, 5.0, 2.0), (10.0, 10.0, 0.0)]  # Duplicate type=2
         commands = ["M", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 3
         assert len(result.commands) == 3
@@ -78,7 +78,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 3
         assert len(result.commands) == 3
@@ -96,7 +96,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 3
         assert len(result.commands) == 3
@@ -113,7 +113,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 3
         assert len(result.commands) == 3
@@ -132,7 +132,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 3
         # Should keep type=0 point
@@ -152,7 +152,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         # No duplicates, all should be kept
         assert len(result.points) == 6
@@ -170,7 +170,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         # No duplicates, all should be kept
         assert len(result.points) == 5
@@ -181,7 +181,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         points = [(0.0, 0.0, 0.0), (10.0, 0.0, 0.0), (10.0, 10.0, 0.0), (0.0, 10.0, 0.0)]
         commands = ["M", "L", "L", "L", "Z"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 4
         assert len(result.commands) == 5
@@ -192,7 +192,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         points = [(0.0, 0.0, 0.0), (10.0, 10.0, 0.0), (20.0, 0.0, 0.0), (30.0, 30.0, 0.0)]
         commands = ["M", "L", "M", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 4
         assert len(result.commands) == 4
@@ -210,11 +210,11 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         path = AvMultiPolylinePath(points, commands)
 
         # With default tolerance (1e-9), should remove duplicate
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
         assert len(result.points) == 3
 
         # With very small tolerance, should keep all points
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path, tolerance=1e-12)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path, tolerance=1e-12)
         assert len(result.points) == 4
 
     def test_real_world_case_vertex_and_curve_sample_coincide(self):
@@ -227,7 +227,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         # Should keep type=0 vertex, remove type=2 duplicate
         assert len(result.points) == 2
@@ -248,7 +248,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert len(result.points) == 5
         # Check that types are preserved
@@ -268,7 +268,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         # Should only keep one point with type=0
         assert len(result.points) == 1
@@ -281,7 +281,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         points = [(0.0, 0.0, 0.0), (10.0, 10.0, 0.0), (10.0, 10.0, 2.0), (20.0, 20.0, 0.0)]
         commands = ["M", "L", "L", "L", "Z"]
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         assert result.constraints == MULTI_POLYLINE_CONSTRAINTS
 
@@ -298,7 +298,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "L", "L", "L", "L", "L", "Z"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         # No duplicates, all should be kept
         assert len(result.points) == 7
@@ -315,7 +315,7 @@ class TestRemoveDuplicateConsecutivePointsPolyline:
         ]
         commands = ["M", "L", "M", "L"]
         path = AvMultiPolylinePath(points, commands)
-        result = AvPathCleaner.remove_duplicate_consecutive_points(path)
+        result = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(path)
 
         # M commands are always kept even if duplicate (they mark segment boundaries)
         assert len(result.points) == 4

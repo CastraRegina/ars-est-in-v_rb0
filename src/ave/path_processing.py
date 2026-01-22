@@ -29,7 +29,9 @@ class AvPathCleaner:
     """Collection of static path-cleaning utilities."""
 
     @staticmethod
-    def remove_duplicate_consecutive_points(path: AvMultiPolylinePath, tolerance: float = 1e-9) -> AvMultiPolylinePath:
+    def remove_duplicate_consecutive_points_from_multipolylinepath(
+        path: AvMultiPolylinePath, tolerance: float = 1e-9, rtol: float = 0.0
+    ) -> AvMultiPolylinePath:
         """Remove duplicate consecutive points from a polygonized path, prioritizing type=0 points.
 
         This method is specifically designed for polygonized paths (AvMultiPolylinePath) with only M, L, Z commands.
@@ -47,7 +49,8 @@ class AvPathCleaner:
 
         Args:
             path: Polygonized path (AvMultiPolylinePath) with potential duplicate consecutive points
-            tolerance: Distance threshold for detecting duplicates (default: 1e-9)
+            tolerance: Absolute distance threshold for detecting duplicates (default: 1e-9)
+            rtol: Relative tolerance factor (default: 0.0)
 
         Returns:
             New AvMultiPolylinePath with duplicate consecutive points removed
@@ -97,8 +100,18 @@ class AvPathCleaner:
                 # Check if this point is duplicate of last kept point
                 pt = points[point_idx]
                 if last_kept_point is not None:
-                    distance = np.sqrt((pt[0] - last_kept_point[0]) ** 2 + (pt[1] - last_kept_point[1]) ** 2)
-                    if distance < tolerance:
+                    # Calculate distance
+                    diff = pt[:2] - last_kept_point
+                    distance = np.sqrt(diff[0] ** 2 + diff[1] ** 2)
+
+                    # Calculate tolerance with both absolute and relative components
+                    if rtol > 0:
+                        max_coord = max(abs(last_kept_point).max(), abs(pt[:2]).max())
+                        dynamic_tolerance = tolerance + rtol * max_coord
+                    else:
+                        dynamic_tolerance = tolerance
+
+                    if distance < dynamic_tolerance:
                         # Points are duplicates - check if we should replace based on type
                         if len(new_points) > 0:
                             last_pt = new_points[-1]
@@ -130,6 +143,164 @@ class AvPathCleaner:
             new_points_array = np.empty((0, 3), dtype=np.float64)
 
         return AvMultiPolylinePath(new_points_array, new_commands, path.constraints)
+
+    @staticmethod
+    def remove_duplicate_consecutive_points_from_path(
+        path: AvPath, tolerance: float = 1e-9, rtol: float = 0.0
+    ) -> AvPath:
+        """Remove duplicate consecutive points from a path.
+
+        This method handles both polygonized and curved paths:
+        - For polygonized paths (AvMultiPolylinePath): Uses type-aware duplicate removal
+        - For curved paths (AvPath): Uses distance-based duplicate removal with proper
+            command/point structure maintenance
+
+        Point consumption per command:
+        - M, L: 1 point each
+        - Q: 2 points (1 control point + 1 end point)
+        - C: 3 points (2 control points + 1 end point)
+        - Z: 0 points
+
+        Args:
+            path: The path to clean
+            tolerance: Absolute distance threshold for detecting duplicates (default: 1e-9)
+            rtol: Relative tolerance factor (default: 0.0)
+
+        Returns:
+            A new path with duplicate consecutive points removed
+        """
+        # Check if path is polygonized (no curves)
+        has_curves = any(cmd in ["Q", "C"] for cmd in path.commands)
+
+        if not has_curves:
+            # Use the sophisticated type-aware method for polygonized paths
+            try:
+                return AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(
+                    path, tolerance=tolerance, rtol=rtol
+                )
+            except ValueError:
+                # Fall back to simple method if validation fails
+                pass
+
+        # For curved paths or fallback, use distance-based removal
+        points = path.points.copy()
+        commands = list(path.commands)
+
+        if len(points) <= 1:
+            return AvPath(points.copy(), list(commands), path.constraints)
+
+        # Find duplicates using numpy
+        diffs = np.diff(points[:, :2], axis=0)
+        distances = np.sqrt(np.sum(diffs**2, axis=1))
+
+        # Calculate tolerance with both absolute and relative components
+        if rtol > 0:
+            dynamic_tolerance = tolerance + rtol * np.abs(points[:-1, :2]).max(axis=1)
+        else:
+            dynamic_tolerance = tolerance
+
+        duplicate_mask = distances < dynamic_tolerance
+
+        if not np.any(duplicate_mask):
+            return AvPath(points.copy(), list(commands), path.constraints)
+
+        # Build list of indices to keep
+        keep_indices = [0]
+        for i in range(1, len(points)):
+            if not duplicate_mask[i - 1]:
+                keep_indices.append(i)
+
+        # Extract clean points
+        clean_points = points[keep_indices]
+
+        if len(clean_points) == len(points):
+            return AvPath(points.copy(), list(commands), path.constraints)
+
+        # Rebuild commands maintaining proper point consumption
+        new_commands = []
+        new_points_list = []
+        old_point_idx = 0
+
+        for cmd in commands:
+            if cmd == "Z":
+                # Z consumes no points
+                new_commands.append(cmd)
+
+            elif cmd in ["M", "L"]:
+                # M and L consume 1 point each
+                if old_point_idx < len(points):
+                    old_pt = points[old_point_idx]
+                    # Check if this point is in keep_indices
+                    if old_point_idx in keep_indices:
+                        new_points_list.append(old_pt)
+                        new_commands.append(cmd)
+                    old_point_idx += 1
+
+            elif cmd == "Q":
+                # Q consumes 2 points: control point + end point
+                if old_point_idx + 1 < len(points):
+                    ctrl_pt = points[old_point_idx]
+                    end_pt = points[old_point_idx + 1]
+
+                    # Check if both points are kept
+                    ctrl_kept = old_point_idx in keep_indices
+                    end_kept = (old_point_idx + 1) in keep_indices
+
+                    if ctrl_kept and end_kept:
+                        # Both points kept - keep Q command
+                        new_points_list.append(ctrl_pt)
+                        new_points_list.append(end_pt)
+                        new_commands.append(cmd)
+                    elif end_kept:
+                        # Only end point kept - convert to L
+                        new_points_list.append(end_pt)
+                        new_commands.append("L")
+                    # If neither kept, skip the command
+
+                    old_point_idx += 2
+
+            elif cmd == "C":
+                # C consumes 3 points: ctrl1 + ctrl2 + end point
+                if old_point_idx + 2 < len(points):
+                    ctrl1_pt = points[old_point_idx]
+                    ctrl2_pt = points[old_point_idx + 1]
+                    end_pt = points[old_point_idx + 2]
+
+                    # Check which points are kept
+                    ctrl1_kept = old_point_idx in keep_indices
+                    ctrl2_kept = (old_point_idx + 1) in keep_indices
+                    end_kept = (old_point_idx + 2) in keep_indices
+
+                    if ctrl1_kept and ctrl2_kept and end_kept:
+                        # All points kept - keep C command
+                        new_points_list.append(ctrl1_pt)
+                        new_points_list.append(ctrl2_pt)
+                        new_points_list.append(end_pt)
+                        new_commands.append(cmd)
+                    elif ctrl1_kept and end_kept:
+                        # ctrl1 and end kept - convert to Q
+                        new_points_list.append(ctrl1_pt)
+                        new_points_list.append(end_pt)
+                        new_commands.append("Q")
+                    elif ctrl2_kept and end_kept:
+                        # ctrl2 and end kept - convert to Q
+                        new_points_list.append(ctrl2_pt)
+                        new_points_list.append(end_pt)
+                        new_commands.append("Q")
+                    elif end_kept:
+                        # Only end point kept - convert to L
+                        new_points_list.append(end_pt)
+                        new_commands.append("L")
+                    # If end not kept, skip the command
+
+                    old_point_idx += 3
+
+        # Build final path
+        if new_points_list:
+            final_points = np.array(new_points_list, dtype=np.float64)
+            return AvPath(final_points, new_commands, path.constraints)
+
+        return AvPath()
 
     @staticmethod
     def _analyze_segment(segment: AvPath) -> dict:
