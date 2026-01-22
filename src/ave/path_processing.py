@@ -29,6 +29,109 @@ class AvPathCleaner:
     """Collection of static path-cleaning utilities."""
 
     @staticmethod
+    def remove_duplicate_consecutive_points(path: AvMultiPolylinePath, tolerance: float = 1e-9) -> AvMultiPolylinePath:
+        """Remove duplicate consecutive points from a polygonized path, prioritizing type=0 points.
+
+        This method is specifically designed for polygonized paths (AvMultiPolylinePath) with only M, L, Z commands.
+        Paths containing curves (Q, C commands) are not supported and will raise an error.
+
+        Point types in polygonized paths:
+        - type=0: Vertex points (endpoints of original curves, regular line points)
+        - type=2: Intermediate points from quadratic curve polygonization
+        - type=3: Intermediate points from cubic curve polygonization
+
+        When duplicate consecutive points are found, the algorithm:
+        1. Keeps type=0 points (vertices) - these are the important structural points
+        2. Removes type=2 and type=3 points (curve samples) when they duplicate type=0 points
+        3. Among duplicates of the same type, keeps the first occurrence
+
+        Args:
+            path: Polygonized path (AvMultiPolylinePath) with potential duplicate consecutive points
+            tolerance: Distance threshold for detecting duplicates (default: 1e-9)
+
+        Returns:
+            New AvMultiPolylinePath with duplicate consecutive points removed
+
+        Raises:
+            ValueError: If path contains curve commands (Q, C) or has invalid structure
+        """
+        points = path.points
+        commands = path.commands
+
+        # Validate that path contains no curves
+        for cmd in commands:
+            if cmd in ["Q", "C"]:
+                raise ValueError(
+                    f"remove_duplicate_consecutive_points only supports polygonized paths (M, L, Z commands). "
+                    f"Found curve command '{cmd}'. Use this method only on AvMultiPolylinePath."
+                )
+
+        if len(points) == 0:
+            return AvMultiPolylinePath(points.copy(), list(commands), path.constraints)
+
+        if len(points) == 1:
+            return AvMultiPolylinePath(points.copy(), list(commands), path.constraints)
+
+        # Track which points and commands to keep by iterating through commands
+        new_points = []
+        new_commands = []
+        point_idx = 0
+        last_kept_point = None
+
+        for cmd in commands:
+            if cmd == "Z":
+                # Always keep Z commands
+                new_commands.append(cmd)
+                continue
+
+            if cmd == "M":
+                # Always keep M commands and their points
+                pt = points[point_idx]
+                new_points.append(pt.copy())
+                new_commands.append(cmd)
+                last_kept_point = pt[:2]
+                point_idx += 1
+                continue
+
+            if cmd == "L":
+                # Check if this point is duplicate of last kept point
+                pt = points[point_idx]
+                if last_kept_point is not None:
+                    distance = np.sqrt((pt[0] - last_kept_point[0]) ** 2 + (pt[1] - last_kept_point[1]) ** 2)
+                    if distance < tolerance:
+                        # Points are duplicates - check if we should replace based on type
+                        if len(new_points) > 0:
+                            last_pt = new_points[-1]
+                            last_type = last_pt[2]
+                            curr_type = pt[2]
+
+                            # Priority: type=0 > type=2 > type=3
+                            if curr_type == 0.0 and last_type != 0.0:
+                                # Current is vertex, previous is curve sample - replace
+                                new_points[-1] = pt.copy()
+                                last_kept_point = pt[:2]
+                            # else: keep the previous point
+
+                        # Skip this duplicate command
+                        point_idx += 1
+                        continue
+
+                # Keep this point
+                new_points.append(pt.copy())
+                new_commands.append(cmd)
+                last_kept_point = pt[:2]
+                point_idx += 1
+                continue
+
+        # Convert new_points list to numpy array
+        if new_points:
+            new_points_array = np.array(new_points, dtype=np.float64)
+        else:
+            new_points_array = np.empty((0, 3), dtype=np.float64)
+
+        return AvMultiPolylinePath(new_points_array, new_commands, path.constraints)
+
+    @staticmethod
     def _analyze_segment(segment: AvPath) -> dict:
         """Analyze a path segment using PathCommandProcessor.
 
