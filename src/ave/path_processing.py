@@ -955,6 +955,9 @@ class AvPathCurveRebuilder:
         # Join segments
         result = AvPathCurveRebuilder._join_segments(processed_segments)
 
+        # Post-process: fix degenerate curves (Q/C commands with coinciding control points)
+        result = AvPathCurveRebuilder._fix_degenerate_curves(result)
+
         # Post-process: fix any remaining degenerate Z lines that couldn't be
         # handled by pre-rotation (e.g., segments with only one type=0 point)
         return AvPathCurveRebuilder._fix_degenerate_z_lines(result)
@@ -1184,6 +1187,225 @@ class AvPathCurveRebuilder:
 
         # Commands stay the same (M L L ... L Z)
         return AvPath(rotated_pts, cmds)
+
+    @staticmethod
+    def _fix_degenerate_curves(path: AvPath) -> AvPath:
+        """Fix degenerate curve commands by simplifying or removing them.
+
+        A curve is degenerate if control points coincide with start/end points
+        or if all points are collinear. This method detects and fixes:
+
+        Quadratic curves (Q):
+        - Control point coincides with start: Replace Q with L to end
+        - Control point coincides with end: Replace Q with L to end
+        - Start coincides with end: Remove Q entirely
+        - All three points collinear: Replace Q with L to end
+
+        Cubic curves (C):
+        - ctrl1 coincides with start AND ctrl2 coincides with end: Replace C with L
+        - ctrl1 coincides with start: Simplify to Q(ctrl2, end)
+        - ctrl2 coincides with end: Simplify to Q(ctrl1, end)
+        - ctrl1 coincides with ctrl2: Simplify to Q(ctrl1, end)
+        - Start coincides with end: Remove C entirely
+        - All four points collinear: Replace C with L to end
+
+        Args:
+            path: Path that may contain degenerate curves.
+
+        Returns:
+            Path with degenerate curves fixed.
+        """
+        points = path.points
+        commands = path.commands
+
+        if len(points) == 0:
+            return path
+
+        new_points = []
+        new_commands = []
+        point_idx = 0
+
+        for cmd in commands:
+            if cmd == "M":
+                new_points.append(points[point_idx].copy())
+                new_commands.append("M")
+                point_idx += 1
+
+            elif cmd == "L":
+                new_points.append(points[point_idx].copy())
+                new_commands.append("L")
+                point_idx += 1
+
+            elif cmd == "Q":
+                # Quadratic: start (last emitted), control, end
+                if not new_points:
+                    # No start point - skip this Q
+                    point_idx += 2
+                    continue
+
+                start_pt = new_points[-1][:2]
+                ctrl_pt = points[point_idx]
+                end_pt = points[point_idx + 1]
+
+                # Calculate distances
+                d_start_ctrl = np.linalg.norm(ctrl_pt[:2] - start_pt)
+                d_ctrl_end = np.linalg.norm(end_pt[:2] - ctrl_pt[:2])
+                d_start_end = np.linalg.norm(end_pt[:2] - start_pt)
+
+                # Check for degeneracy
+                if d_start_end < AvPathCurveRebuilder.TOLERANCE:
+                    # Start and end coincide - remove this Q entirely
+                    point_idx += 2
+                    continue
+
+                elif d_start_ctrl < AvPathCurveRebuilder.TOLERANCE or d_ctrl_end < AvPathCurveRebuilder.TOLERANCE:
+                    # Control point coincides with start or end - replace with L
+                    new_points.append(end_pt.copy())
+                    new_commands.append("L")
+                    point_idx += 2
+
+                else:
+                    # Check collinearity: if control point lies on line from start to end
+                    # Use cross product to check if points are collinear
+                    v1 = ctrl_pt[:2] - start_pt
+                    v2 = end_pt[:2] - start_pt
+                    cross = abs(v1[0] * v2[1] - v1[1] * v2[0])
+
+                    # Normalize by the area of bounding box
+                    max_coord = max(abs(v1).max(), abs(v2).max())
+                    if max_coord > 0:
+                        normalized_cross = cross / (max_coord**2)
+                    else:
+                        normalized_cross = 0
+
+                    if normalized_cross < AvPathCurveRebuilder.TOLERANCE:
+                        # Collinear - replace with L
+                        new_points.append(end_pt.copy())
+                        new_commands.append("L")
+                        point_idx += 2
+                    else:
+                        # Valid Q curve - keep it
+                        new_points.append(ctrl_pt.copy())
+                        new_points.append(end_pt.copy())
+                        new_commands.append("Q")
+                        point_idx += 2
+
+            elif cmd == "C":
+                # Cubic: start (last emitted), ctrl1, ctrl2, end
+                if not new_points:
+                    # No start point - skip this C
+                    point_idx += 3
+                    continue
+
+                start_pt = new_points[-1][:2]
+                ctrl1_pt = points[point_idx]
+                ctrl2_pt = points[point_idx + 1]
+                end_pt = points[point_idx + 2]
+
+                # Calculate distances
+                d_start_ctrl1 = np.linalg.norm(ctrl1_pt[:2] - start_pt)
+                d_ctrl1_ctrl2 = np.linalg.norm(ctrl2_pt[:2] - ctrl1_pt[:2])
+                d_ctrl2_end = np.linalg.norm(end_pt[:2] - ctrl2_pt[:2])
+                d_start_end = np.linalg.norm(end_pt[:2] - start_pt)
+                # d_start_ctrl2 = np.linalg.norm(ctrl2_pt[:2] - start_pt)
+                # d_ctrl1_end = np.linalg.norm(end_pt[:2] - ctrl1_pt[:2])
+
+                # Check for degeneracy
+                if d_start_end < AvPathCurveRebuilder.TOLERANCE:
+                    # Start and end coincide - remove this C entirely
+                    point_idx += 3
+                    continue
+
+                # Case 1: Both control points coincide with their respective endpoints
+                if d_start_ctrl1 < AvPathCurveRebuilder.TOLERANCE and d_ctrl2_end < AvPathCurveRebuilder.TOLERANCE:
+                    # C collapses to a line
+                    new_points.append(end_pt.copy())
+                    new_commands.append("L")
+                    point_idx += 3
+
+                # Case 2: ctrl1 coincides with start - simplify to Q(ctrl2, end)
+                elif d_start_ctrl1 < AvPathCurveRebuilder.TOLERANCE:
+                    if d_ctrl2_end < AvPathCurveRebuilder.TOLERANCE:
+                        # ctrl2 also coincides with end - use L
+                        new_points.append(end_pt.copy())
+                        new_commands.append("L")
+                    else:
+                        # Valid Q curve with ctrl2 as control point
+                        new_points.append(ctrl2_pt.copy())
+                        new_points.append(end_pt.copy())
+                        new_commands.append("Q")
+                    point_idx += 3
+
+                # Case 3: ctrl2 coincides with end - simplify to Q(ctrl1, end)
+                elif d_ctrl2_end < AvPathCurveRebuilder.TOLERANCE:
+                    if d_start_ctrl1 < AvPathCurveRebuilder.TOLERANCE:
+                        # ctrl1 also coincides with start - use L
+                        new_points.append(end_pt.copy())
+                        new_commands.append("L")
+                    else:
+                        # Valid Q curve with ctrl1 as control point
+                        new_points.append(ctrl1_pt.copy())
+                        new_points.append(end_pt.copy())
+                        new_commands.append("Q")
+                    point_idx += 3
+
+                # Case 4: ctrl1 and ctrl2 coincide - simplify to Q
+                elif d_ctrl1_ctrl2 < AvPathCurveRebuilder.TOLERANCE:
+                    # Use ctrl1 (or ctrl2, they're the same) as control point
+                    new_points.append(ctrl1_pt.copy())
+                    new_points.append(end_pt.copy())
+                    new_commands.append("Q")
+                    point_idx += 3
+
+                else:
+                    # Check collinearity: all four points on a line
+                    # Use cross products to check
+                    v1 = ctrl1_pt[:2] - start_pt
+                    v2 = ctrl2_pt[:2] - start_pt
+                    v3 = end_pt[:2] - start_pt
+
+                    cross1 = abs(v1[0] * v2[1] - v1[1] * v2[0])
+                    cross2 = abs(v1[0] * v3[1] - v1[1] * v3[0])
+                    cross3 = abs(v2[0] * v3[1] - v2[1] * v3[0])
+
+                    # Normalize
+                    max_coord = max(abs(v1).max(), abs(v2).max(), abs(v3).max())
+                    if max_coord > 0:
+                        norm_cross1 = cross1 / (max_coord**2)
+                        norm_cross2 = cross2 / (max_coord**2)
+                        norm_cross3 = cross3 / (max_coord**2)
+                    else:
+                        norm_cross1 = norm_cross2 = norm_cross3 = 0
+
+                    if (
+                        norm_cross1 < AvPathCurveRebuilder.TOLERANCE
+                        and norm_cross2 < AvPathCurveRebuilder.TOLERANCE
+                        and norm_cross3 < AvPathCurveRebuilder.TOLERANCE
+                    ):
+                        # All collinear - replace with L
+                        new_points.append(end_pt.copy())
+                        new_commands.append("L")
+                        point_idx += 3
+                    else:
+                        # Valid C curve - keep it
+                        new_points.append(ctrl1_pt.copy())
+                        new_points.append(ctrl2_pt.copy())
+                        new_points.append(end_pt.copy())
+                        new_commands.append("C")
+                        point_idx += 3
+
+            elif cmd == "Z":
+                new_commands.append("Z")
+
+            else:
+                # Unknown command - skip
+                pass
+
+        # Build output path
+        if new_points:
+            points_array = np.array(new_points, dtype=np.float64)
+            return AvPath(points_array, new_commands, path.constraints)
+        return AvPath()
 
     @staticmethod
     def _fix_degenerate_z_lines(path: AvPath) -> AvPath:
