@@ -89,7 +89,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should preserve the '+' shape
         assert len(result.points) > 0
@@ -119,7 +119,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "L", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should preserve all parts of the 'K'
         assert len(result.points) > 0
@@ -139,7 +139,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         assert len(result.points) > 0
         assert isinstance(result, AvPath)
@@ -162,7 +162,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         assert len(result.points) > 0
         assert isinstance(result, AvPath)
@@ -185,7 +185,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         assert len(result.points) > 0
         assert isinstance(result, AvPath)
@@ -210,7 +210,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         assert len(result.points) > 0
         assert isinstance(result, AvPath)
@@ -231,7 +231,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Self-intersecting polygons should return empty path (matching resolve_path_intersections)
         assert isinstance(result, AvPath)
@@ -251,7 +251,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should handle degenerate cases gracefully
         assert isinstance(result, AvPath)
@@ -262,7 +262,7 @@ class TestPolygonizedPathCleaning:
         commands = []
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Empty path should return empty path
         assert isinstance(result, AvPath)
@@ -282,7 +282,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L"]  # No closing 'Z'
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Open paths should be handled gracefully
         assert isinstance(result, AvPath)
@@ -308,7 +308,7 @@ class TestPolygonizedPathCleaning:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should handle multiple contours
         assert isinstance(result, AvPath)
@@ -375,7 +375,7 @@ class TestPolygonizedPathCleaningFromData:
         original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
-        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
@@ -420,7 +420,7 @@ class TestPolygonizedPathCleaningFromData:
         original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
-        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
@@ -473,7 +473,7 @@ class TestPolygonizedPathCleaningFromData:
         original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
-        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
@@ -523,7 +523,7 @@ class TestPolygonizedPathCleaningFromData:
         original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
-        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
@@ -578,7 +578,7 @@ class TestPolygonizedPathCleaningFromData:
         original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
-        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0
@@ -623,7 +623,7 @@ class TestPolygonizedPathCleaningFromData:
         original_path = AvPath(original_points, original_commands)
 
         # Apply path cleaning
-        result = AvPathCleaner.resolve_polygonized_path_intersections(original_path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(original_path)
 
         # Verify result is not empty
         assert len(result.points) > 0

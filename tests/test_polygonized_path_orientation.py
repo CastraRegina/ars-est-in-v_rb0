@@ -26,7 +26,7 @@ class TestPolygonizedPathOrientation:
         commands = ["M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Split into segments to check orientation
         segments = result.split_into_single_paths()
@@ -57,7 +57,7 @@ class TestPolygonizedPathOrientation:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Split into segments
         segments = result.split_into_single_paths()
@@ -90,7 +90,7 @@ class TestPolygonizedPathOrientation:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Split into segments
         segments = result.split_into_single_paths()
@@ -126,7 +126,7 @@ class TestPolygonizedPathOrientation:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Split into segments
         segments = result.split_into_single_paths()
@@ -158,7 +158,7 @@ class TestPolygonizedPathOrientation:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
 
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Result should be at least one CCW polygon (union of two squares)
         segments = result.split_into_single_paths()

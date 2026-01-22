@@ -244,7 +244,7 @@ class AvPathCleaner:
 
                     # Check if both points are kept
                     ctrl_kept = old_point_idx in keep_indices
-                    end_kept = (old_point_idx + 1) in keep_indices
+                    end_kept = old_point_idx + 1 in keep_indices
 
                     if ctrl_kept and end_kept:
                         # Both points kept - keep Q command
@@ -268,8 +268,8 @@ class AvPathCleaner:
 
                     # Check which points are kept
                     ctrl1_kept = old_point_idx in keep_indices
-                    ctrl2_kept = (old_point_idx + 1) in keep_indices
-                    end_kept = (old_point_idx + 2) in keep_indices
+                    ctrl2_kept = old_point_idx + 1 in keep_indices
+                    end_kept = old_point_idx + 2 in keep_indices
 
                     if ctrl1_kept and ctrl2_kept and end_kept:
                         # All points kept - keep C command
@@ -366,18 +366,18 @@ class AvPathCleaner:
             # Process each sub-polygon with the same orientation
             for sub_poly in cleaned.geoms:
                 if not sub_poly.is_empty:
-                    result, first_ccw_found = AvPathCleaner._process_single_geometry(
+                    result, first_ccw_found = AvPathCleaner._process_oriented_polygon(
                         sub_poly, is_ccw, result, first_ccw_found, deferred_cw_polygons
                     )
         elif isinstance(cleaned, shapely.geometry.Polygon) and not cleaned.is_empty:
-            result, first_ccw_found = AvPathCleaner._process_single_geometry(
+            result, first_ccw_found = AvPathCleaner._process_oriented_polygon(
                 cleaned, is_ccw, result, first_ccw_found, deferred_cw_polygons
             )
         elif isinstance(cleaned, shapely.geometry.GeometryCollection):
             # Extract Polygon types from GeometryCollection
             for geom in cleaned.geoms:
                 if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
-                    result, first_ccw_found = AvPathCleaner._process_single_geometry(
+                    result, first_ccw_found = AvPathCleaner._process_oriented_polygon(
                         geom, is_ccw, result, first_ccw_found, deferred_cw_polygons
                     )
                 # Skip other geometry types (LineString, Point) with warning
@@ -387,24 +387,42 @@ class AvPathCleaner:
         return result, first_ccw_found
 
     @staticmethod
-    def _process_single_geometry(
+    def _process_oriented_polygon(
         geometry: shapely.geometry.Polygon,
         is_ccw: bool,
         result: Optional[shapely.geometry.base.BaseGeometry],
         first_ccw_found: bool,
         deferred_cw_polygons: List[shapely.geometry.base.BaseGeometry],
     ) -> Tuple[Optional[shapely.geometry.base.BaseGeometry], bool]:
-        """Process a single polygon geometry.
+        """Process a single polygon with orientation-aware boolean operations.
+
+        This method handles polygon orientation according to the SVG/path convention:
+        - Counter-clockwise (CCW) polygons represent outer boundaries (positive space)
+        - Clockwise (CW) polygons represent holes (negative space)
+
+        The method implements a deferred processing strategy where CW polygons (holes)
+        encountered before the first CCW polygon are stored and applied later once
+        the base geometry is established.
 
         Args:
             geometry: The polygon geometry to process
-            is_ccw: Whether the original polygon was CCW
-            result: Current result geometry
-            first_ccw_found: Whether first CCW polygon has been found
-            deferred_cw_polygons: List of deferred CW polygons
+            is_ccw: True if polygon vertices are in counter-clockwise order (outer boundary),
+                    False if clockwise (hole)
+            result: Current accumulated result geometry (None for first polygon)
+            first_ccw_found: Whether the first CCW (outer) polygon has been processed
+            deferred_cw_polygons: List of CW polygons waiting for a base geometry
 
         Returns:
-            Tuple of (updated_result, updated_first_ccw_found)
+            Tuple of (updated_result, updated_first_ccw_found):
+            - updated_result: The accumulated geometry after applying boolean operations
+            - updated_first_ccw_found: Whether we've processed our first CCW polygon
+
+        Processing Logic:
+            1. First CCW polygon: Becomes the base geometry and triggers processing
+                of any deferred CW polygons
+            2. CW polygons before first CCW: Deferred until base exists
+            3. After base exists: CCW polygons are unioned (added), CW polygons are
+                differenced (subtracted as holes)
         """
         if result is None:
             # Wait for first CCW polygon to initialize result
@@ -507,7 +525,6 @@ class AvPathCleaner:
             # No matching type=0 point found, return 0 (no rotation)
             return 0
 
-        # TODO: check why this is needed!!!
         def remove_duplicate_consecutive_points_from_coords(
             coords: List[Tuple[float, float]],
         ) -> List[Tuple[float, float]]:
@@ -567,7 +584,6 @@ class AvPathCleaner:
             exterior_coords = list(polygon.exterior.coords)
             if len(exterior_coords) >= 4:
                 exterior_coords = exterior_coords[:-1]  # Remove closing point
-                # TODO: check why this is needed!!!
                 exterior_coords = remove_duplicate_consecutive_points_from_coords(exterior_coords)
                 if len(exterior_coords) >= 3:  # Need at least 3 points for a polygon
                     # Enforce CCW for exterior rings (positive polygons)
@@ -584,7 +600,6 @@ class AvPathCleaner:
                 interior_coords = list(interior.coords)
                 if len(interior_coords) >= 4:
                     interior_coords = interior_coords[:-1]  # Remove closing point
-                    # TODO: check why this is needed!!!
                     interior_coords = remove_duplicate_consecutive_points_from_coords(interior_coords)
                     if len(interior_coords) >= 3:  # Need at least 3 points for a polygon
                         # Enforce CW for interior rings (holes)
@@ -703,7 +718,7 @@ class AvPathCleaner:
         return updated_result
 
     @staticmethod
-    def resolve_polygonized_path_intersections(path: AvMultiPolylinePath) -> AvMultiPolygonPath:
+    def resolve_polygon_path_intersections(path: AvMultiPolylinePath) -> AvMultiPolygonPath:
         """Resolve self-intersections in a polygonized path with winding direction rules.
 
         The input path consists of 0..n segments. Segments that are not explicitly closed
@@ -735,11 +750,11 @@ class AvPathCleaner:
             - Subsequent CCW polygons are unioned (additive)
             - Subsequent CW polygons are differenced (subtractive)
             - Use _process_cleaned_geometry() helper for geometry processing:
-              * Calls _process_single_geometry() for individual polygon processing
+              * Calls _process_oriented_polygon() for individual polygon processing
               * Handles MultiPolygon by processing each sub-polygon
               * Handles GeometryCollection by extracting Polygon types
         6. Handle different geometry types from buffer(0):
-            - Polygon: processed directly via _process_single_geometry()
+            - Polygon: processed directly via _process_oriented_polygon()
             - MultiPolygon: each sub-polygon processed with same orientation
             - GeometryCollection: Polygon types extracted and processed
             - LineString/Point: skipped with warning

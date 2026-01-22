@@ -83,7 +83,7 @@ class TestPathCommandProcessorIntegration:
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should process the valid segment and skip the invalid one
         assert isinstance(result, AvPath)

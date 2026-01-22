@@ -38,7 +38,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "L", "L", "M", "L", "L", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should handle MultiPolygon result gracefully
         assert isinstance(result, AvPath)
@@ -56,7 +56,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "L", "L", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should handle GeometryCollection result gracefully
         assert isinstance(result, AvPath)
@@ -77,7 +77,7 @@ class TestPolygonizedPathCleaningEdgeCases:
             mock_poly.buffer.side_effect = shapely.errors.ShapelyError("Shapely error")
             mock_polygon.return_value = mock_poly
 
-            result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+            result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
             # Should return empty path on error
             assert isinstance(result, AvPath)
@@ -96,7 +96,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         with patch("ave.path_processing.AvPath.join_paths") as mock_join:
             mock_join.side_effect = ValueError("Join error")
 
-            result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+            result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
             # Should return empty path on error
             assert isinstance(result, AvPath)
@@ -113,7 +113,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should have preserved the starting point location
         if len(result.points) > 0:
@@ -131,7 +131,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should preserve the starting point
         if len(result.points) > 0:
@@ -162,7 +162,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "L", "L", "M", "L", "L", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should return empty path when no CCW polygon found
         assert isinstance(result, AvPath)
@@ -193,7 +193,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "L", "L", "M", "L", "L", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should handle empty result gracefully
         assert isinstance(result, AvPath)
@@ -206,7 +206,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should handle degenerate geometries gracefully
         assert isinstance(result, AvPath)
@@ -238,7 +238,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
 
         # Should complete without timeout or memory issues
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         assert isinstance(result, AvPath)
 
@@ -260,7 +260,7 @@ class TestPolygonizedPathCleaningEdgeCases:
         commands = ["M", "L", "L", "L", "L", "Z"]
 
         path = AvMultiPolylinePath(points, commands, MULTI_POLYLINE_CONSTRAINTS)
-        result = AvPathCleaner.resolve_polygonized_path_intersections(path)
+        result = AvPathCleaner.resolve_polygon_path_intersections(path)
 
         # Should handle complex MultiPolygon scenarios
         assert isinstance(result, AvPath)
