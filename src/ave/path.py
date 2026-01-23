@@ -7,6 +7,7 @@ from functools import cached_property
 from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import shapely.geometry
 from numpy.typing import NDArray
 
 from ave.common import AvGlyphCmds, sgn_sci
@@ -409,12 +410,16 @@ class AvPath:
         # Check if path is closed using proper segment analysis
         self._require_closed_path("centroid")
 
-        # For polygon-like paths, use direct calculation
-        if self.is_polygon_like:
-            return AvPolygon.centroid(self.points)
-
-        # For closed paths with curves, polygonize first
+        # Get polygonized path (handles both polygon and curve cases)
         polygonized = self.polygonized_path()
+
+        # Convert to Shapely polygon and get centroid
+        if len(polygonized.points) >= 3:
+            poly = shapely.geometry.Polygon(polygonized.points[:, :2].tolist())
+            if poly.is_valid and not poly.is_empty:
+                return (poly.centroid.x, poly.centroid.y)
+
+        # Fallback to original method for invalid polygons
         return AvPolygon.centroid(polygonized.points)
 
     @cached_property

@@ -482,52 +482,59 @@ class AvMultiWeightLetter:
 
         return " ".join(path_strings)
 
+    # @staticmethod
+    # def align_x_offsets_by_centroid(
+    #     multi_weight_letter: AvMultiWeightLetter,
+    # ) -> None:
+    #     """
+    #     Adapt x_offset of all letters so their glyph centroids align horizontally.
+
+    #     Uses the geometric centroid of each glyph (calculated from the actual shape)
+    #     rather than bounding box center, providing more accurate visual alignment
+    #     especially for asymmetric characters.
+
+    #     Processes glyphs from heaviest to lightest, with the heaviest glyph
+    #     remaining fixed as the reference point.
+
+    #     Args:
+    #         multi_weight_letter: The AvMultiWeightLetter to modify
+    #     """
+    #     if not multi_weight_letter.letters or len(multi_weight_letter.letters) < 2:
+    #         return
+
+    #     # Process from heaviest to lightest (last to first)
+    #     # The heaviest glyph stays fixed as reference
+    #     for i in range(len(multi_weight_letter.letters) - 2, -1, -1):
+    #         current = multi_weight_letter.letters[i]
+    #         heavier = multi_weight_letter.letters[i + 1]
+
+    #         # Get centroids
+    #         current_centroid = current.centroid()
+    #         heavier_centroid = heavier.centroid()
+
+    #         # Calculate the offset needed to align centroids horizontally
+    #         offset_adjustment: float = heavier_centroid[0] - current_centroid[0]
+
+    #         # Update the current letter's x_offset
+    #         current.x_offset += offset_adjustment
+
     @staticmethod
-    def adapt_x_offset_by_centroid(multi_weight_letter: AvMultiWeightLetter) -> None:
-        """
-        Adapt x_offset of all letters so their bounding box centers align.
-
-        Uses the bounding box center (visual bounds) rather than centroid or
-        pole of inaccessibility, as it provides the most robust and consistent
-        alignment for all character types.
-
-        Args:
-            multi_weight_letter: The AvMultiWeightLetter to modify
-        """
-        if not multi_weight_letter.letters or len(multi_weight_letter.letters) < 2:
-            return
-
-        # Get the heaviest letter (last in the list) as reference
-        reference_letter = multi_weight_letter.letters[-1]
-        reference_bbox = reference_letter.bounding_box()
-        reference_center_x: float = (reference_bbox.xmin + reference_bbox.xmax) / 2
-
-        # Adjust x_offset for all letters except the reference
-        for letter in multi_weight_letter.letters[:-1]:
-            bbox = letter.bounding_box()
-            center_x: float = (bbox.xmin + bbox.xmax) / 2
-
-            # Calculate the offset needed to align centers
-            offset_adjustment: float = reference_center_x - center_x
-
-            # Update the letter's x_offset
-            letter.x_offset += offset_adjustment
-
-    @staticmethod
-    def adapt_x_offset_by_overlap(
+    def align_x_offsets_by_centering(
         multi_weight_letter: AvMultiWeightLetter,
     ) -> None:
         """
-        Align the horizontal alignment of multi-weight letters with simple, robust rules.
+        Align the horizontal position of multi-weight letters by centering each lighter glyph
+        within its heavier neighbor.
 
-        Rule 1: A glyph must be placed completely inside the next heavier glyph.
-        If it doesn't fit, the discrepancy (distance outside) must be minimized.
+        This algorithm processes glyphs from heaviest to lightest, keeping the heaviest
+        glyph fixed as reference. Each lighter glyph is centered horizontally within
+        the next heavier glyph, regardless of relative widths.
 
-        Rule 2: If completely inside, place the glyph visually in the middle
-        of the heavier glyph.
+        The centering is based on bounding box centers, providing visual alignment
+        that works well for most character types.
 
-        This algorithm processes glyphs from heaviest to lightest, ensuring each
-        glyph is optimally positioned relative to its heavier neighbor.
+        Args:
+            multi_weight_letter: The AvMultiWeightLetter to modify
         """
         if not multi_weight_letter.letters or len(multi_weight_letter.letters) < 2:
             return
@@ -542,27 +549,13 @@ class AvMultiWeightLetter:
             current_bbox = current.bounding_box()
             heavier_bbox = heavier.bounding_box()
 
-            # Calculate the ideal center position (middle of heavier glyph)
+            # Calculate centers
             heavier_center = (heavier_bbox.xmin + heavier_bbox.xmax) / 2
             current_center = (current_bbox.xmin + current_bbox.xmax) / 2
 
-            # Start with centered position
-            desired_offset = current.x_offset + (heavier_center - current_center)
-
-            # Check if current glyph fits inside heavier glyph at this position
-            # We need to check if the current glyph can be fully contained
-            current_width = current_bbox.xmax - current_bbox.xmin
-            heavier_width = heavier_bbox.xmax - heavier_bbox.xmin
-
-            if current_width <= heavier_width:
-                # It can fit! Place it in the middle
-                current.x_offset = desired_offset
-            else:
-                # It doesn't fit. Minimize the discrepancy.
-                # The optimal position is where the overhang on left and right are equal.
-                # This happens when the centers are aligned, but we need to ensure
-                # at least some overlap. Use the centered position as best effort.
-                current.x_offset = desired_offset
+            # Center the current glyph within the heavier glyph
+            offset_adjustment = heavier_center - current_center
+            current.x_offset += offset_adjustment
 
 
 def main():
@@ -694,7 +687,8 @@ def main():
                 ypos=current_ypos,
             )
 
-            AvMultiWeightLetter.adapt_x_offset_by_overlap(multi_letter)
+            AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter)
+            # AvMultiWeightLetter.align_x_offsets_by_centroid(multi_letter)
 
             # Modify x positions for visual effect (stack with slight offset)
             if len(multi_letter.letters) >= 3:
