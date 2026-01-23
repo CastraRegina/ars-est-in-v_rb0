@@ -274,9 +274,6 @@ class AvSvgPath:
         return ret_path_string
 
 
-# TODO: add rect_to_path function here: Provide a rectangle as SVG path (polygon)
-# TODO: add circle_to_path function here: Provide a circle as SVG path (polygon)
-
 if __name__ == "__main__":
     A_LIST_NONE = None
     a_list_empty = []
