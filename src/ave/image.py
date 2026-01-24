@@ -61,6 +61,40 @@ class AvImage:
 
         self._image = image
 
+    @classmethod
+    def from_file(cls, filename: Union[str, Path]) -> AvImage:
+        """Load an image from file and convert to grayscale.
+
+        Args:
+            filename: Path to the image file
+
+        Returns:
+            AvImage instance with grayscale data
+        """
+        # Load image using Pillow
+        with PIL.Image.open(filename) as img:
+            # Convert to grayscale (Type L) if not already
+            if img.mode != "L":
+                print(f"Converting image from {img.mode} to L")
+                img = img.convert("L")
+
+            # Convert to NumPy array
+            image_array = np.array(img, dtype=np.uint8)
+
+        return cls(image_array)
+
+    def to_file(self, filename: Union[str, Path]) -> None:
+        """Save the image to file.
+
+        Args:
+            filename: Path where to save the image file
+        """
+        # Convert NumPy array back to Pillow Image
+        img = PIL.Image.fromarray(self._image, mode="L")
+
+        # Save to file
+        img.save(filename)
+
     @property
     def image(self) -> np.ndarray:
         """Get the image as NumPy array.
@@ -351,52 +385,121 @@ class AvImage:
         # Delegate to the faster pixel-based version
         return self.get_region_weighted_mean_px(px1, py1, px2, py2)
 
-    def get_region_threshold_px(self, x1: int, y1: int, x2: int, y2: int, threshold: int) -> float:
-        """Get ratio of pixels in region with values <= threshold.
+    # def get_region_threshold_px(self, x1: int, y1: int, x2: int, y2: int, threshold: int) -> float:
+    #     """Get ratio of pixels in region with values <= threshold.
+
+    #     Args:
+    #         x1: Left pixel coordinate (inclusive)
+    #         y1: Top pixel coordinate (inclusive, smaller value)
+    #         x2: Right pixel coordinate (exclusive)
+    #         y2: Bottom pixel coordinate (exclusive, larger value)
+    #         threshold: Threshold value (0-255) (0.0 for black, 255.0 for white)
+
+    #     Returns:
+    #         Ratio of pixels with values <= threshold (0.0 to 1.0)
+    #     """
+    #     # Validate threshold
+    #     if not 0 <= threshold <= 255:
+    #         raise ValueError("Threshold must be between 0 and 255")
+
+    #     # Get the region
+    #     region = self.get_region_px(x1, y1, x2, y2)
+
+    #     # Count pixels <= threshold
+    #     count = np.sum(region <= threshold)
+    #     total = region.size
+
+    #     return float(count / total) if total > 0 else 0.0
+
+    # def get_region_threshold_rel(self, x1: float, y1: float, x2: float, y2: float, threshold: int) -> float:
+    #     """Get ratio of pixels in region with values <= threshold.
+
+    #     This function efficiently calculates the threshold ratio by converting to
+    #     pixel coordinates and delegating to the faster integer-based pixel version.
+
+    #     Args:
+    #         x1: Left coordinate in relative units (float, 0 to 1)
+    #         y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
+    #         x2: Right coordinate in relative units (float, 0 to 1)
+    #         y2: Top coordinate in relative units (float, 0 to height_px*scale)
+    #         threshold: Threshold value (0-255) (0.0 for black, 255.0 for white)
+
+    #     Returns:
+    #         Ratio of pixels with values <= threshold (0.0 to 1.0)
+
+    #     Note:
+    #         Uses the same coordinate handling as get_region_rel().
+    #     """
+    #     # Convert relative coordinates to pixel coordinates
+    #     px1 = int(round(x1 / self.scale_rel))
+    #     px2 = int(round(x2 / self.scale_rel))
+
+    #     # Convert relative Y coordinates to pixel coordinates
+    #     # Y is inverted because relative system starts from bottom
+    #     py1 = int(round((self.height_rel - y1) / self.scale_rel))
+    #     py2 = int(round((self.height_rel - y2) / self.scale_rel))
+
+    #     # Delegate to the faster pixel-based version
+    #     return self.get_region_threshold_px(px1, py1, px2, py2, threshold)
+
+    def get_region_histogram_px(self, x1: int, y1: int, x2: int, y2: int, bins: int) -> tuple[float, ...]:
+        """Get the histogram of a rectangular region using pixel coordinates.
+
+        Calculates the fraction distribution of pixel values across the specified
+        number of bins. Each bin represents an equal range of color values from 0 to 255.
 
         Args:
-            x1: Left pixel coordinate (inclusive)
-            y1: Top pixel coordinate (inclusive, smaller value)
-            x2: Right pixel coordinate (exclusive)
-            y2: Bottom pixel coordinate (exclusive, larger value)
-            threshold: Threshold value (0-255) (0.0 for black, 255.0 for white)
+            x1: Left coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based, smaller value)
+            x2: Right coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based, larger value)
+            bins: Number of bins to divide the color range into (e.g., 9 for 0-255 in 9 steps)
 
         Returns:
-            Ratio of pixels with values <= threshold (0.0 to 1.0)
-        """
-        # Validate threshold
-        if not 0 <= threshold <= 255:
-            raise ValueError("Threshold must be between 0 and 255")
+            Tuple of floats representing the fraction of pixels in each bin.
+            The sum of all values will be 1.0.
 
-        # Get the region
+        Example:
+            # With bins=9, returns 9 floats where:
+            # - First float is fraction of pixels with values 0 <= x < 255/9
+            # - Second float is fraction of pixels with values 255/9 <= x < 2*255/9
+            # - And so on...
+        """
         region = self.get_region_px(x1, y1, x2, y2)
 
-        # Count pixels <= threshold
-        count = np.sum(region <= threshold)
-        total = region.size
+        # Calculate histogram using numpy
+        hist, _ = np.histogram(region, bins=bins, range=(0, 256))
 
-        return float(count / total) if total > 0 else 0.0
+        # Convert to fractions (sum to 1.0)
+        total_pixels = region.size
+        fraction_counts = tuple(float(count / total_pixels) for count in hist)
 
-    def get_region_threshold_rel(self, x1: float, y1: float, x2: float, y2: float, threshold: int) -> float:
-        """Get ratio of pixels in region with values <= threshold.
+        return fraction_counts
 
-        This function efficiently calculates the threshold ratio by converting to
-        pixel coordinates and delegating to the faster integer-based pixel version.
+    def get_region_histogram_rel(self, x1: float, y1: float, x2: float, y2: float, bins: int) -> tuple[float, ...]:
+        """Get the histogram of a rectangular region using relative coordinates.
+
+        Calculates the fraction distribution of pixel values across the specified
+        number of bins. Each bin represents an equal range of color values from 0 to 255.
 
         Args:
-            x1: Left coordinate in relative units (float, 0 to 1)
-            y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
-            x2: Right coordinate in relative units (float, 0 to 1)
-            y2: Top coordinate in relative units (float, 0 to height_px*scale)
-            threshold: Threshold value (0-255) (0.0 for black, 255.0 for white)
+            x1: Left coordinate (inclusive, relative units, 0 to 1)
+            y1: Bottom coordinate (inclusive, relative units, 0 to height*scale)
+            x2: Right coordinate (exclusive, relative units, 0 to 1)
+            y2: Top coordinate (exclusive, relative units, 0 to height*scale)
+            bins: Number of bins to divide the color range into (e.g., 9 for 0-255 in 9 steps)
 
         Returns:
-            Ratio of pixels with values <= threshold (0.0 to 1.0)
+            Tuple of floats representing the fraction of pixels in each bin.
+            The sum of all values will be 1.0.
 
-        Note:
-            Uses the same coordinate handling as get_region_rel().
+        Example:
+            # With bins=9, returns 9 floats where:
+            # - First float is fraction of pixels with values 0 <= x < 255/9
+            # - Second float is fraction of pixels with values 255/9 <= x < 2*255/9
+            # - And so on...
         """
-        # Convert relative coordinates to pixel coordinates
+        # Convert relative X coordinates to pixel coordinates
         px1 = int(round(x1 / self.scale_rel))
         px2 = int(round(x2 / self.scale_rel))
 
@@ -406,38 +509,4 @@ class AvImage:
         py2 = int(round((self.height_rel - y2) / self.scale_rel))
 
         # Delegate to the faster pixel-based version
-        return self.get_region_threshold_px(px1, py1, px2, py2, threshold)
-
-    @classmethod
-    def from_file(cls, filename: Union[str, Path]) -> AvImage:
-        """Load an image from file and convert to grayscale.
-
-        Args:
-            filename: Path to the image file
-
-        Returns:
-            AvImage instance with grayscale data
-        """
-        # Load image using Pillow
-        with PIL.Image.open(filename) as img:
-            # Convert to grayscale (Type L) if not already
-            if img.mode != "L":
-                print(f"Converting image from {img.mode} to L")
-                img = img.convert("L")
-
-            # Convert to NumPy array
-            image_array = np.array(img, dtype=np.uint8)
-
-        return cls(image_array)
-
-    def to_file(self, filename: Union[str, Path]) -> None:
-        """Save the image to file.
-
-        Args:
-            filename: Path where to save the image file
-        """
-        # Convert NumPy array back to Pillow Image
-        img = PIL.Image.fromarray(self._image, mode="L")
-
-        # Save to file
-        img.save(filename)
+        return self.get_region_histogram_px(px1, py1, px2, py2, bins)
