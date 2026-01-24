@@ -1,8 +1,9 @@
-"""Multi-glyph container for managing collections of AvGlyph objects."""
+"""Multi-weight letter implementation using AvLetter."""
 
 from __future__ import annotations
 
 import gzip
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -562,6 +563,44 @@ def main():
     """Test function for AvMultiWeightLetter."""
     from ave.page import AvSvgPage  # pylint: disable=import-outside-toplevel
 
+    def discover_font_basenames(path_name: str) -> List[str]:
+        """
+        Discover all unique font basenames in the cache directory.
+
+        This groups font files by their base name (everything before the _XX weight suffix).
+        For example, "Grandstander-VariableFont_AA_01_wght0100.json.zip" and
+        "Grandstander-VariableFont_AA_02_wght0200.json.zip" both belong to
+        "Grandstander-VariableFont_AA_" base font.
+
+        Args:
+            path_name: Directory path where cached files are stored (e.g., "fonts/cache")
+
+        Returns:
+            List[str]: List of unique font basenames
+        """
+        cache_dir = Path(path_name)
+        if not cache_dir.exists():
+            raise FileNotFoundError(f"Cache directory not found: {path_name}")
+
+        # Find all font files
+        pattern = "*_wght*.json.zip"
+        file_paths = list(cache_dir.glob(pattern))
+
+        if not file_paths:
+            raise FileNotFoundError(f"No cached font files found with pattern: {pattern}")
+
+        # Extract unique basenames (everything before _XX_wght)
+        basenames = set()
+        for file_path in file_paths:
+            # Extract basename before _XX_wght (where XX is the weight number)
+            # Pattern: FontName_XX_wghtYYYY.json.zip
+            match = re.match(r"(.+?)_\d+_wght\d+", file_path.name)
+            if match:
+                basenames.add(match.group(1) + "_")
+
+        # Return sorted list
+        return sorted(list(basenames))
+
     def load_cached_fonts(path_name: str, font_fn_base: str) -> List[AvGlyphCachedFactory]:
         """
         Load cached font files from directory.
@@ -602,33 +641,11 @@ def main():
 
     # Example usage
     try:
-        factories = load_cached_fonts("fonts/cache", "RobotoFlex-VariableFont_AA_")
-        print(f"Loaded {len(factories)} fonts")
-
-        # Print font properties for each factory
-        for i, factory in enumerate(factories):
-            font_props = factory.get_font_properties()
-            print(
-                f"Font {i+1}: "
-                f"ascender={font_props.ascender}, "
-                f"descender={font_props.descender}, "
-                f"units_per_em={font_props.units_per_em}"
-            )
-
-        # Example: Create AvMultiWeightLetter with different weights stacked
-        print("\nCreating AvMultiWeightLetter with stacked weights...")
-        multi_letter = AvMultiWeightLetter.from_factories(
-            character="I",
-            factories=factories,
-            scale=50.0 / 2048.0,  # 50pt font
-            xpos=100,
-            ypos=100,
-        )
-        print(f"Created multi-weight letter for character '{multi_letter.character}'")
-        print(f"Number of weight variants: {len(multi_letter.letters)}")
-        print(f"Initial X positions (for fine-tuning): {multi_letter.x_offsets}")
-
-        #######################################################################
+        # Discover all available fonts in cache
+        font_basenames = discover_font_basenames("fonts/cache")
+        print(f"Discovered {len(font_basenames)} fonts:")
+        for basename in font_basenames:
+            print(f"  - {basename}")
 
         # Characters to display
         characters = ""
@@ -646,8 +663,12 @@ def main():
         vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
         font_size = vb_scale * 2.7  # in mm (already in viewbox units)
 
+        # Load the first font to get units_per_em
+        one_font_factories = load_cached_fonts("fonts/cache", font_basenames[0])
+        print(f"Loaded {len(one_font_factories)} fonts for units_per_em calculation")
+
         # Get units_per_em from the first factory
-        units_per_em = factories[0].get_font_properties().units_per_em if factories else 2048.0
+        units_per_em = one_font_factories[0].get_font_properties().units_per_em if one_font_factories else 2048.0
         scale = font_size / units_per_em  # proper scale calculation
 
         # Create the SVG page
@@ -670,66 +691,90 @@ def main():
             False,
         )
 
-        # Render characters with multi-weight
-        current_xpos = 0.05
+        # Render characters with multi-weight for each font
+        line_height = 0.04  # Space between font lines
         current_ypos = 0.02
-        max_width = 0.95
 
-        for char in characters:
-            print(f"Rendering '{char}' with multi-weight...", end="", flush=True)
+        for font_idx, font_basename in enumerate(font_basenames):
+            print(f"Rendering font {font_idx + 1}/{len(font_basenames)}: {font_basename}...", end="", flush=True)
 
-            # Create multi-weight letter for this character
-            multi_letter = AvMultiWeightLetter.from_factories(
-                character=char,
-                factories=factories,
-                scale=scale,  # Use proper scale, not font_size
-                xpos=current_xpos,
-                ypos=current_ypos,
-            )
+            # Load font for this line
+            one_font_factories = load_cached_fonts("fonts/cache", font_basename)
 
-            AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter)
-            # AvMultiWeightLetter.align_x_offsets_by_centroid(multi_letter)
+            # Get units_per_em from the current font factory
+            units_per_em = one_font_factories[0].get_font_properties().units_per_em if one_font_factories else 2048.0
+            scale = font_size / units_per_em  # proper scale calculation for the current font
 
-            # Modify x positions for visual effect (stack with slight offset)
-            if len(multi_letter.letters) >= 3:
-                # If you want to override with manual offsets, uncomment below:
-                # multi_letter.letters[0].x_offset = 0.0  # Lightest weight
-                # multi_letter.letters[1].x_offset = 0.0  # Weight 2
-                # multi_letter.letters[2].x_offset = 0.0  # Weight 3
-                # multi_letter.letters[3].x_offset = 0.0  # Weight 4
-                # multi_letter.letters[4].x_offset = 0.0  # Weight 5 (medium)
-                # multi_letter.letters[5].x_offset = 0.0  # Weight 6
-                # multi_letter.letters[6].x_offset = 0.0  # Weight 7
-                # multi_letter.letters[7].x_offset = 0.0  # Weight 8
-                # multi_letter.letters[8].x_offset = 0.0  # Heaviest weight
-                pass
+            # Reset x position for each font line
+            current_xpos = 0.05
 
-            # Render each weight variant with different opacity
-            # Support up to 9 weights with varying opacity from black to light gray
-            colors = [
-                "#000000",
-                "#202020",
-                "#404040",
-                "#606060",
-                "#808080",
-                "#A0A0A0",
-                "#C0C0C0",
-                "#D0D0D0",
-                "#E0E0E0",
-            ]  # Black to light gray (reversed)
-            for i, (letter, color) in enumerate(zip(reversed(multi_letter.letters), colors)):
-                # Use the letter directly for its path
-                svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
-                svg_page.add(svg_path)
+            for char in characters:
+                # Create multi-weight letter for this character
+                multi_letter = AvMultiWeightLetter.from_factories(
+                    character=char,
+                    factories=one_font_factories,
+                    scale=scale,  # Use proper scale, not font_size
+                    xpos=current_xpos,
+                    ypos=current_ypos,
+                )
 
-            # Move to next position
-            current_xpos += multi_letter.width() + 0.005
+                AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter)
+                # AvMultiWeightLetter.align_x_offsets_by_centroid(multi_letter)
 
-            # Check if we need to move to next line
-            if current_xpos > max_width:
-                current_xpos = 0.05
-                current_ypos += scale * 1.5  # Use scale instead of font_size
+                # Render each weight variant with different opacity
+                # Support up to 9 weights with varying opacity from black to light gray
+                colors = [
+                    "#000000",
+                    "#202020",
+                    "#404040",
+                    "#606060",
+                    "#808080",
+                    "#A0A0A0",
+                    "#C0C0C0",
+                    "#D0D0D0",
+                    "#E0E0E0",
+                ]  # Black to light gray (reversed)
+                for i, (letter, color) in enumerate(zip(reversed(multi_letter.letters), colors)):
+                    # Use the letter directly for its path
+                    svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
+                    svg_page.add(svg_path)
 
+                # Move to next position
+                current_xpos += multi_letter.width() + 0.002
+
+            # Add font name at the end of the line
+            font_display_name = font_basename.replace("-VariableFont_AA_", "")
+            font_text = f" -- {font_display_name}"
+
+            for char in font_text:
+                # Create multi-weight letter for font name character
+                multi_letter = AvMultiWeightLetter.from_factories(
+                    character=char,
+                    factories=one_font_factories,
+                    scale=scale,
+                    xpos=current_xpos,
+                    ypos=current_ypos,
+                )
+
+                AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter)
+
+                # Render heaviest weight in black (bottom layer)
+                svg_path_heavy = svg_page.drawing.path(
+                    multi_letter.letters[-1].svg_path_string(), fill="#000000", stroke="none"
+                )
+                svg_page.add(svg_path_heavy)
+
+                # Render lightest weight in light gray (top layer)
+                svg_path_light = svg_page.drawing.path(
+                    multi_letter.letters[0].svg_path_string(), fill="#E0E0E0", stroke="none"
+                )
+                svg_page.add(svg_path_light)
+
+                # Move to next position
+                current_xpos += multi_letter.width() + 0.001
+
+            # Move to next line for next font
+            current_ypos += line_height
             print(" done")
 
         # Save the SVG
