@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from fontTools.ttLib import TTFont
 
-import ave.common
+from ave.common import Align
 from ave.font_support import AvFontProperties
 from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
@@ -144,27 +144,26 @@ class AvGlyph:
         """
         return self._advance_width
 
-    def width(self, align: Optional[ave.common.Align] = None) -> float:
+    def width(self, align: Optional[Align] = None) -> float:
         """
         Returns width considering align, or official advanceWidth if align is None.
 
         Args:
-            align (Optional[ave.common.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
+            align (Optional[Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
                 None:  advanceWidth == LSB + bounding_box.width + RSB
                 LEFT:  advanceWidth - bounding_box.xmin == advanceWidth - LSB
                 RIGHT: bounding_box.width + bounding_box.xmin   == LSB + bounding_box.width == advanceWidth - RSB
                 BOTH:  bounding_box.width                       == advanceWidth - LSB - RSB
         """
         if align is None:
-            return self._advance_width
+            return self.advance_width
 
-        bounding_box = self.bounding_box()
-        if align == ave.common.Align.LEFT:
-            return self._advance_width - bounding_box.xmin
-        if align == ave.common.Align.RIGHT:
-            return bounding_box.xmin + bounding_box.width
-        if align == ave.common.Align.BOTH:
-            return bounding_box.width
+        if align == Align.LEFT:
+            return self.advance_width - self.left_side_bearing
+        if align == Align.RIGHT:
+            return self.advance_width - self.right_side_bearing
+        if align == Align.BOTH:
+            return self.bounding_box().width
 
         raise ValueError(f"Invalid align value: {align}")
 
@@ -196,6 +195,8 @@ class AvGlyph:
         Positive values when the glyph is placed to the right of the origin (i.e. positive bounding_box.xmin).
         Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
         """
+        # actually: return self.bounding_box().xmin - self.glyph_box().xmin
+        #           with self.glyph_box().xmin == 0
         return self.bounding_box().xmin
 
     @property
@@ -206,7 +207,9 @@ class AvGlyph:
         Negative values when the glyph's bounding box extends to the right of the glyph box
                 (i.e. bounding_box.xmax > advance_width).
         """
-        return self._advance_width - self.bounding_box().xmax
+        # actually: return self.advance_width - ( self.bounding_box().xmax - self.glyph_box().xmin )
+        #           with self.glyph_box().xmin == 0
+        return self.advance_width - self.bounding_box().xmax
 
     def bounding_box(self) -> AvBox:
         """
@@ -229,7 +232,7 @@ class AvGlyph:
         Returns:
             AvBox: The glyph advance box.
         """
-        return AvBox(0, self.descender, self._advance_width, self.ascender)
+        return AvBox(0, self.descender, self.advance_width, self.ascender)
 
     def centroid(self) -> Tuple[float, float]:
         """
@@ -259,15 +262,15 @@ class AvGlyph:
             return False
 
         # Character must match exactly
-        if self._character != other.character:
+        if self.character != other.character:
             return False
 
         # Width with numerical tolerance
-        if not math.isclose(self._advance_width, other.width(), rel_tol=rtol, abs_tol=atol):
+        if not math.isclose(self.advance_width, other.advance_width, rel_tol=rtol, abs_tol=atol):
             return False
 
         # Path with hierarchical comparison
-        if not self._path.approx_equal(other.path, rtol, atol):
+        if not self.path.approx_equal(other.path, rtol, atol):
             return False
 
         return True
@@ -505,17 +508,17 @@ class AvGlyph:
         # Special case for space character: no visual bounding box but has glyph width
         if self._character == " " or bbox.width == 0:
             # For space character, only check that width is positive
-            if self._advance_width <= 0:
+            if self.advance_width <= 0:
                 raise ValueError(
                     "Space character width must be positive, "
-                    f"got {self._advance_width} for character '{self._character}'"
+                    f"got {self.advance_width} for character '{self._character}'"
                 )
         else:
             # For normal characters, check width is within reasonable range based on character class
             width_multiplier = get_width_multiplier(self._character)
-            if not 0 < self._advance_width < width_multiplier * bbox.width:
+            if not 0 < self.advance_width < width_multiplier * bbox.width:
                 msg = (
-                    f"Glyph '{self._character}' width {self._advance_width} "
+                    f"Glyph '{self._character}' width {self.advance_width} "
                     f"is not in valid range (0, {width_multiplier * bbox.width}) "
                     f"for character class (multiplier: {width_multiplier}x)"
                 )

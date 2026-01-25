@@ -118,15 +118,17 @@ class AvLetter:
             return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled + self._x_offset, self.ypos]
         return [self.scale, 0, 0, self.scale, self.xpos + self._x_offset, self.ypos]
 
-    def width(self, consider_x_offset: bool = False) -> float:
+    @property
+    def advance_width(self) -> float:
+        """
+        Returns the advance width of the letter in real dimensions.
+        """
+        return self.scale * self._glyph.advance_width
+
+    def width(self) -> float:
         """
         Returns the width calculated considering the alignment.
-
-        Args:
-            consider_x_offset: If True, includes the horizontal offset in the calculation
         """
-        if consider_x_offset:
-            return self.scale * self._glyph.width(self.align) + self._x_offset
         return self.scale * self._glyph.width(self.align)
 
     @property
@@ -154,39 +156,48 @@ class AvLetter:
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of the Letter taking alignment into account (sign varies +/-).
+        Positive values when the glyph is placed to the right of the origin (i.e. positive bounding_box.xmin).
+        Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
+        Note: Returns 0.0 for LEFT or BOTH alignment as the letter is positioned at the origin.
         """
-        if self.align in (Align.LEFT, Align.BOTH):
-            return 0.0
+        # actually: return self.bounding_box().xmin - self.letter_box().xmin
         return self.scale * self._glyph.left_side_bearing
 
     @property
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of the Letter taking alignment into account (sign varies +/-).
+        Positive values when the glyph's bounding box is inside the advance box (i.e. positive bounding_box.xmax).
+        Negative values when the glyph's bounding box extends to the right of the glyph box
+                (i.e. bounding_box.xmax > advance_width).
+        Note: Returns 0.0 for RIGHT or BOTH alignment as the letter is positioned to end at the advance width.
         """
-        if self.align in (Align.RIGHT, Align.BOTH):
-            return 0.0
+        # actually: self.advance_width - ( self.bounding_box().xmax - self.letter_box().xmin )
         return self.scale * self._glyph.right_side_bearing
 
     def bounding_box(self) -> AvBox:
         """
-        Returns bounding box (tightest box around Letter) in real dimensions.
-        Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
+        Returns the tightest bounding box around the letter's outline in real dimensions.
+
+        The box is transformed to world coordinates including position, scale, and x_offset.
+        Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top.
+
         Returns:
-            AvBox: The bounding box of the letter.
+            AvBox: The transformed bounding box of the letter's outline.
         """
         return self._glyph.bounding_box().transform_affine(self.trafo)
 
     def letter_box(self) -> AvBox:
         """
-        Returns the box of the letter in real dimensions.
+        Returns the glyph's advance box in real dimensions.
 
-        This box is the glyph box, which is the glyph’s advance box, not the outline bounding box.
-        It is defined by x = 0 to advanceWidth and y = descender to ascender.
-        The glyph box is transformed using the trafo of the letter.
+        The glyph box (advance box) spans from the transformed position to
+        position + advanceWidth, and from descender to ascender.
+        Unlike the outline bounding box, this includes the full advance width.
+        The box is transformed to world coordinates including position, scale, and x_offset.
 
         Returns:
-            AvBox: The letter box, i.e. the glyph box after transformation.
+            AvBox: The transformed glyph advance box.
         """
         return self._glyph.glyph_box().transform_affine(self.trafo)
 
@@ -225,26 +236,29 @@ class AvLetter:
 
     def svg_path_string_debug_polyline(self, stroke_width: float = 1.0) -> str:
         """
-        Returns a debug SVG path representation of the letter using only polylines.
-        This method converts curves (Q, C) to straight lines between control points,
-        making it useful for debugging the path structure.
+        Returns a debug SVG path representation of the letter using polylines with visual markers.
 
-        Supported commands:
-            M (move-to), L (line-to), Z (close-path)
-            Q (quadratic bezier) -> converted to L commands
-            C (cubic bezier) -> converted to L commands
+        This method converts the letter's path to straight lines and adds markers to visualize
+        the path structure, making it ideal for debugging complex letter shapes and understanding
+        control point relationships in curves.
+
+        Command conversion:
+            M, L, Z: Preserved as-is (move-to, line-to, close-path)
+            Q: Converted to lines connecting all three points (start, control, end)
+            C: Converted to lines connecting all four points (start, control1, control2, end)
+
+        Visual markers (size based on stroke_width):
+            - Squares: Path points (L commands and curve endpoints)
+            - Circles: Control points (intermediate points in Q and C commands)
+            - Right triangles: Move-to points (M commands - segment starts)
+            - Left triangles: Points before close-path (Z commands - segment ends)
 
         Args:
-            stroke_width (float): The stroke width used to determine marker sizes.
+            stroke_width: Determines marker sizes (default: 1.0)
 
         Returns:
-            str: The debug SVG path string using only polylines with markers.
-                Markers include:
-                - Squares: Regular points (L commands)
-                - Circles: Control points (intermediate points in Q and C commands)
-                - Triangles (pointing right): M command points (segment starts)
-                - Triangles (pointing left): Points before Z commands (segment ends)
-                Note: Triangles are drawn in addition to the base markers (squares/circles).
+            str: Complete SVG path string with polylines and markers.
+                    Uses the letter's transformation matrix for positioning.
         """
         scale, _, _, _, translate_x, translate_y = self.trafo
         return self._glyph.path.svg_path_string_debug_polyline(scale, translate_x, translate_y, stroke_width)
@@ -399,17 +413,41 @@ class AvMultiWeightLetter:
         """Get the glyphs list."""
         return [letter.glyph for letter in self._letters]
 
-    def width(self) -> float:
-        """
-        Returns the width calculated considering the alignment.
-        """
+    @property
+    def advance_width(self) -> float:
+        """Returns the maximum advance width of all letters."""
         if len(self._letters) == 0:
             return 0.0
-        return self._letters[0].width(consider_x_offset=True)
+        return max(letter.advance_width for letter in self._letters)
 
-    # @property
-    # def height(self) -> float:
-    # --- not yet implemented ---
+    def width(self) -> float:
+        """
+        Returns width considering the letter's alignment, or advance_width if alignment is None.
+
+        For MultiWeightLetter, uses the maximum advance width of all letters and applies
+        alignment adjustments based on self.align.
+
+        Returns:
+            float: The calculated width based on alignment:
+                - None:  advance_width (maximum of all letters)
+                - LEFT:  advance_width - left_side_bearing
+                - RIGHT: advance_width - right_side_bearing
+                - BOTH:  bounding_box.width (combined width of all letters)
+        """
+        # LSB = return self.bounding_box().xmin - self.letter_box().xmin
+        # RSB = return self.advance_width - (self.bounding_box().xmax - self.letter_box().xmin)
+        if len(self._letters) == 0:
+            return 0.0
+
+        if self.align is None:
+            return self.advance_width
+
+        if self.align == Align.LEFT:
+            return self.advance_width - self.left_side_bearing
+        if self.align == Align.RIGHT:
+            return self.advance_width - self.right_side_bearing
+        if self.align == Align.BOTH:
+            return self.bounding_box().width
 
     @property
     def ascender(self) -> float:
@@ -429,47 +467,65 @@ class AvMultiWeightLetter:
             return 0.0
         return min(letter.descender for letter in self._letters)
 
-    # TODO: check implementation
     @property
     def left_side_bearing(self) -> float:
         """
-        LSB: The horizontal space on the left side of the Letter taking alignment into account.
+        LSB: The horizontal space on the left side of the Letter taking alignment into account (sign varies +/-).
+        Positive values when the glyph is placed to the right of the origin (i.e. positive bounding_box.xmin).
+        Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
+        Note: For MultiWeightLetter, this is calculated from the combined bounding box of all letters.
         """
         if len(self._letters) == 0:
             return 0.0
-        return self._letters[0].left_side_bearing
+        return self.bounding_box().xmin - self.letter_box().xmin
 
-    # TODO: check implementation
     @property
     def right_side_bearing(self) -> float:
         """
-        RSB: The horizontal space on the right side of the Letter taking alignment into account.
+        RSB: The horizontal space on the right side of the Letter taking alignment into account (sign varies +/-).
+        Positive values when the glyph's bounding box is inside the advance box (i.e. positive bounding_box.xmax).
+        Negative values when the glyph's bounding box extends to the right of the glyph box
+                (i.e. bounding_box.xmax > advance_width).
+        Note: For MultiWeightLetter, this is calculated using the maximum advance width and combined bounding box.
         """
         if len(self._letters) == 0:
             return 0.0
-        return self._letters[0].right_side_bearing
+        return self.advance_width - (self.bounding_box().xmax - self.letter_box().xmin)
 
     def bounding_box(self):
-        """Get bounding box that encompasses all letters."""
+        """Returns the combined bounding box encompassing all letters' outlines.
+
+        Computes the tightest box that contains the transformed outlines of all letters.
+
+        Returns:
+            AvBox: Combined bounding box of all letters, or empty box if no letters.
+        """
         if not self._letters:
             return AvBox(0.0, 0.0, 0.0, 0.0)
 
         # Get bounding boxes from all letters
-        letter_bounding_boxes = [letter.bounding_box() for letter in self._letters]
+        bounding_boxes = [letter.bounding_box() for letter in self._letters]
 
         # Use AvBox.combine to get the overall bounding box
-        return AvBox.combine(*letter_bounding_boxes)
+        return AvBox.combine(*bounding_boxes)
 
     def letter_box(self) -> AvBox:
-        """Get letter box that encompasses all letters."""
+        """Returns the combined letter box encompassing all letters' advance boxes.
+
+        Computes the box that contains the transformed advance boxes of all letters,
+        including their full advance widths.
+
+        Returns:
+            AvBox: Combined letter box of all letters, or empty box if no letters.
+        """
         if not self._letters:
             return AvBox(0.0, 0.0, 0.0, 0.0)
 
         # Get letter boxes from all letters
-        letter_letter_boxes = [letter.letter_box() for letter in self._letters]
+        letter_boxes = [letter.letter_box() for letter in self._letters]
 
         # Use AvBox.combine to get the overall letter box
-        return AvBox.combine(*letter_letter_boxes)
+        return AvBox.combine(*letter_boxes)
 
     def svg_path_string(self) -> str:
         """SVG path string of the letter in real dimensions."""
@@ -639,8 +695,106 @@ def main():
 
         return factories
 
+    def render_letter_with_boxes(multi_letter, colors, stroke_width):
+        """Render a multi-weight letter with bounding boxes."""
+        # Render all weight variants
+        for letter, color in zip(reversed(multi_letter.letters), colors):
+            svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
+            svg_page.add(svg_path)
+
+        # Add bounding box in yellow
+        bbox = multi_letter.bounding_box()
+        svg_bbox = svg_page.drawing.path(
+            f"M {bbox.xmin:g} {bbox.ymin:g} "
+            f"L {bbox.xmax:g} {bbox.ymin:g} "
+            f"L {bbox.xmax:g} {bbox.ymax:g} "
+            f"L {bbox.xmin:g} {bbox.ymax:g} Z",
+            fill="none",
+            stroke="yellow",
+            stroke_width=stroke_width,
+        )
+        svg_page.add(svg_bbox, True)
+
+        # Add letter box in green
+        lbox = multi_letter.letter_box()
+        svg_lbox = svg_page.drawing.path(
+            f"M {lbox.xmin:g} {lbox.ymin:g} "
+            f"L {lbox.xmax:g} {lbox.ymin:g} "
+            f"L {lbox.xmax:g} {lbox.ymax:g} "
+            f"L {lbox.xmin:g} {lbox.ymax:g} Z",
+            fill="none",
+            stroke="green",
+            stroke_width=stroke_width,
+        )
+        svg_page.add(svg_lbox, True)
+
+    def render_alignment_test():
+        """Render alignment test letters (U and A) at both edges."""
+        # U at x-pos=0 with LEFT alignment
+        multi_letter_u_left = AvMultiWeightLetter.from_factories(
+            character="U",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=0.0,
+            ypos=test_ypos,
+        )
+        multi_letter_u_left.align = Align.LEFT
+        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_left)
+        render_letter_with_boxes(multi_letter_u_left, colors, stroke_width)
+
+        # U at x-pos=1.0 with RIGHT alignment
+        multi_letter_u_right = AvMultiWeightLetter.from_factories(
+            character="U",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=1.0,
+            ypos=test_ypos,
+        )
+        multi_letter_u_right.align = Align.RIGHT
+        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_right)
+        multi_letter_u_right.xpos = 1.0 - multi_letter_u_right.width()
+        render_letter_with_boxes(multi_letter_u_right, colors, stroke_width)
+
+        # A at x-pos=0 with LEFT alignment (one font-size above)
+        multi_letter_a_left = AvMultiWeightLetter.from_factories(
+            character="A",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=0.0,
+            ypos=test_ypos + font_size,
+        )
+        multi_letter_a_left.align = Align.LEFT
+        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_left)
+        render_letter_with_boxes(multi_letter_a_left, colors, stroke_width)
+
+        # A at x-pos=1.0 with RIGHT alignment (one font-size above)
+        multi_letter_a_right = AvMultiWeightLetter.from_factories(
+            character="A",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=1.0,
+            ypos=test_ypos + font_size,
+        )
+        multi_letter_a_right.align = Align.RIGHT
+        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_right)
+        multi_letter_a_right.xpos = 1.0 - multi_letter_a_right.width()
+        render_letter_with_boxes(multi_letter_a_right, colors, stroke_width)
+
     # Example usage
     try:
+        # Colors for multi-weight rendering (black to light gray)
+        colors = [
+            "#000000",
+            "#202020",
+            "#404040",
+            "#606060",
+            "#808080",
+            "#A0A0A0",
+            "#C0C0C0",
+            "#D0D0D0",
+            "#E0E0E0",
+        ]  # Black to light gray (reversed)
+
         # Discover all available fonts in cache
         font_basenames = discover_font_basenames("fonts/cache")
         print(f"Discovered {len(font_basenames)} fonts:")
@@ -708,6 +862,10 @@ def main():
             # Reset x position for each font line
             current_xpos = 0.05
 
+            # Calculate stroke width based on font dash thickness
+            font_props = one_font_factories[0].get_font_properties()
+            stroke_width = 0.1 * font_props.dash_thickness * font_size / font_props.units_per_em
+
             for char in characters:
                 # Create multi-weight letter for this character
                 multi_letter = AvMultiWeightLetter.from_factories(
@@ -722,26 +880,14 @@ def main():
                 # AvMultiWeightLetter.align_x_offsets_by_centroid(multi_letter)
 
                 # Render each weight variant with different opacity
-                # Support up to 9 weights with varying opacity from black to light gray
-                colors = [
-                    "#000000",
-                    "#202020",
-                    "#404040",
-                    "#606060",
-                    "#808080",
-                    "#A0A0A0",
-                    "#C0C0C0",
-                    "#D0D0D0",
-                    "#E0E0E0",
-                ]  # Black to light gray (reversed)
-                for i, (letter, color) in enumerate(zip(reversed(multi_letter.letters), colors)):
-                    # Use the letter directly for its path
-                    svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
-                    svg_page.add(svg_path)
+                render_letter_with_boxes(multi_letter, colors, stroke_width)
 
                 # Move to next position
                 current_xpos += multi_letter.width() + 0.002
 
+            # Render alignment test letters
+            test_ypos = current_ypos  # Same line as the characters
+            render_alignment_test()
             # Add font name at the end of the line
             font_display_name = font_basename.replace("-VariableFont_AA_", "")
             font_text = f" -- {font_display_name}"
@@ -780,7 +926,7 @@ def main():
         # Save the SVG
         svg_filename = "data/output/example/svg/multi_weight_letters.svgz"
         print(f"\nSaving to {svg_filename} ...")
-        svg_page.save_as(svg_filename, include_debug_layer=False, pretty=True, compressed=True)
+        svg_page.save_as(svg_filename, include_debug_layer=True, pretty=True, compressed=True)
         print(f"Saved to {svg_filename}")
 
     except (FileNotFoundError, ValueError, RuntimeError, OSError, gzip.BadGzipFile) as e:

@@ -22,82 +22,6 @@ from ave.path import AvPath
 from ave.path_processing import AvPathCleaner, AvPathCurveRebuilder, AvPathMatcher
 
 
-# TODO: check why this is needed!!!
-def remove_duplicate_consecutive_points(glyph: AvGlyph) -> AvGlyph:
-    """Remove duplicate consecutive points from a glyph's path.
-
-    Args:
-        glyph: The glyph to clean.
-
-    Returns:
-        AvGlyph: A new glyph with duplicate consecutive points removed.
-    """
-    # Constants for duplicate point detection (same as in glyph.validate())
-    DUPLICATE_POINT_RTOL = 1e-9  # pylint: disable=C0103
-    DUPLICATE_POINT_ATOL = 1e-9  # pylint: disable=C0103
-
-    # Get the path points
-    path = glyph.path
-    points = path.points.copy()
-    commands = list(path.commands)
-
-    if len(points) <= 1:
-        return glyph
-
-    # Find duplicate consecutive points
-    diffs = np.diff(points[:, :2], axis=0)
-    distances = np.sqrt(np.sum(diffs**2, axis=1))
-
-    # Calculate tolerance
-    tolerance = DUPLICATE_POINT_ATOL + DUPLICATE_POINT_RTOL * np.abs(points[:-1, :2]).max(axis=1)
-    duplicate_mask = distances < tolerance
-
-    # If no duplicates, return the original glyph
-    if not np.any(duplicate_mask):
-        return glyph
-
-    # Build a list of indices to keep
-    # Always keep the first point (index 0)
-    keep_indices = [0]
-
-    # For each subsequent point, keep it if it's not a duplicate of the previous kept point
-    for i in range(1, len(points)):
-        if not duplicate_mask[i - 1]:  # Check if previous segment was NOT a duplicate
-            keep_indices.append(i)
-
-    # Extract clean points
-    clean_points = points[keep_indices]
-
-    # For commands, we need to handle the path structure properly
-    # Since we can't easily reconstruct commands, let's use a simpler approach:
-    # Create a new path with the same structure but cleaned points
-    # This may not be perfect but should avoid the validation error
-
-    # Check if we can create a valid path
-    if len(clean_points) == len(points):
-        # No points were removed, return original
-        return glyph
-
-    # Try to create a path with cleaned points
-    # We'll use a simple approach: create new commands based on point count
-    if len(clean_points) > 0:
-        # Simple command structure: M followed by L's, possibly Z
-        new_commands = ["M"] + ["L"] * (len(clean_points) - 1)
-        if commands and commands[-1] == "Z":
-            new_commands.append("Z")
-
-        try:
-            clean_path = AvPath(clean_points, new_commands, path.constraints)
-            clean_glyph = AvGlyph(character=glyph.character, width=glyph.width(), path=clean_path)
-            return clean_glyph
-        except ValueError:
-            # If we can't create a valid path, return original and let validation fail
-            pass
-
-    # If all else fails, return the original glyph
-    return glyph
-
-
 def draw_viewbox_border(svg_page, vb_scale, viewbox_width, viewbox_height):
     """Draw the viewbox border."""
     svg_page.add(
@@ -144,7 +68,7 @@ def print_text(svg_page: AvSvgPage, xpos: float, ypos: float, text: str, avfont:
         letter = AvLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
-        current_xpos += letter.width()
+        current_xpos += letter.advance_width
 
 
 def create_new_q_tail(bbox: AvBox, dash_thickness: float) -> AvPath:
@@ -378,7 +302,7 @@ def clean_chars_and_render_steps_on_page(
         )
         svg_page.add(svg_lbox, True)
 
-        return letter.width()
+        return letter.advance_width
 
     INFO_SIZE = font_size * 0.2  # pylint: disable=invalid-name
 
@@ -400,7 +324,7 @@ def clean_chars_and_render_steps_on_page(
         if char == characters[0]:
             print_text(svg_page, 0.005, current_ypos, "S1-revise-direction", avfont, INFO_SIZE)
         glyph = glyph.revise_direction()
-        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
+        print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
         # Step 2: Update glyph (custom modifications)
@@ -408,76 +332,79 @@ def clean_chars_and_render_steps_on_page(
             print_text(svg_page, 0.005, current_ypos, "S2-customize-glyph", avfont, INFO_SIZE)
         glyph = customize_glyph(glyph, avfont.props)
         path = glyph.path
-        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
+        print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
         # Step 3: Polygonize
         if char == characters[0]:
             print_text(svg_page, 0.005, current_ypos, "S3-polygonize", avfont, INFO_SIZE)
         polygonized_path = path.polygonize(50)
-        glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=polygonized_path)
+        glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=polygonized_path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
-        # Step 4: Resolve intersections
+        # Step 4: Remove duplicate consecutive points from polygonized path
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S4-resolve-intersections", avfont, INFO_SIZE)
-        path = AvPathCleaner.resolve_polygonized_path_intersections(polygonized_path)
-        glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=path)
+            print_text(svg_page, 0.005, current_ypos, "S4-remove-duplicates", avfont, INFO_SIZE)
+        cleaned_polygonized_path = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(
+            polygonized_path
+        )
+        glyph = AvGlyph(
+            character=original_glyph.character, advance_width=original_glyph.width(), path=cleaned_polygonized_path
+        )
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
-        # Step 5: Match paths
+        # Step 5: Resolve intersections
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S5-match-paths", avfont, INFO_SIZE)
-        path = AvPathMatcher.match_paths(polygonized_path, path)
-        glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=path)
+            print_text(svg_page, 0.005, current_ypos, "S5-resolve-intersections", avfont, INFO_SIZE)
+        path = AvPathCleaner.resolve_polygon_path_intersections(cleaned_polygonized_path)
+        glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
-        # Step 6: Rebuild curve path
+        # Step 6: Match paths
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S6-rebuild-curve-path", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S6-match-paths", avfont, INFO_SIZE)
+        path = AvPathMatcher.match_paths(cleaned_polygonized_path, path)
+        glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=path)
+        print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
+        current_ypos += font_size
+
+        # Step 7: Rebuild curve path
+        if char == characters[0]:
+            print_text(svg_page, 0.005, current_ypos, "S7-rebuild-curve-path", avfont, INFO_SIZE)
         path = AvPathCurveRebuilder.rebuild_curve_path(path)
-        glyph = AvGlyph(character=original_glyph.character, width=original_glyph.width(), path=path)
+        glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=path)
         clean_glyphs[char] = glyph
-        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
+        print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
         # cleaning steps finished - now print overlays to check results
 
-        # Step 7: Print overlay with stroke-border
+        # Step 8: Print overlay with stroke-border
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S7-overlay-border-check", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S8-overlay-border-check", avfont, INFO_SIZE)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "red", False, stroke_width)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
-        # Step 8: Print overlay: original on top
+        # Step 9: Print overlay: original on top
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S8-overlay-original-on-top", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S9-overlay-original-on-top", avfont, INFO_SIZE)
         print_glyph_path(glyph, current_xpos, current_ypos, "red", True, stroke_width)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
-        # Step 9: Print overlay: cleaned on top
+        # Step 10: Print overlay: cleaned on top
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S9-overlay-cleaned-on-top", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S10-overlay-cleaned-on-top", avfont, INFO_SIZE)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "red", True, stroke_width)
-        print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
+        delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
-        # printing overlays done - now validate additionally
-        # Remove duplicate consecutive points before validation
-        try:
-            glyph.validate()
-        except ValueError as e:
-            if "duplicate consecutive points" in str(e):
-                # Remove duplicates and try again
-                glyph = remove_duplicate_consecutive_points(glyph)  # TODO: check why this is needed!!!
-                glyph.validate()
-            else:
-                raise
+        # printing overlays done - now validate
+        glyph.validate()
 
         # after last step: move to next glyph
         current_xpos += delta_xpos
@@ -498,7 +425,6 @@ def clean_chars_and_render_steps_on_page(
     clean_font = AvFont(clean_glyphs_factory)
     print("done.")
 
-    # Step 10: Print characters again using loaded glyphs
     print("Processing deserialized characters...")
     current_xpos = xpos
     ypos = current_ypos
@@ -507,16 +433,18 @@ def clean_chars_and_render_steps_on_page(
         current_ypos = ypos
         glyph = clean_font.get_glyph(char)
         original_glyph = avfont.get_glyph(char)
+
+        # Step 11: Print characters again using loaded glyphs
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S10-(de)serialized-font", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S11-(de)serialized-font", avfont, INFO_SIZE)
         # Print original glyph filled and cleaned glyph as stroke
         delta_xpos = print_glyph_path(original_glyph, current_xpos, current_ypos, "red", True, stroke_width)
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
-        # Step 11: Print clean end result
+        # Step 12: Print clean end result
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S11-end-result", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S12-end-result", avfont, INFO_SIZE)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
@@ -539,7 +467,7 @@ def process_font_to_svg(avfont: AvFont, svg_filename: str, characters: str) -> A
         The cleaned font after processing
     """
     # Setup the page with A4 dimensions
-    viewbox_width = 180  # viewbox width in mm
+    viewbox_width = 190  # viewbox width in mm
     viewbox_height = 120  # viewbox height in mm
     vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
     font_size = vb_scale * 2.7  # in mm
@@ -572,22 +500,22 @@ def main():
     # Define fonts to process
     fonts = [
         # {
-        #     "in_fn": "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf",
-        #     "out_name": "RobotoFlex-VariableFont_AA_",
-        #     "wghts_min": 100,
-        #     "wghts_max": 1000,
-        #     "num_wghts": 9,
-        # },
-        # {
-        #     "in_fn": "fonts/Petrona-VariableFont_wght.ttf",
-        #     "out_name": "Petrona-VariableFont_AA_",
+        #     "in_fn": "fonts/Grandstander-VariableFont_wght.ttf",  # Error: %
+        #     "out_name": "Grandstander-VariableFont_AA_",
         #     "wghts_min": 100,
         #     "wghts_max": 900,
         #     "num_wghts": 9,
         # },
         # {
-        #     "in_fn": "fonts/Grandstander-VariableFont_wght.ttf",
-        #     "out_name": "Grandstander-VariableFont_AA_",
+        #     "in_fn": "fonts/NotoSansMono-VariableFont_wdth,wght.ttf",  # Error: 0
+        #     "out_name": "NotoSansMono-VariableFont_AA_",
+        #     "wghts_min": 100,
+        #     "wghts_max": 900,
+        #     "num_wghts": 9,
+        # },
+        # {
+        #     "in_fn": "fonts/Petrona-VariableFont_wght.ttf",
+        #     "out_name": "Petrona-VariableFont_AA_",
         #     "wghts_min": 100,
         #     "wghts_max": 900,
         #     "num_wghts": 9,
@@ -600,11 +528,11 @@ def main():
         #     "num_wghts": 9,
         # },
         {
-            "in_fn": "fonts/NotoSansMono-VariableFont_wdth,wght.ttf",
-            "out_name": "NotoSansMono-VariableFont_AA_",
+            "in_fn": "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf",
+            "out_name": "RobotoFlex-VariableFont_AA_",
             "wghts_min": 100,
-            "wghts_max": 900,
-            "num_wghts": 3,
+            "wghts_max": 1000,
+            "num_wghts": 9,
         },
         # {
         #     "in_fn": "fonts/RobotoMono-VariableFont_wght.ttf",
@@ -644,7 +572,9 @@ def main():
 
         # characters = detail_chars + "-"
         # characters = "AXx&"
-        characters = "0"
+        # characters = "0"
+        # characters = "%0"
+        # characters = "b"
 
         # ------------------------------------------------------------------------
 
@@ -655,7 +585,7 @@ def main():
             (font_config["wghts_max"] - font_config["wghts_min"]) // (font_config["num_wghts"] - 1),
         )
         for idx, wght in enumerate(wght_range, 1):
-            print(f"Processing weight {wght} ...")
+            print(f"Processing font {font_config['out_name']} weight {wght} ...")
 
             font_out_fn = f"{font_out_fn_base}{idx:02d}_wght{wght:04d}.json.zip"
             svg_out_fn = f"{svg_out_fn_base}{idx:02d}_wght{wght:04d}.svgz"
