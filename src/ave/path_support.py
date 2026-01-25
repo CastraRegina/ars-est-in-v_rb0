@@ -712,31 +712,34 @@ class PathSvgString:
         stroke_width: float = 1.0,
     ) -> str:
         """
-        Returns a debug SVG path representation using only polylines.
-        This method converts curves (Q, C) to straight lines between control points.
+        Returns a debug SVG path representation using only polylines with visual markers.
 
-        Supported commands:
-            M (move-to), L (line-to), Z (close-path)
-            Q (quadratic bezier) -> converted to L commands
-            C (cubic bezier) -> converted to L commands
+        This method converts all path commands to straight lines and adds markers to visualize
+        the path structure, making it ideal for debugging complex paths and understanding
+        control point relationships.
+
+        Command conversion:
+            M, L, Z: Preserved as-is (move-to, line-to, close-path)
+            Q: Converted to lines connecting all three points (start, control, end)
+            C: Converted to lines connecting all four points (start, control1, control2, end)
+
+        Visual markers (size based on stroke_width):
+            - Squares: Path points (L commands and curve endpoints)
+            - Circles: Control points (intermediate points in Q and C commands)
+            - Right triangles: Move-to points (M commands - segment starts)
+            - Left triangles: Points before close-path (Z commands - segment ends)
 
         Args:
-            points (NDArray[np.float64]): The array of points defining the path.
-            commands (List[str]): The list of commands defining the path.
-            scale (float): The scale factor to apply to the points before generating the SVG path string.
-            translate_x (float): X-coordinate translation before generating the SVG path string.
-            translate_y (float): Y-coordinate translation before generating the SVG path string.
-            stroke_width (float): The stroke width used to determine square marker size.
+            points: Array of coordinates defining the path shape
+            commands: List of SVG commands (M, L, Q, C, Z) that operate on points
+            scale: Scale factor for coordinates (default: 1.0)
+            translate_x: X-axis translation (default: 0.0)
+            translate_y: Y-axis translation (default: 0.0)
+            stroke_width: Determines marker sizes (default: 1.0)
 
         Returns:
-            str: The debug SVG path string using only polylines with markers.
-                Markers include:
-                - Squares: Regular points (L commands)
-                - Circles: Control points (intermediate points in Q and C commands)
-                - Triangles (pointing right): M command points (segment starts)
-                - Triangles (pointing left): Points before Z commands (segment ends)
-                Note: Triangles are drawn in addition to the base markers (squares/circles).
-                    Returns "M 0 0" if there are no points.
+            str: Complete SVG path string with polylines and markers.
+                    Returns "M 0 0" if path has no points.
         """
         # Apply scale and translation to the points, make points to be 2 dimensions (x, y)
         points_transformed = points[:, :2] * scale + (translate_x, translate_y)
