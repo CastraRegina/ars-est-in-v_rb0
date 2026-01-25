@@ -4,36 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ave.glyph import AvGlyph
 from ave.image import AvImage
 from ave.page import AvSvgPage
 from ave.path_processing import AvPathCreator
-
-
-class AvCircleGlyph(AvGlyph):
-    """A glyph representing a circle shape.
-
-    Specialized glyph that creates a circular path using the AvPathCreator.
-    The circle is centered within the glyph's width and height.
-    """
-
-    def __init__(self, width: float, diameter: float):
-        """Initialize a circle glyph.
-
-        Args:
-            width (float): The width of the glyph (also used as height)
-            diameter (float): The diameter of the circle to create
-
-        Note:
-            - The circle is centered at (width/2, width/2)
-            - Uses AvPathCreator.circle() with 4 quadratic Bezier curves
-            - Character is empty string as this is a decorative glyph
-        """
-        # Create circular path centered in the glyph space
-        circle_path = AvPathCreator.circle(width / 2, width / 2, diameter)
-
-        # Initialize parent AvGlyph
-        super().__init__(character="", width=width, path=circle_path)
 
 
 @dataclass

@@ -343,7 +343,7 @@ class TestAvGlyph:
         commands = ["M", "L"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="A", width=10, path=path)
+        glyph = AvGlyph(character="A", advance_width=10, path=path)
 
         assert glyph.character == "A"
         assert glyph.width() == 10
@@ -359,7 +359,7 @@ class TestAvGlyph:
         commands = []
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character=" ", width=0, path=path)
+        glyph = AvGlyph(character=" ", advance_width=0, path=path)
         bbox = glyph.bounding_box()
 
         expected = AvBox(0.0, 0.0, 0.0, 0.0)
@@ -371,7 +371,7 @@ class TestAvGlyph:
         commands = ["M", "L", "L", "L"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="L", width=10, path=path)
+        glyph = AvGlyph(character="L", advance_width=10, path=path)
         bbox = glyph.bounding_box()
 
         expected = AvBox(0.0, 0.0, 10.0, 5.0)
@@ -391,7 +391,7 @@ class TestAvGlyph:
         commands = ["M", "Q"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="Q", width=20, path=path)
+        glyph = AvGlyph(character="Q", advance_width=20, path=path)
         bbox = glyph.bounding_box()
 
         # The actual quadratic curve should not reach y=20 (control point)
@@ -417,7 +417,7 @@ class TestAvGlyph:
         commands = ["M", "C"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="C", width=20, path=path)
+        glyph = AvGlyph(character="C", advance_width=20, path=path)
         bbox = glyph.bounding_box()
 
         # The actual cubic curve should not reach y=25 (control points)
@@ -445,7 +445,7 @@ class TestAvGlyph:
         commands = ["M", "L", "Q", "L", "C"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="M", width=40, path=path)
+        glyph = AvGlyph(character="M", advance_width=40, path=path)
         bbox = glyph.bounding_box()
 
         assert np.isclose(bbox.xmin, 0.0)
@@ -459,7 +459,7 @@ class TestAvGlyph:
         commands = ["M", "Q"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="Q", width=20, path=path)
+        glyph = AvGlyph(character="Q", advance_width=20, path=path)
 
         # First call should calculate and cache
         bbox1 = glyph.bounding_box()
@@ -480,7 +480,7 @@ class TestAvGlyph:
         commands = ["M", "L", "L", "L"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="R", width=15, path=path)
+        glyph = AvGlyph(character="R", advance_width=15, path=path)
         rsb = glyph.right_side_bearing
 
         # Width=15, bbox xmax=10, so RSB should be 5
@@ -492,7 +492,7 @@ class TestAvGlyph:
         commands = ["M", "Q"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="S", width=12, path=path)
+        glyph = AvGlyph(character="S", advance_width=12, path=path)
         rsb = glyph.right_side_bearing
 
         # Width=12, bbox xmax should be 10.0, so RSB should be 2.0
@@ -508,7 +508,7 @@ class TestAvGlyph:
         commands = ["M", "Q"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="T", width=20, path=path)
+        glyph = AvGlyph(character="T", advance_width=20, path=path)
 
         # Get accurate bounding box using polygonization
         accurate_bbox = glyph.bounding_box()
@@ -540,7 +540,7 @@ class TestAvGlyph:
         commands = ["M", "L", "Q", "L"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="A", width=40, path=path)
+        glyph = AvGlyph(character="A", advance_width=40, path=path)
         bbox = glyph.bounding_box()
 
         assert bbox.xmin == 10.0
@@ -557,7 +557,7 @@ class TestAvGlyph:
         commands = ["M", "Q"]
         path = AvPath(points, commands)
 
-        glyph = AvGlyph(character="N", width=20, path=path)
+        glyph = AvGlyph(character="N", advance_width=20, path=path)
         bbox = glyph.bounding_box()
 
         assert np.isclose(bbox.xmin, -10.0)
@@ -571,7 +571,7 @@ class TestAvGlyph:
         points = np.array([], dtype=np.float64).reshape(0, 3)
         commands = []
         path = AvPath(points, commands)
-        glyph = AvGlyph(character=" ", width=0, path=path)
+        glyph = AvGlyph(character=" ", advance_width=0, path=path)
 
         result = glyph.revise_direction()
 
@@ -587,7 +587,7 @@ class TestAvGlyph:
         points = np.array([[0.0, 0.0, 0.0], [0.0, 10.0, 0.0], [10.0, 10.0, 0.0], [10.0, 0.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=10, path=path)
+        glyph = AvGlyph(character="A", advance_width=10, path=path)
 
         result = glyph.revise_direction()
 
@@ -606,7 +606,7 @@ class TestAvGlyph:
         points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0], [0.0, 10.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=10, path=path)
+        glyph = AvGlyph(character="A", advance_width=10, path=path)
 
         result = glyph.revise_direction()
 
@@ -640,7 +640,7 @@ class TestAvGlyph:
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=10, path=path)
+        glyph = AvGlyph(character="A", advance_width=10, path=path)
 
         result = glyph.revise_direction()
 
@@ -670,7 +670,7 @@ class TestAvGlyph:
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=10, path=path)
+        glyph = AvGlyph(character="A", advance_width=10, path=path)
 
         result = glyph.revise_direction()
 
@@ -702,7 +702,7 @@ class TestAvGlyph:
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=15, path=path)
+        glyph = AvGlyph(character="A", advance_width=15, path=path)
 
         result = glyph.revise_direction()
 
@@ -736,7 +736,7 @@ class TestAvGlyph:
         )
         commands = ["M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z", "M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=15, path=path)
+        glyph = AvGlyph(character="A", advance_width=15, path=path)
 
         result = glyph.revise_direction()
 
@@ -750,7 +750,7 @@ class TestAvGlyph:
         points = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]], dtype=np.float64)
         commands = ["M", "L", "L"]  # No closing 'Z'
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=10, path=path)
+        glyph = AvGlyph(character="A", advance_width=10, path=path)
 
         result = glyph.revise_direction()
 
@@ -767,7 +767,7 @@ class TestAvGlyph:
         points = np.array([[5.0, 5.0, 0.0], [5.0, 5.00001, 0.0]], dtype=np.float64)
         commands = ["M", "L", "Z"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=10, path=path)
+        glyph = AvGlyph(character="A", advance_width=10, path=path)
 
         result = glyph.revise_direction()
 
@@ -783,7 +783,7 @@ class TestAvGlyph:
         commands = self.GLYPH_F_COMMANDS
 
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="f", width=678, path=path)
+        glyph = AvGlyph(character="f", advance_width=678, path=path)
         result = glyph.revise_direction()
 
         # Both contours should be CCW (additive)
@@ -802,7 +802,7 @@ class TestAvGlyph:
         commands = self.GLYPH_DOLLAR_COMMANDS
 
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="$", width=991, path=path)
+        glyph = AvGlyph(character="$", advance_width=991, path=path)
         result = glyph.revise_direction()
 
         # All three contours should be CCW (additive)
@@ -821,7 +821,7 @@ class TestAvGlyph:
         commands = self.GLYPH_SECTION_COMMANDS
 
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="§", width=1135, path=path)
+        glyph = AvGlyph(character="§", advance_width=1135, path=path)
         result = glyph.revise_direction()
 
         # Both contours should be CCW (additive)
@@ -851,7 +851,7 @@ class TestAvFontCache:
         )
         commands = ["M", "L", "L"]
         path = AvPath(points, commands)
-        glyph = AvGlyph(character="A", width=10.0, path=path)
+        glyph = AvGlyph(character="A", advance_width=10.0, path=path)
 
         # Create a cached glyph factory with one glyph
         glyphs = {"A": glyph}

@@ -45,26 +45,27 @@ class AvGlyph:
     """
 
     _character: str
-    _width: float
+    _advance_width: float
     _path: AvPath
 
     def __init__(
         self,
         character: str,
-        width: float,
+        advance_width: float,
         path: AvPath,
     ) -> None:
         """
         Initialize an AvGlyph.
 
         Args:
-            character (str): A single character.
-            width (float): The width of the glyph in unitsPerEm.
-            path (AvPath): The path object containing points and commands for the glyph.
+            character: A single character represented by this glyph.
+            advance_width: The advance width of the glyph in unitsPerEm.
+                            This is the distance from the origin of the glyph to the origin of the next glyph.
+            path: The path object containing points and commands for the glyph's outline.
         """
         # No super().__init__() needed - no parent class initialization required
         self._character = character
-        self._width = width
+        self._advance_width = advance_width
         self._path = path
 
     @classmethod
@@ -79,7 +80,7 @@ class AvGlyph:
 
         return cls(
             character=data.get("character", ""),
-            width=data.get("width", 0.0),
+            advance_width=data.get("advance_width", 0.0),
             path=path,
         )
 
@@ -88,7 +89,7 @@ class AvGlyph:
 
         return {
             "character": self._character,
-            "width": self._width,
+            "advance_width": self._advance_width,
             "path": self._path.to_dict(),
         }
 
@@ -111,7 +112,7 @@ class AvGlyph:
         glyph_set = ttfont.getGlyphSet()
         pen = AvGlyphPtsCmdsPen(glyph_set, polygonize_steps=polygonize_steps)
         glyph_set[glyph_name].draw(pen)
-        width = glyph_set[glyph_name].width
+        advance_width = glyph_set[glyph_name].width
         # Create AvPath first, then create AvGlyph
         path = AvPath(pen.points, pen.commands)
 
@@ -119,7 +120,7 @@ class AvGlyph:
         appropriate_constraints = path.determine_appropriate_constraints()
         path = path.with_constraints(appropriate_constraints)
 
-        return cls(character, width, path)
+        return cls(character, advance_width, path)
 
     @property
     def character(self) -> str:
@@ -135,24 +136,31 @@ class AvGlyph:
         """
         return self._path
 
+    @property
+    def advance_width(self) -> float:
+        """
+        The advance width of the glyph in unitsPerEm.
+        This is the distance from the origin of the glyph to the origin of the next glyph.
+        """
+        return self._advance_width
+
     def width(self, align: Optional[ave.common.Align] = None) -> float:
         """
-        Returns the advance width calculated considering the alignment.
-        Returns the official glyph_width (=advance_width) of this glyph if align is None.
+        Returns width considering align, or official advanceWidth if align is None.
 
         Args:
             align (Optional[ave.common.Align], optional): LEFT, RIGHT, BOTH. Defaults to None.
-                None:  official glyph_width (i.e. including LSB and RSB)
-                LEFT:  official glyph_width - bounding_box.xmin == official width - LSB
-                RIGHT: bounding_box.width + bounding_box.xmin   == official width - RSB
-                BOTH:  bounding_box.width                       == official width - LSB - RSB
+                None:  advanceWidth == LSB + bounding_box.width + RSB
+                LEFT:  advanceWidth - bounding_box.xmin == advanceWidth - LSB
+                RIGHT: bounding_box.width + bounding_box.xmin   == LSB + bounding_box.width == advanceWidth - RSB
+                BOTH:  bounding_box.width                       == advanceWidth - LSB - RSB
         """
         if align is None:
-            return self._width
+            return self._advance_width
 
         bounding_box = self.bounding_box()
         if align == ave.common.Align.LEFT:
-            return self._width - bounding_box.xmin
+            return self._advance_width - bounding_box.xmin
         if align == ave.common.Align.RIGHT:
             return bounding_box.xmin + bounding_box.width
         if align == ave.common.Align.BOTH:
@@ -185,6 +193,8 @@ class AvGlyph:
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of a glyph (sign varies +/-).
+        Positive values when the glyph is placed to the right of the origin (i.e. positive bounding_box.xmin).
+        Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
         """
         return self.bounding_box().xmin
 
@@ -192,26 +202,34 @@ class AvGlyph:
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of a glyph (sign varies +/-).
+        Positive values when the glyph's bounding box is inside the advance box (i.e. positive bounding_box.xmax).
+        Negative values when the glyph's bounding box extends to the right of the glyph box
+                (i.e. bounding_box.xmax > advance_width).
         """
-        return self._width - self.bounding_box().xmax
+        return self._advance_width - self.bounding_box().xmax
 
     def bounding_box(self) -> AvBox:
         """
-        Returns bounding box (tightest box around Glyph)
-        Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
-        Uses dimensions in unitsPerEm.
+        Returns the tightest bounding box around the glyph's outline.
+
+        Coordinates are relative to baseline-origin (0,0) and use unitsPerEm dimensions.
+
+        Returns:
+            AvBox: The bounding box of the glyph's outline.
         """
         # Delegate entirely to AvPath's bounding box implementation
         return self._path.bounding_box()
 
     def glyph_box(self) -> AvBox:
         """
-        Returns the glyph box (the glyph’s advance box, not the outline bounding box).
+        Returns the glyph's advance box (not the outline bounding box).
+
+        The box spans from x=0 to advanceWidth and y=descender to ascender.
 
         Returns:
-            AvBox: The glyph box from x = 0 to advanceWidth and y = descender to ascender.
+            AvBox: The glyph advance box.
         """
-        return AvBox(0, self.descender, self._width, self.ascender)
+        return AvBox(0, self.descender, self._advance_width, self.ascender)
 
     def centroid(self) -> Tuple[float, float]:
         """
@@ -245,7 +263,7 @@ class AvGlyph:
             return False
 
         # Width with numerical tolerance
-        if not math.isclose(self._width, other.width(), rel_tol=rtol, abs_tol=atol):
+        if not math.isclose(self._advance_width, other.width(), rel_tol=rtol, abs_tol=atol):
             return False
 
         # Path with hierarchical comparison
@@ -317,7 +335,7 @@ class AvGlyph:
         else:
             new_path = AvPath()
 
-        return AvGlyph(character=self.character, width=self.width(), path=new_path)
+        return AvGlyph(character=self.character, advance_width=self.width(), path=new_path)
 
     def _revise_direction_by_largest_area(
         self,
@@ -487,16 +505,17 @@ class AvGlyph:
         # Special case for space character: no visual bounding box but has glyph width
         if self._character == " " or bbox.width == 0:
             # For space character, only check that width is positive
-            if self._width <= 0:
+            if self._advance_width <= 0:
                 raise ValueError(
-                    f"Space character width must be positive, got {self._width} for character '{self._character}'"
+                    "Space character width must be positive, "
+                    f"got {self._advance_width} for character '{self._character}'"
                 )
         else:
             # For normal characters, check width is within reasonable range based on character class
             width_multiplier = get_width_multiplier(self._character)
-            if not 0 < self._width < width_multiplier * bbox.width:
+            if not 0 < self._advance_width < width_multiplier * bbox.width:
                 msg = (
-                    f"Glyph '{self._character}' width {self._width} "
+                    f"Glyph '{self._character}' width {self._advance_width} "
                     f"is not in valid range (0, {width_multiplier * bbox.width}) "
                     f"for character class (multiplier: {width_multiplier}x)"
                 )
@@ -1084,7 +1103,7 @@ class AvGlyphPolygonizeFactory(AvGlyphFactory):
         # Return a new AvGlyph with the polygonized path
         return AvGlyph(
             character=original_glyph.character,
-            width=original_glyph.width(),
+            advance_width=original_glyph.width(),
             path=polygonized_path,
         )
 
