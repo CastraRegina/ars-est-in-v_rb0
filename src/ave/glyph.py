@@ -159,9 +159,9 @@ class AvGlyph:
             return self.advance_width
 
         if align == Align.LEFT:
-            return self.advance_width - self.left_side_bearing
+            return self.advance_width - self.left_side_bearing()
         if align == Align.RIGHT:
-            return self.advance_width - self.right_side_bearing
+            return self.advance_width - self.right_side_bearing()
         if align == Align.BOTH:
             return self.bounding_box().width
 
@@ -188,27 +188,23 @@ class AvGlyph:
         """
         return self.bounding_box().ymin
 
-    @property
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of a glyph (sign varies +/-).
         Positive values when the glyph is placed to the right of the origin (i.e. positive bounding_box.xmin).
         Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
+        Note: For LEFT or BOTH alignment, this is typically 0.0 as the glyph starts at the origin.
         """
-        # actually: return self.bounding_box().xmin - self.glyph_box().xmin
-        #           with self.glyph_box().xmin == 0
         return self.bounding_box().xmin
 
-    @property
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of a glyph (sign varies +/-).
         Positive values when the glyph's bounding box is inside the advance box (i.e. positive bounding_box.xmax).
         Negative values when the glyph's bounding box extends to the right of the glyph box
                 (i.e. bounding_box.xmax > advance_width).
+        Note: For RIGHT or BOTH alignment, this is typically 0.0 as the glyph ends at the advance width.
         """
-        # actually: return self.advance_width - ( self.bounding_box().xmax - self.glyph_box().xmin )
-        #           with self.glyph_box().xmin == 0
         return self.advance_width - self.bounding_box().xmax
 
     def bounding_box(self) -> AvBox:

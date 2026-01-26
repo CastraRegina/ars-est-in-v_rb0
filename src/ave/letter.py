@@ -107,38 +107,6 @@ class AvLetter:
         self._x_offset = x_offset
 
     @property
-    def trafo(self) -> List[float]:
-        """
-        Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
-        Returns:    [scale, 0, 0, scale, xpos + x_offset, ypos] or
-                    [scale, 0, 0, scale, xpos - lsb + x_offset, ypos] if alignment is LEFT or BOTH.
-        """
-        if self.align in (Align.LEFT, Align.BOTH):
-            lsb_scaled = self.scale * self._glyph.left_side_bearing
-            return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled + self._x_offset, self.ypos]
-        return [self.scale, 0, 0, self.scale, self.xpos + self._x_offset, self.ypos]
-
-    @property
-    def advance_width(self) -> float:
-        """
-        Returns the advance width of the letter in real dimensions.
-        """
-        return self.scale * self._glyph.advance_width
-
-    def width(self) -> float:
-        """
-        Returns the width calculated considering the alignment.
-        """
-        return self.scale * self._glyph.width(self.align)
-
-    @property
-    def height(self) -> float:
-        """
-        The height of the Letter, i.e. the height of the bounding box.
-        """
-        return self.scale * self._glyph.height
-
-    @property
     def ascender(self) -> float:
         """
         The maximum distance above the baseline, i.e. the highest y-coordinate of a Letter (positive value).
@@ -153,6 +121,58 @@ class AvLetter:
         return self.scale * self._glyph.descender
 
     @property
+    def height(self) -> float:
+        """
+        The height of the Letter, i.e. the height of the bounding box.
+        """
+        return self.scale * self._glyph.height
+
+    @property
+    def trafo(self) -> List[float]:
+        """
+        Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
+        Returns:    [scale, 0, 0, scale, xpos + x_offset, ypos] or
+                    [scale, 0, 0, scale, xpos - lsb + x_offset, ypos] if alignment is LEFT or BOTH.
+        """
+        if self.align in (Align.LEFT, Align.BOTH):
+            lsb_scaled = self.scale * self._glyph.left_side_bearing()
+            return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled + self._x_offset, self.ypos]
+        return [self.scale, 0, 0, self.scale, self.xpos + self._x_offset, self.ypos]
+
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Returns the centroid of the letter in real dimensions.
+
+        The centroid is the geometric center of the letter's outline,
+        calculated from the actual path geometry (not from the bounding box)
+        and transformed to world coordinates.
+
+        Returns:
+            Tuple[float, float]: The (x, y) coordinates of the centroid.
+        """
+        # Get the glyph's centroid and transform it using the letter's transformation
+        glyph_centroid = self._glyph.centroid()
+        scale, _, _, _, translate_x, translate_y = self.trafo
+
+        # Transform the centroid coordinates
+        centroid_x = glyph_centroid[0] * scale + translate_x
+        centroid_y = glyph_centroid[1] * scale + translate_y
+
+        return (centroid_x, centroid_y)
+
+    @property
+    def advance_width(self) -> float:
+        """
+        Returns the advance width of the letter in real dimensions.
+        """
+        return self.scale * self._glyph.advance_width
+
+    def width(self) -> float:
+        """
+        Returns the width calculated considering the alignment.
+        """
+        return self.scale * self._glyph.width(self.align)
+
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of the Letter taking alignment into account (sign varies +/-).
@@ -163,7 +183,6 @@ class AvLetter:
         # actually: return self.bounding_box().xmin - self.letter_box().xmin
         return self.scale * self._glyph.left_side_bearing
 
-    @property
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of the Letter taking alignment into account (sign varies +/-).
@@ -200,27 +219,6 @@ class AvLetter:
             AvBox: The transformed glyph advance box.
         """
         return self._glyph.glyph_box().transform_affine(self.trafo)
-
-    def centroid(self) -> Tuple[float, float]:
-        """
-        Returns the centroid of the letter in real dimensions.
-
-        The centroid is the geometric center of the letter's outline,
-        calculated from the actual path geometry (not from the bounding box)
-        and transformed to world coordinates.
-
-        Returns:
-            Tuple[float, float]: The (x, y) coordinates of the centroid.
-        """
-        # Get the glyph's centroid and transform it using the letter's transformation
-        glyph_centroid = self._glyph.centroid()
-        scale, _, _, _, translate_x, translate_y = self.trafo
-
-        # Transform the centroid coordinates
-        centroid_x = glyph_centroid[0] * scale + translate_x
-        centroid_y = glyph_centroid[1] * scale + translate_y
-
-        return (centroid_x, centroid_y)
 
     def svg_path_string(self) -> str:
         """
@@ -414,6 +412,33 @@ class AvMultiWeightLetter:
         return [letter.glyph for letter in self._letters]
 
     @property
+    def ascender(self) -> float:
+        """
+        The maximum distance above the baseline, i.e. the highest y-coordinate of a Letter (positive value).
+        """
+        if not self._letters:
+            return 0.0
+        return max(letter.ascender for letter in self._letters)
+
+    @property
+    def descender(self) -> float:
+        """
+        The maximum distance below the baseline, i.e. the lowest y-coordinate of a Letter (negative value).
+        """
+        if not self._letters:
+            return 0.0
+        return min(letter.descender for letter in self._letters)
+
+    @property
+    def height(self) -> float:
+        """
+        The total height of all letters.
+        """
+        if not self._letters:
+            return 0.0
+        return max(letter.height for letter in self._letters)
+
+    @property
     def advance_width(self) -> float:
         """Returns the maximum advance width of all letters."""
         if len(self._letters) == 0:
@@ -443,31 +468,12 @@ class AvMultiWeightLetter:
             return self.advance_width
 
         if self.align == Align.LEFT:
-            return self.advance_width - self.left_side_bearing
+            return self.advance_width - self.left_side_bearing()
         if self.align == Align.RIGHT:
-            return self.advance_width - self.right_side_bearing
+            return self.advance_width - self.right_side_bearing()
         if self.align == Align.BOTH:
             return self.bounding_box().width
 
-    @property
-    def ascender(self) -> float:
-        """
-        The maximum distance above the baseline, i.e. the highest y-coordinate of a Letter (positive value).
-        """
-        if not self._letters:
-            return 0.0
-        return max(letter.ascender for letter in self._letters)
-
-    @property
-    def descender(self) -> float:
-        """
-        The maximum distance below the baseline, i.e. the lowest y-coordinate of a Letter (negative value).
-        """
-        if not self._letters:
-            return 0.0
-        return min(letter.descender for letter in self._letters)
-
-    @property
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of the Letter taking alignment into account (sign varies +/-).
@@ -479,7 +485,6 @@ class AvMultiWeightLetter:
             return 0.0
         return self.bounding_box().xmin - self.letter_box().xmin
 
-    @property
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of the Letter taking alignment into account (sign varies +/-).
@@ -935,3 +940,132 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ───────────────────────────────────────────────────────────────────────────────
+# advance_width
+# width()
+# left_side_bearing
+# right_side_bearing
+# bounding_box()
+# letter_box()
+# ───────────────────────────────────────────────────────────────────────────────
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │                        METHOD DEPENDENCY TREE                               │
+# └─────────────────────────────────────────────────────────────────────────────┘
+
+# AvGlyph.width(align=None)
+#     calls:
+#     - self.advance_width
+#     - self.left_side_bearing()  [if align == LEFT]
+#     - self.right_side_bearing() [if align == RIGHT]
+#     - self.bounding_box()       [if align == BOTH]
+#     - self.align                [to determine which calculation]
+
+# AvGlyph.advance_width
+#     (property, no dependencies)
+
+# AvGlyph.left_side_bearing()
+#     calls:
+#     - self.bounding_box()
+#     - self.align                [returns 0.0 for LEFT/BOTH]
+
+# AvGlyph.right_side_bearing()
+#     calls:
+#     - self.advance_width
+#     - self.bounding_box()
+#     - self.align                [returns 0.0 for RIGHT/BOTH]
+
+# AvGlyph.bounding_box()
+#     calls:
+#     - self._path.bounding_box()
+
+# AvGlyph.letter_box()
+#     calls:
+#     - self.bounding_box()
+#     - self.advance_width
+
+# ───────────────────────────────────────────────────────────────────────────────
+
+# AvLetter.width()
+#     calls:
+#     - self._glyph.width(self.align)
+#     - self.align                [parameter passed to glyph]
+
+# AvLetter.advance_width
+#     calls:
+#     - self._glyph.advance_width
+
+# AvLetter.left_side_bearing()
+#     calls:
+#     - self._glyph.left_side_bearing()
+#     - self.scale
+
+# AvLetter.right_side_bearing()
+#     calls:
+#     - self._glyph.right_side_bearing()
+#     - self.scale
+
+# AvLetter.bounding_box()
+#     calls:
+#     - self._glyph.bounding_box()
+#     - self.trafo
+
+# AvLetter.letter_box()
+#     calls:
+#     - self._glyph.glyph_box()
+#     - self.trafo
+
+# ───────────────────────────────────────────────────────────────────────────────
+
+# AvMultiWeightLetter.width()
+#     calls:
+#     - self.advance_width          [if align is None]
+#     - self.advance_width          [if align == LEFT]
+#     - self.left_side_bearing()    [if align == LEFT]
+#     - self.advance_width          [if align == RIGHT]
+#     - self.right_side_bearing()   [if align == RIGHT]
+#     - self.bounding_box()         [if align == BOTH]
+#     - self.align                  [to determine which calculation]
+
+# AvMultiWeightLetter.advance_width
+#     calls:
+#     - Letter.advance_width (for each letter, takes max)
+
+# AvMultiWeightLetter.left_side_bearing()
+#     calls:
+#     - self.bounding_box()
+#     - self.letter_box()
+
+# AvMultiWeightLetter.right_side_bearing()
+#     calls:
+#     - self.advance_width
+#     - self.bounding_box()
+#     - self.letter_box()
+
+# AvMultiWeightLetter.bounding_box()
+#     calls:
+#     - Letter.bounding_box() (for each letter)
+#     - AvBox.combine()
+
+# AvMultiWeightLetter.letter_box()
+#     calls:
+#     - Letter.letter_box() (for each letter)
+#     - AvBox.combine()
+
+# ───────────────────────────────────────────────────────────────────────────────
+
+# ┌─────────────────────────────────────────────────────────────────────────────┐
+# │                            SUMMARY                                          │
+# ├─────────────────────────────────────────────────────────────────────────────┤
+# │                                                                             │
+# │  AvGlyph:      Base implementation, depends on path and advance_width       │
+# │  AvLetter:     Delegates to AvGlyph, adds transformation (trafo)            │
+# │  AvMultiWeight: Aggregates from multiple AvLetter instances                 │
+# │                                                                             │
+# │  Key Pattern:                                                               │
+# │  - bounding_box() is fundamental - needed by most other methods             │
+# │  - advance_width is a base property used by width() and side bearings       │
+# │  - MultiWeightLetter aggregates, SingleLetter delegates                     │
+# └─────────────────────────────────────────────────────────────────────────────┘

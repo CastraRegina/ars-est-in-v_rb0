@@ -481,7 +481,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="R", advance_width=15, path=path)
-        rsb = glyph.right_side_bearing
+        rsb = glyph.right_side_bearing()
 
         # Width=15, bbox xmax=10, so RSB should be 5
         assert rsb == 5.0
@@ -493,7 +493,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="S", advance_width=12, path=path)
-        rsb = glyph.right_side_bearing
+        rsb = glyph.right_side_bearing()
 
         # Width=12, bbox xmax should be 10.0, so RSB should be 2.0
         assert np.isclose(rsb, 2.0)
