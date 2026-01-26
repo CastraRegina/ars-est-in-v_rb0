@@ -254,6 +254,7 @@ Maybe check later if some of these packages are really needed...
   `sudo apt-get install libxml2-dev libxslt-dev graphviz`  
   `sudo apt-get install libcairo2`  
   `sudo apt-get install libgeos++-dev libgeos-dev libgeos-doc`
+  `sudo apt-get install libhunspell-dev hunspell hunspell-de-de-frami hunspell-en-us`
 - Check which SW packages are already installed, e.g.  
   `sudo apt list --installed | grep -i geos`
 - Install python modules:  
