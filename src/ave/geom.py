@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import decimal
+import math
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -46,6 +48,218 @@ class GeomMath:
         x_new = float(affine_trafo[0] * point[0] + affine_trafo[1] * point[1] + affine_trafo[4])
         y_new = float(affine_trafo[2] * point[0] + affine_trafo[3] * point[1] + affine_trafo[5])
         return (x_new, y_new)
+
+    @staticmethod
+    def pi_digits_chudnovsky(digits: int) -> str:
+        """Compute pi digits using the Chudnovsky series.
+
+        Args:
+            digits: Number of digits after the decimal point to compute.
+
+        Returns:
+            Pi as a string with a leading "3." and the requested number of
+            digits after the decimal point.
+
+        Raises:
+            ValueError: If digits is less than 1.
+        """
+        if digits < 1:
+            raise ValueError("digits must be at least 1")
+
+        def chudnovsky_term(term_index: int) -> decimal.Decimal:
+            """Compute a single Chudnovsky series term.
+
+            Args:
+                term_index: Term index.
+
+            Returns:
+                The Chudnovsky term as a Decimal.
+            """
+            six_k_fact: int = math.factorial(6 * term_index)
+            three_k_fact: int = math.factorial(3 * term_index)
+            k_fact: int = math.factorial(term_index)
+            numerator: decimal.Decimal = decimal.Decimal(six_k_fact * (13591409 + 545140134 * term_index))
+            denominator: decimal.Decimal = (
+                decimal.Decimal(three_k_fact)
+                * (decimal.Decimal(k_fact) ** 3)
+                * (decimal.Decimal(640320) ** (3 * term_index))
+            )
+            term: decimal.Decimal = numerator / denominator
+            if term_index % 2:
+                term = -term
+            return term
+
+        precision: int = digits + 10
+        threshold: decimal.Decimal = decimal.Decimal(10) ** (-(digits + 5))
+        series_sum: decimal.Decimal = decimal.Decimal(0)
+        k: int = 0
+
+        with decimal.localcontext() as ctx:
+            ctx.prec = precision
+            constant_c: decimal.Decimal = decimal.Decimal(426880) * decimal.Decimal(10005).sqrt()
+
+            while True:
+                term: decimal.Decimal = chudnovsky_term(k)
+                series_sum += term
+                if abs(term) < threshold:
+                    break
+                k += 1
+
+            pi_value: decimal.Decimal = constant_c / series_sum
+            pi_text: str = format(pi_value, "f")
+
+        return pi_text[: 2 + digits]
+
+    @staticmethod
+    def pi_digit_generator() -> Generator[str, None, None]:
+        """Generate digits of pi one at a time as strings.
+
+        Uses an unbounded spigot algorithm based on the work of Jeremy Gibbons.
+        Yields "3", ".", "1", "4", "1", "5", "9", ... indefinitely.
+
+        Yields:
+            The next character of pi as a string (digits and decimal point).
+
+        Example:
+            >>> gen = pi_digit_generator()
+            >>> [next(gen) for _ in range(6)]
+            ['3', '.', '1', '4', '1', '5']
+        """
+        # Unbounded spigot algorithm (Gibbons' streaming algorithm)
+        # State: (q, r, t, k, n, l)
+        q, r, t, k, n, l = 1, 0, 1, 1, 3, 3
+        first = True
+
+        while True:
+            if 4 * q + r - t < n * t:
+                # Output digit n
+                if first:
+                    yield str(n)
+                    yield "."
+                    first = False
+                else:
+                    yield str(n)
+                nr = 10 * (r - n * t)
+                n = ((10 * (3 * q + r)) // t) - 10 * n
+                q *= 10
+                r = nr
+            else:
+                # Increase precision
+                nr = (2 * q + r) * l
+                nn = (q * (7 * k + 2) + r * l) // (t * l)
+                q *= k
+                t *= l
+                l += 2
+                k += 1
+                n = nn
+                r = nr
+
+    @staticmethod
+    def pi_digits_bbp(digits: int) -> str:
+        """Compute pi digits using the Bailey-Borwein-Plouffe (BBP) formula.
+
+        The BBP formula can compute the nth digit of pi in base 16 without
+        computing preceding digits. We convert to decimal for display.
+
+        Args:
+            digits: Number of digits after the decimal point to compute.
+
+        Returns:
+            Pi as a string with a leading "3." and the requested number of
+            digits after the decimal point.
+
+        Raises:
+            ValueError: If digits is less than 1.
+        """
+        if digits < 1:
+            raise ValueError("digits must be at least 1")
+
+        # Compute more digits than needed due to base conversion
+        hex_digits_needed: int = int(digits * math.log2(10)) + 5
+
+        def bbp_term(n: int) -> decimal.Decimal:
+            """Compute the nth term of the BBP series."""
+            term: decimal.Decimal = (
+                decimal.Decimal(1)
+                / decimal.Decimal(16) ** n
+                * (
+                    decimal.Decimal(4) / (8 * n + 1)
+                    - decimal.Decimal(2) / (8 * n + 4)
+                    - decimal.Decimal(1) / (8 * n + 5)
+                    - decimal.Decimal(1) / (8 * n + 6)
+                )
+            )
+            return term
+
+        precision: int = digits + 10
+        with decimal.localcontext() as ctx:
+            ctx.prec = precision
+            pi_sum: decimal.Decimal = decimal.Decimal(0)
+
+            # Sum enough terms for the required precision
+            for n in range(hex_digits_needed):
+                pi_sum += bbp_term(n)
+
+            pi_text: str = format(pi_sum, "f")
+
+        return pi_text[: 2 + digits]
+
+    @staticmethod
+    def pi_digit_two_way_mismatches(max_digits: int) -> List[Tuple[int, str, str]]:
+        """Compare pi_digit_generator against Chudnovsky digits.
+
+        Args:
+            max_digits: Number of characters to compare, including "3.".
+
+        Returns:
+            A list of mismatches as (index, generator_digit, chudnovsky_digit).
+
+        Raises:
+            ValueError: If max_digits is less than 2.
+        """
+        if max_digits < 2:
+            raise ValueError("max_digits must be at least 2")
+
+        chudnovsky_digits: str = GeomMath.pi_digits_chudnovsky(max_digits - 2)
+        generator = GeomMath.pi_digit_generator()
+        generator_digits: List[str] = [next(generator) for _ in range(max_digits)]
+        generator_text: str = "".join(generator_digits)
+
+        mismatches: List[Tuple[int, str, str]] = []
+        for index, (gen_digit, chud_digit) in enumerate(zip(generator_text, chudnovsky_digits)):
+            if gen_digit != chud_digit:
+                mismatches.append((index, gen_digit, chud_digit))
+
+        return mismatches
+
+    @staticmethod
+    def pi_digit_three_way_mismatches(max_digits: int) -> List[Tuple[int, str, str, str]]:
+        """Compare three pi algorithms for mismatches.
+
+        Args:
+            max_digits: Number of characters to compare, including "3.".
+
+        Returns:
+            A list of mismatches as (index, spigot_digit, chudnovsky_digit, bbp_digit).
+
+        Raises:
+            ValueError: If max_digits is less than 2.
+        """
+        if max_digits < 2:
+            raise ValueError("max_digits must be at least 2")
+
+        chudnovsky_digits: str = GeomMath.pi_digits_chudnovsky(max_digits - 2)
+        bbp_digits: str = GeomMath.pi_digits_bbp(max_digits - 2)
+        spigot_generator = GeomMath.pi_digit_generator()
+        spigot_digits: List[str] = [next(spigot_generator) for _ in range(max_digits)]
+        spigot_text: str = "".join(spigot_digits)
+
+        mismatches: List[Tuple[int, str, str, str]] = []
+        for index, (spigot_digit, chud_digit, bbp_digit) in enumerate(zip(spigot_text, chudnovsky_digits, bbp_digits)):
+            if spigot_digit != chud_digit or spigot_digit != bbp_digit or chud_digit != bbp_digit:
+                mismatches.append((index, spigot_digit, chud_digit, bbp_digit))
+
+        return mismatches
 
 
 ###############################################################################
@@ -496,6 +710,58 @@ def main():
     """Main"""
     example_box = AvBox(xmin=10.0, ymin=20.0, xmax=40.0, ymax=60.0)
     print(example_box)
+
+    # Print pi using spigot algorithm
+    pi_gen = GeomMath.pi_digit_generator()
+    for _ in range(80):
+        digit = next(pi_gen)
+        print(digit, end="", flush=True)
+    print()  # New line after the digits
+
+    # Print the first 80 digits of pi using pi_digits_chudnovsky function
+    pi_digits = GeomMath.pi_digits_chudnovsky(80)
+    print(pi_digits[:80])
+
+    # Print pi using BBP algorithm
+    pi_bbp = GeomMath.pi_digits_bbp(80)
+    print(pi_bbp[:80])
+
+    ###########################################################################
+
+    # Define number of digits for comparisons
+    two_way_digits: int = 10000
+    three_way_digits: int = 10000
+
+    # Find mismatches between generator and Chudnovsky digits
+
+    import time  # pylint: disable=import-outside-toplevel
+
+    start_time = time.time()
+    two_way_mismatches = GeomMath.pi_digit_two_way_mismatches(two_way_digits)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    if two_way_mismatches:
+        print(f"Found {len(two_way_mismatches)} mismatches:")
+        for index, gen_digit, chud_digit in two_way_mismatches:
+            print(f"  Index {index}: '{gen_digit}' vs '{chud_digit}'")
+    else:
+        print("No two-way mismatches found.")
+    print(f"Two-way comparison took {elapsed_time:.2f} seconds for {two_way_digits} digits.")
+
+    # Three-way comparison
+    start_time = time.time()
+    three_way_mismatches = GeomMath.pi_digit_three_way_mismatches(three_way_digits)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    if three_way_mismatches:
+        print(f"Found {len(three_way_mismatches)} three-way mismatches:")
+        for index, spigot_digit, chud_digit, bbp_digit in three_way_mismatches[:10]:
+            print(f"  Index {index}: spigot='{spigot_digit}' chudnovsky='{chud_digit}' bbp='{bbp_digit}'")
+    else:
+        print("No three-way mismatches found.")
+    print(f"Three-way comparison took {elapsed_time:.2f} seconds for {three_way_digits} digits.")
 
 
 if __name__ == "__main__":
