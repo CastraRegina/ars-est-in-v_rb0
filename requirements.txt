@@ -56,8 +56,8 @@ numpy==2.4.1
 openstep_plist==0.5.1
 packaging==26.0
 pangocairocffi==0.7.0
-pangocffi==0.13.0
-pathspec==1.0.3
+pangocffi==0.14.0
+pathspec==1.0.4
 pillow==12.1.0
 platformdirs==4.5.1
 pluggy==1.6.0
