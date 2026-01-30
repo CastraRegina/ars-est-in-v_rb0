@@ -19,18 +19,6 @@ from typing import Any, List
 import hunspell  # pylint: disable=c-extension-no-member
 import pyphen
 
-
-@dataclass
-class _EncodingContext:
-    """Internal context for encoding operations."""
-
-    pyphen_dict: pyphen.Pyphen
-    hunspell_dict: hunspell.HunSpell | None
-    whitelist: set[str]
-    debug: bool
-    warnings: list[str] = field(default_factory=list)
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -72,6 +60,16 @@ class HyphenationEncoder:
     }
 
     _hunspell_cache: dict[str, hunspell.HunSpell | None] = {}
+
+    @dataclass
+    class _EncodingContext:
+        """Internal context for encoding operations."""
+
+        pyphen_dict: pyphen.Pyphen
+        hunspell_dict: hunspell.HunSpell | None
+        whitelist: set[str]
+        debug: bool
+        warnings: list[str] = field(default_factory=list)
 
     @staticmethod
     def list_supported_languages() -> list[str]:
@@ -257,7 +255,7 @@ class HyphenationEncoder:
         return {line.strip() for line in whitelist_str.strip().split("\n") if line.strip()}
 
     @staticmethod
-    def _syllabify_word(word: str, ctx: _EncodingContext) -> str:
+    def _syllabify_word(word: str, ctx: HyphenationEncoder._EncodingContext) -> str:
         """Syllabify a single word using pyphen.
 
         Args:
@@ -289,7 +287,7 @@ class HyphenationEncoder:
         return hyphenated
 
     @staticmethod
-    def _process_token(token: str, ctx: _EncodingContext) -> str:
+    def _process_token(token: str, ctx: HyphenationEncoder._EncodingContext) -> str:
         """Process a single token, handling punctuation and words.
 
         Args:
@@ -356,7 +354,7 @@ class HyphenationEncoder:
         Raises:
             UnsupportedLanguageError: If the language is not supported.
         """
-        ctx = _EncodingContext(
+        ctx = HyphenationEncoder._EncodingContext(
             pyphen_dict=HyphenationEncoder._get_pyphen_dict(language),
             hunspell_dict=(HyphenationEncoder._get_hunspell_dict(language) if debug else None),
             whitelist=HyphenationEncoder._parse_whitelist(accepted_hyphenated_words),
@@ -548,21 +546,6 @@ class StreamBase(ABC):
         return self._cursor
 
 
-@dataclass
-class _SyllableUnit:
-    """Internal representation of a syllable unit.
-
-    Attributes:
-        text: The syllable text without trailing '-'.
-        ends_word: True if this syllable ends a word.
-        trailing_punct: Punctuation chars (.,;:!?) at word end, else empty.
-    """
-
-    text: str
-    ends_word: bool
-    trailing_punct: str
-
-
 class SyllableStream(StreamBase):
     """Stateful syllable provider for encoded text from HyphenationEncoder.
 
@@ -587,6 +570,20 @@ class SyllableStream(StreamBase):
 
     _TRAILING_PUNCT_CHARS: str = ".,;:!?"
 
+    @dataclass
+    class _SyllableUnit:
+        """Internal representation of a syllable unit.
+
+        Attributes:
+            text: The syllable text without trailing '-'.
+            ends_word: True if this syllable ends a word.
+            trailing_punct: Punctuation chars (.,;:!?) at word end, else empty.
+        """
+
+        text: str
+        ends_word: bool
+        trailing_punct: str
+
     def _initialize_items(self, input_data: str) -> None:
         """Initialize syllable units from encoded text.
 
@@ -596,7 +593,7 @@ class SyllableStream(StreamBase):
         Raises:
             InvalidEscapeSequenceError: If an invalid escape sequence is found.
         """
-        self._units: list[_SyllableUnit] = []
+        self._units: list[SyllableStream._SyllableUnit] = []
         self._parse(input_data)
         self._items = self._units
 
@@ -681,7 +678,7 @@ class SyllableStream(StreamBase):
 
         for line_idx, line in enumerate(lines):
             if line_idx > 0:
-                self._units.append(_SyllableUnit(text="\n", ends_word=True, trailing_punct=""))
+                self._units.append(self._SyllableUnit(text="\n", ends_word=True, trailing_punct=""))
 
             words = line.split(" ")
 
@@ -698,7 +695,7 @@ class SyllableStream(StreamBase):
                         text, punct = self._extract_trailing_punct(syllable)
                         unescaped = self._unescape_syllable(text)
                         self._units.append(
-                            _SyllableUnit(
+                            self._SyllableUnit(
                                 text=unescaped,
                                 ends_word=True,
                                 trailing_punct=punct,
@@ -707,7 +704,7 @@ class SyllableStream(StreamBase):
                     else:
                         unescaped = self._unescape_syllable(syllable)
                         self._units.append(
-                            _SyllableUnit(
+                            self._SyllableUnit(
                                 text=unescaped,
                                 ends_word=False,
                                 trailing_punct="",
