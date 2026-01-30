@@ -429,7 +429,7 @@ class HyphenationEncoder:
         return "".join(result)
 
 
-class StreamBase(ABC):
+class AvStreamBase(ABC):
     """Abstract base class for stateful stream providers.
 
     This class provides common navigation functionality for streams that
@@ -437,7 +437,7 @@ class StreamBase(ABC):
     to populate the internal items list and _format_item to format items.
 
     Example:
-        >>> class MyStream(StreamBase):
+        >>> class MyStream(AvStreamBase):
         ...     def _initialize_items(self, input_data):
         ...         self._items = list(input_data)
         ...     def _format_item(self, index):
@@ -546,7 +546,7 @@ class StreamBase(ABC):
         return self._cursor
 
 
-class SyllableStream(StreamBase):
+class AvSyllableStream(AvStreamBase):
     """Stateful syllable provider for encoded text from HyphenationEncoder.
 
     This class takes the output string from HyphenationEncoder.encode_text()
@@ -554,7 +554,7 @@ class SyllableStream(StreamBase):
     is reversible and deterministic.
 
     Example:
-        >>> stream = SyllableStream("Hel-lo world")
+        >>> stream = AvSyllableStream("Hel-lo world")
         >>> stream.next_item()
         'Hel'
         >>> stream.next_item()
@@ -593,7 +593,7 @@ class SyllableStream(StreamBase):
         Raises:
             InvalidEscapeSequenceError: If an invalid escape sequence is found.
         """
-        self._units: list[SyllableStream._SyllableUnit] = []
+        self._units: list[AvSyllableStream._SyllableUnit] = []
         self._parse(input_data)
         self._items = self._units
 
@@ -748,15 +748,15 @@ class SyllableStream(StreamBase):
         return syllables if syllables else [word]
 
 
-class LetterStream(StreamBase):
-    """Stateful letter provider for arbitrary input strings.
+class AvCharacterStream(AvStreamBase):
+    """Stateful character provider for arbitrary input strings.
 
     This class takes any arbitrary string and provides characters one by one
     through navigation methods. All characters are treated equally, including
     spaces, tabs, line breaks, punctuation, digits, and letters.
 
     Example:
-        >>> stream = LetterStream("Hello")
+        >>> stream = AvCharacterStream("Hello")
         >>> stream.next_item()
         'H'
         >>> stream.next_item()

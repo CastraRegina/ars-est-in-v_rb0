@@ -6,12 +6,11 @@ The tests are run using pytest.
 import pytest
 
 from ave.text import (
+    AvCharacterStream,
+    AvSyllableStream,
     HyphenationEncoder,
     HyphenationError,
     InvalidEscapeSequenceError,
-    LetterStream,
-    StreamBase,
-    SyllableStream,
     UnsupportedLanguageError,
 )
 
@@ -351,41 +350,41 @@ class TestUnicode:
         assert decoded == original
 
 
-class TestSyllableStreamBasic:
-    """Basic tests for SyllableStream."""
+class TestAvSyllableStreamBasic:
+    """Basic tests for AvSyllableStream."""
 
     def test_simple_word(self):
         """Test iteration over a simple syllabified word."""
-        stream = SyllableStream("Hel-lo")
+        stream = AvSyllableStream("Hel-lo")
         assert stream.next_item() == "Hel"
         assert stream.next_item() == "lo "
 
     def test_multiple_words(self):
         """Test iteration over multiple words."""
-        stream = SyllableStream("Hel-lo world")
+        stream = AvSyllableStream("Hel-lo world")
         assert stream.next_item() == "Hel"
         assert stream.next_item() == "lo "
         assert stream.next_item() == "world "
 
     def test_single_word_no_hyphen(self):
         """Test single word without hyphens."""
-        stream = SyllableStream("test")
+        stream = AvSyllableStream("test")
         assert stream.next_item() == "test "
         assert not stream.has_next()
 
     def test_empty_string(self):
         """Test empty string input."""
-        stream = SyllableStream("")
+        stream = AvSyllableStream("")
         assert not stream.has_next()
         assert stream.position() == 0
 
 
-class TestSyllableStreamNavigation:
-    """Tests for SyllableStream navigation methods."""
+class TestAvSyllableStreamNavigation:
+    """Tests for AvSyllableStream navigation methods."""
 
     def test_has_next(self):
         """Test has_next method."""
-        stream = SyllableStream("Hel-lo")
+        stream = AvSyllableStream("Hel-lo")
         assert stream.has_next()
         stream.next_item()
         assert stream.has_next()
@@ -394,14 +393,14 @@ class TestSyllableStreamNavigation:
 
     def test_has_previous(self):
         """Test has_previous method."""
-        stream = SyllableStream("Hel-lo")
+        stream = AvSyllableStream("Hel-lo")
         assert not stream.has_previous()
         stream.next_item()
         assert stream.has_previous()
 
     def test_previous_item(self):
         """Test previous_item method."""
-        stream = SyllableStream("Hel-lo")
+        stream = AvSyllableStream("Hel-lo")
         stream.next_item()
         stream.next_item()
         assert stream.previous_item() == "lo "
@@ -409,7 +408,7 @@ class TestSyllableStreamNavigation:
 
     def test_position(self):
         """Test position method."""
-        stream = SyllableStream("Hel-lo world")
+        stream = AvSyllableStream("Hel-lo world")
         assert stream.position() == 0
         stream.next_item()
         assert stream.position() == 1
@@ -418,7 +417,7 @@ class TestSyllableStreamNavigation:
 
     def test_reset(self):
         """Test reset method."""
-        stream = SyllableStream("Hel-lo world")
+        stream = AvSyllableStream("Hel-lo world")
         stream.next_item()
         stream.next_item()
         stream.reset()
@@ -427,7 +426,7 @@ class TestSyllableStreamNavigation:
 
     def test_rewind_single_step(self):
         """Test rewind with single step."""
-        stream = SyllableStream("Hel-lo world")
+        stream = AvSyllableStream("Hel-lo world")
         stream.next_item()
         stream.next_item()
         stream.rewind()
@@ -435,7 +434,7 @@ class TestSyllableStreamNavigation:
 
     def test_rewind_multiple_steps(self):
         """Test rewind with multiple steps."""
-        stream = SyllableStream("Hel-lo world")
+        stream = AvSyllableStream("Hel-lo world")
         stream.next_item()
         stream.next_item()
         stream.next_item()
@@ -444,100 +443,100 @@ class TestSyllableStreamNavigation:
 
     def test_rewind_beyond_start(self):
         """Test rewind beyond start clamps to 0."""
-        stream = SyllableStream("Hel-lo")
+        stream = AvSyllableStream("Hel-lo")
         stream.next_item()
         stream.rewind(10)
         assert stream.position() == 0
 
     def test_rewind_negative_raises(self):
         """Test rewind with negative steps raises ValueError."""
-        stream = SyllableStream("Hel-lo")
+        stream = AvSyllableStream("Hel-lo")
         with pytest.raises(ValueError):
             stream.rewind(-1)
 
 
-class TestSyllableStreamPunctuation:
-    """Tests for punctuation handling in SyllableStream."""
+class TestAvSyllableStreamPunctuation:
+    """Tests for punctuation handling in AvSyllableStream."""
 
     def test_trailing_period(self):
         """Test word ending with period."""
-        stream = SyllableStream("Hel-lo.")
+        stream = AvSyllableStream("Hel-lo.")
         stream.next_item()
         assert stream.next_item() == "lo. "
 
     def test_trailing_comma(self):
         """Test word ending with comma."""
-        stream = SyllableStream("Hel-lo,")
+        stream = AvSyllableStream("Hel-lo,")
         stream.next_item()
         assert stream.next_item() == "lo, "
 
     def test_trailing_exclamation(self):
         """Test word ending with exclamation mark."""
-        stream = SyllableStream("Hel-lo!")
+        stream = AvSyllableStream("Hel-lo!")
         stream.next_item()
         assert stream.next_item() == "lo! "
 
     def test_trailing_question(self):
         """Test word ending with question mark."""
-        stream = SyllableStream("Hel-lo?")
+        stream = AvSyllableStream("Hel-lo?")
         stream.next_item()
         assert stream.next_item() == "lo? "
 
     def test_trailing_colon(self):
         """Test word ending with colon."""
-        stream = SyllableStream("Note:")
+        stream = AvSyllableStream("Note:")
         assert stream.next_item() == "Note: "
 
     def test_trailing_semicolon(self):
         """Test word ending with semicolon."""
-        stream = SyllableStream("Hel-lo;")
+        stream = AvSyllableStream("Hel-lo;")
         stream.next_item()
         assert stream.next_item() == "lo; "
 
     def test_multiple_trailing_punct(self):
         """Test word ending with multiple punctuation marks."""
-        stream = SyllableStream("What?!")
+        stream = AvSyllableStream("What?!")
         assert stream.next_item() == "What?! "
 
 
-class TestSyllableStreamEscapeSequences:
-    """Tests for escape sequence handling in SyllableStream."""
+class TestAvSyllableStreamEscapeSequences:
+    """Tests for escape sequence handling in AvSyllableStream."""
 
     def test_escaped_hyphen(self):
         """Test escaped hyphen is unescaped."""
-        stream = SyllableStream("self\\-aware")
+        stream = AvSyllableStream("self\\-aware")
         result = stream.next_item()
         assert result == "self-aware "
 
     def test_escaped_backslash(self):
         """Test escaped backslash is unescaped."""
-        stream = SyllableStream("path\\\\file")
+        stream = AvSyllableStream("path\\\\file")
         result = stream.next_item()
         assert result == "path\\file "
 
     def test_escaped_space(self):
         """Test escaped space is unescaped."""
-        stream = SyllableStream("hello\\sworld")
+        stream = AvSyllableStream("hello\\sworld")
         result = stream.next_item()
         assert result == "hello world "
 
     def test_invalid_escape_raises(self):
         """Test invalid escape sequence raises error."""
         with pytest.raises(InvalidEscapeSequenceError):
-            SyllableStream("hello\\x")
+            AvSyllableStream("hello\\x")
 
     def test_incomplete_escape_raises(self):
         """Test incomplete escape sequence raises error."""
         with pytest.raises(InvalidEscapeSequenceError):
-            SyllableStream("hello\\")
+            AvSyllableStream("hello\\")
 
 
-class TestSyllableStreamLineBreaks:
-    """Tests for line break handling in SyllableStream."""
+class TestAvSyllableStreamLineBreaks:
+    """Tests for line break handling in AvSyllableStream."""
 
     def test_newline_as_separate_token(self):
         """Test that newlines are returned as separate tokens."""
-        stream = SyllableStream("Hel-lo\nworld")
+        stream = AvSyllableStream("Hel-lo\nworld")
         assert stream.next_item() == "Hel"
         assert stream.next_item() == "lo "
         assert stream.next_item() == "\n"
@@ -545,7 +544,7 @@ class TestSyllableStreamLineBreaks:
 
     def test_multiple_lines(self):
         """Test multiple line breaks."""
-        stream = SyllableStream("one\ntwo\nthree")
+        stream = AvSyllableStream("one\ntwo\nthree")
         assert stream.next_item() == "one "
         assert stream.next_item() == "\n"
         assert stream.next_item() == "two "
@@ -553,30 +552,30 @@ class TestSyllableStreamLineBreaks:
         assert stream.next_item() == "three "
 
 
-class TestSyllableStreamErrors:
-    """Tests for error handling in SyllableStream."""
+class TestAvSyllableStreamErrors:
+    """Tests for error handling in AvSyllableStream."""
 
     def test_next_at_end_raises_stop_iteration(self):
         """Test next_item at end raises StopIteration."""
-        stream = SyllableStream("test")
+        stream = AvSyllableStream("test")
         stream.next_item()
         with pytest.raises(StopIteration):
             stream.next_item()
 
     def test_previous_at_start_raises_stop_iteration(self):
         """Test previous_item at start raises StopIteration."""
-        stream = SyllableStream("test")
+        stream = AvSyllableStream("test")
         with pytest.raises(StopIteration):
             stream.previous_item()
 
 
-class TestSyllableStreamIntegration:
-    """Integration tests for SyllableStream with HyphenationEncoder."""
+class TestAvSyllableStreamIntegration:
+    """Integration tests for AvSyllableStream with HyphenationEncoder."""
 
     def test_with_encoded_text(self):
-        """Test SyllableStream with actual encoded text."""
+        """Test AvSyllableStream with actual encoded text."""
         encoded = HyphenationEncoder.encode_text("hello world", "en_US")
-        stream = SyllableStream(encoded)
+        stream = AvSyllableStream(encoded)
         syllables = []
         while stream.has_next():
             syllables.append(stream.next_item())
@@ -584,7 +583,7 @@ class TestSyllableStreamIntegration:
 
     def test_full_iteration_then_reverse(self):
         """Test full forward iteration then reverse."""
-        stream = SyllableStream("Hel-lo world")
+        stream = AvSyllableStream("Hel-lo world")
         forward = []
         while stream.has_next():
             forward.append(stream.next_item())
@@ -596,7 +595,7 @@ class TestSyllableStreamIntegration:
     def test_german_text(self):
         """Test with German encoded text."""
         encoded = HyphenationEncoder.encode_text("Silbentrennung", "de_DE")
-        stream = SyllableStream(encoded)
+        stream = AvSyllableStream(encoded)
         syllables = []
         while stream.has_next():
             syllables.append(stream.next_item())
@@ -605,7 +604,7 @@ class TestSyllableStreamIntegration:
 
     def test_spec_example(self):
         """Test the example from the specification."""
-        stream = SyllableStream("Sil-ben tren-nung. Nach-richt")
+        stream = AvSyllableStream("Sil-ben tren-nung. Nach-richt")
         expected = ["Sil", "ben ", "tren", "nung. ", "Nach", "richt "]
         actual = []
         while stream.has_next():
@@ -613,12 +612,12 @@ class TestSyllableStreamIntegration:
         assert actual == expected
 
 
-class TestLetterStreamBasic:
-    """Basic tests for LetterStream."""
+class TestAvCharacterStreamBasic:
+    """Basic tests for AvCharacterStream."""
 
     def test_simple_string(self):
         """Test iteration over a simple string."""
-        stream = LetterStream("Hello")
+        stream = AvCharacterStream("Hello")
         assert stream.next_item() == "H"
         assert stream.next_item() == "e"
         assert stream.next_item() == "l"
@@ -628,32 +627,32 @@ class TestLetterStreamBasic:
 
     def test_single_character(self):
         """Test single character input."""
-        stream = LetterStream("A")
+        stream = AvCharacterStream("A")
         assert stream.next_item() == "A"
         assert not stream.has_next()
 
     def test_empty_string(self):
         """Test empty string input."""
-        stream = LetterStream("")
+        stream = AvCharacterStream("")
         assert not stream.has_next()
         assert stream.position() == 0
 
     def test_full_iteration(self):
         """Test full iteration collects all characters."""
         text = "Test"
-        stream = LetterStream(text)
+        stream = AvCharacterStream(text)
         result = []
         while stream.has_next():
             result.append(stream.next_item())
         assert "".join(result) == text
 
 
-class TestLetterStreamNavigation:
-    """Tests for LetterStream navigation methods."""
+class TestAvCharacterStreamNavigation:
+    """Tests for AvCharacterStream navigation methods."""
 
     def test_has_next(self):
         """Test has_next method."""
-        stream = LetterStream("AB")
+        stream = AvCharacterStream("AB")
         assert stream.has_next()
         stream.next_item()
         assert stream.has_next()
@@ -662,14 +661,14 @@ class TestLetterStreamNavigation:
 
     def test_has_previous(self):
         """Test has_previous method."""
-        stream = LetterStream("AB")
+        stream = AvCharacterStream("AB")
         assert not stream.has_previous()
         stream.next_item()
         assert stream.has_previous()
 
     def test_previous_item(self):
         """Test previous_item method."""
-        stream = LetterStream("ABC")
+        stream = AvCharacterStream("ABC")
         stream.next_item()
         stream.next_item()
         stream.next_item()
@@ -679,7 +678,7 @@ class TestLetterStreamNavigation:
 
     def test_position(self):
         """Test position method."""
-        stream = LetterStream("ABC")
+        stream = AvCharacterStream("ABC")
         assert stream.position() == 0
         stream.next_item()
         assert stream.position() == 1
@@ -688,7 +687,7 @@ class TestLetterStreamNavigation:
 
     def test_reset(self):
         """Test reset method."""
-        stream = LetterStream("ABC")
+        stream = AvCharacterStream("ABC")
         stream.next_item()
         stream.next_item()
         stream.reset()
@@ -697,7 +696,7 @@ class TestLetterStreamNavigation:
 
     def test_rewind_single_step(self):
         """Test rewind with single step."""
-        stream = LetterStream("ABC")
+        stream = AvCharacterStream("ABC")
         stream.next_item()
         stream.next_item()
         stream.rewind()
@@ -705,7 +704,7 @@ class TestLetterStreamNavigation:
 
     def test_rewind_multiple_steps(self):
         """Test rewind with multiple steps."""
-        stream = LetterStream("ABCDE")
+        stream = AvCharacterStream("ABCDE")
         stream.next_item()
         stream.next_item()
         stream.next_item()
@@ -714,124 +713,124 @@ class TestLetterStreamNavigation:
 
     def test_rewind_beyond_start(self):
         """Test rewind beyond start clamps to 0."""
-        stream = LetterStream("AB")
+        stream = AvCharacterStream("AB")
         stream.next_item()
         stream.rewind(10)
         assert stream.position() == 0
 
     def test_rewind_negative_raises(self):
         """Test rewind with negative steps raises ValueError."""
-        stream = LetterStream("AB")
+        stream = AvCharacterStream("AB")
         with pytest.raises(ValueError):
             stream.rewind(-1)
 
 
-class TestLetterStreamWhitespace:
-    """Tests for whitespace handling in LetterStream."""
+class TestAvCharacterStreamWhitespace:
+    """Tests for whitespace handling in AvCharacterStream."""
 
     def test_space(self):
         """Test space character."""
-        stream = LetterStream("A B")
+        stream = AvCharacterStream("A B")
         assert stream.next_item() == "A"
         assert stream.next_item() == " "
         assert stream.next_item() == "B"
 
     def test_tab(self):
         """Test tab character."""
-        stream = LetterStream("A\tB")
+        stream = AvCharacterStream("A\tB")
         assert stream.next_item() == "A"
         assert stream.next_item() == "\t"
         assert stream.next_item() == "B"
 
     def test_newline(self):
         """Test newline character."""
-        stream = LetterStream("A\nB")
+        stream = AvCharacterStream("A\nB")
         assert stream.next_item() == "A"
         assert stream.next_item() == "\n"
         assert stream.next_item() == "B"
 
     def test_carriage_return(self):
         """Test carriage return character."""
-        stream = LetterStream("A\rB")
+        stream = AvCharacterStream("A\rB")
         assert stream.next_item() == "A"
         assert stream.next_item() == "\r"
         assert stream.next_item() == "B"
 
     def test_crlf(self):
         """Test CRLF is two separate characters."""
-        stream = LetterStream("A\r\nB")
+        stream = AvCharacterStream("A\r\nB")
         assert stream.next_item() == "A"
         assert stream.next_item() == "\r"
         assert stream.next_item() == "\n"
         assert stream.next_item() == "B"
 
 
-class TestLetterStreamPunctuation:
-    """Tests for punctuation handling in LetterStream."""
+class TestAvCharacterStreamPunctuation:
+    """Tests for punctuation handling in AvCharacterStream."""
 
     def test_period(self):
         """Test period character."""
-        stream = LetterStream("A.")
+        stream = AvCharacterStream("A.")
         assert stream.next_item() == "A"
         assert stream.next_item() == "."
 
     def test_comma(self):
         """Test comma character."""
-        stream = LetterStream("A,B")
+        stream = AvCharacterStream("A,B")
         assert stream.next_item() == "A"
         assert stream.next_item() == ","
         assert stream.next_item() == "B"
 
     def test_mixed_punctuation(self):
         """Test various punctuation characters."""
-        stream = LetterStream("!@#")
+        stream = AvCharacterStream("!@#")
         assert stream.next_item() == "!"
         assert stream.next_item() == "@"
         assert stream.next_item() == "#"
 
 
-class TestLetterStreamDigits:
-    """Tests for digit handling in LetterStream."""
+class TestAvCharacterStreamDigits:
+    """Tests for digit handling in AvCharacterStream."""
 
     def test_digits(self):
         """Test digit characters."""
-        stream = LetterStream("123")
+        stream = AvCharacterStream("123")
         assert stream.next_item() == "1"
         assert stream.next_item() == "2"
         assert stream.next_item() == "3"
 
     def test_mixed_alphanumeric(self):
         """Test mixed letters and digits."""
-        stream = LetterStream("A1B2")
+        stream = AvCharacterStream("A1B2")
         assert stream.next_item() == "A"
         assert stream.next_item() == "1"
         assert stream.next_item() == "B"
         assert stream.next_item() == "2"
 
 
-class TestLetterStreamErrors:
-    """Tests for error handling in LetterStream."""
+class TestAvCharacterStreamErrors:
+    """Tests for error handling in AvCharacterStream."""
 
     def test_next_at_end_raises_stop_iteration(self):
         """Test next_item at end raises StopIteration."""
-        stream = LetterStream("A")
+        stream = AvCharacterStream("A")
         stream.next_item()
         with pytest.raises(StopIteration):
             stream.next_item()
 
     def test_previous_at_start_raises_stop_iteration(self):
         """Test previous_item at start raises StopIteration."""
-        stream = LetterStream("A")
+        stream = AvCharacterStream("A")
         with pytest.raises(StopIteration):
             stream.previous_item()
 
 
-class TestLetterStreamReversibility:
-    """Tests for reversible iteration in LetterStream."""
+class TestAvCharacterStreamReversibility:
+    """Tests for reversible iteration in AvCharacterStream."""
 
     def test_forward_then_backward(self):
         """Test forward then backward iteration."""
-        stream = LetterStream("ABC")
+        stream = AvCharacterStream("ABC")
         forward = []
         while stream.has_next():
             forward.append(stream.next_item())
@@ -842,7 +841,7 @@ class TestLetterStreamReversibility:
 
     def test_spec_example(self):
         """Test the example from the specification."""
-        stream = LetterStream("Hello\nWorld")
+        stream = AvCharacterStream("Hello\nWorld")
         expected = ["H", "e", "l", "l", "o", "\n", "W", "o", "r", "l", "d"]
         actual = []
         while stream.has_next():
