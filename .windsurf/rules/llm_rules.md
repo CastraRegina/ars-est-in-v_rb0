@@ -14,6 +14,8 @@ globs: .py
   Use `PYTHONPATH=./src ./venv/bin/python -m pytest -q`.
 - Non-code-only edits (comments/docstrings/whitespace) do NOT require running tests.
 - Every response that changes code MUST explicitly state that the full test suite was run and passed.
+- Run linter repeatedly and fix all newly introduced linter errors until clean:
+  Use `PYTHONPATH=./src ./venv/bin/python -m pylint src` or a lint run for the changed file.
 
 ## DO NOT (HALLUCINATION PREVENTION)
 
