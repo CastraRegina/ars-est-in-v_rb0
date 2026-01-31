@@ -50,6 +50,50 @@ class GeomMath:
         return (x_new, y_new)
 
     @staticmethod
+    def pi_digit_generator() -> Generator[str, None, None]:
+        """Generate digits of pi one at a time as strings.
+
+        Uses an unbounded spigot algorithm based on the work of Jeremy Gibbons.
+        Yields "3", ".", "1", "4", "1", "5", "9", ... indefinitely.
+
+        Yields:
+            The next character of pi as a string (digits and decimal point).
+
+        Example:
+            >>> gen = pi_digit_generator()
+            >>> [next(gen) for _ in range(6)]
+            ['3', '.', '1', '4', '1', '5']
+        """
+        # Unbounded spigot algorithm (Gibbons' streaming algorithm)
+        # State: (q, r, t, k, n, l)
+        q, r, t, k, n, l = 1, 0, 1, 1, 3, 3
+        first = True
+
+        while True:
+            if 4 * q + r - t < n * t:
+                # Output digit n
+                if first:
+                    yield str(n)
+                    yield "."
+                    first = False
+                else:
+                    yield str(n)
+                nr = 10 * (r - n * t)
+                n = ((10 * (3 * q + r)) // t) - 10 * n
+                q *= 10
+                r = nr
+            else:
+                # Increase precision
+                nr = (2 * q + r) * l
+                nn = (q * (7 * k + 2) + r * l) // (t * l)
+                q *= k
+                t *= l
+                l += 2
+                k += 1
+                n = nn
+                r = nr
+
+    @staticmethod
     def pi_digits_chudnovsky(digits: int) -> str:
         """Compute pi digits using the Chudnovsky series.
 
@@ -109,50 +153,6 @@ class GeomMath:
             pi_text: str = format(pi_value, "f")
 
         return pi_text[: 2 + digits]
-
-    @staticmethod
-    def pi_digit_generator() -> Generator[str, None, None]:
-        """Generate digits of pi one at a time as strings.
-
-        Uses an unbounded spigot algorithm based on the work of Jeremy Gibbons.
-        Yields "3", ".", "1", "4", "1", "5", "9", ... indefinitely.
-
-        Yields:
-            The next character of pi as a string (digits and decimal point).
-
-        Example:
-            >>> gen = pi_digit_generator()
-            >>> [next(gen) for _ in range(6)]
-            ['3', '.', '1', '4', '1', '5']
-        """
-        # Unbounded spigot algorithm (Gibbons' streaming algorithm)
-        # State: (q, r, t, k, n, l)
-        q, r, t, k, n, l = 1, 0, 1, 1, 3, 3
-        first = True
-
-        while True:
-            if 4 * q + r - t < n * t:
-                # Output digit n
-                if first:
-                    yield str(n)
-                    yield "."
-                    first = False
-                else:
-                    yield str(n)
-                nr = 10 * (r - n * t)
-                n = ((10 * (3 * q + r)) // t) - 10 * n
-                q *= 10
-                r = nr
-            else:
-                # Increase precision
-                nr = (2 * q + r) * l
-                nn = (q * (7 * k + 2) + r * l) // (t * l)
-                q *= k
-                t *= l
-                l += 2
-                k += 1
-                n = nn
-                r = nr
 
     @staticmethod
     def pi_digits_bbp(digits: int) -> str:
