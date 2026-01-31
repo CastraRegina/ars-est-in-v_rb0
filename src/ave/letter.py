@@ -1,4 +1,4 @@
-"""Multi-weight letter implementation using AvLetter."""
+"""Multi-weight letter implementation using AvSingleGlyphLetter."""
 
 from __future__ import annotations
 
@@ -18,12 +18,12 @@ from ave.glyph import (
 )
 
 ###############################################################################
-# AvLetter
+# AvSingleGlyphLetter
 ###############################################################################
 
 
 @dataclass
-class AvLetter:
+class AvSingleGlyphLetter:
     """
     A Letter is a Glyph which is scaled to real dimensions with a position, alignment and horizontal offset.
     """
@@ -270,23 +270,23 @@ class AvLetter:
 @dataclass
 class AvMultiWeightLetter:
     """
-    MultiWeightLetter: Container for managing collections of AvLetter objects with weight support.
+    MultiWeightLetter: Container for managing collections of AvSingleGlyphLetter objects with weight support.
     Can handle multiple letters of the same character with different weights, all at the same position.
     Internal weights are normalized from 0 to 1 with equal spacing.
     """
 
-    _letters: List[AvLetter] = field(default_factory=list)
+    _letters: List[AvSingleGlyphLetter] = field(default_factory=list)
 
     def __init__(
         self,
-        letters: List[AvLetter],
+        letters: List[AvSingleGlyphLetter],
     ) -> None:
         self._letters = letters
 
-        # Validate all letters are AvLetter objects
+        # Validate all letters are AvSingleGlyphLetter objects
         for i, letter in enumerate(self._letters):
-            if not isinstance(letter, AvLetter):
-                raise TypeError(f"Letter at index {i} is not an AvLetter object")
+            if not isinstance(letter, AvSingleGlyphLetter):
+                raise TypeError(f"Letter at index {i} is not an AvSingleGlyphLetter object")
 
         # Validate all letters have the same character (for multi-weight use case)
         if len(self._letters) > 1:
@@ -332,7 +332,7 @@ class AvMultiWeightLetter:
 
         for factory, x_offset in zip(factories, x_offsets):
             glyph = factory.get_glyph(character)
-            letter = AvLetter(glyph=glyph, scale=scale, xpos=xpos, ypos=ypos, align=align, x_offset=x_offset)
+            letter = AvSingleGlyphLetter(glyph=glyph, scale=scale, xpos=xpos, ypos=ypos, align=align, x_offset=x_offset)
             letters.append(letter)
 
         return cls(letters=letters)
@@ -397,7 +397,7 @@ class AvMultiWeightLetter:
             letter.align = align
 
     @property
-    def letters(self) -> List[AvLetter]:
+    def letters(self) -> List[AvSingleGlyphLetter]:
         """Get the letters list."""
         return self._letters
 
@@ -988,31 +988,31 @@ if __name__ == "__main__":
 
 # ───────────────────────────────────────────────────────────────────────────────
 
-# AvLetter.width()
+# AvSingleGlyphLetter.width()
 #     calls:
 #     - self._glyph.width(self.align)
 #     - self.align                [parameter passed to glyph]
 
-# AvLetter.advance_width
+# AvSingleGlyphLetter.advance_width
 #     calls:
 #     - self._glyph.advance_width
 
-# AvLetter.left_side_bearing()
+# AvSingleGlyphLetter.left_side_bearing()
 #     calls:
 #     - self._glyph.left_side_bearing()
 #     - self.scale
 
-# AvLetter.right_side_bearing()
+# AvSingleGlyphLetter.right_side_bearing()
 #     calls:
 #     - self._glyph.right_side_bearing()
 #     - self.scale
 
-# AvLetter.bounding_box()
+# AvSingleGlyphLetter.bounding_box()
 #     calls:
 #     - self._glyph.bounding_box()
 #     - self.trafo
 
-# AvLetter.letter_box()
+# AvSingleGlyphLetter.letter_box()
 #     calls:
 #     - self._glyph.glyph_box()
 #     - self.trafo
@@ -1061,8 +1061,8 @@ if __name__ == "__main__":
 # ├─────────────────────────────────────────────────────────────────────────────┤
 # │                                                                             │
 # │  AvGlyph:      Base implementation, depends on path and advance_width       │
-# │  AvLetter:     Delegates to AvGlyph, adds transformation (trafo)            │
-# │  AvMultiWeight: Aggregates from multiple AvLetter instances                 │
+# │  AvSingleGlyphLetter:     Delegates to AvGlyph, adds transformation (trafo)            │
+# │  AvMultiWeight: Aggregates from multiple AvSingleGlyphLetter instances                 │
 # │                                                                             │
 # │  Key Pattern:                                                               │
 # │  - bounding_box() is fundamental - needed by most other methods             │

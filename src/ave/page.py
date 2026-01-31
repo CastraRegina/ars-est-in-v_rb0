@@ -18,7 +18,7 @@ from ave.common import Align
 from ave.font import AvFont
 from ave.fonttools import FontHelper
 from ave.glyph import AvGlyphCachedSourceFactory, AvGlyphFromTTFontFactory
-from ave.letter import AvLetter
+from ave.letter import AvSingleGlyphLetter
 
 
 @dataclass
@@ -293,12 +293,12 @@ def main():
     avfont = AvFont(glyph_factory)
 
     glyph = avfont.get_glyph("L")
-    letter = AvLetter(glyph, font_size / avfont.props.units_per_em, 0.0, 0.0, Align.LEFT)
+    letter = AvSingleGlyphLetter(glyph, font_size / avfont.props.units_per_em, 0.0, 0.0, Align.LEFT)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
     glyph = avfont.get_glyph("T")
-    letter = AvLetter(glyph, font_size / avfont.props.units_per_em, align=Align.RIGHT)
+    letter = AvSingleGlyphLetter(glyph, font_size / avfont.props.units_per_em, align=Align.RIGHT)
     letter.xpos = 1.0 - letter.advance_width
     letter.ypos = vb_scale * vb_height_mm - letter.height
 
