@@ -737,6 +737,158 @@ class AvMultiWeightLetter(AvLetter):
             current.x_offset += offset_adjustment
 
 
+###############################################################################
+# Letter Factories
+###############################################################################
+
+###############################################################################
+# AvLetterFactory
+###############################################################################
+
+
+class AvLetterFactory(ABC):
+    """Abstract base class for letter factories.
+
+    Letter factories create AvLetter instances from stream items (characters or syllables).
+    This class-based approach allows for stateful factories and better extensibility
+    compared to simple callables.
+    """
+
+    @abstractmethod
+    def create_letter(
+        self,
+        item: str,
+        scale: float,
+        xpos: float,
+        ypos: float,
+        align: Optional[Align] = None,
+    ) -> AvLetter:
+        """Create a letter from the given parameters.
+
+        Args:
+            item: The item from the stream (character or syllable)
+            scale: Scale factor for the letter
+            xpos: X position of the letter
+            ypos: Y position of the letter
+            align: Alignment setting for the letter
+
+        Returns:
+            An AvLetter instance
+        """
+        raise NotImplementedError
+
+
+###############################################################################
+# AvSingleGlyphLetterFactory
+###############################################################################
+
+
+class AvSingleGlyphLetterFactory(AvLetterFactory):
+    """Factory for creating AvSingleGlyphLetter objects.
+
+    This factory uses a glyph factory to create single glyph letters.
+    It's the most common factory type for simple text layout.
+    """
+
+    def __init__(self, glyph_factory: AvGlyphFactory):
+        """Initialize the factory with a glyph factory.
+
+        Args:
+            glyph_factory: Factory to create glyphs for characters
+        """
+        self._glyph_factory = glyph_factory
+
+    def create_letter(
+        self,
+        item: str,
+        scale: float,
+        xpos: float,
+        ypos: float,
+        align: Optional[Align] = None,
+    ) -> AvLetter:
+        """Create an AvSingleGlyphLetter from the given parameters.
+
+        Args:
+            item: The character to create a letter for
+            scale: Scale factor for the letter
+            xpos: X position of the letter
+            ypos: Y position of the letter
+            align: Alignment setting for the letter
+
+        Returns:
+            An AvSingleGlyphLetter instance
+        """
+        glyph = self._glyph_factory.get_glyph(item)
+        return AvSingleGlyphLetter(
+            glyph=glyph,
+            scale=scale,
+            xpos=xpos,
+            ypos=ypos,
+            align=align,
+        )
+
+
+###############################################################################
+# AvMultiWeightLetterFactory
+###############################################################################
+
+
+class AvMultiWeightLetterFactory(AvLetterFactory):
+    """Factory for creating AvMultiWeightLetter objects.
+
+    This factory uses multiple glyph factories to create letters with different
+    weights (e.g., light, regular, bold). Each glyph factory represents a
+    different weight, and the resulting letter contains all weight variants.
+    """
+
+    def __init__(self, glyph_factories: List[AvGlyphFactory]):
+        """Initialize the factory with multiple glyph factories.
+
+        Args:
+            glyph_factories: List of glyph factories for different weights
+        """
+        self._glyph_factories = glyph_factories
+
+    def create_letter(
+        self,
+        item: str,
+        scale: float,
+        xpos: float,
+        ypos: float,
+        align: Optional[Align] = None,
+    ) -> AvLetter:
+        """Create an AvMultiWeightLetter from the given parameters.
+
+        Args:
+            item: The character to create letters for
+            scale: Scale factor for the letters
+            xpos: X position of the letters
+            ypos: Y position of the letters
+            align: Alignment setting for the letters
+
+        Returns:
+            An AvMultiWeightLetter instance containing all weight variants
+        """
+        letters = []
+        for glyph_factory in self._glyph_factories:
+            glyph = glyph_factory.get_glyph(item)
+            letter = AvSingleGlyphLetter(
+                glyph=glyph,
+                scale=scale,
+                xpos=xpos,
+                ypos=ypos,
+                align=align,
+            )
+            letters.append(letter)
+
+        return AvMultiWeightLetter(letters=letters)
+
+
+###############################################################################
+# main
+###############################################################################
+
+
 def main():
     """Test function for AvMultiWeightLetter."""
     from ave.page import AvSvgPage  # pylint: disable=import-outside-toplevel
@@ -1178,8 +1330,8 @@ if __name__ == "__main__":
 # ├─────────────────────────────────────────────────────────────────────────────┤
 # │                                                                             │
 # │  AvGlyph:      Base implementation, depends on path and advance_width       │
-# │  AvSingleGlyphLetter:     Delegates to AvGlyph, adds transformation (trafo)            │
-# │  AvMultiWeight: Aggregates from multiple AvSingleGlyphLetter instances                 │
+# │  AvSingleGlyphLetter:     Delegates to AvGlyph, adds transformation (trafo) │
+# │  AvMultiWeight: Aggregates from multiple AvSingleGlyphLetter instances      │
 # │                                                                             │
 # │  Key Pattern:                                                               │
 # │  - bounding_box() is fundamental - needed by most other methods             │
