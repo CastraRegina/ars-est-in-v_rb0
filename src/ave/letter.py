@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -18,12 +19,128 @@ from ave.glyph import (
 )
 
 ###############################################################################
+# AvLetter
+###############################################################################
+
+
+class AvLetter(ABC):
+    """
+    Abstract base class for letter representations.
+
+    A Letter is a visual representation of one or more glyphs positioned
+    in real-world coordinates with scaling, alignment, and positioning.
+    """
+
+    @property
+    @abstractmethod
+    def xpos(self) -> float:
+        """The x position of the letter in real dimensions."""
+        raise NotImplementedError
+
+    @xpos.setter
+    @abstractmethod
+    def xpos(self, xpos: float) -> None:
+        """Sets the x position of the letter in real dimensions."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def ypos(self) -> float:
+        """The y position of the letter in real dimensions."""
+        raise NotImplementedError
+
+    @ypos.setter
+    @abstractmethod
+    def ypos(self, ypos: float) -> None:
+        """Sets the y position of the letter in real dimensions."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def scale(self) -> float:
+        """Returns the scale factor for the letter."""
+        raise NotImplementedError
+
+    @scale.setter
+    @abstractmethod
+    def scale(self, scale: float) -> None:
+        """Sets the scale factor for the letter."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def align(self) -> Optional[Align]:
+        """The alignment of the letter; None, LEFT, RIGHT, BOTH."""
+        raise NotImplementedError
+
+    @align.setter
+    @abstractmethod
+    def align(self, align: Optional[Align]) -> None:
+        """Sets the alignment of the letter."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def ascender(self) -> float:
+        """The maximum distance above the baseline."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def descender(self) -> float:
+        """The maximum distance below the baseline."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def height(self) -> float:
+        """The height of the letter."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def advance_width(self) -> float:
+        """Returns the advance width of the letter."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def width(self) -> float:
+        """Returns the width calculated considering the alignment."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def left_side_bearing(self) -> float:
+        """The horizontal space on the left side of the letter."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def right_side_bearing(self) -> float:
+        """The horizontal space on the right side of the letter."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def bounding_box(self) -> AvBox:
+        """Returns the bounding box around the letter's outline."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def letter_box(self) -> AvBox:
+        """Returns the letter's advance box."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def svg_path_string(self) -> str:
+        """Returns the SVG path representation of the letter."""
+        raise NotImplementedError
+
+
+###############################################################################
 # AvSingleGlyphLetter
 ###############################################################################
 
 
 @dataclass
-class AvSingleGlyphLetter:
+class AvSingleGlyphLetter(AvLetter):
     """
     A Letter is a Glyph which is scaled to real dimensions with a position, alignment and horizontal offset.
     """
@@ -268,7 +385,7 @@ class AvSingleGlyphLetter:
 
 
 @dataclass
-class AvMultiWeightLetter:
+class AvMultiWeightLetter(AvLetter):
     """
     MultiWeightLetter: Container for managing collections of AvSingleGlyphLetter objects with weight support.
     Can handle multiple letters of the same character with different weights, all at the same position.
