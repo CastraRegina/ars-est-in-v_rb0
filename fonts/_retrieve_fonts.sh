@@ -1,21 +1,50 @@
 #!/bin/bash
-# download fonts from fonts.google.com and unzip the *.ttf files in this folder
+# download fonts from the official google/fonts repo
+# and extract the *.ttf files into the current folder
 
-mkdir zips
+set -e
 
-# download by using wget does not work anymore:
-#wget https://fonts.google.com/download?family=Dancing%20Script   -O zips/Dancing_Script.zip
-#wget https://fonts.google.com/download?family=Grandstander       -O zips/Grandstander.zip
-#wget https://fonts.google.com/download?family=Noto%20Sans%20Mono -O zips/Noto_Sans_Mono.zip
-#wget https://fonts.google.com/download?family=Recursive          -O zips/Recursive.zip
-#wget https://fonts.google.com/download?family=Roboto%20Flex      -O zips/Roboto_Flex.zip
-#wget https://fonts.google.com/download?family=Roboto%20Mono      -O zips/Roboto_Mono.zip
-#wget https://fonts.google.com/download?family=Cantarell          -O zips/Cantarell.zip
-#wget https://fonts.google.com/download?family=Petrona            -O zips/Petrona.zip
-#wget https://fonts.google.com/download?family=Caveat             -O zips/Caveat.zip
+TARGET_DIR="./"
+REPO_DIR="google_fonts"
+REPO_URL="https://github.com/google/fonts.git"
+ZIPS_DIR="zips"
 
+mkdir -p "${TARGET_DIR}"
+mkdir -p "${ZIPS_DIR}"
 
-for i in zips/*.zip ; do
-    unzip -o "${i}" "*.ttf" -x "static/*" 
-done
+if [ -d "${REPO_DIR}/.git" ]; then
+    echo "Updating existing Google Fonts repo..."
+    git -C "${REPO_DIR}" pull --ff-only
+else
+    echo "Cloning Google Fonts repo..."
+    git clone --depth=1 "${REPO_URL}" "${REPO_DIR}"
+fi
+
+# helper function
+copy_fonts () {
+    local fontdir="$1"
+    # Zip the entire font directory
+    zip -r "${ZIPS_DIR}/${fontdir}.zip" "${REPO_DIR}/ofl/${fontdir}"
+    # Copy TTF files to target directory
+    cp "${REPO_DIR}/ofl/${fontdir}"/*.ttf "${TARGET_DIR}/"
+}
+
+# former wget targets, rewritten
+copy_fonts dancingscript
+copy_fonts grandstander
+copy_fonts notosansmono
+copy_fonts recursive
+copy_fonts robotoflex
+copy_fonts robotomono
+copy_fonts cantarell
+copy_fonts petrona
+copy_fonts caveat
+copy_fonts ebgaramond
+copy_fonts notoserif
+copy_fonts newsreader
+
+echo "Done. Fonts copied to ./${TARGET_DIR}"
+
+# Remove the cloned repository
+#rm -rf "${REPO_DIR}"
 
