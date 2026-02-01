@@ -500,42 +500,63 @@ def main():
     # Define fonts to process
     fonts = [
         # {
-        #     "in_fn": "fonts/Grandstander-VariableFont_wght.ttf",  # Error: %
+        #     "in_fn": "fonts/EBGaramond[wght].ttf",
+        #     "out_name": "EBGaramond-VariableFont_AA_",
+        #     "wghts_min": 400,
+        #     "wghts_max": 800,
+        #     "num_wghts": 9,
+        # },
+        # {
+        #     "in_fn": "fonts/Grandstander[wght].ttf",  # Error: %
         #     "out_name": "Grandstander-VariableFont_AA_",
         #     "wghts_min": 100,
         #     "wghts_max": 900,
         #     "num_wghts": 9,
         # },
         # {
-        #     "in_fn": "fonts/NotoSansMono-VariableFont_wdth,wght.ttf",  # Error: 0
+        #     "in_fn": "fonts/Newsreader[opsz,wght].ttf",
+        #     "out_name": "Newsreader-VariableFont_AA_",
+        #     "wghts_min": 100,
+        #     "wghts_max": 800,
+        #     "num_wghts": 8,
+        # },
+        # {
+        #     "in_fn": "fonts/NotoSansMono[wdth,wght].ttf",  # Error: 0
         #     "out_name": "NotoSansMono-VariableFont_AA_",
         #     "wghts_min": 100,
         #     "wghts_max": 900,
         #     "num_wghts": 9,
         # },
         # {
-        #     "in_fn": "fonts/Petrona-VariableFont_wght.ttf",
+        #     "in_fn": "fonts/NotoSerif[wdth,wght].ttf",
+        #     "out_name": "NotoSerif-VariableFont_AA_",
+        #     "wghts_min": 100,
+        #     "wghts_max": 900,
+        #     "num_wghts": 9,
+        # },
+        # {
+        #     "in_fn": "fonts/Petrona[wght].ttf",
         #     "out_name": "Petrona-VariableFont_AA_",
         #     "wghts_min": 100,
         #     "wghts_max": 900,
         #     "num_wghts": 9,
         # },
         # {
-        #     "in_fn": "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf",
+        #     "in_fn": "fonts/Recursive[CASL,CRSV,MONO,slnt,wght].ttf",
         #     "out_name": "Recursive-VariableFont_AA_",
         #     "wghts_min": 300,
         #     "wghts_max": 1000,
         #     "num_wghts": 9,
         # },
         {
-            "in_fn": "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf",
+            "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
             "out_name": "RobotoFlex-VariableFont_AA_",
             "wghts_min": 100,
             "wghts_max": 1000,
             "num_wghts": 9,
         },
         # {
-        #     "in_fn": "fonts/RobotoMono-VariableFont_wght.ttf",
+        #     "in_fn": "fonts/RobotoMono[wght].ttf",
         #     "out_name": "RobotoMono-VariableFont_AA_",
         #     "wghts_min": 100,
         #     "wghts_max": 700,
@@ -578,15 +599,22 @@ def main():
 
         # ------------------------------------------------------------------------
 
-        # Create fonts with different weights
+        # Create fonts with different weights (HEAVIEST to LIGHTEST)
+        # Generate descending weight range for heavy-to-light ordering
+        step = (font_config["wghts_max"] - font_config["wghts_min"]) // (font_config["num_wghts"] - 1)
         wght_range = range(
-            font_config["wghts_min"],
-            font_config["wghts_max"] + 1,
-            (font_config["wghts_max"] - font_config["wghts_min"]) // (font_config["num_wghts"] - 1),
+            font_config["wghts_max"],  # Start with heaviest
+            font_config["wghts_min"] - 1,  # End with lightest
+            -step,  # Descending steps
         )
         for idx, wght in enumerate(wght_range, 1):
-            print(f"Processing font {font_config['out_name']} weight {wght} ...")
+            print(
+                f"Processing font {font_config['out_name']} weight {wght} (index {idx:02d}, "
+                f"{'heaviest' if idx == 1 else 'lightest' if idx == font_config['num_wghts'] else 'mid'}) ..."
+            )
 
+            # New filename pattern: index reflects position in heavy-to-light order
+            # Index 01 = heaviest (max weight), Index N = lightest (min weight)
             font_out_fn = f"{font_out_fn_base}{idx:02d}_wght{wght:04d}.json.zip"
             svg_out_fn = f"{svg_out_fn_base}{idx:02d}_wght{wght:04d}.svgz"
 
@@ -611,9 +639,10 @@ if __name__ == "__main__":
 
 
 # Support point patterns: numbered points with fractional spacing
+# Weight ordering: HEAVIEST (black) to LIGHTEST (white)
 # Each line shows N points creating N-1 intervals, where fraction × (N-1) = 1 total width
-#   1               2               3    1/2  --> font_num_wghts=3
-#   1       2       3       4       5    1/4  --> font_num_wghts=5
-#   1     2   3     4     5   6     7    1/6  --> font_num_wghts=7
-#   1   2   3   4   5   6   7   8   9    1/8  --> font_num_wghts=9
-#   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7    1/16 --> font_num_wghts=17
+#   1               2               3    1/2  --> font_num_wghts=3 (1=heavy, 3=light)
+#   1       2       3       4       5    1/4  --> font_num_wghts=5 (1=heavy, 5=light)
+#   1     2   3     4     5   6     7    1/6  --> font_num_wghts=7 (1=heavy, 7=light)
+#   1   2   3   4   5   6   7   8   9    1/8  --> font_num_wghts=9 (1=heavy, 9=light)
+#   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7    1/16 --> font_num_wghts=17 (1=heavy, 17=light)

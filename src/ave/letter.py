@@ -389,7 +389,13 @@ class AvMultiWeightLetter(AvLetter):
     """
     MultiWeightLetter: Container for managing collections of AvSingleGlyphLetter objects with weight support.
     Can handle multiple letters of the same character with different weights, all at the same position.
-    Internal weights are normalized from 0 to 1 with equal spacing.
+
+    Weight Convention:
+    - Factories/letters are ordered from HEAVIEST to LIGHTEST (index 0 = heavy/black)
+    - Normalized weights: 0.0 = lightest (white), 1.0 = heaviest (black)
+    - Index 0 corresponds to normalized weight 1.0 (heaviest)
+    - Index N-1 corresponds to normalized weight 0.0 (lightest)
+    - This matches image convention: black (0) = heavy, white (255) = light
     """
 
     _letters: List[AvSingleGlyphLetter] = field(default_factory=list)
@@ -429,11 +435,16 @@ class AvMultiWeightLetter(AvLetter):
     ) -> "AvMultiWeightLetter":
         """
         Create AvMultiWeightLetter from multiple factories.
-        Internal weights will be automatically assigned from 0 to 1 with equal spacing.
+
+        Weight Convention:
+        - Factories must be ordered from HEAVIEST to LIGHTEST
+        - Index 0 = heaviest weight (black, normalized weight 1.0)
+        - Index N-1 = lightest weight (white, normalized weight 0.0)
+        - Normalized weights are evenly spaced: [1.0, ..., 0.0]
 
         Args:
             character: The character to create glyphs for
-            factories: List of factories (ordered from lightest to heaviest weight)
+            factories: List of factories (ordered from HEAVIEST to LIGHTEST weight)
             scale: Scale factor
             xpos: X position
             ypos: Y position
@@ -527,6 +538,153 @@ class AvMultiWeightLetter(AvLetter):
     def glyphs(self) -> List[AvGlyph]:
         """Get the glyphs list."""
         return [letter.glyph for letter in self._letters]
+
+    @property
+    def num_weights(self) -> int:
+        """Get the number of weight variants.
+
+        Returns:
+            Number of weight variants (letters) in this multi-weight letter.
+        """
+        return len(self._letters)
+
+    def get_normalized_weight(self, index: int) -> float:
+        """Get the normalized weight value for a given index.
+
+        Weight Convention:
+        - Index 0 = heaviest (normalized weight 1.0)
+        - Index N-1 = lightest (normalized weight 0.0)
+        - Weights are evenly spaced between 1.0 and 0.0
+
+        Args:
+            index: Letter index (0 to N-1)
+
+        Returns:
+            Normalized weight in range [0.0, 1.0] where 1.0 = heaviest, 0.0 = lightest
+
+        Raises:
+            IndexError: If index is out of range
+        """
+        if not 0 <= index < len(self._letters):
+            raise IndexError(f"Index {index} out of range [0, {len(self._letters) - 1}]")
+
+        if len(self._letters) == 1:
+            return 1.0  # Single weight is considered heaviest
+
+        # Index 0 = weight 1.0 (heaviest), Index N-1 = weight 0.0 (lightest)
+        return 1.0 - (index / (len(self._letters) - 1))
+
+    def get_letter_by_weight(self, normalized_weight: float) -> AvSingleGlyphLetter:
+        """Get the letter closest to the specified normalized weight.
+
+        Weight Convention:
+        - normalized_weight 1.0 = heaviest (black) → returns letter at index 0
+        - normalized_weight 0.0 = lightest (white) → returns letter at index N-1
+        - Intermediate values interpolate and round to nearest available weight
+
+        Args:
+            normalized_weight: Weight value in range [0.0, 1.0]
+
+        Returns:
+            The letter with the closest matching weight
+
+        Raises:
+            ValueError: If normalized_weight is out of range or no letters available
+        """
+        if not self._letters:
+            raise ValueError("No letters available")
+
+        if not 0.0 <= normalized_weight <= 1.0:
+            raise ValueError(f"normalized_weight must be in [0.0, 1.0], got {normalized_weight}")
+
+        if len(self._letters) == 1:
+            return self._letters[0]
+
+        # Convert normalized weight to index
+        # weight 1.0 → index 0, weight 0.0 → index N-1
+        index = int((1.0 - normalized_weight) * (len(self._letters) - 1) + 0.5)
+        index = max(0, min(index, len(self._letters) - 1))  # Clamp to valid range
+
+        return self._letters[index]
+
+    @staticmethod
+    def gray_to_weight_index(gray_value: float, num_weights: int) -> int:
+        """Convert image gray value (0-255) to weight index.
+
+        Maps image gray values to glyph weight indices consistently:
+        - Black (0) → index 0 (heaviest weight)
+        - White (255) → index N-1 (lightest weight)
+        - Gray values interpolate linearly
+
+        Args:
+            gray_value: Gray value from image (0=black, 255=white)
+            num_weights: Number of available weight variants
+
+        Returns:
+            Weight index (0=heaviest, N-1=lightest)
+
+        Raises:
+            ValueError: If parameters are out of valid range
+
+        Example:
+            >>> AvMultiWeightLetter.gray_to_weight_index(0, 9)    # black
+            0  # heaviest
+            >>> AvMultiWeightLetter.gray_to_weight_index(255, 9)  # white
+            8  # lightest
+            >>> AvMultiWeightLetter.gray_to_weight_index(127.5, 9)  # mid-gray
+            4  # medium weight
+        """
+        if not 0 <= gray_value <= 255:
+            raise ValueError(f"gray_value must be in [0, 255], got {gray_value}")
+        if num_weights < 1:
+            raise ValueError(f"num_weights must be >= 1, got {num_weights}")
+
+        if num_weights == 1:
+            return 0
+
+        # Direct mapping: darker (lower) values → lower indices (heavier)
+        normalized = gray_value / 255.0  # 0.0 to 1.0 (0=black, 1=white)
+        index = int(normalized * (num_weights - 1) + 0.5)  # Round to nearest
+        return min(index, num_weights - 1)  # Clamp to valid range
+
+    @staticmethod
+    def gray_normalized_to_weight_index(gray_normalized: float, num_weights: int) -> int:
+        """Convert normalized gray value (0.0-1.0) to weight index.
+
+        Maps normalized gray values to glyph weight indices:
+        - Black (0.0) → index 0 (heaviest weight)
+        - White (1.0) → index N-1 (lightest weight)
+        - Gray values interpolate linearly
+
+        Args:
+            gray_normalized: Normalized gray value (0.0=black, 1.0=white)
+            num_weights: Number of available weight variants
+
+        Returns:
+            Weight index (0=heaviest, N-1=lightest)
+
+        Raises:
+            ValueError: If parameters are out of valid range
+
+        Example:
+            >>> AvMultiWeightLetter.gray_normalized_to_weight_index(0.0, 9)  # black
+            0  # heaviest
+            >>> AvMultiWeightLetter.gray_normalized_to_weight_index(1.0, 9)  # white
+            8  # lightest
+            >>> AvMultiWeightLetter.gray_normalized_to_weight_index(0.5, 9)  # mid-gray
+            4  # medium weight
+        """
+        if not 0.0 <= gray_normalized <= 1.0:
+            raise ValueError(f"gray_normalized must be in [0.0, 1.0], got {gray_normalized}")
+        if num_weights < 1:
+            raise ValueError(f"num_weights must be >= 1, got {num_weights}")
+
+        if num_weights == 1:
+            return 0
+
+        # Direct mapping: darker (lower) values → lower indices (heavier)
+        index = int(gray_normalized * (num_weights - 1) + 0.5)  # Round to nearest
+        return min(index, num_weights - 1)  # Clamp to valid range
 
     @property
     def ascender(self) -> float:
@@ -971,8 +1129,8 @@ def main():
 
     def render_letter_with_boxes(multi_letter, colors, stroke_width):
         """Render a multi-weight letter with bounding boxes."""
-        # Render all weight variants
-        for letter, color in zip(reversed(multi_letter.letters), colors):
+        # Render all weight variants (already in heavy-to-light order)
+        for letter, color in zip(multi_letter.letters, colors):
             svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
             svg_page.add(svg_path)
 
@@ -1056,9 +1214,10 @@ def main():
 
     # Example usage
     try:
-        # Colors for multi-weight rendering (black to light gray)
+        # Colors for multi-weight rendering (heavy to light, black to light gray)
+        # Index 0 = heaviest (black), Index N-1 = lightest (light gray)
         colors = [
-            "#000000",
+            "#000000",  # Index 0: Heaviest weight (black)
             "#202020",
             "#404040",
             "#606060",
@@ -1066,8 +1225,8 @@ def main():
             "#A0A0A0",
             "#C0C0C0",
             "#D0D0D0",
-            "#E0E0E0",
-        ]  # Black to light gray (reversed)
+            "#E0E0E0",  # Index 8: Lightest weight (light gray)
+        ]
 
         # Discover all available fonts in cache
         font_basenames = discover_font_basenames("fonts/cache")
@@ -1178,15 +1337,15 @@ def main():
 
                 AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter)
 
-                # Render heaviest weight in black (bottom layer)
+                # Render heaviest weight in black (bottom layer) - index 0 is now heaviest
                 svg_path_heavy = svg_page.drawing.path(
-                    multi_letter.letters[-1].svg_path_string(), fill="#000000", stroke="none"
+                    multi_letter.letters[0].svg_path_string(), fill="#000000", stroke="none"
                 )
                 svg_page.add(svg_path_heavy)
 
-                # Render lightest weight in light gray (top layer)
+                # Render lightest weight in light gray (top layer) - index -1 is now lightest
                 svg_path_light = svg_page.drawing.path(
-                    multi_letter.letters[0].svg_path_string(), fill="#E0E0E0", stroke="none"
+                    multi_letter.letters[-1].svg_path_string(), fill="#E0E0E0", stroke="none"
                 )
                 svg_page.add(svg_path_light)
 

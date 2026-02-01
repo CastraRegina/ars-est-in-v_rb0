@@ -287,7 +287,7 @@ def main():
     font_size = vb_scale * 3  # in mm
 
     # load a font and place letter L on lower left corner and letter T on upper right corner
-    ttfont_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    ttfont_filename = "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf"
     ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), {"wght": 400})
     glyph_factory = AvGlyphCachedSourceFactory(AvGlyphFromTTFontFactory(ttfont))
     avfont = AvFont(glyph_factory)

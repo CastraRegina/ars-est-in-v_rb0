@@ -300,6 +300,50 @@ class AvImage:
         region = self.get_region_rel(x1, y1, x2, y2)
         return float(region.mean())
 
+    def get_region_mean_normalized_px(self, x1: int, y1: int, x2: int, y2: int) -> float:
+        """Get the normalized mean gray value of a rectangular region using pixel coordinates.
+
+        Returns the mean gray value normalized to [0.0, 1.0] range where:
+        - 0.0 = black
+        - 1.0 = white
+
+        Args:
+            x1: Left coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based, smaller value)
+            x2: Right coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based, larger value)
+
+        Returns:
+            Normalized mean gray value (0.0 for black, 1.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_px() - coordinates are
+            clipped, swapped if needed, and adjusted to ensure at least one pixel.
+        """
+        return self.get_region_mean_px(x1, y1, x2, y2) / 255.0
+
+    def get_region_mean_normalized_rel(self, x1: float, y1: float, x2: float, y2: float) -> float:
+        """Get the normalized mean gray value of a rectangular region using relative coordinates.
+
+        Returns the mean gray value normalized to [0.0, 1.0] range where:
+        - 0.0 = black
+        - 1.0 = white
+
+        Args:
+            x1: Left coordinate in relative units (float, 0 to 1)
+            y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
+            x2: Right coordinate in relative units (float, 0 to 1)
+            y2: Top coordinate in relative units (float, 0 to height_px*scale)
+
+        Returns:
+            Normalized mean gray value (0.0 for black, 1.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_rel() - coordinates are
+            converted to pixel space and then processed with automatic clipping.
+        """
+        return self.get_region_mean_rel(x1, y1, x2, y2) / 255.0
+
     def get_region_weighted_mean_px(self, x1: int, y1: int, x2: int, y2: int) -> float:
         """Get weighted mean of a region where inner center (1/4 area) weighs 2/3.
 
@@ -384,6 +428,48 @@ class AvImage:
 
         # Delegate to the faster pixel-based version
         return self.get_region_weighted_mean_px(px1, py1, px2, py2)
+
+    def get_region_weighted_mean_normalized_px(self, x1: int, y1: int, x2: int, y2: int) -> float:
+        """Get normalized weighted mean of a region where inner center (1/4 area) weighs 2/3.
+
+        Returns the weighted mean gray value normalized to [0.0, 1.0] range where:
+        - 0.0 = black
+        - 1.0 = white
+
+        Args:
+            x1: Left coordinate (inclusive, 0-based)
+            y1: Top coordinate (inclusive, 0-based, smaller value)
+            x2: Right coordinate (exclusive, 0-based)
+            y2: Bottom coordinate (exclusive, 0-based, larger value)
+
+        Returns:
+            Normalized weighted mean gray value (0.0 for black, 1.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_px().
+        """
+        return self.get_region_weighted_mean_px(x1, y1, x2, y2) / 255.0
+
+    def get_region_weighted_mean_normalized_rel(self, x1: float, y1: float, x2: float, y2: float) -> float:
+        """Get normalized weighted mean of a region where inner center (1/4 area) weighs 2/3.
+
+        Returns the weighted mean gray value normalized to [0.0, 1.0] range where:
+        - 0.0 = black
+        - 1.0 = white
+
+        Args:
+            x1: Left coordinate in relative units (float, 0 to 1)
+            y1: Bottom coordinate in relative units (float, 0 to height_px*scale)
+            x2: Right coordinate in relative units (float, 0 to 1)
+            y2: Top coordinate in relative units (float, 0 to height_px*scale)
+
+        Returns:
+            Normalized weighted mean gray value (0.0 for black, 1.0 for white)
+
+        Note:
+            Uses the same coordinate handling as get_region_rel().
+        """
+        return self.get_region_weighted_mean_rel(x1, y1, x2, y2) / 255.0
 
     # def get_region_threshold_px(self, x1: int, y1: int, x2: int, y2: int, threshold: int) -> float:
     #     """Get ratio of pixels in region with values <= threshold.

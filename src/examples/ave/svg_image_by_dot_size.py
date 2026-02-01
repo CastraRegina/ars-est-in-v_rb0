@@ -89,20 +89,22 @@ class ImageToSvgDotConverter:
                 x = col * spacing_x + spacing_x / 2
                 y = row * spacing_y + spacing_y / 2
 
-                # Get the gray value at this position (0-255)
+                # Get the normalized gray value at this position (0.0=black, 1.0=white)
                 # Use a small region around the point for sampling
                 region_size = min(spacing_x, spacing_y) * 0.5
-                gray_value = self._av_image.get_region_weighted_mean_rel(
+                gray_normalized = self._av_image.get_region_weighted_mean_normalized_rel(
                     x - region_size / 2, y - region_size / 2, x + region_size / 2, y + region_size / 2
                 )
 
-                # Map gray value to circle area, then calculate diameter:
-                # black (0) -> 99% of spacing diameter, white (255) -> 5% of spacing diameter
+                # Map normalized gray value to circle area, then calculate diameter:
+                # black (0.0) -> 99% of spacing diameter (large dots, heavy visual weight)
+                # white (1.0) -> 5% of spacing diameter (small dots, light visual weight)
                 # Since we want diameter range of 5% to 99%, we need to work backwards:
                 # Area at 99% diameter = (0.99)^2 = 0.9801 or 98.01%
                 # Area at 5% diameter = (0.05)^2 = 0.0025 or 0.25%
-                # Formula: area_factor = 0.9801 - (gray_value / 255) * (0.9801 - 0.0025)
-                area_factor = 0.9801 - (gray_value / 255.0) * 0.9776
+                # Formula: area_factor = 0.9801 - gray_normalized * (0.9801 - 0.0025)
+                # This directly maps: black (0.0) -> large (0.9801), white (1.0) -> small (0.0025)
+                area_factor = 0.9801 - gray_normalized * 0.9776
                 diameter_factor = area_factor**0.5  # Square root for area-to-diameter conversion
                 current_diameter = min(spacing_x, spacing_y) * diameter_factor
 

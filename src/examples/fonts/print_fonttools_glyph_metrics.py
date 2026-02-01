@@ -5,7 +5,6 @@ ascent, descent, line gap, and units per em of a given character in a font.
 
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont
-from fontTools.varLib import instancer
 
 
 def print_font_metrics(font: TTFont) -> None:
@@ -65,12 +64,19 @@ def print_glyph_metrics(font: TTFont, char: str) -> None:
 
 
 def main():
-    FONT_FILENAME = "fonts/Grandstander-VariableFont_wght.ttf"
-    FONT_FILENAME = "fonts/NotoSansMono-VariableFont_wdth,wght.ttf"
-    FONT_FILENAME = "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf"
-    FONT_FILENAME = "fonts/RobotoFlex-VariableFont_" + "GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    """Main function to demonstrate font metrics printing using fontTools.
 
-    # FONT_FILENAME = "fonts/RobotoMono-VariableFont_wght.ttf"
+    This function loads a variable font, displays its available axes and metrics,
+    and prints glyph metrics for various characters including German umlauts.
+    """
+
+    FONT_FILENAME = "fonts/Grandstander[wght].ttf"  # pylint: disable=invalid-name
+    FONT_FILENAME = "fonts/NotoSansMono[wdth,wght].ttf"  # pylint: disable=invalid-name
+    FONT_FILENAME = "fonts/Recursive[CASL,CRSV,MONO,slnt,wght].ttf"  # pylint: disable=invalid-name
+    FONT_FILENAME = (  # pylint: disable=invalid-name
+        "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf"
+    )
+    # FONT_FILENAME = "fonts/RobotoMono[wght].ttf"
 
     ttfont = TTFont(FONT_FILENAME)
     font_family = ttfont["name"].getDebugName(1)

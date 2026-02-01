@@ -108,49 +108,53 @@ def print_font_example_page(output_filename: str, avfonts: List[AvFont]) -> None
 def main():
     """Main"""
 
-    font_filename = "fonts/RobotoFlex-VariableFont_GRAD,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght.ttf"
+    font_filename = "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf"
     output_filename = "data/output/example/svg/ave/example_font_RobotoFlex_variable.svgz"
+    # Fonts ordered from HEAVIEST to LIGHTEST (new convention)
     print_font_example_page(
         output_filename,
         [
-            setup_avfont(font_filename, {"wght": 100.0}),
-            setup_avfont(font_filename, {"wght": 400.0}),
-            setup_avfont(font_filename, {"wght": 1000.0}),
+            setup_avfont(font_filename, {"wght": 1000.0}),  # Heaviest (index 0)
+            setup_avfont(font_filename, {"wght": 400.0}),  # Medium
+            setup_avfont(font_filename, {"wght": 100.0}),  # Lightest (index 2)
         ],
     )
     font = setup_avfont(font_filename, {"wght": 400.0})
     print(font.get_info_string())
 
-    # font_filename = "fonts/RobotoMono-VariableFont_wght.ttf"
+    # font_filename = "fonts/RobotoMono[wght].ttf"
     # output_filename = "data/output/example/svg/ave/example_font_RobotoMono_variable.svgz"
+    # # Fonts ordered from HEAVIEST to LIGHTEST (new convention)
     # print_font_example_page(
     #     output_filename,
     #     [
-    #         setup_avfont(font_filename, {"wght": 100.0}),
-    #         setup_avfont(font_filename, {"wght": 400.0}),
-    #         setup_avfont(font_filename, {"wght": 700.0}),
+    #         setup_avfont(font_filename, {"wght": 700.0}),  # Heaviest
+    #         setup_avfont(font_filename, {"wght": 400.0}),  # Medium
+    #         setup_avfont(font_filename, {"wght": 100.0}),  # Lightest
     #     ],
     # )
 
-    # font_filename = "fonts/Petrona-VariableFont_wght.ttf"
+    # font_filename = "fonts/Petrona[wght].ttf"
     # output_filename = "data/output/example/svg/ave/example_font_Petrona_variable.svgz"
+    # # Fonts ordered from HEAVIEST to LIGHTEST (new convention)
     # print_font_example_page(
     #     output_filename,
     #     [
-    #         setup_avfont(font_filename, {"wght": 100.0}),
-    #         setup_avfont(font_filename, {"wght": 400.0}),
-    #         setup_avfont(font_filename, {"wght": 900.0}),
+    #         setup_avfont(font_filename, {"wght": 900.0}),  # Heaviest
+    #         setup_avfont(font_filename, {"wght": 400.0}),  # Medium
+    #         setup_avfont(font_filename, {"wght": 100.0}),  # Lightest
     #     ],
     # )
 
-    # font_filename = "fonts/Caveat-VariableFont_wght.ttf"
+    # font_filename = "fonts/Caveat[wght].ttf"
     # output_filename = "data/output/example/svg/ave/example_font_Caveat_variable.svgz"
+    # # Fonts ordered from HEAVIEST to LIGHTEST (new convention)
     # print_font_example_page(
     #     output_filename,
     #     [
-    #         setup_avfont(font_filename, {"wght": 400.0}),
-    #         setup_avfont(font_filename, {"wght": 400.0}),
-    #         setup_avfont(font_filename, {"wght": 700.0}),
+    #         setup_avfont(font_filename, {"wght": 700.0}),  # Heaviest
+    #         setup_avfont(font_filename, {"wght": 400.0}),  # Medium
+    #         setup_avfont(font_filename, {"wght": 400.0}),  # Lightest (duplicate for demo)
     #     ],
     # )
 
@@ -159,8 +163,9 @@ if __name__ == "__main__":
     main()
 
 
-#   1               2               3
-#   1       2       3       4       5
-#   1     2   3     4     5   6     7
-#   1   2   3   4   5   6   7   8   9
-#   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7
+# Weight ordering: HEAVIEST (black) to LIGHTEST (white)
+#   1               2               3    (1=heavy, 3=light)
+#   1       2       3       4       5    (1=heavy, 5=light)
+#   1     2   3     4     5   6     7    (1=heavy, 7=light)
+#   1   2   3   4   5   6   7   8   9    (1=heavy, 9=light)
+#   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7    (1=heavy, 17=light)
