@@ -5,7 +5,6 @@ from typing import Dict, Optional
 import numpy as np
 from fontTools.ttLib import TTFont
 
-from ave.font import AvFont
 from ave.fonttools import FontHelper
 from ave.geom import AvBox
 from ave.glyph import (
@@ -41,9 +40,9 @@ def draw_viewbox_border(svg_page, vb_scale, viewbox_width, viewbox_height):
     )
 
 
-def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] = None):
+def setup_glyph_factory(ttfont_filename: str, axes_values: Optional[Dict[str, float]] = None):
     """
-    Setup an AvFont object from a given TrueType font file and optional axes values.
+    Setup a glyph factory from a given TrueType font file and optional axes values.
     """
 
     if axes_values is None:
@@ -56,16 +55,23 @@ def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] =
     glyph_factory_ttfont = AvGlyphFromTTFontFactory(ttfont)
     glyph_factory_polygonized = AvGlyphPolygonizeFactory(glyph_factory_ttfont, polygonize_steps)
     glyph_factory_cached = AvGlyphCachedSourceFactory(glyph_factory_polygonized)
-    avfont = AvFont(glyph_factory_cached)
-    return avfont
+    return glyph_factory_cached
 
 
-def print_text(svg_page: AvSvgPage, xpos: float, ypos: float, text: str, avfont: AvFont, font_size: float) -> None:
+def print_text(
+    svg_page: AvSvgPage,
+    xpos: float,
+    ypos: float,
+    text: str,
+    glyph_factory: AvGlyphCachedSourceFactory,
+    font_size: float,
+) -> None:
     """Print text on the given svg_page at the given position with the given font and font size."""
     current_xpos = xpos
+    units_per_em = glyph_factory.get_font_properties().units_per_em
     for character in text:
-        glyph = avfont.get_glyph(character)
-        letter = AvSingleGlyphLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
+        glyph = glyph_factory.get_glyph(character)
+        letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, current_xpos, ypos)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
         current_xpos += letter.advance_width
@@ -232,15 +238,15 @@ def customize_glyph(glyph: AvGlyph, props: AvFontProperties) -> AvGlyph:
     return glyph  # no change, return original glyph
 
 
-def clean_chars_and_render_steps_on_page(
+def clean_glyphs_and_render_steps(
     svg_page: AvSvgPage,
     xpos: float,
     ypos: float,
     characters: str,
-    avfont: AvFont,
+    glyph_factory: AvGlyphCachedSourceFactory,
     font_size: float,
     stroke_width: float,
-) -> AvFont:
+) -> AvGlyphPersistentFactory:
     """Clean the characters and render the steps on the page.
 
     Args:
@@ -248,18 +254,21 @@ def clean_chars_and_render_steps_on_page(
         xpos (float): The x-coordinate of the starting position.
         ypos (float): The y-coordinate of the starting position.
         characters (str): The characters to clean and render.
-        avfont (AvFont): The font to use.
+        glyph_factory (AvGlyphCachedSourceFactory): The glyph factory to use.
         font_size (float): The font size to use.
         stroke_width (float): The stroke width to use.
 
     Returns:
-        AvFont: The cleaned AvFont object used.
+        AvGlyphPersistentFactory: The cleaned glyph factory.
     """
+
+    units_per_em = glyph_factory.get_font_properties().units_per_em
+    font_props = glyph_factory.get_font_properties()
 
     def print_glyph_path(
         glyph: AvGlyph, current_xpos: float, ypos: float, color: str, filled: bool, stroke_width: float
     ) -> float:
-        letter = AvSingleGlyphLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
+        letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, current_xpos, ypos)
         if filled:
             svg_path = svg_page.drawing.path(letter.svg_path_string(), fill=color, stroke="none")
         else:
@@ -311,33 +320,33 @@ def clean_chars_and_render_steps_on_page(
     for char in characters:
         print(f"{char}", end="", flush=True)
         current_ypos = ypos
-        original_glyph = avfont.get_glyph(char)
+        original_glyph = glyph_factory.get_glyph(char)
         glyph = original_glyph
 
         # Step 0: Original glyph
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S0-original", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S0-original", glyph_factory, INFO_SIZE)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
         # Step 1: Revise direction
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S1-revise-direction", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S1-revise-direction", glyph_factory, INFO_SIZE)
         glyph = glyph.revise_direction()
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
         # Step 2: Update glyph (custom modifications)
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S2-customize-glyph", avfont, INFO_SIZE)
-        glyph = customize_glyph(glyph, avfont.props)
+            print_text(svg_page, 0.005, current_ypos, "S2-customize-glyph", glyph_factory, INFO_SIZE)
+        glyph = customize_glyph(glyph, font_props)
         path = glyph.path
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
         current_ypos += font_size
 
         # Step 3: Polygonize
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S3-polygonize", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S3-polygonize", glyph_factory, INFO_SIZE)
         polygonized_path = path.polygonize(50)
         glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=polygonized_path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
@@ -345,7 +354,7 @@ def clean_chars_and_render_steps_on_page(
 
         # Step 4: Remove duplicate consecutive points from polygonized path
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S4-remove-duplicates", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S4-remove-duplicates", glyph_factory, INFO_SIZE)
         cleaned_polygonized_path = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(
             polygonized_path
         )
@@ -357,7 +366,7 @@ def clean_chars_and_render_steps_on_page(
 
         # Step 5: Resolve intersections
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S5-resolve-intersections", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S5-resolve-intersections", glyph_factory, INFO_SIZE)
         path = AvPathCleaner.resolve_polygon_path_intersections(cleaned_polygonized_path)
         glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
@@ -365,7 +374,7 @@ def clean_chars_and_render_steps_on_page(
 
         # Step 6: Match paths
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S6-match-paths", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S6-match-paths", glyph_factory, INFO_SIZE)
         path = AvPathMatcher.match_paths(cleaned_polygonized_path, path)
         glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=path)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", False, stroke_width)
@@ -373,7 +382,7 @@ def clean_chars_and_render_steps_on_page(
 
         # Step 7: Rebuild curve path
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S7-rebuild-curve-path", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S7-rebuild-curve-path", glyph_factory, INFO_SIZE)
         path = AvPathCurveRebuilder.rebuild_curve_path(path)
         glyph = AvGlyph(character=original_glyph.character, advance_width=original_glyph.width(), path=path)
         clean_glyphs[char] = glyph
@@ -384,21 +393,21 @@ def clean_chars_and_render_steps_on_page(
 
         # Step 8: Print overlay with stroke-border
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S8-overlay-border-check", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S8-overlay-border-check", glyph_factory, INFO_SIZE)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "red", False, stroke_width)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
         # Step 9: Print overlay: original on top
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S9-overlay-original-on-top", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S9-overlay-original-on-top", glyph_factory, INFO_SIZE)
         print_glyph_path(glyph, current_xpos, current_ypos, "red", True, stroke_width)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
         # Step 10: Print overlay: cleaned on top
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S10-overlay-cleaned-on-top", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S10-overlay-cleaned-on-top", glyph_factory, INFO_SIZE)
         print_glyph_path(original_glyph, current_xpos, current_ypos, "red", True, stroke_width)
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
@@ -412,7 +421,7 @@ def clean_chars_and_render_steps_on_page(
 
     # Serialize to dict and deserialize back
     print("Creating cleaned glyphs factory... ", end="", flush=True)
-    clean_glyphs_factory = AvGlyphPersistentFactory(clean_glyphs, avfont.props)
+    clean_glyphs_factory = AvGlyphPersistentFactory(clean_glyphs, font_props)
     print("done.")
 
     print("Serializing cleaned glyphs to dict... ", end="", flush=True)
@@ -422,7 +431,6 @@ def clean_chars_and_render_steps_on_page(
     # Deserialize from dict
     print("Deserializing cleaned glyphs from dict... ", end="", flush=True)
     clean_glyphs_factory = AvGlyphPersistentFactory.from_cache_dict(clean_glyphs_dict)
-    clean_font = AvFont(clean_glyphs_factory)
     print("done.")
 
     print("Processing deserialized characters...")
@@ -431,12 +439,12 @@ def clean_chars_and_render_steps_on_page(
     for char in characters:
         print(f"{char}", end="", flush=True)
         current_ypos = ypos
-        glyph = clean_font.get_glyph(char)
-        original_glyph = avfont.get_glyph(char)
+        glyph = clean_glyphs_factory.get_glyph(char)
+        original_glyph = glyph_factory.get_glyph(char)
 
         # Step 11: Print characters again using loaded glyphs
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S11-(de)serialized-font", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S11-(de)serialized-font", glyph_factory, INFO_SIZE)
         # Print original glyph filled and cleaned glyph as stroke
         delta_xpos = print_glyph_path(original_glyph, current_xpos, current_ypos, "red", True, stroke_width)
         delta_xpos = print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
@@ -444,34 +452,37 @@ def clean_chars_and_render_steps_on_page(
 
         # Step 12: Print clean end result
         if char == characters[0]:
-            print_text(svg_page, 0.005, current_ypos, "S12-end-result", avfont, INFO_SIZE)
+            print_text(svg_page, 0.005, current_ypos, "S12-end-result", glyph_factory, INFO_SIZE)
         print_glyph_path(glyph, current_xpos, current_ypos, "black", True, stroke_width)
         current_ypos += font_size
 
         current_xpos += delta_xpos
     print("")
 
-    # Return Font
-    return clean_font
+    # Return cleaned glyph factory
+    return clean_glyphs_factory
 
 
-def process_font_to_svg(avfont: AvFont, svg_filename: str, characters: str) -> AvFont:
+def process_font_to_svg(
+    glyph_factory: AvGlyphCachedSourceFactory, svg_filename: str, characters: str
+) -> AvGlyphPersistentFactory:
     """Process font glyphs and save to SVG file.
 
     Args:
-        avfont: The AvFont object to process
+        glyph_factory: The glyph factory to process
         svg_filename: Path where the SVG file will be saved
         characters: String of characters to process
 
     Returns:
-        The cleaned font after processing
+        The cleaned glyph factory after processing
     """
     # Setup the page with A4 dimensions
     viewbox_width = 190  # viewbox width in mm
     viewbox_height = 120  # viewbox height in mm
     vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
     font_size = vb_scale * 2.7  # in mm
-    stroke_width = 0.1 * avfont.props.dash_thickness * font_size / avfont.props.units_per_em
+    font_props = glyph_factory.get_font_properties()
+    stroke_width = 0.1 * font_props.dash_thickness * font_size / font_props.units_per_em
 
     # Create the SVG page using the factory method
     svg_page = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
@@ -479,14 +490,16 @@ def process_font_to_svg(avfont: AvFont, svg_filename: str, characters: str) -> A
     # Draw the viewbox border
     draw_viewbox_border(svg_page, vb_scale, viewbox_width, viewbox_height)
 
-    clean_font = clean_chars_and_render_steps_on_page(svg_page, 0.05, 0.01, characters, avfont, font_size, stroke_width)
+    clean_glyphs_factory = clean_glyphs_and_render_steps(
+        svg_page, 0.05, 0.01, characters, glyph_factory, font_size, stroke_width
+    )
 
     # Save the SVG
     print(f"Saving to {svg_filename} ...")
     svg_page.save_as(svg_filename, include_debug_layer=True, pretty=True, compressed=True)
     print(f"Saved to  {svg_filename}")
 
-    return clean_font
+    return clean_glyphs_factory
 
 
 ###############################################################################
@@ -618,19 +631,19 @@ def main():
             font_out_fn = f"{font_out_fn_base}{idx:02d}_wght{wght:04d}.json.zip"
             svg_out_fn = f"{svg_out_fn_base}{idx:02d}_wght{wght:04d}.svgz"
 
-            avfont = setup_avfont(font_config["in_fn"], {"wght": wght})
+            glyph_factory = setup_glyph_factory(font_config["in_fn"], {"wght": wght})
 
             # Save SVG:
-            clean_font = process_font_to_svg(avfont, svg_out_fn, characters)
+            clean_glyphs_factory = process_font_to_svg(glyph_factory, svg_out_fn, characters)
 
             # Save font:
             print(f"Saving to {font_out_fn} ...")
-            clean_font.glyph_factory.save_to_file(font_out_fn)
+            clean_glyphs_factory.save_to_file(font_out_fn)
             print(f"Saved to  {font_out_fn}")
 
             print("-----------------------------------------------------------------------")
 
-        print(avfont.props.info_string())
+        print(glyph_factory.get_font_properties().info_string())
         print("\n" + "=" * 80 + "\n")
 
 

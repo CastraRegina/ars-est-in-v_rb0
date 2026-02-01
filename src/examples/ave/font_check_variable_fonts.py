@@ -4,7 +4,6 @@ from typing import Dict, List, Optional
 
 from fontTools.ttLib import TTFont
 
-from ave.font import AvFont
 from ave.fonttools import FontHelper
 from ave.glyph import (
     AvGlyphCachedSourceFactory,
@@ -23,9 +22,9 @@ CHARACTERS += ',.;:+-*#_<> !"§$%&/()=?{}[] '
 CHARACTERS += "ÄÖÜ äöü ß€µ@²³~^°\\ "
 
 
-def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] = None):
+def setup_glyph_factory(ttfont_filename: str, axes_values: Optional[Dict[str, float]] = None):
     """
-    Setup an AvFont object from a given TrueType font file and optional axes values.
+    Setup a glyph factory from a given TrueType font file and optional axes values.
     """
 
     if axes_values is None:
@@ -38,31 +37,36 @@ def setup_avfont(ttfont_filename: str, axes_values: Optional[Dict[str, float]] =
     glyph_factory_ttfont = AvGlyphFromTTFontFactory(ttfont)
     glpyh_factory_polygonized = AvGlyphPolygonizeFactory(glyph_factory_ttfont, polygonize_steps)
     glyph_factory_cached = AvGlyphCachedSourceFactory(glpyh_factory_polygonized)
-    avfont = AvFont(glyph_factory_cached)
 
-    return avfont
+    return glyph_factory_cached
 
 
 def print_text_on_page(
-    svg_page: AvSvgPage, xpos: float, ypos: float, text: str, avfont: AvFont, font_size: float
+    svg_page: AvSvgPage,
+    xpos: float,
+    ypos: float,
+    text: str,
+    glyph_factory: AvGlyphCachedSourceFactory,
+    font_size: float,
 ) -> None:
     """Print text on the given svg_page at the given position with the given font size and font."""
     current_xpos = xpos
+    units_per_em = glyph_factory.get_font_properties().units_per_em
     for character in text:
-        glyph = avfont.get_glyph(character)
-        letter = AvSingleGlyphLetter(glyph, font_size / avfont.props.units_per_em, current_xpos, ypos)
+        glyph = glyph_factory.get_glyph(character)
+        letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, current_xpos, ypos)
         svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
         current_xpos += letter.advance_width
 
 
-def print_font_example_page(output_filename: str, avfonts: List[AvFont]) -> None:
+def print_font_example_page(output_filename: str, glyph_factories: List[AvGlyphCachedSourceFactory]) -> None:
     # create a page with A4 dimensions
     """
-    Create a page with a given AvFont object and print all characters defined in CHARACTERS on the page.
+    Create a page with glyph factories and print all characters defined in CHARACTERS on the page.
 
     Args:
-        avfont (AvFontNIM): The AvFont object to use for printing the characters.
+        glyph_factories (List[AvGlyphCachedSourceFactory]): The glyph factories to use for printing.
         output_filename (str): The filename of the SVG file to save.
     """
     vb_width_mm = 180  # viewbox width in mm
@@ -91,13 +95,13 @@ def print_font_example_page(output_filename: str, avfonts: List[AvFont]) -> None
 
     xpos = 0.0
     ypos = 0.01
-    for font in avfonts:
-        print_text_on_page(svg_page, xpos, ypos, CHARACTERS, font, font_size)
+    for factory in glyph_factories:
+        print_text_on_page(svg_page, xpos, ypos, CHARACTERS, factory, font_size)
         ypos += 0.05
 
     xpos = -0.04
     for ypos in [round(i * 0.1, 1) for i in range(7)]:
-        print_text_on_page(svg_page, xpos, ypos, str(ypos), avfonts[0], font_size)
+        print_text_on_page(svg_page, xpos, ypos, str(ypos), glyph_factories[0], font_size)
 
     # Save the SVG file
     print(f"save file {output_filename} ...")
@@ -114,13 +118,26 @@ def main():
     print_font_example_page(
         output_filename,
         [
-            setup_avfont(font_filename, {"wght": 1000.0}),  # Heaviest (index 0)
-            setup_avfont(font_filename, {"wght": 400.0}),  # Medium
-            setup_avfont(font_filename, {"wght": 100.0}),  # Lightest (index 2)
+            setup_glyph_factory(font_filename, {"wght": 1000.0}),  # Heaviest (index 0)
+            setup_glyph_factory(font_filename, {"wght": 400.0}),  # Medium
+            setup_glyph_factory(font_filename, {"wght": 100.0}),  # Lightest (index 2)
         ],
     )
-    font = setup_avfont(font_filename, {"wght": 400.0})
-    print(font.get_info_string())
+    glyph_factory = setup_glyph_factory(font_filename, {"wght": 400.0})
+
+    # Print font info (inlined from AvFont.get_info_string())
+    props = glyph_factory.get_font_properties()
+    font_info_string = props.info_string(show_stats=False)
+    font_info_string += "-----Glyphs in cache:-----\n"
+    glyph_count = 0
+    for glyph_character in glyph_factory.glyphs:
+        glyph_count += 1
+        font_info_string += f"{glyph_character}"
+        if glyph_count % 20 == 0:
+            font_info_string += "\n"
+    if font_info_string[-1] != "\n":
+        font_info_string += "\n"
+    print(font_info_string)
 
     # font_filename = "fonts/RobotoMono[wght].ttf"
     # output_filename = "data/output/example/svg/ave/example_font_RobotoMono_variable.svgz"
@@ -128,9 +145,9 @@ def main():
     # print_font_example_page(
     #     output_filename,
     #     [
-    #         setup_avfont(font_filename, {"wght": 700.0}),  # Heaviest
-    #         setup_avfont(font_filename, {"wght": 400.0}),  # Medium
-    #         setup_avfont(font_filename, {"wght": 100.0}),  # Lightest
+    #         setup_glyph_factory(font_filename, {"wght": 700.0}),  # Heaviest
+    #         setup_glyph_factory(font_filename, {"wght": 400.0}),  # Medium
+    #         setup_glyph_factory(font_filename, {"wght": 100.0}),  # Lightest
     #     ],
     # )
 
@@ -140,9 +157,9 @@ def main():
     # print_font_example_page(
     #     output_filename,
     #     [
-    #         setup_avfont(font_filename, {"wght": 900.0}),  # Heaviest
-    #         setup_avfont(font_filename, {"wght": 400.0}),  # Medium
-    #         setup_avfont(font_filename, {"wght": 100.0}),  # Lightest
+    #         setup_glyph_factory(font_filename, {"wght": 900.0}),  # Heaviest
+    #         setup_glyph_factory(font_filename, {"wght": 400.0}),  # Medium
+    #         setup_glyph_factory(font_filename, {"wght": 100.0}),  # Lightest
     #     ],
     # )
 
@@ -152,9 +169,9 @@ def main():
     # print_font_example_page(
     #     output_filename,
     #     [
-    #         setup_avfont(font_filename, {"wght": 700.0}),  # Heaviest
-    #         setup_avfont(font_filename, {"wght": 400.0}),  # Medium
-    #         setup_avfont(font_filename, {"wght": 400.0}),  # Lightest (duplicate for demo)
+    #         setup_glyph_factory(font_filename, {"wght": 700.0}),  # Heaviest
+    #         setup_glyph_factory(font_filename, {"wght": 400.0}),  # Medium
+    #         setup_glyph_factory(font_filename, {"wght": 400.0}),  # Lightest (duplicate for demo)
     #     ],
     # )
 

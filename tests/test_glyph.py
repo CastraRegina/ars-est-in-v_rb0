@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from ave.font import AvFont
 from ave.font_support import AvFontProperties
 from ave.geom import AvBox
 from ave.glyph import AvGlyph, AvGlyphPersistentFactory
@@ -834,13 +833,13 @@ class TestAvGlyph:
                 assert closed.is_ccw, "Contour should be CCW but is CW"
 
 
-class TestAvFontCache:
-    """Tests for AvFont cache serialization helpers."""
+class TestGlyphFactoryCache:
+    """Tests for glyph factory cache serialization."""
 
-    def test_font_cache_roundtrip_in_memory(self):
-        """Test AvFont.to_cache_dict and AvFont.from_cache_dict round-trip.
+    def test_factory_cache_roundtrip_in_memory(self):
+        """Test glyph factory to_cache_dict and from_cache_dict round-trip.
 
-        This test uses a minimal in-memory font setup without touching the
+        This test uses a minimal in-memory factory setup without touching the
         examples package or external font files.
         """
 
@@ -870,10 +869,8 @@ class TestAvFontCache:
         )
         glyph_factory = AvGlyphPersistentFactory(glyphs=glyphs, font_properties=font_props)
 
-        avfont = AvFont(glyph_factory=glyph_factory)
-
         # Test that the cached glyph is accessible
-        glyph_cached = avfont.get_glyph("A")
+        glyph_cached = glyph_factory.get_glyph("A")
 
         assert glyph_cached.character == glyph.character
         assert glyph_cached.width() == glyph.width()

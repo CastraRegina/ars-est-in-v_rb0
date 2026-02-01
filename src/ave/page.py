@@ -15,7 +15,6 @@ from fontTools.ttLib import TTFont
 from svgwrite.extensions import Inkscape
 
 from ave.common import Align
-from ave.font import AvFont
 from ave.fonttools import FontHelper
 from ave.glyph import AvGlyphCachedSourceFactory, AvGlyphFromTTFontFactory
 from ave.letter import AvSingleGlyphLetter
@@ -290,15 +289,15 @@ def main():
     ttfont_filename = "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf"
     ttfont = FontHelper.instantiate_ttfont(TTFont(ttfont_filename), {"wght": 400})
     glyph_factory = AvGlyphCachedSourceFactory(AvGlyphFromTTFontFactory(ttfont))
-    avfont = AvFont(glyph_factory)
+    units_per_em = glyph_factory.get_font_properties().units_per_em
 
-    glyph = avfont.get_glyph("L")
-    letter = AvSingleGlyphLetter(glyph, font_size / avfont.props.units_per_em, 0.0, 0.0, Align.LEFT)
+    glyph = glyph_factory.get_glyph("L")
+    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, 0.0, 0.0, Align.LEFT)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
-    glyph = avfont.get_glyph("T")
-    letter = AvSingleGlyphLetter(glyph, font_size / avfont.props.units_per_em, align=Align.RIGHT)
+    glyph = glyph_factory.get_glyph("T")
+    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, align=Align.RIGHT)
     letter.xpos = 1.0 - letter.advance_width
     letter.ypos = vb_scale * vb_height_mm - letter.height
 
