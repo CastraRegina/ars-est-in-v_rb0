@@ -135,7 +135,7 @@ fonts/*.ttf
 fonts/*.odt
 fonts/cache/
 fonts/zips/
-fonts/google-fonts/
+fonts/google_fonts/
 infos/
 todo.txt
 
