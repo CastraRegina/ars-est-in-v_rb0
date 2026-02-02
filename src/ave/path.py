@@ -207,21 +207,25 @@ class AvPath:
     def points(self) -> NDArray[np.float64]:
         """
         The points of this path as a numpy array of shape (n_points, 3).
+
+        Returns a read-only view to avoid expensive copy operations.
+        Attempting to modify the returned array will raise an error.
         """
-        # For performance improvement we could return a view instead of a copy
-        # but this maintains consistency with other properties and prevents
-        # external mutation
-        return self._points.copy()  # Return copy to prevent external mutation
+        # Return read-only view for performance - avoids expensive copies
+        view = self._points.view()
+        view.flags.writeable = False
+        return view
 
     @property
     def commands(self) -> List[AvGlyphCmds]:
         """
         The commands of this path as a list of SVG path commands.
+
+        Note: Modifying the returned list is not recommended and may lead to
+        inconsistent state. Treat as read-only.
         """
-        # For performance improvement we could return a view instead of a copy
-        # but this maintains consistency with other properties and prevents
-        # external mutation
-        return list(self._commands)  # Return copy to prevent external mutation
+        # Return direct reference for performance - commands are small and rarely modified
+        return self._commands
 
     @property
     def constraints(self) -> PathConstraints:
