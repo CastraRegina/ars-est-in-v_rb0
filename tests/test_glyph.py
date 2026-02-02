@@ -349,7 +349,7 @@ class TestAvGlyph:
         np.testing.assert_array_equal(glyph.path.points, points)
         assert glyph.path.commands == commands
         # Test that bounding box calculation works (public interface)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
         assert bbox is not None
 
     def test_bounding_box_empty_points(self):
@@ -359,7 +359,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character=" ", advance_width=0, path=path)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
 
         expected = AvBox(0.0, 0.0, 0.0, 0.0)
         assert bbox == expected
@@ -371,7 +371,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="L", advance_width=10, path=path)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
 
         expected = AvBox(0.0, 0.0, 10.0, 5.0)
         assert bbox == expected
@@ -391,7 +391,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="Q", advance_width=20, path=path)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
 
         # The actual quadratic curve should not reach y=20 (control point)
         # With 100 steps, the max y should be around 10.0 (midpoint of curve)
@@ -417,7 +417,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="C", advance_width=20, path=path)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
 
         # The actual cubic curve should not reach y=25 (control points)
         assert np.isclose(bbox.xmin, 0.0)
@@ -445,7 +445,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="M", advance_width=40, path=path)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
 
         assert np.isclose(bbox.xmin, 0.0)
         assert np.isclose(bbox.xmax, 40.0)
@@ -461,17 +461,16 @@ class TestAvGlyph:
         glyph = AvGlyph(character="Q", advance_width=20, path=path)
 
         # First call should calculate and cache
-        bbox1 = glyph.bounding_box()
-        # Check that bounding box is cached in AvPath (internal testing)
-        # pylint: disable=protected-access
-        assert glyph._path._bounding_box is not None
+        bbox1 = glyph.bounding_box
+        # Check that bounding box is cached in AvPath (internal testing with @cached_property)
+        # @cached_property stores the value in __dict__
+        assert "bounding_box" in glyph._path.__dict__
 
         # Second call should return cached result
-        bbox2 = glyph.bounding_box()
+        bbox2 = glyph.bounding_box
         assert bbox1 == bbox2
-        # Verify the cached value is the same (internal testing)
-        # pylint: disable=protected-access
-        assert glyph._path._bounding_box == bbox1
+        # Verify the cached value is the same
+        assert glyph._path.__dict__["bounding_box"] == bbox1
 
     def test_right_side_bearing(self):
         """Test right side bearing calculation"""
@@ -510,7 +509,7 @@ class TestAvGlyph:
         glyph = AvGlyph(character="T", advance_width=20, path=path)
 
         # Get accurate bounding box using polygonization
-        accurate_bbox = glyph.bounding_box()
+        accurate_bbox = glyph.bounding_box
 
         # Calculate naive bounding box using control points
         naive_ymax = points[:, 1].max()
@@ -540,7 +539,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="A", advance_width=40, path=path)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
 
         assert bbox.xmin == 10.0
         assert bbox.xmax == 30.0
@@ -557,7 +556,7 @@ class TestAvGlyph:
         path = AvPath(points, commands)
 
         glyph = AvGlyph(character="N", advance_width=20, path=path)
-        bbox = glyph.bounding_box()
+        bbox = glyph.bounding_box
 
         assert np.isclose(bbox.xmin, -10.0)
         assert np.isclose(bbox.xmax, 10.0)

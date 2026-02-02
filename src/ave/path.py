@@ -45,15 +45,13 @@ class AvPath:
     Attributes:
         _points: Array of 3D points (shape: n_points, 3)
         _commands: List of SVG commands for each point
-        _bounding_box: Cached bounding box for performance
-        _polygonized_path: Cached polygonized path for performance
+
+    Note: bounding_box and polygonized_path use @cached_property for automatic caching.
     """
 
     _points: NDArray[np.float64]  # shape (n_points, 3)
     _commands: List[AvGlyphCmds]  # shape (n_commands, 1)
     _constraints: PathConstraints = GENERAL_CONSTRAINTS  # path constraints
-    _bounding_box: Optional[AvBox] = None  # caching variable
-    _polygonized_path: Optional[AvMultiPolylinePath] = None  # caching variable
 
     # Number of steps to use when polygonizing curves for internal approximations
     POLYGONIZE_STEPS_INTERNAL: int = 50  # pylint: disable=invalid-name
@@ -97,8 +95,6 @@ class AvPath:
 
         self._commands = commands_list
         self._constraints = constraints if constraints is not None else GENERAL_CONSTRAINTS
-        self._bounding_box = None
-        self._polygonized_path = None
         self._validate()
 
     def _validate_points_array(self, arr: NDArray[np.float64]) -> None:
@@ -395,7 +391,7 @@ class AvPath:
             return AvPolygon.area(self.points)
 
         # For closed paths with curves, polygonize first
-        polygonized = self.polygonized_path()
+        polygonized = self.polygonized_path
         return AvPolygon.area(polygonized.points)
 
     @cached_property
@@ -415,7 +411,7 @@ class AvPath:
         self._require_closed_path("centroid")
 
         # Get polygonized path (handles both polygon and curve cases)
-        polygonized = self.polygonized_path()
+        polygonized = self.polygonized_path
 
         # Convert to Shapely polygon and get centroid
         if len(polygonized.points) >= 3:
@@ -447,7 +443,7 @@ class AvPath:
             return AvPolygon.is_ccw(self.points)
 
         # For closed paths with curves, polygonize first
-        polygonized = self.polygonized_path()
+        polygonized = self.polygonized_path
         return AvPolygon.is_ccw(polygonized.points)
 
     def reverse(self) -> AvPath:
@@ -625,7 +621,7 @@ class AvPath:
 
         # For paths with curves, polygonize first and use the points directly
         if self.has_curves:
-            polygonized = self.polygonized_path()
+            polygonized = self.polygonized_path
             points = polygonized.points
             commands = polygonized.commands
         else:
@@ -679,7 +675,7 @@ class AvPath:
         """Internal method to compute representative point."""
         # For paths with curves, polygonize first using cached curve detection
         if self.has_curves:
-            return self.polygonized_path().representative_point(samples, epsilon)
+            return self.polygonized_path.representative_point(samples, epsilon)
 
         pts = self.points
         if pts.shape[0] == 0:
@@ -728,20 +724,16 @@ class AvPath:
         else:
             return self._compute_representative_point(samples, epsilon)
 
+    @cached_property
     def bounding_box(self) -> AvBox:
         """
         Returns bounding box (tightest box around Path)
         Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top
         Uses dimensions in unitsPerEm.
         """
-
-        if self._bounding_box is not None:
-            return self._bounding_box
-
         # No points, so bounding box is set to size 0.
         if not self.points.size:
-            self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
-            return self._bounding_box
+            return AvBox(0.0, 0.0, 0.0, 0.0)
 
         # Check if path contains curves that need polygonization for accurate bounding box
         has_curves = self.has_curves
@@ -753,20 +745,18 @@ class AvPath:
             x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
         else:
             # Has curves, polygonize temporarily to get accurate bounding box
-            polygonized_path = self.polygonized_path()
+            polygonized_path = self.polygonized_path
             polygonized_points = polygonized_path.points
 
             if polygonized_points.size == 0:
-                self._bounding_box = AvBox(0.0, 0.0, 0.0, 0.0)
-                return self._bounding_box
+                return AvBox(0.0, 0.0, 0.0, 0.0)
 
             # Calculate bounding box from polygonized points
             points_x = polygonized_points[:, 0]
             points_y = polygonized_points[:, 1]
             x_min, x_max, y_min, y_max = points_x.min(), points_x.max(), points_y.min(), points_y.max()
 
-        self._bounding_box = AvBox(x_min, y_min, x_max, y_max)
-        return self._bounding_box
+        return AvBox(x_min, y_min, x_max, y_max)
 
     @classmethod
     def from_dict(cls, data: dict) -> AvPath:
@@ -791,10 +781,10 @@ class AvPath:
         # Create instance with 3D points (already has type column) - this triggers validation
         path = cls(points, commands, constraints)
 
-        # Convert bounding box back if present and set it properly
+        # Convert bounding box back if present and set it in __dict__ for @cached_property
         if data.get("bounding_box") is not None:
             bounding_box = AvBox.from_dict(data["bounding_box"])
-            path._bounding_box = bounding_box  # Safe to set after validation
+            path.__dict__["bounding_box"] = bounding_box  # Set cached value for @cached_property
 
         return path
 
@@ -806,10 +796,10 @@ class AvPath:
         # Commands are already strings
         commands_list = list(self.commands)
 
-        # Convert bounding box to dict if present
+        # Convert bounding box to dict if it has been cached
         bbox_dict = None
-        if self._bounding_box is not None:
-            bbox_dict = self.bounding_box().to_dict()
+        if "bounding_box" in self.__dict__:
+            bbox_dict = self.bounding_box.to_dict()
 
         return {
             "points": points_list,
@@ -846,18 +836,15 @@ class AvPath:
 
         return True
 
+    @cached_property
     def polygonized_path(self) -> AvMultiPolylinePath:
         """Return the polygonized path with lazy evaluation and caching."""
-        if self._polygonized_path is None:
-            # Only polygonize if we actually have curves
-            if self.has_curves:
-                self._polygonized_path = self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
-            else:
-                # No curves - return a copy with polyline constraints
-                self._polygonized_path = AvMultiPolylinePath(
-                    self.points.copy(), list(self.commands), MULTI_POLYLINE_CONSTRAINTS
-                )
-        return self._polygonized_path
+        # Only polygonize if we actually have curves
+        if self.has_curves:
+            return self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
+        else:
+            # No curves - return a copy with polyline constraints
+            return AvMultiPolylinePath(self.points.copy(), list(self.commands), MULTI_POLYLINE_CONSTRAINTS)
 
     def polygonize(self, steps: int) -> AvMultiPolylinePath:
         """Return a polygonized copy of this path.

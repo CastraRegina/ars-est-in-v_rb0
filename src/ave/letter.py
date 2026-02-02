@@ -297,7 +297,7 @@ class AvSingleGlyphLetter(AvLetter):
         Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
         Note: Returns 0.0 for LEFT or BOTH alignment as the letter is positioned at the origin.
         """
-        # actually: return self.bounding_box().xmin - self.letter_box().xmin
+        # actually: return self.bounding_box.xmin - self.letter_box().xmin
         return self.scale * self._glyph.left_side_bearing
 
     def right_side_bearing(self) -> float:
@@ -308,9 +308,10 @@ class AvSingleGlyphLetter(AvLetter):
                 (i.e. bounding_box.xmax > advance_width).
         Note: Returns 0.0 for RIGHT or BOTH alignment as the letter is positioned to end at the advance width.
         """
-        # actually: self.advance_width - ( self.bounding_box().xmax - self.letter_box().xmin )
+        # actually: self.advance_width - ( self.bounding_box.xmax - self.letter_box().xmin )
         return self.scale * self._glyph.right_side_bearing
 
+    @property
     def bounding_box(self) -> AvBox:
         """
         Returns the tightest bounding box around the letter's outline in real dimensions.
@@ -319,9 +320,9 @@ class AvSingleGlyphLetter(AvLetter):
         Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top.
 
         Returns:
-            AvBox: The transformed bounding box of the letter's outline.
+            AvBox: The bounding box in world coordinates.
         """
-        return self._glyph.bounding_box().transform_affine(self.trafo)
+        return self._glyph.bounding_box.transform_affine(self.trafo)
 
     def letter_box(self) -> AvBox:
         """
@@ -734,8 +735,8 @@ class AvMultiWeightLetter(AvLetter):
                 - RIGHT: advance_width - right_side_bearing
                 - BOTH:  bounding_box.width (combined width of all letters)
         """
-        # LSB = return self.bounding_box().xmin - self.letter_box().xmin
-        # RSB = return self.advance_width - (self.bounding_box().xmax - self.letter_box().xmin)
+        # LSB = return self.bounding_box.xmin - self.letter_box().xmin
+        # RSB = return self.advance_width - (self.bounding_box.xmax - self.letter_box().xmin)
         if len(self._letters) == 0:
             return 0.0
 
@@ -747,7 +748,7 @@ class AvMultiWeightLetter(AvLetter):
         if self.align == Align.RIGHT:
             return self.advance_width - self.right_side_bearing()
         if self.align == Align.BOTH:
-            return self.bounding_box().width
+            return self.bounding_box.width
 
     def left_side_bearing(self) -> float:
         """
@@ -758,7 +759,7 @@ class AvMultiWeightLetter(AvLetter):
         """
         if len(self._letters) == 0:
             return 0.0
-        return self.bounding_box().xmin - self.letter_box().xmin
+        return self.bounding_box.xmin - self.letter_box().xmin
 
     def right_side_bearing(self) -> float:
         """
@@ -770,8 +771,9 @@ class AvMultiWeightLetter(AvLetter):
         """
         if len(self._letters) == 0:
             return 0.0
-        return self.advance_width - (self.bounding_box().xmax - self.letter_box().xmin)
+        return self.advance_width - (self.bounding_box.xmax - self.letter_box().xmin)
 
+    @property
     def bounding_box(self):
         """Returns the combined bounding box encompassing all letters' outlines.
 
@@ -784,7 +786,7 @@ class AvMultiWeightLetter(AvLetter):
             return AvBox(0.0, 0.0, 0.0, 0.0)
 
         # Get bounding boxes from all letters
-        bounding_boxes = [letter.bounding_box() for letter in self._letters]
+        bounding_boxes = [letter.bounding_box for letter in self._letters]
 
         # Use AvBox.combine to get the overall bounding box
         return AvBox.combine(*bounding_boxes)
@@ -883,8 +885,8 @@ class AvMultiWeightLetter(AvLetter):
             heavier = multi_weight_letter.letters[i + 1]
 
             # Get bounding boxes
-            current_bbox = current.bounding_box()
-            heavier_bbox = heavier.bounding_box()
+            current_bbox = current.bounding_box
+            heavier_bbox = heavier.bounding_box
 
             # Calculate centers
             heavier_center = (heavier_bbox.xmin + heavier_bbox.xmax) / 2
@@ -1135,7 +1137,7 @@ def main():
             svg_page.add(svg_path)
 
         # Add bounding box in yellow
-        bbox = multi_letter.bounding_box()
+        bbox = multi_letter.bounding_box
         svg_bbox = svg_page.drawing.path(
             f"M {bbox.xmin:g} {bbox.ymin:g} "
             f"L {bbox.xmax:g} {bbox.ymin:g} "
@@ -1388,7 +1390,7 @@ if __name__ == "__main__":
 #     - self.advance_width
 #     - self.left_side_bearing()  [if align == LEFT]
 #     - self.right_side_bearing() [if align == RIGHT]
-#     - self.bounding_box()       [if align == BOTH]
+#     - self.bounding_box       [if align == BOTH]
 #     - self.align                [to determine which calculation]
 
 # AvGlyph.advance_width
@@ -1396,22 +1398,22 @@ if __name__ == "__main__":
 
 # AvGlyph.left_side_bearing()
 #     calls:
-#     - self.bounding_box()
+#     - self.bounding_box
 #     - self.align                [returns 0.0 for LEFT/BOTH]
 
 # AvGlyph.right_side_bearing()
 #     calls:
 #     - self.advance_width
-#     - self.bounding_box()
+#     - self.bounding_box
 #     - self.align                [returns 0.0 for RIGHT/BOTH]
 
-# AvGlyph.bounding_box()
+# AvGlyph.bounding_box
 #     calls:
-#     - self._path.bounding_box()
+#     - self._path.bounding_box
 
 # AvGlyph.letter_box()
 #     calls:
-#     - self.bounding_box()
+#     - self.bounding_box
 #     - self.advance_width
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -1435,9 +1437,9 @@ if __name__ == "__main__":
 #     - self._glyph.right_side_bearing()
 #     - self.scale
 
-# AvSingleGlyphLetter.bounding_box()
+# AvSingleGlyphLetter.bounding_box
 #     calls:
-#     - self._glyph.bounding_box()
+#     - self._glyph.bounding_box
 #     - self.trafo
 
 # AvSingleGlyphLetter.letter_box()
@@ -1454,7 +1456,7 @@ if __name__ == "__main__":
 #     - self.left_side_bearing()    [if align == LEFT]
 #     - self.advance_width          [if align == RIGHT]
 #     - self.right_side_bearing()   [if align == RIGHT]
-#     - self.bounding_box()         [if align == BOTH]
+#     - self.bounding_box         [if align == BOTH]
 #     - self.align                  [to determine which calculation]
 
 # AvMultiWeightLetter.advance_width
@@ -1463,18 +1465,18 @@ if __name__ == "__main__":
 
 # AvMultiWeightLetter.left_side_bearing()
 #     calls:
-#     - self.bounding_box()
+#     - self.bounding_box
 #     - self.letter_box()
 
 # AvMultiWeightLetter.right_side_bearing()
 #     calls:
 #     - self.advance_width
-#     - self.bounding_box()
+#     - self.bounding_box
 #     - self.letter_box()
 
-# AvMultiWeightLetter.bounding_box()
+# AvMultiWeightLetter.bounding_box
 #     calls:
-#     - Letter.bounding_box() (for each letter)
+#     - Letter.bounding_box (for each letter)
 #     - AvBox.combine()
 
 # AvMultiWeightLetter.letter_box()

@@ -506,7 +506,7 @@ class TestAvPath:
         """Bounding box for an empty path should be zero-sized at origin."""
         path = AvPath()
 
-        bbox = path.bounding_box()
+        bbox = path.bounding_box
 
         assert bbox.xmin == 0.0
         assert bbox.ymin == 0.0
@@ -775,8 +775,8 @@ class TestAvPathSerialization:
         path = AvPath(points_2d, commands)
 
         # Ensure bounding box has not been computed/cached yet
-        # pylint: disable=protected-access
-        assert path._bounding_box is None
+        # @cached_property stores values in __dict__
+        assert "bounding_box" not in path.__dict__
 
         data = path.to_dict()
 
@@ -795,14 +795,14 @@ class TestAvPathSerialization:
 
         np.testing.assert_allclose(restored.points, path.points)
         assert restored.commands == path.commands
-        # pylint: disable=protected-access
-        assert restored._bounding_box is None
+        # @cached_property stores values in __dict__
+        assert "bounding_box" not in restored.__dict__
 
     def test_avpath_serialization_empty_path(self):
         path = AvPath()
 
-        # pylint: disable=protected-access
-        assert path._bounding_box is None
+        # @cached_property stores values in __dict__
+        assert "bounding_box" not in path.__dict__
 
         data = path.to_dict()
 
@@ -814,8 +814,8 @@ class TestAvPathSerialization:
 
         assert restored.points.shape == (0, 3)
         assert restored.commands == []
-        # pylint: disable=protected-access
-        assert restored._bounding_box is None
+        # @cached_property stores values in __dict__
+        assert "bounding_box" not in restored.__dict__
 
     def test_avpath_serialization_with_cached_bounding_box(self):
         """AvPath serialization when bounding_box has been computed and cached."""
@@ -825,7 +825,7 @@ class TestAvPathSerialization:
         path = AvPath(points_2d, commands)
 
         # Trigger bounding box computation to populate cache
-        bbox = path.bounding_box()
+        bbox = path.bounding_box
 
         data = path.to_dict()
 
@@ -838,7 +838,7 @@ class TestAvPathSerialization:
         assert restored.commands == path.commands
 
         # Restored path should have an equivalent bounding box
-        restored_bbox = restored.bounding_box()
+        restored_bbox = restored.bounding_box
         assert restored_bbox.xmin == bbox.xmin
         assert restored_bbox.ymin == bbox.ymin
         assert restored_bbox.xmax == bbox.xmax

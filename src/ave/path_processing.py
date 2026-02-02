@@ -832,7 +832,7 @@ class AvPathCleaner:
                     pass
 
                 closed_path = AvPath.make_closed_single(segment)
-                polygonized = closed_path.polygonized_path()
+                polygonized = closed_path.polygonized_path
                 polygons.append(polygonized)
                 orientations.append(closed_path.is_ccw)  # Store orientation from closed path
             except (TypeError, ValueError) as e:

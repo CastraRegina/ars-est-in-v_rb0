@@ -277,7 +277,7 @@ def main():
 
     # Create sample letter to get font metrics
     sample_letter = letter_factory.create_letter("0", scale, 0, 0)
-    sample_bbox = sample_letter.bounding_box()
+    sample_bbox = sample_letter.bounding_box
 
     # Calculate first baseline for top-left corner placement
     # In this coordinate system: y=0 is BOTTOM, y increases UPWARD

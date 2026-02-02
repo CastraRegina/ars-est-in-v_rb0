@@ -177,11 +177,11 @@ def customize_glyph(glyph: AvGlyph, props: AvFontProperties) -> AvGlyph:
             # Use evaluation function: maximize x, minimize y
             # Score = x - y (higher x increases score, lower y increases score)
             tail_segment: AvPath = max(
-                ccw_segments, key=lambda s: s.bounding_box().centroid[0] - s.bounding_box().centroid[1]
+                ccw_segments, key=lambda s: s.bounding_box.centroid[0] - s.bounding_box.centroid[1]
             )
 
             # 4. Get the bounding box of the tail segment
-            tail_bbox = tail_segment.bounding_box()
+            tail_bbox = tail_segment.bounding_box
 
             # 5. Create a list of all other segments (excluding the tail)
             other_segments = [s for s in segments if s is not tail_segment]
@@ -189,11 +189,11 @@ def customize_glyph(glyph: AvGlyph, props: AvFontProperties) -> AvGlyph:
             # 6. Calculate the combined bounding box of all other segments
             if other_segments:
                 # Start with the first segment's bbox
-                combined_bbox = other_segments[0].bounding_box()
+                combined_bbox = other_segments[0].bounding_box
 
                 # Expand to include all other segments
                 for segment in other_segments[1:]:
-                    seg_bbox = segment.bounding_box()
+                    seg_bbox = segment.bounding_box
                     combined_bbox = AvBox(
                         min(combined_bbox.xmin, seg_bbox.xmin),
                         min(combined_bbox.ymin, seg_bbox.ymin),
@@ -214,7 +214,7 @@ def customize_glyph(glyph: AvGlyph, props: AvFontProperties) -> AvGlyph:
                 shifted_segment = AvPath(shifted_points[:, :2], tail_segment.commands)
 
                 # 8. Create a new stylized tail using the shifted bounding box
-                shifted_segment = create_new_q_tail(shifted_segment.bounding_box(), props.dash_thickness)
+                shifted_segment = create_new_q_tail(shifted_segment.bounding_box, props.dash_thickness)
 
                 # 9. Rebuild the path with the new tail, preserving original order
                 new_segments = []
@@ -286,7 +286,7 @@ def clean_glyphs_and_render_steps(
         svg_page.add(svg_path_debug, True)
 
         # Add bounding box in yellow
-        bbox = letter.bounding_box()
+        bbox = letter.bounding_box
         svg_bbox = svg_page.drawing.path(
             f"M {bbox.xmin:g} {bbox.ymin:g} "
             f"L {bbox.xmax:g} {bbox.ymin:g} "

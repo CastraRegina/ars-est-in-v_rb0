@@ -163,7 +163,7 @@ class AvGlyph:
         if align == Align.RIGHT:
             return self.advance_width - self.right_side_bearing()
         if align == Align.BOTH:
-            return self.bounding_box().width
+            return self.bounding_box.width
 
         raise ValueError(f"Invalid align value: {align}")
 
@@ -172,21 +172,21 @@ class AvGlyph:
         """
         The height of the glyph, i.e. the height of the bounding box (positive value).
         """
-        return self.bounding_box().height
+        return self.bounding_box.height
 
     @property
     def ascender(self) -> float:
         """
         The maximum distance above the baseline, i.e. the highest y-coordinate of a glyph (mostly positive value).
         """
-        return self.bounding_box().ymax
+        return self.bounding_box.ymax
 
     @property
     def descender(self) -> float:
         """
         The maximum distance below the baseline, i.e. the lowest y-coordinate of a glyph (usually negative value).
         """
-        return self.bounding_box().ymin
+        return self.bounding_box.ymin
 
     def left_side_bearing(self) -> float:
         """
@@ -195,7 +195,7 @@ class AvGlyph:
         Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
         Note: For LEFT or BOTH alignment, this is typically 0.0 as the glyph starts at the origin.
         """
-        return self.bounding_box().xmin
+        return self.bounding_box.xmin
 
     def right_side_bearing(self) -> float:
         """
@@ -205,8 +205,9 @@ class AvGlyph:
                 (i.e. bounding_box.xmax > advance_width).
         Note: For RIGHT or BOTH alignment, this is typically 0.0 as the glyph ends at the advance width.
         """
-        return self.advance_width - self.bounding_box().xmax
+        return self.advance_width - self.bounding_box.xmax
 
+    @property
     def bounding_box(self) -> AvBox:
         """
         Returns the tightest bounding box around the glyph's outline.
@@ -217,7 +218,7 @@ class AvGlyph:
             AvBox: The bounding box of the glyph's outline.
         """
         # Delegate entirely to AvPath's bounding box implementation
-        return self._path.bounding_box()
+        return self._path.bounding_box
 
     def glyph_box(self) -> AvBox:
         """
@@ -312,7 +313,7 @@ class AvGlyph:
                 contour.points.copy(), list(contour.commands), CLOSED_SINGLE_PATH_CONSTRAINTS
             )
 
-            polygonized: AvSinglePolygonPath = closed_path.polygonized_path()
+            polygonized: AvSinglePolygonPath = closed_path.polygonized_path
 
             if polygonized.area < 1e-10:
                 processed_contours.append(contour)
@@ -390,12 +391,12 @@ class AvGlyph:
             test_point = polygonized.representative_point()
 
             is_nested = False
-            current_bbox = polygonized.bounding_box()
+            current_bbox = polygonized.bounding_box
 
             for j, other_polygonized in enumerate(polygonized_contours):
                 if j != i and other_polygonized is not None:
                     other_area = other_polygonized.area
-                    other_bbox = other_polygonized.bounding_box()
+                    other_bbox = other_polygonized.bounding_box
 
                     bbox_fully_contained = (
                         current_bbox.xmin >= other_bbox.xmin
@@ -500,7 +501,7 @@ class AvGlyph:
             raise ValueError(f"Glyph '{self._character}' has incorrect winding directions")
 
         # Step 2: Check width range
-        bbox = self.bounding_box()
+        bbox = self.bounding_box
         # Special case for space character: no visual bounding box but has glyph width
         if self._character == " " or bbox.width == 0:
             # For space character, only check that width is positive
