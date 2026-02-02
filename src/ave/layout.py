@@ -263,7 +263,8 @@ def main():
 
     # Load font
     font_factory = AvGlyphPersistentFactory.load_from_file(
-        "fonts/cache/RobotoFlex-VariableFont_AA_01_wght0100.json.zip"
+        # "fonts/cache/RobotoFlex-VariableFont_AA_07_wght0325.json.zip"
+        "fonts/cache/NotoSerif-VariableFont_AA_07_wght0300.json.zip"
     )
     units_per_em = font_factory.get_font_properties().units_per_em
     scale = font_size / units_per_em

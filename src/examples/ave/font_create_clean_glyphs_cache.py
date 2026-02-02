@@ -614,12 +614,19 @@ def main():
 
         # Create fonts with different weights (HEAVIEST to LIGHTEST)
         # Generate descending weight range for heavy-to-light ordering
-        step = (font_config["wghts_max"] - font_config["wghts_min"]) // (font_config["num_wghts"] - 1)
-        wght_range = range(
-            font_config["wghts_max"],  # Start with heaviest
-            font_config["wghts_min"] - 1,  # End with lightest
-            -step,  # Descending steps
-        )
+        # Use float division to ensure exact min/max weights
+        step = (font_config["wghts_max"] - font_config["wghts_min"]) / (font_config["num_wghts"] - 1)
+        wght_range = []
+        for i in range(font_config["num_wghts"]):
+            # Calculate weight and round to nearest integer
+            wght = int(round(font_config["wghts_max"] - i * step))
+            # Ensure the last weight exactly matches wghts_min
+            if i == font_config["num_wghts"] - 1:
+                wght = font_config["wghts_min"]
+            # Ensure the first weight exactly matches wghts_max
+            elif i == 0:
+                wght = font_config["wghts_max"]
+            wght_range.append(wght)
         for idx, wght in enumerate(wght_range, 1):
             print(
                 f"Processing font {font_config['out_name']} weight {wght} (index {idx:02d}, "
