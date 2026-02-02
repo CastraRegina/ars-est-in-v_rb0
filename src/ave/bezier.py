@@ -489,15 +489,7 @@ class BezierCurve:
 
             # For small inputs, skip error computation and chord-length parameterization
             if num_points <= 10:
-                result = np.empty((3, 3), dtype=np.float64)
-                result[0, 0] = start_x
-                result[0, 1] = start_y
-                result[1, 0] = best_ctrl_x
-                result[1, 1] = best_ctrl_y
-                result[2, 0] = end_x
-                result[2, 1] = end_y
-                result[:, 2] = _APPROX_QUADRATIC_TYPES
-                return result
+                return cls._build_quadratic_result(start_x, start_y, best_ctrl_x, best_ctrl_y, end_x, end_y)
 
             best_error = cls._approximate_quadratic_evaluate_error(
                 params_uniform, xy_points, start_x, start_y, end_x, end_y, best_ctrl_x, best_ctrl_y
@@ -505,26 +497,12 @@ class BezierCurve:
 
             # Near-exact fits cannot be improved by re-parameterization
             if best_error <= _APPROX_QUADRATIC_ERROR_EPS:
-                result = np.empty((3, 3), dtype=np.float64)
-                result[0, 0] = start_x
-                result[0, 1] = start_y
-                result[1, 0] = best_ctrl_x
-                result[1, 1] = best_ctrl_y
-                result[2, 0] = end_x
-                result[2, 1] = end_y
-                result[:, 2] = _APPROX_QUADRATIC_TYPES
-                return result
+                return cls._build_quadratic_result(start_x, start_y, best_ctrl_x, best_ctrl_y, end_x, end_y)
 
         # Chord-length parameterization for larger inputs
         if num_points > 10:
-            deltas = np.diff(xy_points, axis=0)
-            diffs = np.hypot(deltas[:, 0], deltas[:, 1])
-            total_length = float(np.sum(diffs))
-            if total_length > 0.0 and math.isfinite(total_length):
-                cumulative = np.empty(num_points, dtype=np.float64)
-                cumulative[0] = 0.0
-                cumulative[1:] = np.cumsum(diffs) / total_length
-
+            cumulative = cls._compute_chord_length_params(xy_points)
+            if cumulative is not None:
                 ctrl_chord = cls._approximate_quadratic_solve_control(
                     cumulative, xy_points, start_x, start_y, end_x, end_y
                 )
@@ -541,15 +519,7 @@ class BezierCurve:
         if not have_solution:
             raise ValueError("Unable to approximate quadratic control point from provided samples.")
 
-        result = np.empty((3, 3), dtype=np.float64)
-        result[0, 0] = start_x
-        result[0, 1] = start_y
-        result[1, 0] = best_ctrl_x
-        result[1, 1] = best_ctrl_y
-        result[2, 0] = end_x
-        result[2, 1] = end_y
-        result[:, 2] = _APPROX_QUADRATIC_TYPES
-        return result
+        return cls._build_quadratic_result(start_x, start_y, best_ctrl_x, best_ctrl_y, end_x, end_y)
 
     @staticmethod
     def _approximate_quadratic_solve_control(
@@ -671,17 +641,9 @@ class BezierCurve:
             have_solution = True
 
             if num_points <= 10:
-                result = np.empty((4, 3), dtype=np.float64)
-                result[0, 0] = start_x
-                result[0, 1] = start_y
-                result[1, 0] = best_ctrl1_x
-                result[1, 1] = best_ctrl1_y
-                result[2, 0] = best_ctrl2_x
-                result[2, 1] = best_ctrl2_y
-                result[3, 0] = end_x
-                result[3, 1] = end_y
-                result[:, 2] = _APPROX_CUBIC_TYPES
-                return result
+                return cls._build_cubic_result(
+                    start_x, start_y, best_ctrl1_x, best_ctrl1_y, best_ctrl2_x, best_ctrl2_y, end_x, end_y
+                )
 
             best_error = cls._approximate_cubic_evaluate_error(
                 params_uniform,
@@ -697,27 +659,13 @@ class BezierCurve:
             )
 
             if best_error <= _APPROX_CUBIC_ERROR_EPS:
-                result = np.empty((4, 3), dtype=np.float64)
-                result[0, 0] = start_x
-                result[0, 1] = start_y
-                result[1, 0] = best_ctrl1_x
-                result[1, 1] = best_ctrl1_y
-                result[2, 0] = best_ctrl2_x
-                result[2, 1] = best_ctrl2_y
-                result[3, 0] = end_x
-                result[3, 1] = end_y
-                result[:, 2] = _APPROX_CUBIC_TYPES
-                return result
+                return cls._build_cubic_result(
+                    start_x, start_y, best_ctrl1_x, best_ctrl1_y, best_ctrl2_x, best_ctrl2_y, end_x, end_y
+                )
 
         if num_points > 10:
-            deltas = np.diff(xy_points, axis=0)
-            diffs = np.hypot(deltas[:, 0], deltas[:, 1])
-            total_length = float(np.sum(diffs))
-            if total_length > 0.0 and math.isfinite(total_length):
-                cumulative = np.empty(num_points, dtype=np.float64)
-                cumulative[0] = 0.0
-                cumulative[1:] = np.cumsum(diffs) / total_length
-
+            cumulative = cls._compute_chord_length_params(xy_points)
+            if cumulative is not None:
                 ctrl_chord = cls._approximate_cubic_solve_controls(
                     cumulative, xy_points, start_x, start_y, end_x, end_y
                 )
@@ -744,17 +692,9 @@ class BezierCurve:
         if not have_solution:
             raise ValueError("Unable to approximate cubic control points from provided samples.")
 
-        result = np.empty((4, 3), dtype=np.float64)
-        result[0, 0] = start_x
-        result[0, 1] = start_y
-        result[1, 0] = best_ctrl1_x
-        result[1, 1] = best_ctrl1_y
-        result[2, 0] = best_ctrl2_x
-        result[2, 1] = best_ctrl2_y
-        result[3, 0] = end_x
-        result[3, 1] = end_y
-        result[:, 2] = _APPROX_CUBIC_TYPES
-        return result
+        return cls._build_cubic_result(
+            start_x, start_y, best_ctrl1_x, best_ctrl1_y, best_ctrl2_x, best_ctrl2_y, end_x, end_y
+        )
 
     @staticmethod
     def _approximate_cubic_solve_controls(
@@ -844,3 +784,100 @@ class BezierCurve:
         rx = xy_points[:, 0] - bx
         ry = xy_points[:, 1] - by
         return float(np.dot(rx, rx) + np.dot(ry, ry))
+
+    ###########################################################################
+    # Helper methods for boilerplate reduction
+    ###########################################################################
+
+    @staticmethod
+    def _build_quadratic_result(
+        start_x: float,
+        start_y: float,
+        ctrl_x: float,
+        ctrl_y: float,
+        end_x: float,
+        end_y: float,
+    ) -> NDArray[np.float64]:
+        """Build result array for quadratic control point approximation.
+
+        Args:
+            start_x: Start point x coordinate
+            start_y: Start point y coordinate
+            ctrl_x: Control point x coordinate
+            ctrl_y: Control point y coordinate
+            end_x: End point x coordinate
+            end_y: End point y coordinate
+
+        Returns:
+            Result array of shape (3, 3)
+        """
+        result = np.empty((3, 3), dtype=np.float64)
+        result[0, 0] = start_x
+        result[0, 1] = start_y
+        result[1, 0] = ctrl_x
+        result[1, 1] = ctrl_y
+        result[2, 0] = end_x
+        result[2, 1] = end_y
+        result[:, 2] = _APPROX_QUADRATIC_TYPES
+        return result
+
+    @staticmethod
+    def _build_cubic_result(
+        start_x: float,
+        start_y: float,
+        ctrl1_x: float,
+        ctrl1_y: float,
+        ctrl2_x: float,
+        ctrl2_y: float,
+        end_x: float,
+        end_y: float,
+    ) -> NDArray[np.float64]:
+        """Build result array for cubic control point approximation.
+
+        Args:
+            start_x: Start point x coordinate
+            start_y: Start point y coordinate
+            ctrl1_x: First control point x coordinate
+            ctrl1_y: First control point y coordinate
+            ctrl2_x: Second control point x coordinate
+            ctrl2_y: Second control point y coordinate
+            end_x: End point x coordinate
+            end_y: End point y coordinate
+
+        Returns:
+            Result array of shape (4, 3)
+        """
+        result = np.empty((4, 3), dtype=np.float64)
+        result[0, 0] = start_x
+        result[0, 1] = start_y
+        result[1, 0] = ctrl1_x
+        result[1, 1] = ctrl1_y
+        result[2, 0] = ctrl2_x
+        result[2, 1] = ctrl2_y
+        result[3, 0] = end_x
+        result[3, 1] = end_y
+        result[:, 2] = _APPROX_CUBIC_TYPES
+        return result
+
+    @staticmethod
+    def _compute_chord_length_params(xy_points: NDArray[np.float64]) -> Union[NDArray[np.float64], None]:
+        """Compute chord-length parameterization for curve approximation.
+
+        Args:
+            xy_points: Array of (x, y) points
+
+        Returns:
+            Parameterization array or None if computation fails
+        """
+        deltas = np.diff(xy_points, axis=0)
+        diffs = np.hypot(deltas[:, 0], deltas[:, 1])
+        total_length = float(np.sum(diffs))
+
+        if total_length <= 0.0 or not math.isfinite(total_length):
+            return None
+
+        num_points = xy_points.shape[0]
+        cumulative = np.empty(num_points, dtype=np.float64)
+        cumulative[0] = 0.0
+        cumulative[1:] = np.cumsum(diffs) / total_length
+        return cumulative
