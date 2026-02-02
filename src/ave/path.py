@@ -316,27 +316,27 @@ class AvPath:
         """
         return self.commands.count("M")
 
-    @property
+    @cached_property
     def is_single_path(self) -> bool:
         """Return True if this path has SINGLE_PATH_CONSTRAINTS."""
         return self.constraints == SINGLE_PATH_CONSTRAINTS
 
-    @property
+    @cached_property
     def is_closed_single_path(self) -> bool:
         """Return True if this path has CLOSED_SINGLE_PATH_CONSTRAINTS."""
         return self.constraints == CLOSED_SINGLE_PATH_CONSTRAINTS
 
-    @property
+    @cached_property
     def is_multi_polyline_path(self) -> bool:
         """Return True if this path has MULTI_POLYLINE_CONSTRAINTS."""
         return self.constraints == MULTI_POLYLINE_CONSTRAINTS
 
-    @property
+    @cached_property
     def is_single_polygon_path(self) -> bool:
         """Return True if this path has SINGLE_POLYGON_CONSTRAINTS."""
         return self.constraints == SINGLE_POLYGON_CONSTRAINTS
 
-    @property
+    @cached_property
     def is_multi_polygon_path(self) -> bool:
         """Return True if this path has MULTI_POLYGON_CONSTRAINTS."""
         return self.constraints == MULTI_POLYGON_CONSTRAINTS
