@@ -368,7 +368,8 @@ class AvGlyphPtsCmdsPen(BasePen):
     Access the results via `.points` and `.commands` after drawing a glyph with this pen.
     """
 
-    _points: NDArray[np.float64]  # numpy array of shape (n, 3) = (x, y, type)
+    _points_buffer: NDArray[np.float64]  # pre-allocated buffer for points
+    _point_index: int  # current write position in buffer
     _commands: List[AvGlyphCmds]
     _polygonize_steps: int
 
@@ -387,29 +388,34 @@ class AvGlyphPtsCmdsPen(BasePen):
         """
         super().__init__(glyphSet)
         self._polygonize_steps = polygonize_steps
-        # numpy array of shape (n, 3) storing (x,y,type) points in the order they were emitted
-        self._points: NDArray[np.float64] = np.empty((0, 3), dtype=np.float64)
+        # Pre-allocate buffer for points - typical glyphs have 20-100 points
+        self._points_buffer: NDArray[np.float64] = np.empty((100, 3), dtype=np.float64)
+        self._point_index: int = 0
         # list of command letters (M, L, C, Q, Z)
         self._commands: List[AvGlyphCmds] = []
+
+    def _ensure_capacity(self, additional_points: int):
+        """Ensure buffer has capacity for additional points, growing if needed."""
+        required_capacity = self._point_index + additional_points
+        if required_capacity > len(self._points_buffer):
+            # Double the buffer size to amortize growth cost
+            new_size = max(required_capacity, len(self._points_buffer) * 2)
+            new_buffer = np.empty((new_size, 3), dtype=np.float64)
+            new_buffer[: self._point_index] = self._points_buffer[: self._point_index]
+            self._points_buffer = new_buffer
 
     # BasePen callback methods -------------------------------------------------
     def _moveTo(self, pt: Tuple[float, float]):
         self._commands.append("M")
-        self._points = np.vstack(
-            [
-                self._points,
-                [np.float64(pt[0]), np.float64(pt[1]), np.float64(0.0)],
-            ],
-        )
+        self._ensure_capacity(1)
+        self._points_buffer[self._point_index] = [np.float64(pt[0]), np.float64(pt[1]), np.float64(0.0)]
+        self._point_index += 1
 
     def _line_to_with_type(self, pt: Tuple[float, float], point_type: float):
         self._commands.append("L")
-        self._points = np.vstack(
-            [
-                self._points,
-                [np.float64(pt[0]), np.float64(pt[1]), np.float64(point_type)],
-            ],
-        )
+        self._ensure_capacity(1)
+        self._points_buffer[self._point_index] = [np.float64(pt[0]), np.float64(pt[1]), np.float64(point_type)]
+        self._point_index += 1
 
     def _lineTo(self, pt: Tuple[float, float]):
         self._line_to_with_type(pt, 0.0)
@@ -420,13 +426,10 @@ class AvGlyphPtsCmdsPen(BasePen):
             self._polygonize_quadratic_bezier([self._getCurrentPoint(), pt1, pt2])
         else:
             self._commands.append("Q")
-            self._points = np.vstack(
-                [
-                    self._points,
-                    [np.float64(pt1[0]), np.float64(pt1[1]), np.float64(2.0)],
-                    [np.float64(pt2[0]), np.float64(pt2[1]), np.float64(0.0)],
-                ]
-            )
+            self._ensure_capacity(2)
+            self._points_buffer[self._point_index] = [np.float64(pt1[0]), np.float64(pt1[1]), np.float64(2.0)]
+            self._points_buffer[self._point_index + 1] = [np.float64(pt2[0]), np.float64(pt2[1]), np.float64(0.0)]
+            self._point_index += 2
 
     def _curveToOne(self, pt1: Tuple[float, float], pt2: Tuple[float, float], pt3: Tuple[float, float]):
         # cubic bezier: two control points and an end point
@@ -434,14 +437,11 @@ class AvGlyphPtsCmdsPen(BasePen):
             self._polygonize_cubic_bezier([self._getCurrentPoint(), pt1, pt2, pt3])
         else:
             self._commands.append("C")
-            self._points = np.vstack(
-                [
-                    self._points,
-                    [np.float64(pt1[0]), np.float64(pt1[1]), np.float64(3.0)],
-                    [np.float64(pt2[0]), np.float64(pt2[1]), np.float64(3.0)],
-                    [np.float64(pt3[0]), np.float64(pt3[1]), np.float64(0.0)],
-                ]
-            )
+            self._ensure_capacity(3)
+            self._points_buffer[self._point_index] = [np.float64(pt1[0]), np.float64(pt1[1]), np.float64(3.0)]
+            self._points_buffer[self._point_index + 1] = [np.float64(pt2[0]), np.float64(pt2[1]), np.float64(3.0)]
+            self._points_buffer[self._point_index + 2] = [np.float64(pt3[0]), np.float64(pt3[1]), np.float64(0.0)]
+            self._point_index += 3
 
     def _closePath(self):
         self._commands.append("Z")
@@ -460,13 +460,21 @@ class AvGlyphPtsCmdsPen(BasePen):
     def _polygonize_quadratic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
         new_points = BezierCurve.polygonize_quadratic_curve(points, self._polygonize_steps)
         # Skip the first point since it's the starting point (already in the path)
-        self._points = np.vstack([self._points, new_points[1:]])
+        points_to_add = new_points[1:]
+        num_points = len(points_to_add)
+        self._ensure_capacity(num_points)
+        self._points_buffer[self._point_index : self._point_index + num_points] = points_to_add
+        self._point_index += num_points
         self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
 
     def _polygonize_cubic_bezier(self, points: Union[Sequence[Tuple[float, float]], NDArray[np.float64]]):
         new_points = BezierCurve.polygonize_cubic_curve(points, self._polygonize_steps)
         # Skip the first point since it's the starting point (already in the path)
-        self._points = np.vstack([self._points, new_points[1:]])
+        points_to_add = new_points[1:]
+        num_points = len(points_to_add)
+        self._ensure_capacity(num_points)
+        self._points_buffer[self._point_index : self._point_index + num_points] = points_to_add
+        self._point_index += num_points
         self._commands.extend(cast(List[AvGlyphCmds], ["L"] * self._polygonize_steps))
 
     @property
@@ -475,13 +483,18 @@ class AvGlyphPtsCmdsPen(BasePen):
         return self._commands
 
     @property
+    def _points(self) -> NDArray[np.float64]:
+        """Return the points array trimmed to actual size."""
+        return self._points_buffer[: self._point_index]
+
+    @property
     def points(self) -> NDArray[np.float64]:
         """Return recorded points as an (n_points, 3) ndarray of float64."""
         return self._points
 
     def reset(self) -> None:
         """Clear recorded commands and points."""
-        self._points = np.empty((0, 3), dtype=np.float64)
+        self._point_index = 0
         self._commands = []
 
 
