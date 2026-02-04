@@ -11,12 +11,8 @@ from typing import List, Optional, Tuple
 
 from ave.common import Align
 from ave.geom import AvBox
-from ave.glyph import (
-    AvGlyph,
-    AvGlyphCachedFactory,
-    AvGlyphFactory,
-    AvGlyphPersistentFactory,
-)
+from ave.glyph import AvGlyph
+from ave.glyph_factory import AvGlyphFactory
 
 ###############################################################################
 # AvLetter
@@ -118,6 +114,7 @@ class AvLetter(ABC):
         """The horizontal space on the right side of the letter."""
         raise NotImplementedError
 
+    @property
     @abstractmethod
     def bounding_box(self) -> AvBox:
         """Returns the bounding box around the letter's outline."""
@@ -1051,6 +1048,7 @@ class AvMultiWeightLetterFactory(AvLetterFactory):
 
 def main():
     """Test function for AvMultiWeightLetter."""
+    # Import here to avoid circular import (ave.page imports ave.letter)
     from ave.page import AvSvgPage  # pylint: disable=import-outside-toplevel
 
     def discover_font_basenames(path_name: str) -> List[str]:
@@ -1091,7 +1089,7 @@ def main():
         # Return sorted list
         return sorted(list(basenames))
 
-    def load_cached_fonts(path_name: str, font_fn_base: str) -> List[AvGlyphCachedFactory]:
+    def load_cached_fonts(path_name: str, font_fn_base: str) -> List[AvGlyphFactory]:
         """
         Load cached font files from directory.
 
@@ -1100,7 +1098,7 @@ def main():
             font_fn_base: Base filename pattern (e.g., "RobotoFlex-VariableFont_AA_")
 
         Returns:
-            List[AvGlyphCachedFactory]: Ordered list of font factories (lightest to heaviest)
+            List[AvGlyphFactory]: Ordered list of font factories (lightest to heaviest)
         """
         cache_dir = Path(path_name)
         if not cache_dir.exists():
@@ -1118,7 +1116,8 @@ def main():
 
         for file_path in file_paths:
             try:
-                factory = AvGlyphPersistentFactory.load_from_file(str(file_path))
+                # Load cache-only factory (works for all cached characters)
+                factory = AvGlyphFactory.load_from_file(str(file_path))
                 factories.append(factory)
                 print(f"Loaded: {file_path.name}")
             except (FileNotFoundError, ValueError, RuntimeError, OSError, gzip.BadGzipFile) as e:

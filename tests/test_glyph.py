@@ -5,7 +5,8 @@ import pytest
 
 from ave.font_support import AvFontProperties
 from ave.geom import AvBox
-from ave.glyph import AvGlyph, AvGlyphPersistentFactory
+from ave.glyph import AvGlyph
+from ave.glyph_factory import AvGlyphFactory, MemoryGlyphCache
 from ave.path import CLOSED_SINGLE_PATH_CONSTRAINTS, AvPath
 
 
@@ -464,13 +465,13 @@ class TestAvGlyph:
         bbox1 = glyph.bounding_box
         # Check that bounding box is cached in AvPath (internal testing with @cached_property)
         # @cached_property stores the value in __dict__
-        assert "bounding_box" in glyph._path.__dict__
+        assert "bounding_box" in glyph._path.__dict__  # pylint: disable=protected-access
 
         # Second call should return cached result
         bbox2 = glyph.bounding_box
         assert bbox1 == bbox2
         # Verify the cached value is the same
-        assert glyph._path.__dict__["bounding_box"] == bbox1
+        assert glyph._path.__dict__["bounding_box"] == bbox1  # pylint: disable=protected-access
 
     def test_right_side_bearing(self):
         """Test right side bearing calculation"""
@@ -851,8 +852,6 @@ class TestGlyphFactoryCache:
         path = AvPath(points, commands)
         glyph = AvGlyph(character="A", advance_width=10.0, path=path)
 
-        # Create a cached glyph factory with one glyph
-        glyphs = {"A": glyph}
         # Create minimal font properties
         font_props = AvFontProperties(
             ascender=800.0,
@@ -866,7 +865,23 @@ class TestGlyphFactoryCache:
             full_name="TestFamily Regular",
             license_description="Test license",
         )
-        glyph_factory = AvGlyphPersistentFactory(glyphs=glyphs, font_properties=font_props)
+        # Create a factory with pre-loaded cache
+        cache = MemoryGlyphCache()
+        cache.put("A", glyph)
+
+        # Create a mock source for font properties
+        class MockSource:
+            """Mock glyph source for testing cache-only operations."""
+
+            def get_glyph(self, character: str):
+                """Raise KeyError as this source cannot generate glyphs."""
+                raise KeyError(f"Character {character} not in cache")
+
+            def get_font_properties(self):
+                """Return the stored font properties."""
+                return font_props
+
+        glyph_factory = AvGlyphFactory(source=MockSource(), cache=cache)
 
         # Test that the cached glyph is accessible
         glyph_cached = glyph_factory.get_glyph("A")

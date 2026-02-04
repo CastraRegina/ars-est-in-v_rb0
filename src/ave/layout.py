@@ -6,9 +6,10 @@ import importlib
 from typing import List, Optional
 
 from ave.common import Align
-from ave.glyph import AvGlyphFactory, AvGlyphPersistentFactory
+from ave.geom import GeomMath
+from ave.glyph_factory import AvGlyphFactory
 from ave.letter import AvLetter, AvLetterFactory, AvSingleGlyphLetterFactory
-from ave.text import AvStreamBase
+from ave.text import AvCharacterStream, AvStreamBase
 
 ###############################################################################
 # AvCharLineLayouter
@@ -223,9 +224,6 @@ class AvSyllableLineLayouter(AvCharLineLayouter):
 
 def main():
     """Test function demonstrating line layout with pi digits."""
-    from ave.geom import GeomMath  # pylint: disable=import-outside-toplevel
-    from ave.text import AvCharacterStream  # pylint: disable=import-outside-toplevel
-
     page_module = importlib.import_module("ave.page")
     AvSvgPage = page_module.AvSvgPage  # pylint: disable=invalid-name
 
@@ -261,11 +259,16 @@ def main():
     x_start = 0.0  # Start at left edge of viewbox
     x_end = 1.0  # End at right edge of viewbox
 
-    # Load font
-    font_factory = AvGlyphPersistentFactory.load_from_file(
-        # "fonts/cache/RobotoFlex-VariableFont_AA_07_wght0325.json.zip"
-        "fonts/cache/NotoSerif-VariableFont_AA_07_wght0300.json.zip"
-    )
+    # Load font factory from cache
+    # Option 1: Cache-only (works if all needed characters are in cache)
+    font_factory = AvGlyphFactory.load_from_file("fonts/cache/NotoSerif-VariableFont_AA_07_wght0300.json.zip")
+
+    # Option 2: With TTFont fallback for uncached characters (uncomment if needed)
+    # ttfont = TTFont("fonts/NotoSerif[wdth,wght].ttf")
+    # font_factory = AvGlyphFactory.load_from_file(
+    #     "fonts/cache/NotoSerif-VariableFont_AA_07_wght0300.json.zip",
+    #     source=TTFontGlyphSource(ttfont)
+    # )
     units_per_em = font_factory.get_font_properties().units_per_em
     scale = font_size / units_per_em
 

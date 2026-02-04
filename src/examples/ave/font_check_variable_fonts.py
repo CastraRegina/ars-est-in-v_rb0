@@ -5,11 +5,7 @@ from typing import Dict, List, Optional
 from fontTools.ttLib import TTFont
 
 from ave.fonttools import FontHelper
-from ave.glyph import (
-    AvGlyphCachedSourceFactory,
-    AvGlyphFromTTFontFactory,
-    AvGlyphPolygonizeFactory,
-)
+from ave.glyph_factory import AvGlyphFactory
 from ave.letter import AvSingleGlyphLetter
 from ave.page import AvSvgPage
 
@@ -34,11 +30,7 @@ def setup_glyph_factory(ttfont_filename: str, axes_values: Optional[Dict[str, fl
 
     # polygonize_steps=0 => no polygonization
     polygonize_steps = 0
-    glyph_factory_ttfont = AvGlyphFromTTFontFactory(ttfont)
-    glpyh_factory_polygonized = AvGlyphPolygonizeFactory(glyph_factory_ttfont, polygonize_steps)
-    glyph_factory_cached = AvGlyphCachedSourceFactory(glpyh_factory_polygonized)
-
-    return glyph_factory_cached
+    return AvGlyphFactory.create_from_ttfont(ttfont, polygonize_steps=polygonize_steps)
 
 
 def print_text_on_page(
@@ -46,7 +38,7 @@ def print_text_on_page(
     xpos: float,
     ypos: float,
     text: str,
-    glyph_factory: AvGlyphCachedSourceFactory,
+    glyph_factory: AvGlyphFactory,
     font_size: float,
 ) -> None:
     """Print text on the given svg_page at the given position with the given font size and font."""
@@ -60,13 +52,13 @@ def print_text_on_page(
         current_xpos += letter.advance_width
 
 
-def print_font_example_page(output_filename: str, glyph_factories: List[AvGlyphCachedSourceFactory]) -> None:
+def print_font_example_page(output_filename: str, glyph_factories: List[AvGlyphFactory]) -> None:
     # create a page with A4 dimensions
     """
     Create a page with glyph factories and print all characters defined in CHARACTERS on the page.
 
     Args:
-        glyph_factories (List[AvGlyphCachedSourceFactory]): The glyph factories to use for printing.
+        glyph_factories (List[AvGlyphFactory]): The glyph factories to use for printing.
         output_filename (str): The filename of the SVG file to save.
     """
     vb_width_mm = 180  # viewbox width in mm

@@ -7,14 +7,8 @@ from fontTools.ttLib import TTFont
 
 from ave.fonttools import FontHelper
 from ave.geom import AvBox
-from ave.glyph import (
-    AvFontProperties,
-    AvGlyph,
-    AvGlyphCachedSourceFactory,
-    AvGlyphFromTTFontFactory,
-    AvGlyphPersistentFactory,
-    AvGlyphPolygonizeFactory,
-)
+from ave.glyph import AvFontProperties, AvGlyph
+from ave.glyph_factory import AvGlyphFactory, MemoryGlyphCache
 from ave.letter import AvSingleGlyphLetter
 from ave.page import AvSvgPage
 from ave.path import AvPath
@@ -52,10 +46,7 @@ def setup_glyph_factory(ttfont_filename: str, axes_values: Optional[Dict[str, fl
 
     # polygonize_steps=0 => no polygonization
     polygonize_steps = 0
-    glyph_factory_ttfont = AvGlyphFromTTFontFactory(ttfont)
-    glyph_factory_polygonized = AvGlyphPolygonizeFactory(glyph_factory_ttfont, polygonize_steps)
-    glyph_factory_cached = AvGlyphCachedSourceFactory(glyph_factory_polygonized)
-    return glyph_factory_cached
+    return AvGlyphFactory.create_from_ttfont(ttfont, polygonize_steps=polygonize_steps)
 
 
 def print_text(
@@ -63,7 +54,7 @@ def print_text(
     xpos: float,
     ypos: float,
     text: str,
-    glyph_factory: AvGlyphCachedSourceFactory,
+    glyph_factory: AvGlyphFactory,
     font_size: float,
 ) -> None:
     """Print text on the given svg_page at the given position with the given font and font size."""
@@ -243,10 +234,10 @@ def clean_glyphs_and_render_steps(
     xpos: float,
     ypos: float,
     characters: str,
-    glyph_factory: AvGlyphCachedSourceFactory,
+    glyph_factory: AvGlyphFactory,
     font_size: float,
     stroke_width: float,
-) -> AvGlyphPersistentFactory:
+) -> AvGlyphFactory:
     """Clean the characters and render the steps on the page.
 
     Args:
@@ -254,12 +245,12 @@ def clean_glyphs_and_render_steps(
         xpos (float): The x-coordinate of the starting position.
         ypos (float): The y-coordinate of the starting position.
         characters (str): The characters to clean and render.
-        glyph_factory (AvGlyphCachedSourceFactory): The glyph factory to use.
+        glyph_factory (AvGlyphFactory): The glyph factory to use.
         font_size (float): The font size to use.
         stroke_width (float): The stroke width to use.
 
     Returns:
-        AvGlyphPersistentFactory: The cleaned glyph factory.
+        AvGlyphFactory: The cleaned glyph factory.
     """
 
     units_per_em = glyph_factory.get_font_properties().units_per_em
@@ -421,7 +412,24 @@ def clean_glyphs_and_render_steps(
 
     # Serialize to dict and deserialize back
     print("Creating cleaned glyphs factory... ", end="", flush=True)
-    clean_glyphs_factory = AvGlyphPersistentFactory(clean_glyphs, font_props)
+    # Create a factory with pre-loaded cache
+    cache = MemoryGlyphCache()
+    for char, glyph in clean_glyphs.items():
+        cache.put(char, glyph)
+
+    # Create a mock source for font properties
+    class MockSource:
+        """Mock glyph source for testing cache-only operations."""
+
+        def get_glyph(self, character: str):
+            """Raise KeyError as this source cannot generate glyphs."""
+            raise KeyError(f"Character {character} not in cache")
+
+        def get_font_properties(self):
+            """Return the stored font properties."""
+            return font_props
+
+    clean_glyphs_factory = AvGlyphFactory(source=MockSource(), cache=cache)
     print("done.")
 
     print("Serializing cleaned glyphs to dict... ", end="", flush=True)
@@ -430,7 +438,7 @@ def clean_glyphs_and_render_steps(
 
     # Deserialize from dict
     print("Deserializing cleaned glyphs from dict... ", end="", flush=True)
-    clean_glyphs_factory = AvGlyphPersistentFactory.from_cache_dict(clean_glyphs_dict)
+    clean_glyphs_factory = AvGlyphFactory.from_cache_dict(clean_glyphs_dict, source=MockSource())
     print("done.")
 
     print("Processing deserialized characters...")
@@ -463,9 +471,7 @@ def clean_glyphs_and_render_steps(
     return clean_glyphs_factory
 
 
-def process_font_to_svg(
-    glyph_factory: AvGlyphCachedSourceFactory, svg_filename: str, characters: str
-) -> AvGlyphPersistentFactory:
+def process_font_to_svg(glyph_factory: AvGlyphFactory, svg_filename: str, characters: str) -> AvGlyphFactory:
     """Process font glyphs and save to SVG file.
 
     Args:
@@ -561,13 +567,13 @@ def main():
         #     "wghts_max": 1000,
         #     "num_wghts": 9,
         # },
-        {
-            "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
-            "out_name": "RobotoFlex-VariableFont_AA_",
-            "wghts_min": 100,
-            "wghts_max": 1000,
-            "num_wghts": 9,
-        },
+        # {
+        #     "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
+        #     "out_name": "RobotoFlex-VariableFont_AA_",
+        #     "wghts_min": 100,
+        #     "wghts_max": 1000,
+        #     "num_wghts": 9,
+        # },
         # {
         #     "in_fn": "fonts/RobotoMono[wght].ttf",
         #     "out_name": "RobotoMono-VariableFont_AA_",
@@ -575,6 +581,13 @@ def main():
         #     "wghts_max": 700,
         #     "num_wghts": 9,
         # },
+        {
+            "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
+            "out_name": "RobotoFlexTEST-VariableFont_AA_",
+            "wghts_min": 100,
+            "wghts_max": 1000,
+            "num_wghts": 2,
+        },
     ]
 
     # Process each font
@@ -609,6 +622,7 @@ def main():
         # characters = "0"
         # characters = "%0"
         # characters = "b"
+        characters = "AXx&0b%"
 
         # ------------------------------------------------------------------------
 
