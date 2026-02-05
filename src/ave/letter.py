@@ -130,6 +130,30 @@ class AvLetter(ABC):
         """Returns the SVG path representation of the letter."""
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def left_letter(self) -> Optional["AvLetter"]:
+        """The left neighbor letter."""
+        raise NotImplementedError
+
+    @left_letter.setter
+    @abstractmethod
+    def left_letter(self, left_letter: Optional["AvLetter"]) -> None:
+        """Sets the left neighbor letter."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def right_letter(self) -> Optional["AvLetter"]:
+        """The right neighbor letter."""
+        raise NotImplementedError
+
+    @right_letter.setter
+    @abstractmethod
+    def right_letter(self, right_letter: Optional["AvLetter"]) -> None:
+        """Sets the right neighbor letter."""
+        raise NotImplementedError
+
 
 ###############################################################################
 # AvSingleGlyphLetter
@@ -148,6 +172,8 @@ class AvSingleGlyphLetter(AvLetter):
     _ypos: float  # bottom-to-top, value in real dimensions
     _align: Optional[Align] = None  # LEFT, RIGHT, BOTH. Defaults to None.
     _x_offset: float = 0.0  # horizontal offset in real dimensions
+    _left_letter: Optional["AvLetter"] = None  # left neighbor letter
+    _right_letter: Optional["AvLetter"] = None  # right neighbor letter
 
     def __init__(
         self,
@@ -164,6 +190,8 @@ class AvSingleGlyphLetter(AvLetter):
         self._ypos = ypos
         self._align = align
         self._x_offset = x_offset
+        self._left_letter = None
+        self._right_letter = None
 
     @property
     def glyph(self) -> AvGlyph:
@@ -376,6 +404,26 @@ class AvSingleGlyphLetter(AvLetter):
         scale, _, _, _, translate_x, translate_y = self.trafo
         return self._glyph.path.svg_path_string_debug_polyline(scale, translate_x, translate_y, stroke_width)
 
+    @property
+    def left_letter(self) -> Optional["AvLetter"]:
+        """The left neighbor letter."""
+        return self._left_letter
+
+    @left_letter.setter
+    def left_letter(self, left_letter: Optional["AvLetter"]) -> None:
+        """Sets the left neighbor letter."""
+        self._left_letter = left_letter
+
+    @property
+    def right_letter(self) -> Optional["AvLetter"]:
+        """The right neighbor letter."""
+        return self._right_letter
+
+    @right_letter.setter
+    def right_letter(self, right_letter: Optional["AvLetter"]) -> None:
+        """Sets the right neighbor letter."""
+        self._right_letter = right_letter
+
 
 ###############################################################################
 # MultiWeightLetter
@@ -397,12 +445,16 @@ class AvMultiWeightLetter(AvLetter):
     """
 
     _letters: List[AvSingleGlyphLetter] = field(default_factory=list)
+    _left_letter: Optional["AvLetter"] = None  # left neighbor letter
+    _right_letter: Optional["AvLetter"] = None  # right neighbor letter
 
     def __init__(
         self,
         letters: List[AvSingleGlyphLetter],
     ) -> None:
         self._letters = letters
+        self._left_letter = None
+        self._right_letter = None
 
         # Validate all letters are AvSingleGlyphLetter objects
         for i, letter in enumerate(self._letters):
@@ -817,6 +869,26 @@ class AvMultiWeightLetter(AvLetter):
             path_strings.append(letter.svg_path_string())
 
         return " ".join(path_strings)
+
+    @property
+    def left_letter(self) -> Optional["AvLetter"]:
+        """The left neighbor letter."""
+        return self._left_letter
+
+    @left_letter.setter
+    def left_letter(self, left_letter: Optional["AvLetter"]) -> None:
+        """Sets the left neighbor letter."""
+        self._left_letter = left_letter
+
+    @property
+    def right_letter(self) -> Optional["AvLetter"]:
+        """The right neighbor letter."""
+        return self._right_letter
+
+    @right_letter.setter
+    def right_letter(self, right_letter: Optional["AvLetter"]) -> None:
+        """Sets the right neighbor letter."""
+        self._right_letter = right_letter
 
     # @staticmethod
     # def align_x_offsets_by_centroid(
