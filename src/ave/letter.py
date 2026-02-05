@@ -1128,7 +1128,7 @@ def main():
 
         return factories
 
-    def render_letter_with_boxes(multi_letter, colors, stroke_width):
+    def render_letter_with_boxes(svg_page, multi_letter, colors, stroke_width):
         """Render a multi-weight letter with bounding boxes."""
         # Render all weight variants (already in heavy-to-light order)
         for letter, color in zip(multi_letter.letters, colors):
@@ -1161,7 +1161,7 @@ def main():
         )
         svg_page.add(svg_lbox, True)
 
-    def render_alignment_test():
+    def render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width):
         """Render alignment test letters (U and A) at both edges."""
         # U at x-pos=0 with LEFT alignment
         multi_letter_u_left = AvMultiWeightLetter.from_factories(
@@ -1173,7 +1173,7 @@ def main():
         )
         multi_letter_u_left.align = Align.LEFT
         AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_left)
-        render_letter_with_boxes(multi_letter_u_left, colors, stroke_width)
+        render_letter_with_boxes(svg_page, multi_letter_u_left, colors, stroke_width)
 
         # U at x-pos=1.0 with RIGHT alignment
         multi_letter_u_right = AvMultiWeightLetter.from_factories(
@@ -1186,7 +1186,7 @@ def main():
         multi_letter_u_right.align = Align.RIGHT
         AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_right)
         multi_letter_u_right.xpos = 1.0 - multi_letter_u_right.width()
-        render_letter_with_boxes(multi_letter_u_right, colors, stroke_width)
+        render_letter_with_boxes(svg_page, multi_letter_u_right, colors, stroke_width)
 
         # A at x-pos=0 with LEFT alignment (one font-size above)
         multi_letter_a_left = AvMultiWeightLetter.from_factories(
@@ -1198,7 +1198,7 @@ def main():
         )
         multi_letter_a_left.align = Align.LEFT
         AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_left)
-        render_letter_with_boxes(multi_letter_a_left, colors, stroke_width)
+        render_letter_with_boxes(svg_page, multi_letter_a_left, colors, stroke_width)
 
         # A at x-pos=1.0 with RIGHT alignment (one font-size above)
         multi_letter_a_right = AvMultiWeightLetter.from_factories(
@@ -1211,7 +1211,7 @@ def main():
         multi_letter_a_right.align = Align.RIGHT
         AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_right)
         multi_letter_a_right.xpos = 1.0 - multi_letter_a_right.width()
-        render_letter_with_boxes(multi_letter_a_right, colors, stroke_width)
+        render_letter_with_boxes(svg_page, multi_letter_a_right, colors, stroke_width)
 
     # Example usage
     try:
@@ -1314,14 +1314,15 @@ def main():
                 # AvMultiWeightLetter.align_x_offsets_by_centroid(multi_letter)
 
                 # Render each weight variant with different opacity
-                render_letter_with_boxes(multi_letter, colors, stroke_width)
+                render_letter_with_boxes(svg_page, multi_letter, colors, stroke_width)
 
                 # Move to next position
                 current_xpos += multi_letter.width() + 0.002
 
             # Render alignment test letters
             test_ypos = current_ypos  # Same line as the characters
-            render_alignment_test()
+            stroke_width = 0.0001
+            render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width)
             # Add font name at the end of the line
             font_display_name = font_basename.replace("-VariableFont_AA_", "")
             font_text = f" -- {font_display_name}"

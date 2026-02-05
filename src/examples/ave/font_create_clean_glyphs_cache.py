@@ -5,9 +5,10 @@ from typing import Dict, Optional
 import numpy as np
 from fontTools.ttLib import TTFont
 
+from ave.font_support import AvFontProperties
 from ave.fonttools import FontHelper
 from ave.geom import AvBox
-from ave.glyph import AvFontProperties, AvGlyph
+from ave.glyph import AvGlyph
 from ave.glyph_factory import AvGlyphFactory, MemoryGlyphCache
 from ave.letter import AvSingleGlyphLetter
 from ave.page import AvSvgPage
@@ -567,13 +568,13 @@ def main():
         #     "wghts_max": 1000,
         #     "num_wghts": 9,
         # },
-        # {
-        #     "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
-        #     "out_name": "RobotoFlex-VariableFont_AA_",
-        #     "wghts_min": 100,
-        #     "wghts_max": 1000,
-        #     "num_wghts": 9,
-        # },
+        {
+            "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
+            "out_name": "RobotoFlex-VariableFont_AA_",
+            "wghts_min": 100,
+            "wghts_max": 1000,
+            "num_wghts": 9,
+        },
         # {
         #     "in_fn": "fonts/RobotoMono[wght].ttf",
         #     "out_name": "RobotoMono-VariableFont_AA_",
@@ -581,13 +582,13 @@ def main():
         #     "wghts_max": 700,
         #     "num_wghts": 9,
         # },
-        {
-            "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
-            "out_name": "RobotoFlexTEST-VariableFont_AA_",
-            "wghts_min": 100,
-            "wghts_max": 1000,
-            "num_wghts": 2,
-        },
+        # {
+        #     "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
+        #     "out_name": "RobotoFlexTEST-VariableFont_AA_",
+        #     "wghts_min": 100,
+        #     "wghts_max": 1000,
+        #     "num_wghts": 2,
+        # },
     ]
 
     # Process each font
@@ -622,7 +623,7 @@ def main():
         # characters = "0"
         # characters = "%0"
         # characters = "b"
-        characters = "AXx&0b%"
+        # characters = "AXx&0b%"
 
         # ------------------------------------------------------------------------
 

@@ -653,18 +653,17 @@ class AvGlyphFactory:
         Args:
             file_path: Path to save the cache to.
         """
-        if self.cache:
-            self.cache.save(file_path)
-        else:
-            # Create temporary cache to save
-            temp_cache = MemoryGlyphCache()
-            temp_cache._cache = self.glyphs.copy()  # pylint: disable=protected-access
-            temp_cache.save(file_path)
+        # Use to_cache_dict to ensure font_properties are included
+        data = self.to_cache_dict()
+
+        target_path = Path(file_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with gzip.open(target_path, "wt", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
     @classmethod
-    def load_from_file(
-        cls, file_path: str, source: Optional[GlyphSource] = None
-    ) -> "AvGlyphFactory":
+    def load_from_file(cls, file_path: str, source: Optional[GlyphSource] = None) -> "AvGlyphFactory":
         """Load factory from cache file.
 
         Args:
@@ -687,31 +686,32 @@ class AvGlyphFactory:
                 source=TTFontGlyphSource(ttfont)
             )
         """
-        # If no source provided, we need to extract font_properties from file first
+        # Load the cache file to get the data
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Cache file not found: {file_path}")
+
+        try:
+            with gzip.open(file_path, "rt", encoding="utf-8") as f:
+                data = json.load(f)
+        except (gzip.BadGzipFile, OSError):
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        # Check if this is a factory cache (with font_properties) or raw cache
+        if "font_properties" in data:
+            # This is a factory cache - use from_cache_dict
+            return cls.from_cache_dict(data, source)
+
+        # This is a raw cache - need font_properties from source or error
         if source is None:
-            # Load the cache file to get font properties
-            path = Path(file_path)
-            if not path.exists():
-                raise FileNotFoundError(f"Cache file not found: {file_path}")
-
-            try:
-                with gzip.open(file_path, "rt", encoding="utf-8") as f:
-                    data = json.load(f)
-            except (gzip.BadGzipFile, OSError):
-                with open(file_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-            font_props_dict = data.get("font_properties")
-            if not font_props_dict:
-                raise ValueError(
-                    f"Cache file {file_path} missing font_properties. "
-                    "Cannot create cache-only factory without font properties."
-                )
-            font_props = AvFontProperties.from_dict(font_props_dict)
-            source = CacheOnlySource(font_props)
-
-        # Now load the cache
-        cache = PersistentGlyphCache(file_path, auto_load=True)
+            raise ValueError(
+                f"Cache file {file_path} missing font_properties. "
+                "Cannot create cache-only factory without font properties."
+            )
+        # Load as raw cache into a MemoryGlyphCache
+        cache = MemoryGlyphCache()
+        cache.from_dict(data)
         return cls(source=source, cache=cache)
 
     @staticmethod
