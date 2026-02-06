@@ -64,23 +64,24 @@ class BezierCurve:
         # Precompute Bezier coefficients using forward differencing
         # B(t) = (1-t)^2*P0 + 2*(1-t)*t*P1 + t^2*P2
         # Expanding: B(t) = P0 + 2*t*(P1-P0) + t^2*(P0-2*P1+P2)
-        inv_steps = 1.0 / steps
-        inv_steps_sq = inv_steps * inv_steps
+        with np.errstate(invalid="ignore"):
+            inv_steps = 1.0 / steps
+            inv_steps_sq = inv_steps * inv_steps
 
-        # First point (t=0)
-        x = p0x
-        y = p0y
+            # First point (t=0)
+            x = p0x
+            y = p0y
 
-        # Second differences (d^2*B/dt^2 * inv_steps^2) - constant for quadratic
-        # Second derivative of B(t) is 2*(P0-2*P1+P2), scaled by inv_steps^2
-        dx_second = 2.0 * inv_steps_sq * (p0x - 2.0 * p1x + p2x)
-        dy_second = 2.0 * inv_steps_sq * (p0y - 2.0 * p1y + p2y)
+            # Second differences (d^2*B/dt^2 * inv_steps^2) - constant for quadratic
+            # Second derivative of B(t) is 2*(P0-2*P1+P2), scaled by inv_steps^2
+            dx_second = 2.0 * inv_steps_sq * (p0x - 2.0 * p1x + p2x)
+            dy_second = 2.0 * inv_steps_sq * (p0y - 2.0 * p1y + p2y)
 
-        # Initialize first differences with midpoint correction
-        # First derivative at t=0: B'(0) = 2*(P1-P0), scaled by inv_steps
-        # Plus half second difference for midpoint correction (since we update position before derivatives)
-        dx_first = 2.0 * inv_steps * (p1x - p0x) + 0.5 * dx_second
-        dy_first = 2.0 * inv_steps * (p1y - p0y) + 0.5 * dy_second
+            # Initialize first differences with midpoint correction
+            # First derivative at t=0: B'(0) = 2*(P1-P0), scaled by inv_steps
+            # Plus half second difference for midpoint correction (since we update position before derivatives)
+            dx_first = 2.0 * inv_steps * (p1x - p0x) + 0.5 * dx_second
+            dy_first = 2.0 * inv_steps * (p1y - p0y) + 0.5 * dy_second
 
         output_idx = start_index
 

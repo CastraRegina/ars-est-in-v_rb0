@@ -10,7 +10,7 @@ import numpy as np
 import shapely.geometry
 from numpy.typing import NDArray
 
-from ave.common import AvGlyphCmds, sgn_sci
+from ave.common import AffineTransform, AvGlyphCmds, sgn_sci
 from ave.geom import AvBox, AvPolygon
 from ave.path_support import (  # pylint: disable=unused-import
     CLOSED_SINGLE_PATH_CONSTRAINTS,
@@ -247,6 +247,29 @@ class AvPath:
             ValueError: If the path violates the new constraints
         """
         return AvPath(self.points.copy(), list(self.commands), constraints)
+
+    def transformed_copy(self, affine_trafo: AffineTransform) -> AvPath:
+        """Return a copy with coordinates transformed by the given affine matrix.
+
+        Applies the affine transformation:
+            x' = a00 * x + a01 * y + b0
+            y' = a10 * x + a11 * y + b1
+
+        The third column (point-type flags) and commands are preserved unchanged.
+
+        Args:
+            affine: 6-element list [a00, a01, a10, a11, b0, b1] defining the transformation.
+
+        Returns:
+            New ``AvPath`` with transformed coordinates and the same
+            commands and constraints.
+        """
+        a00, a01, a10, a11, b0, b1 = affine_trafo
+        pts = self.points.copy()
+        x, y = pts[:, 0], pts[:, 1]
+        pts[:, 0] = a00 * x + a01 * y + b0
+        pts[:, 1] = a10 * x + a11 * y + b1
+        return AvPath(pts, list(self.commands), self.constraints)
 
     def determine_appropriate_constraints(self) -> PathConstraints:
         """Analyze this path and determine the most appropriate constraints.

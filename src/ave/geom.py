@@ -10,7 +10,7 @@ from typing import Generator, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from ave.common import sgn_sci
+from ave.common import AffineTransform, sgn_sci
 
 ###############################################################################
 # GeomMath
@@ -21,9 +21,7 @@ class GeomMath:
     """Class to provide various static methods related to geometry handling."""
 
     @staticmethod
-    def transform_point(
-        affine_trafo: Sequence[Union[int, float]], point: Sequence[Union[int, float]]
-    ) -> Tuple[float, float]:
+    def transform_point(affine_trafo: AffineTransform, point: Sequence[Union[int, float]]) -> Tuple[float, float]:
         """Perform an affine transformation on the given 2D point.
 
         The given affine_trafo is a list of 6 floats, performing an affine transformation.
@@ -36,7 +34,7 @@ class GeomMath:
         See also shapely - Affine Transformations
 
         Args:
-            affine_trafo: List of 6 floats defining the affine transformation
+            affine_trafo: AffineTransform defining the affine transformation
             point: 2D point as sequence of (x, y) coordinates
 
         Returns:
@@ -545,12 +543,12 @@ class AvBox:
         """
         return (self._xmin + self._xmax) / 2, (self._ymin + self._ymax) / 2
 
-    def transform_affine(self, affine_trafo: Sequence[Union[int, float]]) -> AvBox:
+    def transform_affine(self, affine_trafo: AffineTransform) -> AvBox:
         """
         Transform the AvBox using the given affine transformation [a00, a01, a10, a11, b0, b1].
 
         Args:
-            affine_trafo (List[float]): Affine transformation [a00, a01, a10, a11, b0, b1]
+            affine_trafo (AffineTransform): Affine transformation [a00, a01, a10, a11, b0, b1]
 
         Returns:
             AvBox: The transformed box

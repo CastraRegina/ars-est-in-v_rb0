@@ -9,16 +9,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import shapely.geometry
-import shapely.ops
-
-from ave.common import Align
+from ave.common import AffineTransform, Align
 from ave.geom import AvBox
 from ave.glyph import AvGlyph
 from ave.glyph_factory import AvGlyphFactory
-
-# Tolerance factor for left_space bisection: multiplied by advance_width.
-_LEFT_SPACE_TOL_FACTOR: float = 0.001
+from ave.letter_support import LetterSpacing
+from ave.path import AvPath
 
 ###############################################################################
 # AvLetter
@@ -161,6 +157,20 @@ class AvLetter(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def geometry_path(self) -> Optional[AvPath]:
+        """Return the polygonized outline in world coordinates.
+
+        The returned ``AvPath`` is the polygonized letter outline with
+        all coordinates already transformed to world space (scaled and
+        translated).
+
+        Returns:
+            Polygonized path in world coordinates, or ``None`` when the
+            letter has no geometry (e.g. empty glyph path).
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def left_space(self) -> float:
         """Compute horizontal space to the left neighbor letter.
 
@@ -298,7 +308,7 @@ class AvSingleGlyphLetter(AvLetter):
         return self.scale * self._glyph.height
 
     @property
-    def trafo(self) -> List[float]:
+    def trafo(self) -> AffineTransform:
         """
         Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
         Returns:    [scale, 0, 0, scale, xpos + x_offset, ypos] or
@@ -432,82 +442,21 @@ class AvSingleGlyphLetter(AvLetter):
         scale, _, _, _, translate_x, translate_y = self.trafo
         return self._glyph.path.svg_path_string_debug_polyline(scale, translate_x, translate_y, stroke_width)
 
-    def _to_shapely_geometry(
-        self,
-        dx_offset: float = 0.0,
-    ) -> Optional[shapely.geometry.base.BaseGeometry]:
-        """Convert the letter's glyph outline to a Shapely geometry in world coordinates.
-
-        The glyph path is polygonized, split into contours, and each closed
-        exterior contour is converted to a ``shapely.geometry.Polygon``.
-        All polygons are combined via ``shapely.ops.unary_union``.
-        Interior rings (holes) are ignored.
-
-        Args:
-            dx_offset: Additional horizontal offset in world coordinates
-                applied on top of the letter's current position.
+    def geometry_path(self) -> Optional[AvPath]:
+        """Return the polygonized outline in world coordinates.
 
         Returns:
-            A Shapely geometry representing the letter outline, or ``None``
-            if the path is empty or has no valid contours.
+            Polygonized path in world coordinates, or ``None`` if the
+            glyph path is empty.
         """
         if self._glyph.path.points.size == 0:
             return None
-
-        poly_path = self._glyph.path.polygonized_path
-        scale, _, _, _, tx, ty = self.trafo
-
-        pts = poly_path.points[:, :2].copy()
-        pts[:, 0] = pts[:, 0] * scale + tx + dx_offset
-        pts[:, 1] = pts[:, 1] * scale + ty
-
-        return self._build_union(
-            poly_path.split_into_single_paths(),
-            pts,
-        )
-
-    @staticmethod
-    def _build_union(
-        contours: list,
-        pts: object,
-    ) -> Optional[shapely.geometry.base.BaseGeometry]:
-        """Build a unary union of exterior-ring polygons from contours.
-
-        Args:
-            contours: List of single-path contours from a polygonized path.
-            pts: Transformed 2-D point array (world coordinates).
-
-        Returns:
-            Combined Shapely geometry or ``None`` if no valid contours.
-        """
-        shapely_polys: List[shapely.geometry.Polygon] = []
-        pt_idx = 0
-        for contour in contours:
-            n_pts = contour.points.shape[0]
-            is_closed = contour.commands and contour.commands[-1] == "Z"
-            if is_closed and n_pts >= 3:
-                poly = shapely.geometry.Polygon(
-                    pts[pt_idx : pt_idx + n_pts].tolist(),
-                )
-                if poly.is_valid and not poly.is_empty and poly.area > 1e-12:
-                    shapely_polys.append(
-                        shapely.geometry.Polygon(poly.exterior.coords),
-                    )
-            pt_idx += n_pts
-
-        if not shapely_polys:
-            return None
-        if len(shapely_polys) == 1:
-            return shapely_polys[0]
-        return shapely.ops.unary_union(shapely_polys)
+        return self._glyph.path.polygonized_path.transformed_copy(self.trafo)
 
     def left_space(self) -> float:
         """Compute horizontal space to the left neighbor letter.
 
-        Uses polygonized glyph paths converted to Shapely geometries in
-        world coordinates.  A bisection algorithm finds the critical
-        horizontal displacement where the two outlines start (or stop)
-        intersecting.
+        Delegates to LetterSpacing.space_between() for the actual calculation.
 
         Returns:
             float: Positive when the letter can shift left by that amount
@@ -515,153 +464,10 @@ class AvSingleGlyphLetter(AvLetter):
                 must shift right.  Returns 0.0 when ``left_letter`` is
                 ``None`` or either letter has an empty path.
         """
-        left_geom, self_geom = self._left_space_geometries()
-        if left_geom is None or self_geom is None:
-            return 0.0
-
-        tol = _LEFT_SPACE_TOL_FACTOR * self.advance_width
-
-        if self_geom.intersects(left_geom):
-            return self._left_space_overlapping(left_geom, tol)
-        return self._left_space_separated(left_geom, self_geom, tol)
-
-    def _left_space_geometries(
-        self,
-    ) -> Tuple[
-        Optional[shapely.geometry.base.BaseGeometry],
-        Optional[shapely.geometry.base.BaseGeometry],
-    ]:
-        """Build Shapely geometries for self and left_letter.
-
-        Returns:
-            (left_geom, self_geom) -- either may be ``None``.
-        """
         if self._left_letter is None:
-            return None, None
-        if not isinstance(self._left_letter, AvSingleGlyphLetter):
-            return None, None
-        left_geom = self._left_letter._to_shapely_geometry()  # pylint: disable=protected-access
-        self_geom = self._to_shapely_geometry()
-        return left_geom, self_geom
-
-    def _left_space_overlapping(
-        self,
-        left_geom: shapely.geometry.base.BaseGeometry,
-        tolerance: float,
-    ) -> float:
-        """Find rightward shift to eliminate intersection (Case B).
-
-        Args:
-            left_geom: Shapely geometry of the left neighbor.
-            tolerance: Bisection convergence tolerance.
-
-        Returns:
-            Negative float (rightward shift magnitude).
-        """
-        left_bb = self._left_letter.bounding_box
-        self_bb = self.bounding_box
-        overlap = left_bb.xmax - self_bb.xmin
-        hi = max(abs(overlap), self.advance_width) * 2.0
-
-        if self._shifted_intersects(hi, left_geom):
-            hi *= 4.0
-
-        lo, hi = self._bisect_shift(
-            (0.0, hi),
-            tolerance,
-            left_geom,
-            seek_intersecting=True,
-        )
-        return -(lo + hi) / 2.0
-
-    def _left_space_separated(
-        self,
-        left_geom: shapely.geometry.base.BaseGeometry,
-        self_geom: shapely.geometry.base.BaseGeometry,
-        tolerance: float,
-    ) -> float:
-        """Find max leftward shift before intersection (Case A).
-
-        Args:
-            left_geom: Shapely geometry of the left neighbor.
-            self_geom: Shapely geometry of this letter.
-            tolerance: Bisection convergence tolerance.
-
-        Returns:
-            Positive float (leftward shift amount) or 0.0.
-        """
-        gap = self_geom.distance(left_geom)
-        if gap < tolerance:
             return 0.0
 
-        hi = gap
-        if not self._shifted_intersects(-hi, left_geom):
-            left_bb = self._left_letter.bounding_box
-            bbox_gap = self.bounding_box.xmin - left_bb.xmax
-            hi = max(hi, bbox_gap) * 2.0
-            if not self._shifted_intersects(-hi, left_geom):
-                hi *= 4.0
-
-        lo, hi = self._bisect_shift(
-            (0.0, hi),
-            tolerance,
-            left_geom,
-            seek_intersecting=False,
-        )
-        return (lo + hi) / 2.0
-
-    def _shifted_intersects(
-        self,
-        dx: float,
-        other: shapely.geometry.base.BaseGeometry,
-    ) -> bool:
-        """Check if self shifted by *dx* intersects *other*.
-
-        Args:
-            dx: Horizontal offset in world coordinates.
-            other: Reference geometry.
-
-        Returns:
-            True if geometries intersect after shifting.
-        """
-        geom = self._to_shapely_geometry(dx_offset=dx)
-        return geom is not None and geom.intersects(other)
-
-    def _bisect_shift(
-        self,
-        bounds: Tuple[float, float],
-        tolerance: float,
-        left_geom: shapely.geometry.base.BaseGeometry,
-        *,
-        seek_intersecting: bool,
-    ) -> Tuple[float, float]:
-        """Run bisection to refine the intersection boundary.
-
-        When *seek_intersecting* is True the shift is applied in the
-        positive-x direction (rightward, Case B).  Otherwise the shift
-        is negated (leftward, Case A).
-
-        Args:
-            bounds: (lo, hi) interval to bisect.
-            tolerance: Convergence threshold.
-            left_geom: Shapely geometry of the left neighbor.
-            seek_intersecting: Direction flag (keyword-only).
-
-        Returns:
-            Refined (lo, hi) interval.
-        """
-        lo, hi = bounds
-        sign = 1.0 if seek_intersecting else -1.0
-        for _ in range(60):
-            if hi - lo < tolerance:
-                break
-            mid = (lo + hi) / 2.0
-            hits = self._shifted_intersects(sign * mid, left_geom)
-            if hits == seek_intersecting:
-                lo = mid
-            else:
-                hi = mid
-        return lo, hi
+        return LetterSpacing.space_between(self._left_letter, self)
 
     @property
     def left_letter(self) -> Optional["AvLetter"]:
@@ -1129,12 +935,22 @@ class AvMultiWeightLetter(AvLetter):
 
         return " ".join(path_strings)
 
+    def geometry_path(self) -> Optional[AvPath]:
+        """Return the polygonized outline of the heaviest letter.
+
+        Returns:
+            Polygonized path in world coordinates from the heaviest
+            (index 0) letter, or ``None`` if there are no letters.
+        """
+        if not self._letters:
+            return None
+        return self._letters[0].geometry_path()
+
     def left_space(self) -> float:
         """Compute horizontal space to the left neighbor letter.
 
-        Delegates to the heaviest (index 0) letter's ``left_space()``
-        after temporarily setting its ``left_letter`` to match this
-        container's ``left_letter``.
+        Delegates to LetterSpacing.space_between() using the heaviest
+        (index 0) letter for calculation.
 
         Returns:
             float: Positive when the letter can shift left, negative when
@@ -1144,13 +960,8 @@ class AvMultiWeightLetter(AvLetter):
         if self._left_letter is None or not self._letters:
             return 0.0
 
-        heaviest = self._letters[0]
-        prev_left = heaviest.left_letter
-        try:
-            heaviest.left_letter = self._left_letter
-            return heaviest.left_space()
-        finally:
-            heaviest.left_letter = prev_left
+        # Use the heaviest letter (index 0) for space calculation
+        return LetterSpacing.space_between(self._left_letter, self._letters[0])
 
     @property
     def left_letter(self) -> Optional["AvLetter"]:

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import re
-from typing import Callable, ClassVar, Optional, Sequence, Tuple, Union
+from typing import Callable, ClassVar, Optional, Tuple
+
+from ave.common import AffineTransform
 
 # Type-Definition for SvgPath-Commands; uppercase = absolute coordinates; lowercase = relative.
 # SvgPathCmds = Literal[
@@ -197,7 +199,7 @@ class AvSvgPath:
         return ret_path_string
 
     @staticmethod
-    def transform_path_string(path_string: str, affine_trafo: Sequence[Union[int, float]]) -> str:
+    def transform_path_string(path_string: str, affine_trafo: AffineTransform) -> str:
         """Transform the given SVG-_path_string_ by using the given _affine_trafo_.
         Make sure the _path_string_ uses absolute coordinates.
 
@@ -212,7 +214,7 @@ class AvSvgPath:
 
         Args:
             path_string (str): SVG-path-string input
-            affine_trafo (List[float]): Affine transformation
+            affine_trafo (AffineTransform): Affine transformation
 
         Returns:
             str: the transformed _path_string_

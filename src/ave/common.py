@@ -7,7 +7,7 @@ import sys
 import warnings
 from enum import Enum, auto
 from functools import wraps
-from typing import Literal
+from typing import List, Literal
 
 ###############################################################################
 # Types
@@ -26,6 +26,13 @@ AvGlyphCmds = Literal[  # Type-Definition for SvgPath-Commands used in AvGlyph
     # ClosePath (0) - close subpath by drawing a line from the current point to start point
     "Z",
 ]
+
+# Standard affine transformation: [a00, a01, a10, a11, b0, b1]
+# Represents matrix:
+#   | a00 a01 b0 |
+#   | a10 a11 b1 |
+#   |   0   0  1 |
+AffineTransform = List[float]
 
 
 ###############################################################################
