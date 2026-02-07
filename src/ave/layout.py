@@ -306,6 +306,12 @@ class AvTightCharLineLayouter(AvCharLineLayouter):
                     None,  # No alignment initially
                 )
 
+                # Ensure first letter uses LEFT alignment immediately so that
+                # spacing calculations reference the correct geometry.
+                if not self._letters:
+                    letter.align = Align.LEFT
+                    letter.xpos = self._x_start
+
                 # Apply tight packing if there is a left neighbor
                 if self._letters:
                     letter.left_letter = self._letters[-1]
@@ -343,7 +349,7 @@ class AvTightCharLineLayouter(AvCharLineLayouter):
             first_letter.align = Align.LEFT
             first_letter.xpos = self._x_start
 
-        # Save tight-packed position of last letter before right-alignment
+        # Save last letter position before adjusting for right alignment
         tight_last_xpos = self._letters[-1].xpos if len(self._letters) > 1 else None
 
         # Adjust last letter for right alignment
@@ -352,16 +358,16 @@ class AvTightCharLineLayouter(AvCharLineLayouter):
             last_letter.align = Align.RIGHT
             last_letter.xpos = self._x_end - last_letter.width()
 
-        # Distribute excess space among all gaps (like AvCharLineLayouter)
-        # The excess is the distance the last letter moved right due to alignment.
-        # Shift each inner letter by an accumulating offset to spread it evenly.
-        if len(self._letters) > 2:
+        # Distribute excess space by shifting inner letters proportionally so
+        # that each gap (including the first and the one before the last
+        # letter) grows by the same amount.
+        if len(self._letters) > 2 and tight_last_xpos is not None:
             excess = self._letters[-1].xpos - tight_last_xpos
             if excess > 0:
-                num_gaps = len(self._letters) - 1
-                extra_per_gap = excess / num_gaps
-                for i in range(1, len(self._letters) - 1):
-                    self._letters[i].xpos += i * extra_per_gap
+                denom = len(self._letters) - 1
+                for idx in range(1, len(self._letters) - 1):
+                    shift = excess * idx / denom
+                    self._letters[idx].xpos += shift
 
         elif len(self._letters) == 1:
             # Single letter, center it
@@ -472,6 +478,7 @@ def main():
         char_stream = AvCharacterStream(pi_text)
 
         # Create layouter and layout the line
+        # layouter = AvTightCharLineLayouter(
         layouter = AvTightCharLineLayouter(
             x_start=x_start,
             x_end=x_end,
@@ -479,7 +486,7 @@ def main():
             stream=char_stream,
             letter_factory=letter_factory,
             scale=letter_scale,
-            margin=0.1 * vb_scale,
+            margin=0.0,  # 0.1 * vb_scale,
         )
 
         letters = layouter.layout_line()
