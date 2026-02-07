@@ -227,12 +227,28 @@ class LetterSpacing:
             return 0.0
 
         hi = gap
+
+        # If bounding boxes are separated horizontally, jump to cover that gap
+        left_bb = left.bounding_box
+        right_bb = right.bounding_box
+        bbox_gap = right_bb.xmin - left_bb.xmax
+        if bbox_gap > hi:
+            hi = bbox_gap
+
+        # Exponential search to find intersection
+        # Limit to avoid infinite loop for vertically disjoint letters
+        limit = max(1000.0, (left.advance_width + right.advance_width) * 10.0)
+
+        while hi < limit:
+            if LetterSpacing._shifted_intersects(right, -hi, left_geom):
+                break
+            hi *= 2.0
+            if hi < tolerance:
+                hi = tolerance
+
+        # If we exceeded limit without intersection, return the large value (essentially infinity)
         if not LetterSpacing._shifted_intersects(right, -hi, left_geom):
-            left_bb = left.bounding_box
-            bbox_gap = right.bounding_box.xmin - left_bb.xmax
-            hi = max(hi, bbox_gap) * 2.0
-            if not LetterSpacing._shifted_intersects(right, -hi, left_geom):
-                hi *= 4.0
+            return hi
 
         lo, hi = LetterSpacing._bisect_shift(
             (0.0, hi),
