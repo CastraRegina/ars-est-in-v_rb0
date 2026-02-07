@@ -32,8 +32,7 @@ class AvCharLineLayouter:
         x_end: float,
         y_baseline: float,
         stream: AvStreamBase,
-        letter_factory: Optional[AvLetterFactory] = None,
-        glyph_factory: Optional[AvGlyphFactory] = None,
+        letter_factory: AvLetterFactory,
         scale: float = 1.0,
     ) -> None:
         """
@@ -44,9 +43,7 @@ class AvCharLineLayouter:
             x_end: Ending x position for right alignment
             y_baseline: Y position of the baseline (constant for all letters)
             stream: Stream providing items (characters/syllables) to layout
-            letter_factory: Optional factory function to create letters from items.
-                If None, uses default factory with glyph_factory.
-            glyph_factory: Factory to create glyphs (required if letter_factory is None)
+            letter_factory: Factory to create letters from items.
             scale: Scale factor for letter dimensions (default: 1.0)
         """
         self._x_start = x_start
@@ -55,13 +52,7 @@ class AvCharLineLayouter:
         self._stream = stream
         self._scale = scale
         self._letters: List[AvLetter] = []
-
-        if letter_factory is None:
-            if glyph_factory is None:
-                raise ValueError("Either letter_factory or glyph_factory must be provided")
-            self._letter_factory = AvSingleGlyphLetterFactory(glyph_factory)
-        else:
-            self._letter_factory = letter_factory
+        self._letter_factory = letter_factory
 
     def layout_line(self) -> List[AvLetter]:
         """
@@ -189,8 +180,7 @@ class AvSyllableLineLayouter(AvCharLineLayouter):
         x_end: float,
         y_baseline: float,
         stream: AvStreamBase,
-        letter_factory: Optional[AvLetterFactory] = None,
-        glyph_factory: Optional[AvGlyphFactory] = None,
+        letter_factory: AvLetterFactory,
         scale: float = 1.0,
     ) -> None:
         """
@@ -201,9 +191,7 @@ class AvSyllableLineLayouter(AvCharLineLayouter):
             x_end: Ending x position for right alignment
             y_baseline: Y position of the baseline (constant for all letters)
             stream: Stream providing syllables to layout (typically AvSyllableStream)
-            letter_factory: Optional factory function to create letters from syllables.
-                If None, uses default factory with glyph_factory.
-            glyph_factory: Factory to create glyphs (required if letter_factory is None)
+            letter_factory: Factory to create letters from syllables.
             scale: Scale factor for letter dimensions (default: 1.0)
         """
         super().__init__(
@@ -212,9 +200,172 @@ class AvSyllableLineLayouter(AvCharLineLayouter):
             y_baseline=y_baseline,
             stream=stream,
             letter_factory=letter_factory,
-            glyph_factory=glyph_factory,
             scale=scale,
         )
+
+
+###############################################################################
+# AvTightCharLineLayouter
+###############################################################################
+
+
+class AvTightCharLineLayouter(AvCharLineLayouter):
+    """
+    Layouts items tightly using geometric collision detection.
+
+    Places each letter (except the first and last of the line) next to the
+    left-letter so that they nearly touch.
+    """
+
+    def __init__(
+        self,
+        x_start: float,
+        x_end: float,
+        y_baseline: float,
+        stream: AvStreamBase,
+        letter_factory: AvLetterFactory,
+        scale: float = 1.0,
+        margin: float = 0.0,
+    ) -> None:
+        """
+        Initialize the tight char line layouter.
+
+        Args:
+            x_start: Starting x position for left alignment
+            x_end: Ending x position for right alignment
+            y_baseline: Y position of the baseline (constant for all letters)
+            stream: Stream providing characters to layout (typically AvCharacterStream)
+            letter_factory: Factory to create letters from characters.
+            scale: Scale factor for letter dimensions (default: 1.0)
+            margin: Minimum space between letters in world coordinates (default: 0.0).
+        """
+        super().__init__(
+            x_start=x_start,
+            x_end=x_end,
+            y_baseline=y_baseline,
+            stream=stream,
+            letter_factory=letter_factory,
+            scale=scale,
+        )
+        self._margin = margin
+
+    @property
+    def margin(self) -> float:
+        """
+        Get the minimum space between letters in world coordinates.
+
+        Returns:
+            float: The margin value.
+        """
+        return self._margin
+
+    @margin.setter
+    def margin(self, value: float) -> None:
+        """
+        Set the minimum space between letters in world coordinates.
+
+        Args:
+            value: The margin value. Must be non-negative.
+        """
+        if value < 0:
+            raise ValueError(f"Margin must be non-negative, got {value}")
+        self._margin = value
+
+    def layout_line(self) -> List[AvLetter]:
+        """
+        Layout a line of items tightly.
+
+        Returns:
+            List of positioned AvLetter objects representing the line
+        """
+        # Reset letters list
+        self._letters = []
+
+        try:
+            while True:
+                # Get next item from stream
+                item = self._stream.next_item()
+
+                # Position for first letter: left-aligned at x_start
+                if not self._letters:
+                    current_x = self._x_start
+                else:
+                    # For subsequent letters, start from current letter's right edge
+                    current_x = self._letters[-1].xpos + self._letters[-1].width()
+
+                # Create letter using factory
+                letter = self._letter_factory.create_letter(
+                    item,
+                    self._scale,
+                    current_x,
+                    self._y_baseline,
+                    None,  # No alignment initially
+                )
+
+                # Apply tight packing if there is a left neighbor
+                if self._letters:
+                    letter.left_letter = self._letters[-1]
+
+                    # Calculate space to left neighbor and move letter to touch
+                    space = letter.left_space()
+                    # Positive space means we can move left, negative means overlap
+                    # After touching, add margin to create minimum space
+                    letter.xpos -= space - self.margin
+
+                # Check if letter fits within bounds (entire letter must fit)
+                if letter.bounding_box.xmax > self._x_end:
+                    if not self._letters:
+                        # First letter doesn't fit, place it anyway
+                        self._letters.append(letter)
+                    else:
+                        # Letter doesn't fit, give it back to stream
+                        self._stream.rewind(1)
+                        break
+
+                # Letter fits, add to list
+                self._letters.append(letter)
+
+        except StopIteration:
+            # No more characters in stream
+            pass
+
+        # If no letters placed, return empty list
+        if not self._letters:
+            return self._letters
+
+        # Ensure first letter is left-aligned at x_start
+        if len(self._letters) > 0:
+            first_letter = self._letters[0]
+            first_letter.align = Align.LEFT
+            first_letter.xpos = self._x_start
+
+        # Save tight-packed position of last letter before right-alignment
+        tight_last_xpos = self._letters[-1].xpos if len(self._letters) > 1 else None
+
+        # Adjust last letter for right alignment
+        if len(self._letters) > 1:
+            last_letter = self._letters[-1]
+            last_letter.align = Align.RIGHT
+            last_letter.xpos = self._x_end - last_letter.width()
+
+        # Distribute excess space among all gaps (like AvCharLineLayouter)
+        # The excess is the distance the last letter moved right due to alignment.
+        # Shift each inner letter by an accumulating offset to spread it evenly.
+        if len(self._letters) > 2:
+            excess = self._letters[-1].xpos - tight_last_xpos
+            if excess > 0:
+                num_gaps = len(self._letters) - 1
+                extra_per_gap = excess / num_gaps
+                for i in range(1, len(self._letters) - 1):
+                    self._letters[i].xpos += i * extra_per_gap
+
+        elif len(self._letters) == 1:
+            # Single letter, center it
+            single_letter = self._letters[0]
+            center_offset = (self._x_end - self._x_start - single_letter.width()) / 2
+            single_letter.xpos = self._x_start + center_offset
+
+        return self._letters
 
 
 ###############################################################################
@@ -229,7 +380,7 @@ def main():
 
     # Create SVG page
     viewbox_width = 160  # viewbox width in mm
-    viewbox_height = 160  # viewbox height in mm
+    viewbox_height = 15  # viewbox height in mm
     vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
     font_size = vb_scale * 3.0  # in mm (already in viewbox units)
 
@@ -270,7 +421,7 @@ def main():
     #     source=TTFontGlyphSource(ttfont)
     # )
     units_per_em = font_factory.get_font_properties().units_per_em
-    scale = font_size / units_per_em
+    letter_scale = font_size / units_per_em
 
     # Create letter factory
     letter_factory = AvSingleGlyphLetterFactory(font_factory)
@@ -279,7 +430,7 @@ def main():
     viewbox_height_normalized = viewbox_height * vb_scale
 
     # Create sample letter to get font metrics
-    sample_letter = letter_factory.create_letter("0", scale, 0, 0)
+    sample_letter = letter_factory.create_letter("0", letter_scale, 0, 0)
     sample_bbox = sample_letter.bounding_box
 
     # Calculate first baseline for top-left corner placement
@@ -317,13 +468,14 @@ def main():
         char_stream = AvCharacterStream(pi_text)
 
         # Create layouter and layout the line
-        layouter = AvCharLineLayouter(
+        layouter = AvTightCharLineLayouter(
             x_start=x_start,
             x_end=x_end,
             y_baseline=current_baseline,
             stream=char_stream,
             letter_factory=letter_factory,
-            scale=scale,
+            scale=letter_scale,
+            margin=0.1 * vb_scale,
         )
 
         letters = layouter.layout_line()
