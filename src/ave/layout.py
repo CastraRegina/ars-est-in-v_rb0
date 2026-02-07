@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib
-from typing import List, Optional
+from typing import List
 
 from ave.common import Align
 from ave.geom import GeomMath
@@ -85,6 +85,10 @@ class AvCharLineLayouter:
                     self._y_baseline,
                     None,  # No alignment initially
                 )
+
+                # Set left neighbor if not first letter
+                if self._letters:
+                    letter.left_letter = self._letters[-1]
 
                 # Check if letter fits
                 letter_width = letter.width()
