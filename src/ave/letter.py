@@ -198,7 +198,6 @@ class AvLetter(ABC):
 ###############################################################################
 
 
-@dataclass
 class AvSingleGlyphLetter(AvLetter):
     """
     A Letter is a Glyph which is scaled to real dimensions with a position, alignment and horizontal offset.
