@@ -157,12 +157,15 @@ class AvLetter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def geometry_path(self) -> Optional[AvPath]:
+    def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
         """Return the polygonized outline in world coordinates.
 
         The returned ``AvPath`` is the polygonized letter outline with
         all coordinates already transformed to world space (scaled and
         translated).
+
+        Args:
+            steps: Number of segments for curve approximation (default: 50).
 
         Returns:
             Polygonized path in world coordinates, or ``None`` when the
@@ -441,8 +444,11 @@ class AvSingleGlyphLetter(AvLetter):
         scale, _, _, _, translate_x, translate_y = self.trafo
         return self._glyph.path.svg_path_string_debug_polyline(scale, translate_x, translate_y, stroke_width)
 
-    def geometry_path(self) -> Optional[AvPath]:
+    def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
         """Return the polygonized outline in world coordinates.
+
+        Args:
+            steps: Number of segments for curve approximation (default: 50).
 
         Returns:
             Polygonized path in world coordinates, or ``None`` if the
@@ -450,7 +456,7 @@ class AvSingleGlyphLetter(AvLetter):
         """
         if self._glyph.path.points.size == 0:
             return None
-        return self._glyph.path.polygonized_path.transformed_copy(self.trafo)
+        return self._glyph.path.polygonize(steps).transformed_copy(self.trafo)
 
     def left_space(self) -> float:
         """Compute horizontal space to the left neighbor letter.
@@ -934,8 +940,11 @@ class AvMultiWeightLetter(AvLetter):
 
         return " ".join(path_strings)
 
-    def geometry_path(self) -> Optional[AvPath]:
+    def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
         """Return the polygonized outline of the heaviest letter.
+
+        Args:
+            steps: Number of segments for curve approximation (default: 50).
 
         Returns:
             Polygonized path in world coordinates from the heaviest
@@ -943,7 +952,7 @@ class AvMultiWeightLetter(AvLetter):
         """
         if not self._letters:
             return None
-        return self._letters[0].geometry_path()
+        return self._letters[0].polygonize_path(steps)
 
     def left_space(self) -> float:
         """Compute horizontal space to the left neighbor letter.

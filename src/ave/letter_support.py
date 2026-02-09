@@ -43,8 +43,12 @@ class LetterProtocol(Protocol):
     def bounding_box(self) -> AvBox:
         """The bounding box around the letter's outline."""
 
-    def geometry_path(self) -> Optional[AvPath]:
-        """Return the polygonized outline in world coordinates."""
+    def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
+        """Return the polygonized outline in world coordinates.
+
+        Args:
+            steps: Number of segments for curve approximation (default: 50).
+        """
 
 
 class _GeometryContext(NamedTuple):
@@ -100,54 +104,20 @@ class LetterSpacing:
             dx_offset: Additional horizontal offset in world coordinates
                 applied on top of the letter's current position.
             steps: Optional polygonization resolution. If None, uses the
-                letter's default polygonized path (standard=50 steps).
-                If provided, uses custom resolution for performance/accuracy trade-off.
+                letter's default (50 steps). If provided, uses custom
+                resolution for performance/accuracy trade-off.
 
         Returns:
             A Shapely geometry representing the letter outline, or ``None``
             if the path is empty or has no valid contours.
         """
-        world_path = letter.geometry_path()
+        # Use the provided steps or default to 50
+        resolution = steps if steps is not None else 50
+        world_path = letter.polygonize_path(resolution)
         if world_path is None:
             return None
 
-        # If custom steps provided, re-polygonize the raw path for performance
-        if steps is not None and steps > 0:
-            world_path = LetterSpacing._repolygonize_path(world_path, steps)
-            if world_path is None:
-                return None
-
         return LetterSpacing._path_to_geometry(world_path, dx_offset)
-
-    @staticmethod
-    def _repolygonize_path(
-        world_path: AvPath,
-        steps: int,
-    ) -> Optional[AvPath]:
-        """Re-polygonize a world path with custom resolution.
-
-        Extracts the raw (unpolygonized) path from the letter's geometry
-        and polygonizes it with the specified steps for performance tuning.
-
-        Args:
-            world_path: The world path to re-polygonize.
-            steps: Number of segments for curve approximation.
-
-        Returns:
-            Re-polygonized path or None if empty.
-        """
-        # Access the raw underlying path before polygonization
-        # The world_path may be already polygonized; we need to get raw curves
-        # and re-polygonize with custom steps
-        if world_path.points.size == 0:
-            return None
-
-        # Re-polygonize with custom steps if the path has curves
-        if world_path.has_curves:
-            return world_path.polygonize(steps)
-
-        # No curves - return as-is (already a polyline)
-        return world_path
 
     @staticmethod
     def _path_to_geometry(

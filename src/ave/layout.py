@@ -470,15 +470,15 @@ def main():
         char_stream = AvCharacterStream(pi_text)
 
         # Create layouter and layout the line
-        # layouter = AvTightCharLineLayouter(
-        layouter = AvCharLineLayouter(
+        layouter = AvTightCharLineLayouter(
+            # layouter = AvCharLineLayouter(
             x_start=x_start,
             x_end=x_end,
             y_baseline=current_baseline,
             stream=char_stream,
             letter_factory=letter_factory,
             scale=letter_scale,
-            # margin=0.0,  # 0.1 * vb_scale,
+            margin=0.0,  # 0.1 * vb_scale,
         )
 
         letters = layouter.layout_line()
