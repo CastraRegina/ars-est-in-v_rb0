@@ -9,6 +9,7 @@ from ave.common import Align
 from ave.geom import GeomMath
 from ave.glyph_factory import AvGlyphFactory
 from ave.letter import AvLetter, AvLetterFactory, AvSingleGlyphLetterFactory
+from ave.letter_support import LetterSpacing
 from ave.text import AvCharacterStream, AvStreamBase
 
 ###############################################################################
@@ -309,7 +310,7 @@ class AvTightCharLineLayouter(AvCharLineLayouter):
                     letter.left_letter = self._letters[-1]
 
                     # Calculate space to left neighbor and move letter to touch
-                    space = letter.left_space()
+                    space = LetterSpacing.space_between(letter.left_letter, letter)
                     # Positive space means we can move left, negative means overlap
                     # After touching, add margin to create minimum space
                     letter.xpos -= space - self.margin

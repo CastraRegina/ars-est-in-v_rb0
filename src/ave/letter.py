@@ -13,7 +13,6 @@ from ave.common import AffineTransform, Align
 from ave.geom import AvBox
 from ave.glyph import AvGlyph
 from ave.glyph_factory import AvGlyphFactory
-from ave.letter_support import LetterSpacing
 from ave.path import AvPath
 
 ###############################################################################
@@ -170,28 +169,6 @@ class AvLetter(ABC):
         Returns:
             Polygonized path in world coordinates, or ``None`` when the
             letter has no geometry (e.g. empty glyph path).
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def left_space(self) -> float:
-        """Compute horizontal space to the left neighbor letter.
-
-        Determines how far this letter can be moved in the negative
-        x-direction before its outline intersects with the left neighbor,
-        or how far it must move in the positive x-direction if the outlines
-        already overlap.
-
-        The calculation uses polygonized glyph paths converted to Shapely
-        geometries in world coordinates.  Exterior rings only are considered
-        (holes are ignored).
-
-        Returns:
-            float: Positive value means the letter can shift left by that
-                amount before touching.  Negative value means the letter
-                already overlaps and must shift right by that magnitude.
-                Returns 0.0 when left_letter is None or either letter has
-                an empty path.
         """
         raise NotImplementedError
 
@@ -457,22 +434,6 @@ class AvSingleGlyphLetter(AvLetter):
         if self._glyph.path.points.size == 0:
             return None
         return self._glyph.path.polygonize(steps).transformed_copy(self.trafo)
-
-    def left_space(self) -> float:
-        """Compute horizontal space to the left neighbor letter.
-
-        Delegates to LetterSpacing.space_between() for the actual calculation.
-
-        Returns:
-            float: Positive when the letter can shift left by that amount
-                before touching.  Negative when it already overlaps and
-                must shift right.  Returns 0.0 when ``left_letter`` is
-                ``None`` or either letter has an empty path.
-        """
-        if self._left_letter is None:
-            return 0.0
-
-        return LetterSpacing.space_between(self._left_letter, self)
 
     @property
     def left_letter(self) -> Optional["AvLetter"]:
@@ -953,23 +914,6 @@ class AvMultiWeightLetter(AvLetter):
         if not self._letters:
             return None
         return self._letters[0].polygonize_path(steps)
-
-    def left_space(self) -> float:
-        """Compute horizontal space to the left neighbor letter.
-
-        Delegates to LetterSpacing.space_between() using the heaviest
-        (index 0) letter for calculation.
-
-        Returns:
-            float: Positive when the letter can shift left, negative when
-                it already overlaps.  Returns 0.0 when ``left_letter`` is
-                ``None`` or there are no letters.
-        """
-        if self._left_letter is None or not self._letters:
-            return 0.0
-
-        # Use the heaviest letter (index 0) for space calculation
-        return LetterSpacing.space_between(self._left_letter, self._letters[0])
 
     @property
     def left_letter(self) -> Optional["AvLetter"]:

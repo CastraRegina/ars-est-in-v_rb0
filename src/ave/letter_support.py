@@ -199,9 +199,12 @@ class LetterSpacing:
         Returns:
             float: Positive when the right letter can shift left by that
                 amount before touching.  Negative when it already overlaps
-                and must shift right.  Returns 0.0 when either letter has
-                an empty path.
+                and must shift right.  Returns 0.0 when either letter is
+                None or has an empty path.
         """
+        if left is None or right is None:
+            return 0.0
+
         # Build geometries once -- all subsequent probes use
         # shapely.transform instead of rebuilding from scratch.
         # Use lower polygonization resolution (10 vs 50) for performance.

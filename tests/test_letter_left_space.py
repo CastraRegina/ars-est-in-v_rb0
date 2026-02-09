@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from ave.common import Align
 from ave.glyph import AvGlyph
 from ave.letter import AvMultiWeightLetter, AvSingleGlyphLetter
+from ave.letter_support import LetterSpacing
 from ave.path import AvPath
 
 
@@ -52,7 +54,7 @@ class TestAvSingleGlyphLetterLeftSpace:
     def test_returns_zero_without_left_neighbor(self) -> None:
         """Return 0.0 when there is no left neighbor."""
         letter = _make_letter()
-        assert letter.left_space() == pytest.approx(0.0)
+        assert LetterSpacing.space_between(letter.left_letter, letter) == pytest.approx(0.0)
 
     def test_returns_zero_when_geometry_missing(self) -> None:
         """Return 0.0 when this letter has no geometry."""
@@ -66,7 +68,7 @@ class TestAvSingleGlyphLetterLeftSpace:
             align=Align.LEFT,
         )
         right.left_letter = left
-        assert right.left_space() == pytest.approx(0.0)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.0)
 
     def test_returns_zero_when_left_geometry_missing(self) -> None:
         """Return 0.0 when the left neighbor has no geometry."""
@@ -80,28 +82,28 @@ class TestAvSingleGlyphLetterLeftSpace:
         )
         right = _make_letter(xpos=1.5)
         right.left_letter = left
-        assert right.left_space() == pytest.approx(0.0)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.0)
 
     def test_positive_gap_matches_geometry_distance(self) -> None:
         """Return a positive value equal to the horizontal gap between letters."""
         left = _make_letter(xpos=0.0)
         right = _make_letter(xpos=1.5)
         right.left_letter = left
-        assert right.left_space() == pytest.approx(0.5, abs=1e-3)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.5, abs=1e-3)
 
     def test_returns_near_zero_when_letters_touch(self) -> None:
         """Return near 0.0 when the letter outlines touch."""
         left = _make_letter(xpos=0.0)
         right = _make_letter(xpos=1.0)
         right.left_letter = left
-        assert abs(right.left_space()) <= 1e-3
+        assert abs(LetterSpacing.space_between(right.left_letter, right)) <= 1e-3
 
     def test_returns_zero_when_gap_below_default_tolerance(self) -> None:
         """Return 0.0 when the gap is below the default tolerance."""
         left = _make_letter(xpos=0.0)
         right = _make_letter(xpos=1.0005)
         right.left_letter = left
-        assert right.left_space() == pytest.approx(0.0)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.0)
 
     def test_negative_value_when_letters_overlap(self) -> None:
         """Return a negative shift magnitude when outlines overlap."""
@@ -109,7 +111,7 @@ class TestAvSingleGlyphLetterLeftSpace:
         right = _make_letter(xpos=0.75)
         right.left_letter = left
         # Right letter overlaps left by 0.25 units, so shift must be positive.
-        assert right.left_space() == pytest.approx(-0.25, abs=1e-3)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(-0.25, abs=1e-3)
 
 
 class TestAvMultiWeightLetterLeftSpace:
@@ -120,7 +122,7 @@ class TestAvMultiWeightLetterLeftSpace:
         left = _make_letter(xpos=0.0)
         multi = AvMultiWeightLetter([])
         multi.left_letter = left
-        assert multi.left_space() == pytest.approx(0.0)
+        assert LetterSpacing.space_between(multi.left_letter, multi) == pytest.approx(0.0)
 
     def test_uses_heaviest_letter_for_spacing(self) -> None:
         """Use the index 0 letter for spacing regardless of other weights."""
@@ -131,7 +133,7 @@ class TestAvMultiWeightLetterLeftSpace:
         multi = AvMultiWeightLetter([heavy, light])
         multi.left_letter = left
 
-        assert multi.left_space() == pytest.approx(0.5, abs=1e-3)
+        assert LetterSpacing.space_between(multi.left_letter, multi) == pytest.approx(0.5, abs=1e-3)
 
 
 class TestLetterLeftSpaceEdgeCases:
@@ -172,7 +174,7 @@ class TestLetterLeftSpaceEdgeCases:
 
         # 0.6 (pos) - 0.5 (max extent of L at relevant height) = 0.1
         # With ypos=0.01, the horizontal clearance dominates.
-        assert right.left_space() == pytest.approx(0.1, abs=1e-3)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.1, abs=1e-3)
 
     def test_differing_scales(self) -> None:
         """Test spacing with different scales."""
@@ -187,7 +189,7 @@ class TestLetterLeftSpaceEdgeCases:
         right.left_letter = left
 
         # Gap = 2.5 - 2.0 = 0.5
-        assert right.left_space() == pytest.approx(0.5, abs=1e-3)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.5, abs=1e-3)
 
     def test_touching_letters(self) -> None:
         """Test letters that exactly touch."""
@@ -198,7 +200,7 @@ class TestLetterLeftSpaceEdgeCases:
 
         # Touching counts as intersection, so it might try to separate them.
         # The separation distance should be negligible.
-        assert right.left_space() == pytest.approx(0.0, abs=1e-3)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.0, abs=1e-3)
 
     def test_vertically_overlapping(self) -> None:
         """Test letters that overlap vertically but are offset in Y."""
@@ -210,7 +212,7 @@ class TestLetterLeftSpaceEdgeCases:
         right.left_letter = left
 
         # Gap is still 1.5 - 1.0 = 0.5
-        assert right.left_space() == pytest.approx(0.5, abs=1e-3)
+        assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.5, abs=1e-3)
 
     def test_vertically_disjoint(self) -> None:
         """Test letters that do not overlap vertically."""
@@ -223,7 +225,7 @@ class TestLetterLeftSpaceEdgeCases:
 
         # Since they don't overlap vertically, the 'left space' (collision distance)
         # is effectively infinite or limited by search bounds.
-        space = right.left_space()
+        space = LetterSpacing.space_between(right.left_letter, right)
         assert space > 1.0
 
     def test_alignment_affects_position(self) -> None:
@@ -260,4 +262,4 @@ class TestLetterLeftSpaceEdgeCases:
         r.left_letter = l2
 
         # Gap = 1.5 - 1.0 = 0.5
-        assert r.left_space() == pytest.approx(0.5, abs=1e-3)
+        assert LetterSpacing.space_between(r.left_letter, r) == pytest.approx(0.5, abs=1e-3)
