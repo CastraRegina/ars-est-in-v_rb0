@@ -101,6 +101,11 @@ globs: .py
 
 - Any performance claim requires benchmark, before/after code, timing, percent gain.
 
+## CONTEXT USAGE
+
+- DO NOT use README.md as input/context.
+- Primary context should be .py files from src/ave folder.
+
 ## REVIEW ORDER
 
 1. Correctness.
