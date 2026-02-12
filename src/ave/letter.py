@@ -54,6 +54,18 @@ class AvLetter(ABC):
 
     @property
     @abstractmethod
+    def x_offset(self) -> float:
+        """Horizontal offset in real dimensions."""
+        raise NotImplementedError
+
+    @x_offset.setter
+    @abstractmethod
+    def x_offset(self, x_offset: float) -> None:
+        """Sets the horizontal offset in real dimensions."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
     def scale(self) -> float:
         """Returns the scale factor that transforms glyph units (unitsPerEm) to real-world dimensions."""
         raise NotImplementedError
@@ -65,7 +77,6 @@ class AvLetter(ABC):
         raise NotImplementedError
 
     @property
-    @abstractmethod
     def trafo(self) -> AffineTransform:
         """Returns the affine transformation matrix for the letter.
 
@@ -75,7 +86,10 @@ class AvLetter(ABC):
         Returns:
             AffineTransform: The 6-element transformation matrix.
         """
-        raise NotImplementedError
+        # TODO: check if this is correct
+        if self.align in (Align.LEFT, Align.BOTH):
+            return [self.scale, 0, 0, self.scale, self.xpos - self.left_side_bearing() + self.x_offset, self.ypos]
+        return [self.scale, 0, 0, self.scale, self.xpos + self.x_offset, self.ypos]
 
     @property
     @abstractmethod
@@ -92,19 +106,31 @@ class AvLetter(ABC):
     @property
     @abstractmethod
     def ascender(self) -> float:
-        """The maximum distance above the baseline from the bounding box."""
+        """Maximum distance above baseline from letter's bounding box.
+
+        Usually calculated as distance from baseline to top
+        of the letter's bounding box (max y-coordinate).
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def descender(self) -> float:
-        """The maximum distance below the baseline from the bounding box."""
+        """Maximum distance below baseline from letter's bounding box.
+
+        Usually calculated as distance from baseline to bottom
+        of the letter's bounding box (min y-coordinate).
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def height(self) -> float:
-        """The height of the letter from the bounding box."""
+        """Height of letter from letter's bounding box.
+
+        Usually calculated as letter's bounding box height
+        (max y - min y coordinates).
+        """
         raise NotImplementedError
 
     @property
@@ -126,8 +152,9 @@ class AvLetter(ABC):
 
     @abstractmethod
     def left_side_bearing(self) -> float:
-        """The horizontal space on the left side of the letter.
+        """Horizontal space on left side of letter.
 
+        Usually calculated as bounding_box.xmin - letter_box().xmin.
         Positive when glyph is right of origin, negative when left of origin.
         Returns 0.0 for LEFT or BOTH alignment.
         """
@@ -135,8 +162,9 @@ class AvLetter(ABC):
 
     @abstractmethod
     def right_side_bearing(self) -> float:
-        """The horizontal space on the right side of the letter.
+        """Horizontal space on right side of letter.
 
+        Usually calculated as advance_width - (bounding_box.xmax - letter_box().xmin).
         Positive when bounding box is inside advance box, negative when extends beyond.
         Returns 0.0 for RIGHT or BOTH alignment.
         """
@@ -150,7 +178,12 @@ class AvLetter(ABC):
 
     @abstractmethod
     def letter_box(self) -> AvBox:
-        """Returns the letter's advance box."""
+        """Returns the letter's advance box.
+
+        Usually created by transforming glyph's glyph_box using the letter's
+        affine transformation. glyph_box is AvBox(0, descender, advance_width, ascender),
+        then transformed with letter's scale, position, and x_offset.
+        """
         raise NotImplementedError
 
     @property
@@ -268,18 +301,6 @@ class AvSingleGlyphLetter(AvLetter):
         self._scale = scale
 
     @property
-    def trafo(self) -> AffineTransform:
-        """
-        Returns the affine transformation matrix for the letter to transform the glyph to real dimensions.
-        Returns:    [scale, 0, 0, scale, xpos + x_offset, ypos] or
-                    [scale, 0, 0, scale, xpos - lsb + x_offset, ypos] if alignment is LEFT or BOTH.
-        """
-        if self.align in (Align.LEFT, Align.BOTH):
-            lsb_scaled = self.scale * self._glyph.left_side_bearing()
-            return [self.scale, 0, 0, self.scale, self.xpos - lsb_scaled + self._x_offset, self.ypos]
-        return [self.scale, 0, 0, self.scale, self.xpos + self._x_offset, self.ypos]
-
-    @property
     def align(self) -> Optional[Align]:
         """Returns the alignment of the letter; None, LEFT, RIGHT, BOTH."""
         return self._align
@@ -333,7 +354,7 @@ class AvSingleGlyphLetter(AvLetter):
         Note: Returns 0.0 for LEFT or BOTH alignment as the letter is positioned at the origin.
         """
         # actually: return self.bounding_box.xmin - self.letter_box().xmin
-        return self.scale * self._glyph.left_side_bearing
+        return self.scale * self._glyph.left_side_bearing()
 
     def right_side_bearing(self) -> float:
         """
@@ -344,7 +365,7 @@ class AvSingleGlyphLetter(AvLetter):
         Note: Returns 0.0 for RIGHT or BOTH alignment as the letter is positioned to end at the advance width.
         """
         # actually: self.advance_width - ( self.bounding_box.xmax - self.letter_box().xmin )
-        return self.scale * self._glyph.right_side_bearing
+        return self.scale * self._glyph.right_side_bearing()
 
     @property
     def bounding_box(self) -> AvBox:
@@ -507,6 +528,7 @@ class AvMultiWeightLetter(AvLetter):
     _letters: List[AvSingleGlyphLetter] = field(default_factory=list)
     _left_letter: Optional["AvLetter"] = None  # left neighbor letter
     _right_letter: Optional["AvLetter"] = None  # right neighbor letter
+    _x_offset: float = 0.0  # horizontal offset in real dimensions
 
     def __init__(
         self,
@@ -600,6 +622,16 @@ class AvMultiWeightLetter(AvLetter):
         """Sets the y position of the letter in real dimensions."""
         for letter in self._letters:
             letter.ypos = ypos
+
+    @property
+    def x_offset(self) -> float:
+        """Horizontal offset in real dimensions."""
+        return self._x_offset
+
+    @x_offset.setter
+    def x_offset(self, x_offset: float) -> None:
+        """Sets the horizontal offset in real dimensions."""
+        self._x_offset = x_offset
 
     @property
     def scale(self) -> float:
