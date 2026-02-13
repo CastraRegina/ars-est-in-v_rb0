@@ -61,6 +61,14 @@ potrace temp.pbm -s -o output.svg
 
 ## Deployment
 
+The "Catalogue raisonné in preparation" webpage is based on
+
+- A - Astro Server-side HTML, static pages
+- H - htmx HTML-over-wire dynamics without SPA
+- A - Alpine.js Small client-side interactivity
+
+### Steps
+
 - Save settings (and maybe the artwork itself) to private repository
 - Update Webpage (GitHub Pages) / catalogue raisonné  
   [Artist website best practices](https://www.meinekunstseite.com/blog/was-gehoert-zu-einer-beeindruckenden-kuenstler-website)
