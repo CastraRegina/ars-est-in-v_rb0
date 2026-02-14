@@ -215,6 +215,7 @@ class AvGlyph:
         # Delegate entirely to AvPath's bounding box implementation
         return self._path.bounding_box
 
+    @property
     def glyph_box(self) -> AvBox:
         """
         Returns the glyph's advance box (not the outline bounding box).

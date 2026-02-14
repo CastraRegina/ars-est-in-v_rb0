@@ -172,9 +172,9 @@ class AvLetter(ABC):
         if align is None:
             return self.advance_width
         if align == Align.LEFT:
-            return self.advance_width - self.left_side_bearing()
+            return self.advance_width - self.left_side_bearing
         if align == Align.RIGHT:
-            return self.advance_width - self.right_side_bearing()
+            return self.advance_width - self.right_side_bearing
         if align == Align.BOTH:
             return self.bounding_box.width
         return self.advance_width
@@ -237,11 +237,10 @@ class AvLetter(ABC):
 
 class AvSingleGlyphLetter(AvLetter):
     """
-    A Letter is a Glyph which is scaled to real dimensions with a position and horizontal offset.
+    A Letter is a Glyph which is scaled to real dimensions with a position.
     """
 
     _glyph: AvGlyph
-    _x_offset: float = 0.0  # horizontal offset in real dimensions
 
     def __init__(
         self,
@@ -249,18 +248,26 @@ class AvSingleGlyphLetter(AvLetter):
         scale: float = 1.0,  # scale from glyph-coordinates to real dimensions (font_size / units_per_em)
         xpos: float = 0.0,  # left-to-right, value in real dimensions
         ypos: float = 0.0,  # bottom-to-top, value in real dimensions
-        x_offset: float = 0.0,  # horizontal offset in real dimensions
     ) -> None:
         super().__init__(scale, xpos, ypos)
         self._glyph = glyph
-        self._x_offset = x_offset
+
+    @property
+    def glyph(self) -> AvGlyph:
+        """The glyph of the letter."""
+        return self._glyph
+
+    @property
+    def advance_width(self) -> float:
+        """Returns the advance width of the letter in real dimensions."""
+        return self.scale * self._glyph.advance_width
 
     @property
     def bounding_box(self) -> AvBox:
         """
         Returns the tightest bounding box around the letter's outline in real dimensions.
 
-        The box is transformed to world coordinates including position, scale, and x_offset.
+        The box is transformed to world coordinates including position and scale.
         Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top.
 
         Returns:
@@ -276,17 +283,12 @@ class AvSingleGlyphLetter(AvLetter):
         The glyph box (advance box) spans from the transformed position to
         position + advanceWidth, and from descender to ascender.
         Unlike the outline bounding box, this includes the full advance width.
-        The box is transformed to world coordinates including position, scale, and x_offset.
+        The box is transformed to world coordinates including position and scale.
 
         Returns:
             AvBox: The transformed glyph advance box.
         """
-        return self._glyph.glyph_box().transform_affine(self.trafo)
-
-    @property
-    def advance_width(self) -> float:
-        """Returns the advance width of the letter in real dimensions."""
-        return self.scale * self._glyph.advance_width
+        return self._glyph.glyph_box.transform_affine(self.trafo)
 
     def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
         """Return the polygonized outline in world coordinates.
@@ -343,21 +345,6 @@ class AvSingleGlyphLetter(AvLetter):
         scale, _, _, _, translate_x, translate_y = self.trafo
         return self._glyph.path.svg_path_string_debug_polyline(scale, translate_x, translate_y, stroke_width)
 
-    @property
-    def x_offset(self) -> float:
-        """Horizontal offset in real dimensions."""
-        return self._x_offset
-
-    @x_offset.setter
-    def x_offset(self, x_offset: float) -> None:
-        """Sets the horizontal offset in real dimensions."""
-        self._x_offset = x_offset
-
-    @property
-    def glyph(self) -> AvGlyph:
-        """The glyph of the letter."""
-        return self._glyph
-
     def centroid(self) -> Tuple[float, float]:
         """
         Returns the centroid of the letter in real dimensions.
@@ -400,7 +387,6 @@ class AvMultiWeightLetter(AvLetter):
     """
 
     _letters: List[AvSingleGlyphLetter] = field(default_factory=list)
-    _x_offset: float = 0.0  # horizontal offset in real dimensions
 
     def __init__(
         self,
@@ -419,7 +405,6 @@ class AvMultiWeightLetter(AvLetter):
             super().__init__(scale=1.0, xpos=0.0, ypos=0.0)
 
         self._letters = letters
-        self._x_offset = 0.0
 
         # Validate all letters are AvSingleGlyphLetter objects
         for i, letter in enumerate(self._letters):
@@ -445,7 +430,6 @@ class AvMultiWeightLetter(AvLetter):
         scale: float = 1.0,
         xpos: float = 0.0,
         ypos: float = 0.0,
-        x_offsets: Optional[List[float]] = None,
     ) -> "AvMultiWeightLetter":
         """
         Create AvMultiWeightLetter from multiple factories.
@@ -462,31 +446,15 @@ class AvMultiWeightLetter(AvLetter):
             scale: Scale factor
             xpos: X position
             ypos: Y position
-            x_offsets: Optional X offsets for each glyph (defaults to all 0.0 for stacked)
         """
         letters = []
 
-        if x_offsets is None:
-            x_offsets = [0.0] * len(factories)  # Stack all at same position
-        elif len(x_offsets) != len(factories):
-            raise ValueError("x_offsets must have the same length as factories")
-
-        for factory, x_offset in zip(factories, x_offsets):
+        for factory in factories:
             glyph = factory.get_glyph(character)
-            letter = AvSingleGlyphLetter(glyph=glyph, scale=scale, xpos=xpos, ypos=ypos, x_offset=x_offset)
+            letter = AvSingleGlyphLetter(glyph=glyph, scale=scale, xpos=xpos, ypos=ypos)
             letters.append(letter)
 
         return cls(letters=letters)
-
-    @property
-    def x_offset(self) -> float:
-        """Horizontal offset in real dimensions."""
-        return self._x_offset
-
-    @x_offset.setter
-    def x_offset(self, x_offset: float) -> None:
-        """Sets the horizontal offset in real dimensions."""
-        self._x_offset = x_offset
 
     @property
     def advance_width(self) -> float:
@@ -557,11 +525,6 @@ class AvMultiWeightLetter(AvLetter):
             path_strings.append(letter.svg_path_string())
 
         return " ".join(path_strings)
-
-    @property
-    def x_offsets(self) -> List[float]:
-        """Get the x offsets for each letter."""
-        return [letter.x_offset for letter in self._letters]
 
     @property
     def glyphs(self) -> List[AvGlyph]:
@@ -726,45 +689,6 @@ class AvMultiWeightLetter(AvLetter):
         # Direct mapping: darker (lower) values → lower indices (heavier)
         index = int(gray_normalized * (num_weights - 1) + 0.5)  # Round to nearest
         return min(index, num_weights - 1)  # Clamp to valid range
-
-    @staticmethod
-    def align_x_offsets_by_centering(
-        multi_weight_letter: AvMultiWeightLetter,
-    ) -> None:
-        """
-        Align the horizontal position of multi-weight letters by centering each lighter glyph
-        within its heavier neighbor.
-
-        This algorithm processes glyphs from heaviest to lightest, keeping the heaviest
-        glyph fixed as reference. Each lighter glyph is centered horizontally within
-        the next heavier glyph, regardless of relative widths.
-
-        The centering is based on bounding box centers, providing visual alignment
-        that works well for most character types.
-
-        Args:
-            multi_weight_letter: The AvMultiWeightLetter to modify
-        """
-        if not multi_weight_letter.letters or len(multi_weight_letter.letters) < 2:
-            return
-
-        # Process from heaviest to lightest (last to first)
-        # The heaviest glyph stays fixed as reference
-        for i in range(len(multi_weight_letter.letters) - 2, -1, -1):
-            current = multi_weight_letter.letters[i]
-            heavier = multi_weight_letter.letters[i + 1]
-
-            # Get bounding boxes
-            current_bbox = current.bounding_box
-            heavier_bbox = heavier.bounding_box
-
-            # Calculate centers
-            heavier_center = (heavier_bbox.xmin + heavier_bbox.xmax) / 2
-            current_center = (current_bbox.xmin + current_bbox.xmax) / 2
-
-            # Center the current glyph within the heavier glyph
-            offset_adjustment = heavier_center - current_center
-            current.x_offset += offset_adjustment
 
 
 ###############################################################################
@@ -1175,9 +1099,6 @@ def main():
                     ypos=current_ypos,
                 )
 
-                AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter)
-                # AvMultiWeightLetter.align_x_offsets_by_centroid(multi_letter)
-
                 # Render each weight variant with different opacity
                 render_letter_with_boxes(svg_page, multi_letter, colors, stroke_width)
 
@@ -1205,8 +1126,6 @@ def main():
                     xpos=current_xpos,
                     ypos=current_ypos,
                 )
-
-                AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter)
 
                 # Render heaviest weight in black (bottom layer) - index 0 is now heaviest
                 svg_path_heavy = svg_page.drawing.path(

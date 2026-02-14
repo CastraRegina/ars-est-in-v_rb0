@@ -264,6 +264,7 @@ class AvPath:
             New ``AvPath`` with transformed coordinates and the same
             commands and constraints.
         """
+        # TODO: check if performance could be improved
         a00, a01, a10, a11, b0, b1 = affine_trafo
         pts = self.points.copy()
         x, y = pts[:, 0], pts[:, 1]
