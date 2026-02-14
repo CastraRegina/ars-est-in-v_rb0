@@ -666,35 +666,43 @@ class PathSvgString:
         points_transformed = points[:, :2] * scale + (translate_x, translate_y)
 
         parts: List[str] = []
+        parts_append = parts.append  # Local variable lookup optimization
         p_idx = 0
         for cmd in commands:
             if cmd in ("M", "L"):
                 # Move-to or Line-to: one point (x,y)
                 if p_idx >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
-                x, y = points_transformed[p_idx]
-                parts.append(f"{cmd} {x:g} {y:g}")
+                # Direct array indexing, avoid tuple unpacking
+                x = points_transformed[p_idx, 0]
+                y = points_transformed[p_idx, 1]
+                parts_append(f"{cmd} {x:g} {y:g}")
                 p_idx += 1
             elif cmd == "Q":
                 # Quadratic bezier: control point + end point (2 points total)
                 if p_idx + 1 >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
-                x1, y1 = points_transformed[p_idx]
-                x2, y2 = points_transformed[p_idx + 1]
-                parts.append(f"{cmd} {x1:g} {y1:g} {x2:g} {y2:g}")
+                x1 = points_transformed[p_idx, 0]
+                y1 = points_transformed[p_idx, 1]
+                x2 = points_transformed[p_idx + 1, 0]
+                y2 = points_transformed[p_idx + 1, 1]
+                parts_append(f"{cmd} {x1:g} {y1:g} {x2:g} {y2:g}")
                 p_idx += 2
             elif cmd == "C":
                 # Cubic bezier: control1 + control2 + end point (3 points total)
                 if p_idx + 2 >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
-                x1, y1 = points_transformed[p_idx]
-                x2, y2 = points_transformed[p_idx + 1]
-                x3, y3 = points_transformed[p_idx + 2]
-                parts.append(f"{cmd} {x1:g} {y1:g} {x2:g} {y2:g} {x3:g} {y3:g}")
+                x1 = points_transformed[p_idx, 0]
+                y1 = points_transformed[p_idx, 1]
+                x2 = points_transformed[p_idx + 1, 0]
+                y2 = points_transformed[p_idx + 1, 1]
+                x3 = points_transformed[p_idx + 2, 0]
+                y3 = points_transformed[p_idx + 2, 1]
+                parts_append(f"{cmd} {x1:g} {y1:g} {x2:g} {y2:g} {x3:g} {y3:g}")
                 p_idx += 3
             elif cmd == "Z":
                 # Close-path: no coordinates
-                parts.append("Z")
+                parts_append("Z")
             else:
                 # Unsupported command (should not occur from AvPointCommandPen)
                 raise ValueError(f"Unsupported SVG command: {cmd}")
@@ -745,6 +753,7 @@ class PathSvgString:
         points_transformed = points[:, :2] * scale + (translate_x, translate_y)
 
         parts: List[str] = []
+        parts_append = parts.append  # Local variable lookup optimization
         p_idx = 0
 
         for cmd in commands:
@@ -752,39 +761,46 @@ class PathSvgString:
                 # Move-to: one point (x,y), start new segment
                 if p_idx >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
-                x, y = points_transformed[p_idx]
-                parts.append(f"M {x:g} {y:g}")
+                x = points_transformed[p_idx, 0]
+                y = points_transformed[p_idx, 1]
+                parts_append(f"M {x:g} {y:g}")
                 p_idx += 1
             elif cmd == "L":
                 # Line-to: one point (x,y)
                 if p_idx >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
-                x, y = points_transformed[p_idx]
-                parts.append(f"L {x:g} {y:g}")
+                x = points_transformed[p_idx, 0]
+                y = points_transformed[p_idx, 1]
+                parts_append(f"L {x:g} {y:g}")
                 p_idx += 1
             elif cmd == "Q":
                 # Quadratic bezier: control point + end point -> convert to 2 L commands
                 if p_idx + 1 >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
-                x1, y1 = points_transformed[p_idx]  # Control point
-                x2, y2 = points_transformed[p_idx + 1]  # End point
-                parts.append(f"L {x1:g} {y1:g}")  # Line to control point
-                parts.append(f"L {x2:g} {y2:g}")  # Line to end point
+                x1 = points_transformed[p_idx, 0]
+                y1 = points_transformed[p_idx, 1]  # Control point
+                x2 = points_transformed[p_idx + 1, 0]
+                y2 = points_transformed[p_idx + 1, 1]  # End point
+                parts_append(f"L {x1:g} {y1:g}")  # Line to control point
+                parts_append(f"L {x2:g} {y2:g}")  # Line to end point
                 p_idx += 2
             elif cmd == "C":
                 # Cubic bezier: control1 + control2 + end point -> convert to 3 L commands
                 if p_idx + 2 >= points_transformed.shape[0]:
                     raise ValueError(f"Not enough points for command {cmd}")
-                x1, y1 = points_transformed[p_idx]  # Control point 1
-                x2, y2 = points_transformed[p_idx + 1]  # Control point 2
-                x3, y3 = points_transformed[p_idx + 2]  # End point
-                parts.append(f"L {x1:g} {y1:g}")  # Line to control point 1
-                parts.append(f"L {x2:g} {y2:g}")  # Line to control point 2
-                parts.append(f"L {x3:g} {y3:g}")  # Line to end point
+                x1 = points_transformed[p_idx, 0]
+                y1 = points_transformed[p_idx, 1]  # Control point 1
+                x2 = points_transformed[p_idx + 1, 0]
+                y2 = points_transformed[p_idx + 1, 1]  # Control point 2
+                x3 = points_transformed[p_idx + 2, 0]
+                y3 = points_transformed[p_idx + 2, 1]  # End point
+                parts_append(f"L {x1:g} {y1:g}")  # Line to control point 1
+                parts_append(f"L {x2:g} {y2:g}")  # Line to control point 2
+                parts_append(f"L {x3:g} {y3:g}")  # Line to end point
                 p_idx += 3
             elif cmd == "Z":
                 # Close-path: draw line to start of current segment
-                parts.append("Z")
+                parts_append("Z")
                 # No need to track segment_start_point anymore as segment is closed
             else:
                 # Unsupported command (should not occur from AvPointCommandPen)
@@ -850,13 +866,15 @@ class PathSvgString:
                 raise ValueError(f"Unsupported SVG command: {cmd}")
 
         # Add markers for all transformed points
-        for i, (x, y) in enumerate(points_transformed):
+        for i in range(len(points_transformed)):
+            x = points_transformed[i, 0]
+            y = points_transformed[i, 1]
             # Always add the base marker (square or circle)
             if is_control_point[i]:
                 # Control point: circle
-                parts.append(f"M {x - circle_radius:g} {y:g}")
-                parts.append(f"A {circle_radius:g} {circle_radius:g} 0 1 0 {x + circle_radius:g} {y:g}")
-                parts.append(f"A {circle_radius:g} {circle_radius:g} 0 1 0 {x - circle_radius:g} {y:g}")
+                parts_append(f"M {x - circle_radius:g} {y:g}")
+                parts_append(f"A {circle_radius:g} {circle_radius:g} 0 1 0 {x + circle_radius:g} {y:g}")
+                parts_append(f"A {circle_radius:g} {circle_radius:g} 0 1 0 {x - circle_radius:g} {y:g}")
             else:
                 # Regular point: square
                 square_x1 = x - half_size
@@ -864,11 +882,11 @@ class PathSvgString:
                 square_x2 = x + half_size
                 square_y2 = y + half_size
 
-                parts.append(f"M {square_x1:g} {square_y1:g}")
-                parts.append(f"L {square_x2:g} {square_y1:g}")
-                parts.append(f"L {square_x2:g} {square_y2:g}")
-                parts.append(f"L {square_x1:g} {square_y2:g}")
-                parts.append("Z")
+                parts_append(f"M {square_x1:g} {square_y1:g}")
+                parts_append(f"L {square_x2:g} {square_y1:g}")
+                parts_append(f"L {square_x2:g} {square_y2:g}")
+                parts_append(f"L {square_x1:g} {square_y2:g}")
+                parts_append("Z")
 
             # Add additional triangle markers for M points and before-Z points
             if is_m_point[i]:
@@ -881,10 +899,10 @@ class PathSvgString:
                 # Top: (x, y + height/2)
                 # Bottom: (x, y - height/2)
                 # Right: (x + triangle_size, y)
-                parts.append(f"M {x:g} {y + height/2:g}")
-                parts.append(f"L {x + triangle_size:g} {y:g}")
-                parts.append(f"L {x:g} {y - height/2:g}")
-                parts.append("Z")
+                parts_append(f"M {x:g} {y + height/2:g}")
+                parts_append(f"L {x + triangle_size:g} {y:g}")
+                parts_append(f"L {x:g} {y - height/2:g}")
+                parts_append("Z")
 
             if is_before_z_point[i]:
                 # Point before Z command: equilateral triangle with right side vertical (pointing left)
@@ -896,10 +914,10 @@ class PathSvgString:
                 # Top: (x, y + height/2)
                 # Bottom: (x, y - height/2)
                 # Left: (x - triangle_size, y)
-                parts.append(f"M {x:g} {y + height/2:g}")
-                parts.append(f"L {x - triangle_size:g} {y:g}")
-                parts.append(f"L {x:g} {y - height/2:g}")
-                parts.append("Z")
+                parts_append(f"M {x:g} {y + height/2:g}")
+                parts_append(f"L {x - triangle_size:g} {y:g}")
+                parts_append(f"L {x:g} {y - height/2:g}")
+                parts_append("Z")
 
         # Return the composed absolute-path string or "M 0 0" string if parts is empty
         return " ".join(parts) if parts else "M 0 0"
