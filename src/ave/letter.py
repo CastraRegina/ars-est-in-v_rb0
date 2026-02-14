@@ -22,59 +22,90 @@ from ave.path import AvPath
 
 class AvLetter(ABC):
     """
-    Abstract base class for letter representations.
+    Base class for letter representations.
 
     A Letter is a visual representation of one or more glyphs positioned
     in real-world coordinates with scaling, alignment, and positioning.
     """
 
-    @property
-    @abstractmethod
-    def xpos(self) -> float:
-        """The x position of the letter in real dimensions."""
-        raise NotImplementedError
+    _scale: float
+    _xpos: float
+    _ypos: float
+    _left_letter: Optional[AvLetter] = None
+    _right_letter: Optional[AvLetter] = None
 
-    @xpos.setter
-    @abstractmethod
-    def xpos(self, xpos: float) -> None:
-        """Sets the x position of the letter in real dimensions."""
-        raise NotImplementedError
+    def __init__(
+        self,
+        scale: float,
+        xpos: float,
+        ypos: float,
+        left_letter: Optional[AvLetter] = None,
+        right_letter: Optional[AvLetter] = None,
+    ) -> None:
+        """Initialize AvLetter with position, scale and neighbors.
 
-    @property
-    @abstractmethod
-    def ypos(self) -> float:
-        """The y position of the letter in real dimensions."""
-        raise NotImplementedError
-
-    @ypos.setter
-    @abstractmethod
-    def ypos(self, ypos: float) -> None:
-        """Sets the y position of the letter in real dimensions."""
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def x_offset(self) -> float:
-        """Horizontal offset in real dimensions."""
-        raise NotImplementedError
-
-    @x_offset.setter
-    @abstractmethod
-    def x_offset(self, x_offset: float) -> None:
-        """Sets the horizontal offset in real dimensions."""
-        raise NotImplementedError
+        Args:
+            scale: Scale factor from glyph coordinates to real dimensions.
+            xpos: X position in real dimensions (left-to-right).
+            ypos: Y position in real dimensions (bottom-to-top).
+            left_letter: Left neighbor letter.
+            right_letter: Right neighbor letter.
+        """
+        self._scale = scale
+        self._xpos = xpos
+        self._ypos = ypos
+        self._left_letter = left_letter
+        self._right_letter = right_letter
 
     @property
-    @abstractmethod
     def scale(self) -> float:
         """Returns the scale factor that transforms glyph units (unitsPerEm) to real-world dimensions."""
-        raise NotImplementedError
+        return self._scale
 
     @scale.setter
-    @abstractmethod
     def scale(self, scale: float) -> None:
         """Sets the scale factor that transforms glyph units (unitsPerEm) to real-world dimensions."""
-        raise NotImplementedError
+        self._scale = scale
+
+    @property
+    def xpos(self) -> float:
+        """The x position of the letter in real dimensions."""
+        return self._xpos
+
+    @xpos.setter
+    def xpos(self, xpos: float) -> None:
+        """Sets the x position of the letter in real dimensions."""
+        self._xpos = xpos
+
+    @property
+    def ypos(self) -> float:
+        """The y position of the letter in real dimensions."""
+        return self._ypos
+
+    @ypos.setter
+    def ypos(self, ypos: float) -> None:
+        """Sets the y position of the letter in real dimensions."""
+        self._ypos = ypos
+
+    @property
+    def left_letter(self) -> Optional["AvLetter"]:
+        """The left neighbor letter."""
+        return self._left_letter
+
+    @left_letter.setter
+    def left_letter(self, left_letter: Optional["AvLetter"]) -> None:
+        """Sets the left neighbor letter."""
+        self._left_letter = left_letter
+
+    @property
+    def right_letter(self) -> Optional["AvLetter"]:
+        """The right neighbor letter."""
+        return self._right_letter
+
+    @right_letter.setter
+    def right_letter(self, right_letter: Optional["AvLetter"]) -> None:
+        """Sets the right neighbor letter."""
+        self._right_letter = right_letter
 
     @property
     def trafo(self) -> AffineTransform:
@@ -86,61 +117,51 @@ class AvLetter(ABC):
         Returns:
             AffineTransform: The 6-element transformation matrix.
         """
-        # TODO: check if this is correct
-        if self.align in (Align.LEFT, Align.BOTH):
-            return [self.scale, 0, 0, self.scale, self.xpos - self.left_side_bearing() + self.x_offset, self.ypos]
-        return [self.scale, 0, 0, self.scale, self.xpos + self.x_offset, self.ypos]
+        return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
 
     @property
-    @abstractmethod
-    def align(self) -> Optional[Align]:
-        """The horizontal alignment of the letter; None, LEFT, RIGHT, or BOTH."""
-        raise NotImplementedError
-
-    @align.setter
-    @abstractmethod
-    def align(self, align: Optional[Align]) -> None:
-        """Sets the horizontal alignment of the letter; None, LEFT, RIGHT, or BOTH."""
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
     def ascender(self) -> float:
         """Maximum distance above baseline from letter's bounding box.
 
-        Usually calculated as distance from baseline to top
-        of the letter's bounding box (max y-coordinate).
+        Calculated as bounding_box.ymax.
         """
-        raise NotImplementedError
+        return self.bounding_box.ymax
 
     @property
-    @abstractmethod
     def descender(self) -> float:
         """Maximum distance below baseline from letter's bounding box.
 
-        Usually calculated as distance from baseline to bottom
-        of the letter's bounding box (min y-coordinate).
+        Calculated as bounding_box.ymin.
         """
-        raise NotImplementedError
+        return self.bounding_box.ymin
 
     @property
-    @abstractmethod
     def height(self) -> float:
         """Height of letter from letter's bounding box.
 
-        Usually calculated as letter's bounding box height
-        (max y - min y coordinates).
+        Calculated as bounding_box.height.
         """
-        raise NotImplementedError
+        return self.bounding_box.height
 
     @property
-    @abstractmethod
-    def advance_width(self) -> float:
-        """Returns the advance width of the letter."""
-        raise NotImplementedError
+    def left_side_bearing(self) -> float:
+        """Horizontal space on left side of letter.
 
-    @abstractmethod
-    def width(self) -> float:
+        Usually calculated as bounding_box.xmin - letter_box.xmin.
+        Positive when glyph is right of origin, negative when left of origin.
+        """
+        return self.bounding_box.xmin - self.letter_box.xmin
+
+    @property
+    def right_side_bearing(self) -> float:
+        """Horizontal space on right side of letter.
+
+        Usually calculated as advance_width - (bounding_box.xmax - letter_box.xmin).
+        Positive when bounding box is inside advance box, negative when extends beyond.
+        """
+        return self.advance_width - (self.bounding_box.xmax - self.letter_box.xmin)
+
+    def width(self, align: Optional[Align] = None) -> float:
         """Returns the width calculated considering the alignment.
 
         For None: returns advance_width.
@@ -148,66 +169,42 @@ class AvLetter(ABC):
         For RIGHT: returns advance_width - right_side_bearing.
         For BOTH: returns bounding_box.width.
         """
-        raise NotImplementedError
+        if align is None:
+            return self.advance_width
+        if align == Align.LEFT:
+            return self.advance_width - self.left_side_bearing()
+        if align == Align.RIGHT:
+            return self.advance_width - self.right_side_bearing()
+        if align == Align.BOTH:
+            return self.bounding_box.width
+        return self.advance_width
 
+    @property
     @abstractmethod
-    def left_side_bearing(self) -> float:
-        """Horizontal space on left side of letter.
+    def advance_width(self) -> float:
+        """Returns the advance width.
 
-        Usually calculated as bounding_box.xmin - letter_box().xmin.
-        Positive when glyph is right of origin, negative when left of origin.
-        Returns 0.0 for LEFT or BOTH alignment.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def right_side_bearing(self) -> float:
-        """Horizontal space on right side of letter.
-
-        Usually calculated as advance_width - (bounding_box.xmax - letter_box().xmin).
-        Positive when bounding box is inside advance box, negative when extends beyond.
-        Returns 0.0 for RIGHT or BOTH alignment.
+        Usually calculated as scale * glyph.advance_width.
         """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def bounding_box(self) -> AvBox:
-        """Returns the bounding box around the letter's outline."""
-        raise NotImplementedError
+        """Returns the bounding box around the outline.
 
-    @abstractmethod
-    def letter_box(self) -> AvBox:
-        """Returns the letter's advance box.
-
-        Usually created by transforming glyph's glyph_box using the letter's
-        affine transformation. glyph_box is AvBox(0, descender, advance_width, ascender),
-        then transformed with letter's scale, position, and x_offset.
+        Usually calculated by transforming glyph's bounding_box with the letter's affine transformation.
         """
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def left_letter(self) -> Optional["AvLetter"]:
-        """The left neighbor letter."""
-        raise NotImplementedError
+    def letter_box(self) -> AvBox:
+        """Returns the letter's advance box.
 
-    @left_letter.setter
-    @abstractmethod
-    def left_letter(self, left_letter: Optional["AvLetter"]) -> None:
-        """Sets the left neighbor letter."""
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def right_letter(self) -> Optional["AvLetter"]:
-        """The right neighbor letter."""
-        raise NotImplementedError
-
-    @right_letter.setter
-    @abstractmethod
-    def right_letter(self, right_letter: Optional["AvLetter"]) -> None:
-        """Sets the right neighbor letter."""
+        Usually created by transforming glyph's glyph_box (AvBox(0, descender, advance_width, ascender))
+        using the letter's affine transformation.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -240,17 +237,11 @@ class AvLetter(ABC):
 
 class AvSingleGlyphLetter(AvLetter):
     """
-    A Letter is a Glyph which is scaled to real dimensions with a position, alignment and horizontal offset.
+    A Letter is a Glyph which is scaled to real dimensions with a position and horizontal offset.
     """
 
     _glyph: AvGlyph
-    _scale: float  # scale from glyph-coordinates to real dimensions (font_size / units_per_em)
-    _xpos: float  # left-to-right, value in real dimensions
-    _ypos: float  # bottom-to-top, value in real dimensions
-    _align: Optional[Align] = None  # LEFT, RIGHT, BOTH. Defaults to None.
     _x_offset: float = 0.0  # horizontal offset in real dimensions
-    _left_letter: Optional["AvLetter"] = None  # left neighbor letter
-    _right_letter: Optional["AvLetter"] = None  # right neighbor letter
 
     def __init__(
         self,
@@ -258,114 +249,11 @@ class AvSingleGlyphLetter(AvLetter):
         scale: float = 1.0,  # scale from glyph-coordinates to real dimensions (font_size / units_per_em)
         xpos: float = 0.0,  # left-to-right, value in real dimensions
         ypos: float = 0.0,  # bottom-to-top, value in real dimensions
-        align: Optional[Align] = None,  # LEFT, RIGHT, BOTH. Defaults to None.
         x_offset: float = 0.0,  # horizontal offset in real dimensions
     ) -> None:
+        super().__init__(scale, xpos, ypos)
         self._glyph = glyph
-        self._scale = scale
-        self._xpos = xpos
-        self._ypos = ypos
-        self._align = align
         self._x_offset = x_offset
-        self._left_letter = None
-        self._right_letter = None
-
-    @property
-    def xpos(self) -> float:
-        """The x position of the letter in real dimensions."""
-        return self._xpos
-
-    @xpos.setter
-    def xpos(self, xpos: float) -> None:
-        """Sets the x position of the letter in real dimensions."""
-        self._xpos = xpos
-
-    @property
-    def ypos(self) -> float:
-        """The y position of the letter in real dimensions."""
-        return self._ypos
-
-    @ypos.setter
-    def ypos(self, ypos: float) -> None:
-        """Sets the y position of the letter in real dimensions."""
-        self._ypos = ypos
-
-    @property
-    def scale(self) -> float:
-        """Returns the scale factor for the letter which is used to transform the glyph to real dimensions."""
-        return self._scale
-
-    @scale.setter
-    def scale(self, scale: float) -> None:
-        """Sets the scale factor for the letter which is used to transform the glyph to real dimensions."""
-        self._scale = scale
-
-    @property
-    def align(self) -> Optional[Align]:
-        """Returns the alignment of the letter; None, LEFT, RIGHT, BOTH."""
-        return self._align
-
-    @align.setter
-    def align(self, align: Optional[Align]) -> None:
-        """Sets the alignment of the letter; None, LEFT, RIGHT, BOTH."""
-        self._align = align
-
-    @property
-    def ascender(self) -> float:
-        """
-        The maximum distance above the baseline from the bounding box,
-        i.e. the highest y-coordinate of a Letter (positive value).
-        """
-        return self.scale * self._glyph.ascender
-
-    @property
-    def descender(self) -> float:
-        """
-        The maximum distance below the baseline from the bounding box,
-        i.e. the lowest y-coordinate of a Letter (negative value).
-        """
-        return self.scale * self._glyph.descender
-
-    @property
-    def height(self) -> float:
-        """
-        The height of the Letter from the bounding box, i.e. the height of the bounding box.
-        """
-        return self.scale * self._glyph.height
-
-    @property
-    def advance_width(self) -> float:
-        """
-        Returns the advance width of the letter in real dimensions.
-        """
-        return self.scale * self._glyph.advance_width
-
-    def width(self) -> float:
-        """
-        Returns the width calculated considering the alignment.
-        """
-        return self.scale * self._glyph.width(self.align)
-
-    def left_side_bearing(self) -> float:
-        """
-        LSB: The horizontal space on the left side of the Letter taking alignment into account (sign varies +/-).
-        Positive values when the glyph is placed to the right of the origin (i.e. positive bounding_box.xmin).
-        Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
-        Note: Returns 0.0 for LEFT or BOTH alignment as the letter is positioned at the origin.
-        """
-        # actually: return self.bounding_box.xmin - self.letter_box().xmin
-        return self.scale * self._glyph.left_side_bearing()
-
-    def right_side_bearing(self) -> float:
-        """
-        RSB: The horizontal space on the right side of the Letter taking alignment into account (sign varies +/-).
-        Positive values when the glyph's bounding box is inside the advance box (i.e. positive bounding_box.xmax).
-        Negative values when the glyph's bounding box extends to the right of the glyph box
-                (i.e. bounding_box.xmax > advance_width).
-        Note: Returns 0.0 for RIGHT or BOTH alignment as the letter is positioned to end at the advance width.
-        """
-        # actually: self.advance_width - ( self.bounding_box.xmax - self.letter_box().xmin )
-        return self.scale * self._glyph.right_side_bearing()
 
     @property
     def bounding_box(self) -> AvBox:
@@ -380,6 +268,7 @@ class AvSingleGlyphLetter(AvLetter):
         """
         return self._glyph.bounding_box.transform_affine(self.trafo)
 
+    @property
     def letter_box(self) -> AvBox:
         """
         Returns the glyph's advance box in real dimensions.
@@ -395,24 +284,9 @@ class AvSingleGlyphLetter(AvLetter):
         return self._glyph.glyph_box().transform_affine(self.trafo)
 
     @property
-    def left_letter(self) -> Optional["AvLetter"]:
-        """The left neighbor letter."""
-        return self._left_letter
-
-    @left_letter.setter
-    def left_letter(self, left_letter: Optional["AvLetter"]) -> None:
-        """Sets the left neighbor letter."""
-        self._left_letter = left_letter
-
-    @property
-    def right_letter(self) -> Optional["AvLetter"]:
-        """The right neighbor letter."""
-        return self._right_letter
-
-    @right_letter.setter
-    def right_letter(self, right_letter: Optional["AvLetter"]) -> None:
-        """Sets the right neighbor letter."""
-        self._right_letter = right_letter
+    def advance_width(self) -> float:
+        """Returns the advance width of the letter in real dimensions."""
+        return self.scale * self._glyph.advance_width
 
     def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
         """Return the polygonized outline in world coordinates.
@@ -526,17 +400,26 @@ class AvMultiWeightLetter(AvLetter):
     """
 
     _letters: List[AvSingleGlyphLetter] = field(default_factory=list)
-    _left_letter: Optional["AvLetter"] = None  # left neighbor letter
-    _right_letter: Optional["AvLetter"] = None  # right neighbor letter
     _x_offset: float = 0.0  # horizontal offset in real dimensions
 
     def __init__(
         self,
         letters: List[AvSingleGlyphLetter],
     ) -> None:
+        if letters:
+            # Get scale, xpos, ypos from the first letter
+            first_letter = letters[0]
+            super().__init__(
+                scale=first_letter.scale,
+                xpos=first_letter.xpos,
+                ypos=first_letter.ypos,
+            )
+        else:
+            # Initialize with default values for empty list
+            super().__init__(scale=1.0, xpos=0.0, ypos=0.0)
+
         self._letters = letters
-        self._left_letter = None
-        self._right_letter = None
+        self._x_offset = 0.0
 
         # Validate all letters are AvSingleGlyphLetter objects
         for i, letter in enumerate(self._letters):
@@ -562,7 +445,6 @@ class AvMultiWeightLetter(AvLetter):
         scale: float = 1.0,
         xpos: float = 0.0,
         ypos: float = 0.0,
-        align: Optional[Align] = None,
         x_offsets: Optional[List[float]] = None,
     ) -> "AvMultiWeightLetter":
         """
@@ -580,7 +462,6 @@ class AvMultiWeightLetter(AvLetter):
             scale: Scale factor
             xpos: X position
             ypos: Y position
-            align: Alignment
             x_offsets: Optional X offsets for each glyph (defaults to all 0.0 for stacked)
         """
         letters = []
@@ -592,36 +473,10 @@ class AvMultiWeightLetter(AvLetter):
 
         for factory, x_offset in zip(factories, x_offsets):
             glyph = factory.get_glyph(character)
-            letter = AvSingleGlyphLetter(glyph=glyph, scale=scale, xpos=xpos, ypos=ypos, align=align, x_offset=x_offset)
+            letter = AvSingleGlyphLetter(glyph=glyph, scale=scale, xpos=xpos, ypos=ypos, x_offset=x_offset)
             letters.append(letter)
 
         return cls(letters=letters)
-
-    @property
-    def xpos(self) -> float:
-        """The x position of the letter in real dimensions."""
-        if not self._letters:
-            return 0.0
-        return self._letters[0].xpos
-
-    @xpos.setter
-    def xpos(self, xpos: float) -> None:
-        """Sets the x position of the letter in real dimensions."""
-        for letter in self._letters:
-            letter.xpos = xpos
-
-    @property
-    def ypos(self) -> float:
-        """The y position of the letter in real dimensions."""
-        if not self._letters:
-            return 0.0
-        return self._letters[0].ypos
-
-    @ypos.setter
-    def ypos(self, ypos: float) -> None:
-        """Sets the y position of the letter in real dimensions."""
-        for letter in self._letters:
-            letter.ypos = ypos
 
     @property
     def x_offset(self) -> float:
@@ -634,136 +489,14 @@ class AvMultiWeightLetter(AvLetter):
         self._x_offset = x_offset
 
     @property
-    def scale(self) -> float:
-        """Returns the scale factor for the letter which is used to transform the glyph to real dimensions."""
-        if not self._letters:
-            return 1.0
-        return self._letters[0].scale
-
-    @scale.setter
-    def scale(self, scale: float) -> None:
-        """Sets the scale factor for the letter."""
-        for letter in self._letters:
-            letter.scale = scale
-
-    @property
-    def trafo(self) -> AffineTransform:
-        """Returns the affine transformation matrix for the letter.
-
-        The transformation matrix transforms glyph coordinates to world coordinates.
-        Format: [scale, 0, 0, scale, translate_x, translate_y].
-        Returns the transformation of the first (heaviest) letter.
-
-        Returns:
-            AffineTransform: The 6-element transformation matrix.
-        """
-        if not self._letters:
-            return [1.0, 0, 0, 1.0, 0.0, 0.0]
-        return self._letters[0].trafo
-
-    @property
-    def align(self) -> Optional[Align]:
-        """The alignment of the letter; None, LEFT, RIGHT, BOTH."""
-        if not self._letters:
-            return None
-        return self._letters[0].align
-
-    @align.setter
-    def align(self, align: Optional[Align]) -> None:
-        """Sets the alignment of the letter."""
-        for letter in self._letters:
-            letter.align = align
-
-    @property
-    def ascender(self) -> float:
-        """
-        The maximum distance above the baseline from the bounding box,
-        i.e. the highest y-coordinate of a Letter (positive value).
-        """
-        if not self._letters:
-            return 0.0
-        return max(letter.ascender for letter in self._letters)
-
-    @property
-    def descender(self) -> float:
-        """
-        The maximum distance below the baseline from the bounding box,
-        i.e. the lowest y-coordinate of a Letter (negative value).
-        """
-        if not self._letters:
-            return 0.0
-        return min(letter.descender for letter in self._letters)
-
-    @property
-    def height(self) -> float:
-        """
-        The total height of all letters from the bounding box.
-        """
-        if not self._letters:
-            return 0.0
-        return max(letter.height for letter in self._letters)
-
-    @property
     def advance_width(self) -> float:
         """Returns the maximum advance width of all letters."""
         if len(self._letters) == 0:
             return 0.0
         return max(letter.advance_width for letter in self._letters)
 
-    def width(self) -> float:
-        """
-        Returns width considering the letter's alignment, or advance_width if alignment is None.
-
-        For MultiWeightLetter, uses the maximum advance width of all letters and applies
-        alignment adjustments based on self.align.
-
-        Returns:
-            float: The calculated width based on alignment:
-                - None:  advance_width (maximum of all letters)
-                - LEFT:  advance_width - left_side_bearing
-                - RIGHT: advance_width - right_side_bearing
-                - BOTH:  bounding_box.width (combined width of all letters)
-        """
-        # LSB = return self.bounding_box.xmin - self.letter_box().xmin
-        # RSB = return self.advance_width - (self.bounding_box.xmax - self.letter_box().xmin)
-        if len(self._letters) == 0:
-            return 0.0
-
-        if self.align is None:
-            return self.advance_width
-
-        if self.align == Align.LEFT:
-            return self.advance_width - self.left_side_bearing()
-        if self.align == Align.RIGHT:
-            return self.advance_width - self.right_side_bearing()
-        if self.align == Align.BOTH:
-            return self.bounding_box.width
-
-    def left_side_bearing(self) -> float:
-        """
-        LSB: The horizontal space on the left side of the Letter taking alignment into account (sign varies +/-).
-        Positive values when the glyph is placed to the right of the origin (i.e. positive bounding_box.xmin).
-        Negative values when the glyph is placed to the left of the origin (i.e. negative bounding_box.xmin).
-        Note: For MultiWeightLetter, this is calculated from the combined bounding box of all letters.
-        """
-        if len(self._letters) == 0:
-            return 0.0
-        return self.bounding_box.xmin - self.letter_box().xmin
-
-    def right_side_bearing(self) -> float:
-        """
-        RSB: The horizontal space on the right side of the Letter taking alignment into account (sign varies +/-).
-        Positive values when the glyph's bounding box is inside the advance box (i.e. positive bounding_box.xmax).
-        Negative values when the glyph's bounding box extends to the right of the glyph box
-                (i.e. bounding_box.xmax > advance_width).
-        Note: For MultiWeightLetter, this is calculated using the maximum advance width and combined bounding box.
-        """
-        if len(self._letters) == 0:
-            return 0.0
-        return self.advance_width - (self.bounding_box.xmax - self.letter_box().xmin)
-
     @property
-    def bounding_box(self):
+    def bounding_box(self) -> AvBox:
         """Returns the combined bounding box encompassing all letters' outlines.
 
         Computes the tightest box that contains the transformed outlines of all letters.
@@ -780,6 +513,7 @@ class AvMultiWeightLetter(AvLetter):
         # Use AvBox.combine to get the overall bounding box
         return AvBox.combine(*bounding_boxes)
 
+    @property
     def letter_box(self) -> AvBox:
         """Returns the combined letter box encompassing all letters' advance boxes.
 
@@ -793,30 +527,10 @@ class AvMultiWeightLetter(AvLetter):
             return AvBox(0.0, 0.0, 0.0, 0.0)
 
         # Get letter boxes from all letters
-        letter_boxes = [letter.letter_box() for letter in self._letters]
+        letter_boxes = [letter.letter_box for letter in self._letters]
 
         # Use AvBox.combine to get the overall letter box
         return AvBox.combine(*letter_boxes)
-
-    @property
-    def left_letter(self) -> Optional["AvLetter"]:
-        """The left neighbor letter."""
-        return self._left_letter
-
-    @left_letter.setter
-    def left_letter(self, left_letter: Optional["AvLetter"]) -> None:
-        """Sets the left neighbor letter."""
-        self._left_letter = left_letter
-
-    @property
-    def right_letter(self) -> Optional["AvLetter"]:
-        """The right neighbor letter."""
-        return self._right_letter
-
-    @right_letter.setter
-    def right_letter(self, right_letter: Optional["AvLetter"]) -> None:
-        """Sets the right neighbor letter."""
-        self._right_letter = right_letter
 
     def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
         """Return the polygonized outline of the heaviest letter.
@@ -1077,7 +791,6 @@ class AvLetterFactory(ABC):
         scale: float,
         xpos: float,
         ypos: float,
-        align: Optional[Align] = None,
     ) -> AvLetter:
         """Create a letter from the given parameters.
 
@@ -1086,7 +799,6 @@ class AvLetterFactory(ABC):
             scale: Scale factor for the letter
             xpos: X position of the letter
             ypos: Y position of the letter
-            align: Alignment setting for the letter
 
         Returns:
             An AvLetter instance
@@ -1120,7 +832,6 @@ class AvSingleGlyphLetterFactory(AvLetterFactory):
         scale: float,
         xpos: float,
         ypos: float,
-        align: Optional[Align] = None,
     ) -> AvLetter:
         """Create an AvSingleGlyphLetter from the given parameters.
 
@@ -1129,7 +840,6 @@ class AvSingleGlyphLetterFactory(AvLetterFactory):
             scale: Scale factor for the letter
             xpos: X position of the letter
             ypos: Y position of the letter
-            align: Alignment setting for the letter
 
         Returns:
             An AvSingleGlyphLetter instance
@@ -1140,7 +850,6 @@ class AvSingleGlyphLetterFactory(AvLetterFactory):
             scale=scale,
             xpos=xpos,
             ypos=ypos,
-            align=align,
         )
 
 
@@ -1171,7 +880,6 @@ class AvMultiWeightLetterFactory(AvLetterFactory):
         scale: float,
         xpos: float,
         ypos: float,
-        align: Optional[Align] = None,
     ) -> AvLetter:
         """Create an AvMultiWeightLetter from the given parameters.
 
@@ -1180,7 +888,6 @@ class AvMultiWeightLetterFactory(AvLetterFactory):
             scale: Scale factor for the letters
             xpos: X position of the letters
             ypos: Y position of the letters
-            align: Alignment setting for the letters
 
         Returns:
             An AvMultiWeightLetter instance containing all weight variants
@@ -1193,7 +900,6 @@ class AvMultiWeightLetterFactory(AvLetterFactory):
                 scale=scale,
                 xpos=xpos,
                 ypos=ypos,
-                align=align,
             )
             letters.append(letter)
 
@@ -1308,7 +1014,7 @@ def main():
         svg_page.add(svg_bbox, True)
 
         # Add letter box in green
-        lbox = multi_letter.letter_box()
+        lbox = multi_letter.letter_box
         svg_lbox = svg_page.drawing.path(
             f"M {lbox.xmin:g} {lbox.ymin:g} "
             f"L {lbox.xmax:g} {lbox.ymin:g} "
@@ -1320,57 +1026,57 @@ def main():
         )
         svg_page.add(svg_lbox, True)
 
-    def render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width):
-        """Render alignment test letters (U and A) at both edges."""
-        # U at x-pos=0 with LEFT alignment
-        multi_letter_u_left = AvMultiWeightLetter.from_factories(
-            character="U",
-            factories=one_font_factories,
-            scale=scale,
-            xpos=0.0,
-            ypos=test_ypos,
-        )
-        multi_letter_u_left.align = Align.LEFT
-        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_left)
-        render_letter_with_boxes(svg_page, multi_letter_u_left, colors, stroke_width)
+    # def render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width):
+    #     """Render alignment test letters (U and A) at both edges."""
+    #     # U at x-pos=0 with LEFT alignment
+    #     multi_letter_u_left = AvMultiWeightLetter.from_factories(
+    #         character="U",
+    #         factories=one_font_factories,
+    #         scale=scale,
+    #         xpos=0.0,
+    #         ypos=test_ypos,
+    #     )
+    #     multi_letter_u_left.align = Align.LEFT
+    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_left)
+    #     render_letter_with_boxes(svg_page, multi_letter_u_left, colors, stroke_width)
 
-        # U at x-pos=1.0 with RIGHT alignment
-        multi_letter_u_right = AvMultiWeightLetter.from_factories(
-            character="U",
-            factories=one_font_factories,
-            scale=scale,
-            xpos=1.0,
-            ypos=test_ypos,
-        )
-        multi_letter_u_right.align = Align.RIGHT
-        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_right)
-        multi_letter_u_right.xpos = 1.0 - multi_letter_u_right.width()
-        render_letter_with_boxes(svg_page, multi_letter_u_right, colors, stroke_width)
+    #     # U at x-pos=1.0 with RIGHT alignment
+    #     multi_letter_u_right = AvMultiWeightLetter.from_factories(
+    #         character="U",
+    #         factories=one_font_factories,
+    #         scale=scale,
+    #         xpos=1.0,
+    #         ypos=test_ypos,
+    #     )
+    #     multi_letter_u_right.align = Align.RIGHT
+    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_right)
+    #     multi_letter_u_right.xpos = 1.0 - multi_letter_u_right.width()
+    #     render_letter_with_boxes(svg_page, multi_letter_u_right, colors, stroke_width)
 
-        # A at x-pos=0 with LEFT alignment (one font-size above)
-        multi_letter_a_left = AvMultiWeightLetter.from_factories(
-            character="A",
-            factories=one_font_factories,
-            scale=scale,
-            xpos=0.0,
-            ypos=test_ypos + font_size,
-        )
-        multi_letter_a_left.align = Align.LEFT
-        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_left)
-        render_letter_with_boxes(svg_page, multi_letter_a_left, colors, stroke_width)
+    #     # A at x-pos=0 with LEFT alignment (one font-size above)
+    #     multi_letter_a_left = AvMultiWeightLetter.from_factories(
+    #         character="A",
+    #         factories=one_font_factories,
+    #         scale=scale,
+    #         xpos=0.0,
+    #         ypos=test_ypos + font_size,
+    #     )
+    #     multi_letter_a_left.align = Align.LEFT
+    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_left)
+    #     render_letter_with_boxes(svg_page, multi_letter_a_left, colors, stroke_width)
 
-        # A at x-pos=1.0 with RIGHT alignment (one font-size above)
-        multi_letter_a_right = AvMultiWeightLetter.from_factories(
-            character="A",
-            factories=one_font_factories,
-            scale=scale,
-            xpos=1.0,
-            ypos=test_ypos + font_size,
-        )
-        multi_letter_a_right.align = Align.RIGHT
-        AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_right)
-        multi_letter_a_right.xpos = 1.0 - multi_letter_a_right.width()
-        render_letter_with_boxes(svg_page, multi_letter_a_right, colors, stroke_width)
+    #     # A at x-pos=1.0 with RIGHT alignment (one font-size above)
+    #     multi_letter_a_right = AvMultiWeightLetter.from_factories(
+    #         character="A",
+    #         factories=one_font_factories,
+    #         scale=scale,
+    #         xpos=1.0,
+    #         ypos=test_ypos + font_size,
+    #     )
+    #     multi_letter_a_right.align = Align.RIGHT
+    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_right)
+    #     multi_letter_a_right.xpos = 1.0 - multi_letter_a_right.width()
+    #     render_letter_with_boxes(svg_page, multi_letter_a_right, colors, stroke_width)
 
     # Example usage
     try:
@@ -1479,9 +1185,13 @@ def main():
                 current_xpos += multi_letter.width() + 0.002
 
             # Render alignment test letters
-            test_ypos = current_ypos  # Same line as the characters
+            # TODO:
+            # test_ypos = current_ypos  # Same line as the characters
             stroke_width = 0.0001
-            render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width)
+
+            # TODO:
+            # render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width)
+
             # Add font name at the end of the line
             font_display_name = font_basename.replace("-VariableFont_AA_", "")
             font_text = f" -- {font_display_name}"
@@ -1529,132 +1239,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# ───────────────────────────────────────────────────────────────────────────────
-# advance_width
-# width()
-# left_side_bearing
-# right_side_bearing
-# bounding_box()
-# letter_box()
-# ───────────────────────────────────────────────────────────────────────────────
-
-# ┌─────────────────────────────────────────────────────────────────────────────┐
-# │                        METHOD DEPENDENCY TREE                               │
-# └─────────────────────────────────────────────────────────────────────────────┘
-
-# AvGlyph.width(align=None)
-#     calls:
-#     - self.advance_width
-#     - self.left_side_bearing()  [if align == LEFT]
-#     - self.right_side_bearing() [if align == RIGHT]
-#     - self.bounding_box       [if align == BOTH]
-#     - self.align                [to determine which calculation]
-
-# AvGlyph.advance_width
-#     (property, no dependencies)
-
-# AvGlyph.left_side_bearing()
-#     calls:
-#     - self.bounding_box
-#     - self.align                [returns 0.0 for LEFT/BOTH]
-
-# AvGlyph.right_side_bearing()
-#     calls:
-#     - self.advance_width
-#     - self.bounding_box
-#     - self.align                [returns 0.0 for RIGHT/BOTH]
-
-# AvGlyph.bounding_box
-#     calls:
-#     - self._path.bounding_box
-
-# AvGlyph.letter_box()
-#     calls:
-#     - self.bounding_box
-#     - self.advance_width
-
-# ───────────────────────────────────────────────────────────────────────────────
-
-# AvSingleGlyphLetter.width()
-#     calls:
-#     - self._glyph.width(self.align)
-#     - self.align                [parameter passed to glyph]
-
-# AvSingleGlyphLetter.advance_width
-#     calls:
-#     - self._glyph.advance_width
-
-# AvSingleGlyphLetter.left_side_bearing()
-#     calls:
-#     - self._glyph.left_side_bearing()
-#     - self.scale
-
-# AvSingleGlyphLetter.right_side_bearing()
-#     calls:
-#     - self._glyph.right_side_bearing()
-#     - self.scale
-
-# AvSingleGlyphLetter.bounding_box
-#     calls:
-#     - self._glyph.bounding_box
-#     - self.trafo
-
-# AvSingleGlyphLetter.letter_box()
-#     calls:
-#     - self._glyph.glyph_box()
-#     - self.trafo
-
-# ───────────────────────────────────────────────────────────────────────────────
-
-# AvMultiWeightLetter.width()
-#     calls:
-#     - self.advance_width          [if align is None]
-#     - self.advance_width          [if align == LEFT]
-#     - self.left_side_bearing()    [if align == LEFT]
-#     - self.advance_width          [if align == RIGHT]
-#     - self.right_side_bearing()   [if align == RIGHT]
-#     - self.bounding_box         [if align == BOTH]
-#     - self.align                  [to determine which calculation]
-
-# AvMultiWeightLetter.advance_width
-#     calls:
-#     - Letter.advance_width (for each letter, takes max)
-
-# AvMultiWeightLetter.left_side_bearing()
-#     calls:
-#     - self.bounding_box
-#     - self.letter_box()
-
-# AvMultiWeightLetter.right_side_bearing()
-#     calls:
-#     - self.advance_width
-#     - self.bounding_box
-#     - self.letter_box()
-
-# AvMultiWeightLetter.bounding_box
-#     calls:
-#     - Letter.bounding_box (for each letter)
-#     - AvBox.combine()
-
-# AvMultiWeightLetter.letter_box()
-#     calls:
-#     - Letter.letter_box() (for each letter)
-#     - AvBox.combine()
-
-# ───────────────────────────────────────────────────────────────────────────────
-
-# ┌─────────────────────────────────────────────────────────────────────────────┐
-# │                            SUMMARY                                          │
-# ├─────────────────────────────────────────────────────────────────────────────┤
-# │                                                                             │
-# │  AvGlyph:      Base implementation, depends on path and advance_width       │
-# │  AvSingleGlyphLetter:     Delegates to AvGlyph, adds transformation (trafo) │
-# │  AvMultiWeight: Aggregates from multiple AvSingleGlyphLetter instances      │
-# │                                                                             │
-# │  Key Pattern:                                                               │
-# │  - bounding_box() is fundamental - needed by most other methods             │
-# │  - advance_width is a base property used by width() and side bearings       │
-# │  - MultiWeightLetter aggregates, SingleLetter delegates                     │
-# └─────────────────────────────────────────────────────────────────────────────┘

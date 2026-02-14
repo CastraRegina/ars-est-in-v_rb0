@@ -5,7 +5,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from ave.common import Align
 from ave.glyph import AvGlyph
 from ave.letter import AvMultiWeightLetter, AvSingleGlyphLetter
 from ave.letter_support import LetterSpacing
@@ -33,7 +32,7 @@ def _make_letter(
     glyph_height: float = 1.0,
     ypos: float = 0.0,
 ) -> AvSingleGlyphLetter:
-    """Create a left-aligned AvSingleGlyphLetter positioned at *xpos*."""
+    """Create an AvSingleGlyphLetter positioned at *xpos*."""
     glyph = AvGlyph(
         character="x",
         advance_width=glyph_width,
@@ -44,7 +43,6 @@ def _make_letter(
         scale=1.0,
         xpos=xpos,
         ypos=ypos,
-        align=Align.LEFT,
     )
 
 
@@ -65,7 +63,6 @@ class TestAvSingleGlyphLetterLeftSpace:
             scale=1.0,
             xpos=1.5,
             ypos=0.0,
-            align=Align.LEFT,
         )
         right.left_letter = left
         assert LetterSpacing.space_between(right.left_letter, right) == pytest.approx(0.0)
@@ -78,7 +75,6 @@ class TestAvSingleGlyphLetterLeftSpace:
             scale=1.0,
             xpos=0.0,
             ypos=0.0,
-            align=Align.LEFT,
         )
         right = _make_letter(xpos=1.5)
         right.left_letter = left
@@ -229,33 +225,27 @@ class TestLetterLeftSpaceEdgeCases:
         assert space > 1.0
 
     def test_alignment_affects_position(self) -> None:
-        """Test that alignment changes effective position."""
+        """Test that position affects bounding box."""
         # Glyph 1x1.
-        # Align.LEFT: xpos is left edge.
-        # Align.RIGHT: xpos is origin (usually).
-        # We need to check how LEFT alignment shifts the shape if LSB > 0.
-
-        # Create a glyph with LSB > 0
         # Rect from x=0.5 to x=1.5 (width=1.0, LSB=0.5)
         points = np.array([(0.5, 0.0), (1.5, 0.0), (1.5, 1.0), (0.5, 1.0)], dtype=float)
         commands = ["M", "L", "L", "L", "Z"]
         path = AvPath(points, commands)
         glyph = AvGlyph("x", 2.0, path)  # Advance width 2.0
 
-        # Case 1: No alignment (default) -> Origin at xpos.
-        # Shape is at [xpos+0.5, xpos+1.5].
-        l1 = AvSingleGlyphLetter(glyph, xpos=0.0, align=None)
+        # Case 1: xpos=0.0
+        # Shape is at [xpos+0.5, xpos+1.5] -> [0.5, 1.5].
+        l1 = AvSingleGlyphLetter(glyph, xpos=0.0)
 
-        # Case 2: LEFT alignment -> Shift by -LSB.
-        # Trafo shifts x by -LSB (-0.5).
-        # Shape should be at [xpos, xpos+1.0] -> [0.0, 1.0].
-        l2 = AvSingleGlyphLetter(glyph, xpos=0.0, align=Align.LEFT)
+        # Case 2: xpos=-0.5
+        # Shape is at [xpos+0.5, xpos+1.5] -> [0.0, 1.0].
+        l2 = AvSingleGlyphLetter(glyph, xpos=-0.5)
 
-        # Check LSB logic
+        # Check position logic
         assert l1.bounding_box.xmin == pytest.approx(0.5)
         assert l2.bounding_box.xmin == pytest.approx(0.0)
 
-        # Now test spacing between an aligned letter and another
+        # Now test spacing between letters
         # l2 occupies [0, 1].
         # Place another rect at x=1.5.
         r = _make_letter(xpos=1.5)
