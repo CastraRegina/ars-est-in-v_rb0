@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from ave.common import sgn_sci
-from ave.geom import AvBox, GeomMath
+from ave.geom import AvBox
 from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath
 
 ###############################################################################
@@ -17,71 +17,71 @@ from ave.path import SINGLE_PATH_CONSTRAINTS, AvPath
 ###############################################################################
 
 
-class TestGeomMath:
-    """Test class for GeomMath functionality."""
+# class TestGeomMath:
+#     """Test class for GeomMath functionality."""
 
-    def test_transform_point_identity(self):
-        """Test point transformation with identity matrix."""
-        affine_trafo = [1, 0, 0, 1, 0, 0]
-        point = (10.0, 20.0)
+#     def test_transform_point_identity(self):
+#         """Test point transformation with identity matrix."""
+#         affine_trafo = [1, 0, 0, 1, 0, 0]
+#         point = (10.0, 20.0)
 
-        result = GeomMath.transform_point(affine_trafo, point)
+#         result = GeomMath.transform_point(affine_trafo, point)
 
-        assert result == (10.0, 20.0)
+#         assert result == (10.0, 20.0)
 
-    def test_transform_point_translation(self):
-        """Test point transformation with translation."""
-        affine_trafo = [1, 0, 0, 1, 5.0, 10.0]
-        point = (10.0, 20.0)
+#     def test_transform_point_translation(self):
+#         """Test point transformation with translation."""
+#         affine_trafo = [1, 0, 0, 1, 5.0, 10.0]
+#         point = (10.0, 20.0)
 
-        result = GeomMath.transform_point(affine_trafo, point)
+#         result = GeomMath.transform_point(affine_trafo, point)
 
-        assert result == (15.0, 30.0)
+#         assert result == (15.0, 30.0)
 
-    def test_transform_point_scale(self):
-        """Test point transformation with scaling."""
-        affine_trafo = [2, 0, 0, 3, 0, 0]
-        point = (10.0, 20.0)
+#     def test_transform_point_scale(self):
+#         """Test point transformation with scaling."""
+#         affine_trafo = [2, 0, 0, 3, 0, 0]
+#         point = (10.0, 20.0)
 
-        result = GeomMath.transform_point(affine_trafo, point)
+#         result = GeomMath.transform_point(affine_trafo, point)
 
-        assert result == (20.0, 60.0)
+#         assert result == (20.0, 60.0)
 
-    def test_transform_point_complex(self):
-        """Test point transformation with scaling, rotation, and translation."""
-        # Scale by 2, rotate 90 degrees, translate by (5, 10)
-        affine_trafo = [0, -2, 2, 0, 5.0, 10.0]
-        point = (10.0, 20.0)
+#     def test_transform_point_complex(self):
+#         """Test point transformation with scaling, rotation, and translation."""
+#         # Scale by 2, rotate 90 degrees, translate by (5, 10)
+#         affine_trafo = [0, -2, 2, 0, 5.0, 10.0]
+#         point = (10.0, 20.0)
 
-        result = GeomMath.transform_point(affine_trafo, point)
+#         result = GeomMath.transform_point(affine_trafo, point)
 
-        # x' = 0*10 + (-2)*20 + 5 = -40 + 5 = -35
-        # y' = 2*10 + 0*20 + 10 = 20 + 10 = 30
-        assert result == (-35.0, 30.0)
+#         # x' = 0*10 + (-2)*20 + 5 = -40 + 5 = -35
+#         # y' = 2*10 + 0*20 + 10 = 20 + 10 = 30
+#         assert result == (-35.0, 30.0)
 
-    def test_transform_point_input_types(self):
-        """Test transform_point with different input types."""
-        affine_trafo = [1, 0, 0, 1, 5.0, 10.0]
+#     def test_transform_point_input_types(self):
+#         """Test transform_point with different input types."""
+#         affine_trafo = [1, 0, 0, 1, 5.0, 10.0]
 
-        # Test with tuple
-        result_tuple = GeomMath.transform_point(affine_trafo, (10.0, 20.0))
-        assert result_tuple == (15.0, 30.0)
+#         # Test with tuple
+#         result_tuple = GeomMath.transform_point(affine_trafo, (10.0, 20.0))
+#         assert result_tuple == (15.0, 30.0)
 
-        # Test with list
-        result_list = GeomMath.transform_point(affine_trafo, [10.0, 20.0])
-        assert result_list == (15.0, 30.0)
+#         # Test with list
+#         result_list = GeomMath.transform_point(affine_trafo, [10.0, 20.0])
+#         assert result_list == (15.0, 30.0)
 
-        # Test with integer inputs
-        result_int = GeomMath.transform_point([1, 0, 0, 1, 5, 10], (10, 20))
-        assert result_int == (15.0, 30.0)
+#         # Test with integer inputs
+#         result_int = GeomMath.transform_point([1, 0, 0, 1, 5, 10], (10, 20))
+#         assert result_int == (15.0, 30.0)
 
-    def test_transform_point_return_type(self):
-        """Test that transform_point always returns float tuple."""
-        result = GeomMath.transform_point([1, 0, 0, 1, 0, 0], (10, 20))
+#     def test_transform_point_return_type(self):
+#         """Test that transform_point always returns float tuple."""
+#         result = GeomMath.transform_point([1, 0, 0, 1, 0, 0], (10, 20))
 
-        assert isinstance(result, tuple)
-        assert isinstance(result[0], float)
-        assert isinstance(result[1], float)
+#         assert isinstance(result, tuple)
+#         assert isinstance(result[0], float)
+#         assert isinstance(result[1], float)
 
 
 ###############################################################################
@@ -140,42 +140,6 @@ class TestAvBox:
         assert box.ymax == -20.0
         assert box.width == 20.0
         assert box.height == 20.0
-
-    def test_avbox_transform_affine_identity(self):
-        """Test AvBox affine transformation with identity matrix."""
-        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
-        affine_trafo = [1, 0, 0, 1, 0, 0]
-
-        transformed = box.transform_affine(affine_trafo)
-
-        assert transformed.xmin == 10.0
-        assert transformed.ymin == 20.0
-        assert transformed.xmax == 30.0
-        assert transformed.ymax == 40.0
-
-    def test_avbox_transform_affine_translation(self):
-        """Test AvBox affine transformation with translation."""
-        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
-        affine_trafo = [1, 0, 0, 1, 5.0, 10.0]
-
-        transformed = box.transform_affine(affine_trafo)
-
-        assert transformed.xmin == 15.0
-        assert transformed.ymin == 30.0
-        assert transformed.xmax == 35.0
-        assert transformed.ymax == 50.0
-
-    def test_avbox_transform_affine_scale(self):
-        """Test AvBox affine transformation with scaling."""
-        box = AvBox(xmin=10.0, ymin=20.0, xmax=30.0, ymax=40.0)
-        affine_trafo = [2, 0, 0, 3, 0, 0]
-
-        transformed = box.transform_affine(affine_trafo)
-
-        assert transformed.xmin == 20.0
-        assert transformed.ymin == 60.0
-        assert transformed.xmax == 60.0
-        assert transformed.ymax == 120.0
 
     def test_avbox_transform_scale_translate(self):
         """Test AvBox scale and translate transformation."""

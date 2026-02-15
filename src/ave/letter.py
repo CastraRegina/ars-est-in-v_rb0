@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from ave.common import AffineTransform, Align
+from ave.common import Align
 from ave.geom import AvBox
 from ave.glyph import AvGlyph
 from ave.glyph_factory import AvGlyphFactory
@@ -108,18 +108,6 @@ class AvLetter(ABC):
         self._right_letter = right_letter
 
     @property
-    def trafo(self) -> AffineTransform:
-        """Returns the affine transformation matrix for the letter.
-
-        The transformation matrix transforms glyph coordinates to world coordinates.
-        Format: [scale, 0, 0, scale, translate_x, translate_y].
-
-        Returns:
-            AffineTransform: The 6-element transformation matrix.
-        """
-        return [self.scale, 0, 0, self.scale, self.xpos, self.ypos]
-
-    @property
     def ascender(self) -> float:
         """Maximum distance above baseline from letter's bounding box.
 
@@ -193,7 +181,7 @@ class AvLetter(ABC):
     def bounding_box(self) -> AvBox:
         """Returns the bounding box around the outline.
 
-        Usually calculated by transforming glyph's bounding_box with the letter's affine transformation.
+        Usually calculated by transforming glyph's bounding_box with the letter's scale and position.
         """
         raise NotImplementedError
 
@@ -203,7 +191,7 @@ class AvLetter(ABC):
         """Returns the letter's advance box.
 
         Usually created by transforming glyph's glyph_box (AvBox(0, descender, advance_width, ascender))
-        using the letter's affine transformation.
+        using the letter's scale and position.
         """
         raise NotImplementedError
 
@@ -273,7 +261,7 @@ class AvSingleGlyphLetter(AvLetter):
         Returns:
             AvBox: The bounding box in world coordinates.
         """
-        return self._glyph.bounding_box.transform_affine(self.trafo)
+        return self._glyph.bounding_box.transform_scale_translate(self.scale, self.xpos, self.ypos)
 
     @property
     def letter_box(self) -> AvBox:
@@ -288,7 +276,7 @@ class AvSingleGlyphLetter(AvLetter):
         Returns:
             AvBox: The transformed glyph advance box.
         """
-        return self._glyph.glyph_box.transform_affine(self.trafo)
+        return self._glyph.glyph_box.transform_scale_translate(self.scale, self.xpos, self.ypos)
 
     def polygonize_path(self, steps: int = 50) -> Optional[AvPath]:
         """Return the polygonized outline in world coordinates.
@@ -302,7 +290,7 @@ class AvSingleGlyphLetter(AvLetter):
         """
         if self._glyph.path.points.size == 0:
             return None
-        return self._glyph.path.polygonize(steps).transformed_copy(self.trafo)
+        return self._glyph.path.polygonize(steps).transformed_copy(self.scale, self.xpos, self.ypos)
 
     def svg_path_string(self) -> str:
         """
@@ -313,8 +301,7 @@ class AvSingleGlyphLetter(AvLetter):
         Returns:
             str: The SVG path string representing the letter.
         """
-        scale, _, _, _, translate_x, translate_y = self.trafo
-        return self._glyph.path.svg_path_string(scale, translate_x, translate_y)
+        return self._glyph.path.svg_path_string(self.scale, self.xpos, self.ypos)
 
     def svg_path_string_debug_polyline(self, stroke_width: float = 1.0) -> str:
         """
@@ -340,10 +327,9 @@ class AvSingleGlyphLetter(AvLetter):
 
         Returns:
             str: Complete SVG path string with polylines and markers.
-                    Uses the letter's transformation matrix for positioning.
+                    Uses the letter's scale and position for positioning.
         """
-        scale, _, _, _, translate_x, translate_y = self.trafo
-        return self._glyph.path.svg_path_string_debug_polyline(scale, translate_x, translate_y, stroke_width)
+        return self._glyph.path.svg_path_string_debug_polyline(self.scale, self.xpos, self.ypos, stroke_width)
 
     def centroid(self) -> Tuple[float, float]:
         """
@@ -358,11 +344,9 @@ class AvSingleGlyphLetter(AvLetter):
         """
         # Get the glyph's centroid and transform it using the letter's transformation
         glyph_centroid = self._glyph.centroid()
-        scale, _, _, _, translate_x, translate_y = self.trafo
 
-        # Transform the centroid coordinates
-        centroid_x = glyph_centroid[0] * scale + translate_x
-        centroid_y = glyph_centroid[1] * scale + translate_y
+        centroid_x = glyph_centroid[0] * self.scale + self.xpos
+        centroid_y = glyph_centroid[1] * self.scale + self.ypos
 
         return (centroid_x, centroid_y)
 

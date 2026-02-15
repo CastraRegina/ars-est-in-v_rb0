@@ -32,7 +32,7 @@ AvGlyphCmds = Literal[  # Type-Definition for SvgPath-Commands used in AvGlyph
 #   | a00 a01 b0 |
 #   | a10 a11 b1 |
 #   |   0   0  1 |
-AffineTransform = List[float]
+# AffineTransform = List[float]
 
 
 ###############################################################################

@@ -10,7 +10,7 @@ from typing import Generator, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from ave.common import AffineTransform, sgn_sci
+from ave.common import sgn_sci
 
 ###############################################################################
 # GeomMath
@@ -20,32 +20,32 @@ from ave.common import AffineTransform, sgn_sci
 class GeomMath:
     """Class to provide various static methods related to geometry handling."""
 
-    @staticmethod
-    def transform_point(affine_trafo: AffineTransform, point: Sequence[Union[int, float]]) -> Tuple[float, float]:
-        """Perform an affine transformation on the given 2D point.
-
-        The given affine_trafo is a list of 6 floats, performing an affine transformation.
-        The transformation is defined as:
-            | x' | = | a00 a01 b0 |   | x |
-            | y' | = | a10 a11 b1 | * | y |
-            | 1  | = |  0   0  1  |   | 1 |
-        with
-            affine_trafo = [a00, a01, a10, a11, b0, b1]
-        See also shapely - Affine Transformations
-
-        Args:
-            affine_trafo: AffineTransform defining the affine transformation
-            point: 2D point as sequence of (x, y) coordinates
-
-        Returns:
-            Transformed point as (x, y) tuple
-
-        Raises:
-            ValueError: If affine_trafo does not have exactly 6 elements
-        """
-        x_new = float(affine_trafo[0] * point[0] + affine_trafo[1] * point[1] + affine_trafo[4])
-        y_new = float(affine_trafo[2] * point[0] + affine_trafo[3] * point[1] + affine_trafo[5])
-        return (x_new, y_new)
+    # @staticmethod
+    # def transform_point(affine_trafo: AffineTransform, point: Sequence[Union[int, float]]) -> Tuple[float, float]:
+    #     """Perform an affine transformation on the given 2D point.
+    #
+    #     The given affine_trafo is a list of 6 floats, performing an affine transformation.
+    #     The transformation is defined as:
+    #         | x' | = | a00 a01 b0 |   | x |
+    #         | y' | = | a10 a11 b1 | * | y |
+    #         | 1  | = |  0   0  1  |   | 1 |
+    #     with
+    #         affine_trafo = [a00, a01, a10, a11, b0, b1]
+    #     See also shapely - Affine Transformations
+    #
+    #     Args:
+    #         affine_trafo: AffineTransform defining the affine transformation
+    #         point: 2D point as sequence of (x, y) coordinates
+    #
+    #     Returns:
+    #         Transformed point as (x, y) tuple
+    #
+    #     Raises:
+    #         ValueError: If affine_trafo does not have exactly 6 elements
+    #     """
+    #     x_new = float(affine_trafo[0] * point[0] + affine_trafo[1] * point[1] + affine_trafo[4])
+    #     y_new = float(affine_trafo[2] * point[0] + affine_trafo[3] * point[1] + affine_trafo[5])
+    #     return (x_new, y_new)
 
     @staticmethod
     def pi_digit_generator() -> Generator[str, None, None]:
@@ -518,19 +518,16 @@ class AvBox:
     @property
     def width(self) -> float:
         """float: The width of the box (difference between xmax and xmin)."""
-
         return self._xmax - self._xmin
 
     @property
     def height(self) -> float:
         """float: The height of the box (difference between ymax and ymin)."""
-
         return self._ymax - self._ymin
 
     @property
     def area(self) -> float:
         """float: The area of the box (always >= 0.0)."""
-
         return self.width * self.height
 
     @property
@@ -543,34 +540,27 @@ class AvBox:
         """
         return (self._xmin + self._xmax) / 2, (self._ymin + self._ymax) / 2
 
-    def transform_affine(self, affine_trafo: AffineTransform) -> AvBox:
-        """
-        Transform the AvBox using the given affine transformation [a00, a01, a10, a11, b0, b1].
-
-        Args:
-            affine_trafo (AffineTransform): Affine transformation [a00, a01, a10, a11, b0, b1]
-
-        Returns:
-            AvBox: The transformed box
-        """
-        (xmin, ymin, xmax, ymax) = self.extent
-        (x0, y0) = GeomMath.transform_point(affine_trafo, (xmin, ymin))
-        (x1, y1) = GeomMath.transform_point(affine_trafo, (xmax, ymax))
-        return AvBox(xmin=x0, ymin=y0, xmax=x1, ymax=y1)
-
-    def transform_scale_translate(self, scale_factor: float, translate_x: float, translate_y: float) -> AvBox:
+    def transform_scale_translate(self, scale: float, translate_x: float, translate_y: float) -> AvBox:
         """
         Transform the AvBox using the given scale and translation.
 
+        Efficiently transforms the bounding box by applying scale and translation
+        directly to the corner coordinates.
+
         Args:
-            scale_factor (float): The scale factor.
+            scale (float): The scale factor.
             translate_x (float): The translation in x-direction.
             translate_y (float): The translation in y-direction.
 
         Returns:
             AvBox: The transformed box
         """
-        return self.transform_affine((scale_factor, 0, 0, scale_factor, translate_x, translate_y))
+        (xmin, ymin, xmax, ymax) = self.extent
+        x0 = xmin * scale + translate_x
+        y0 = ymin * scale + translate_y
+        x1 = xmax * scale + translate_x
+        y1 = ymax * scale + translate_y
+        return AvBox(xmin=x0, ymin=y0, xmax=x1, ymax=y1)
 
     def overlaps(self, other: AvBox) -> bool:
         """Check if this box overlaps with another box.

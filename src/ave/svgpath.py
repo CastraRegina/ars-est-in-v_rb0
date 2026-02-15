@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Callable, ClassVar, Optional, Tuple
-
-from ave.common import AffineTransform
+from typing import Callable, ClassVar, Optional
 
 # Type-Definition for SvgPath-Commands; uppercase = absolute coordinates; lowercase = relative.
 # SvgPathCmds = Literal[
@@ -198,82 +196,82 @@ class AvSvgPath:
         ret_path_string = " ".join(ret_commands)
         return ret_path_string
 
-    @staticmethod
-    def transform_path_string(path_string: str, affine_trafo: AffineTransform) -> str:
-        """Transform the given SVG-_path_string_ by using the given _affine_trafo_.
-        Make sure the _path_string_ uses absolute coordinates.
-
-        The given _affine_trafo_ is a list of 6 floats, performing an affine transformation.
-        The transformation is defined as:
-            | x' | = | a00 a01 b0 |   | x |
-            | y' | = | a10 a11 b1 | * | y |
-            | 1  | = |  0   0  1  |   | 1 |
-        with
-            affine_trafo = [a00, a01, a10, a11, b0, b1]
-        See also shapely - Affine Transformations
-
-        Args:
-            path_string (str): SVG-path-string input
-            affine_trafo (AffineTransform): Affine transformation
-
-        Returns:
-            str: the transformed _path_string_
-        """
-
-        def transform(x_str: str, y_str: str) -> Tuple[str, str]:
-            """Perform an affine transformation on the given (x,y) point.
-
-            Args:
-                x_str (str): x-coordinate of the point
-                y_str (str): y-coordinate of the point
-
-            Returns:
-                Tuple[str, str]: the transformed (x,y) point
-            """
-            # Perform the transformation
-            x_new = affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
-            y_new = affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
-            # Round the result to the number of decimal places given by the SVG standard
-            return f"{x_new:g}", f"{y_new:g}"
-
-        # Split the path string into commands
-        org_commands = re.findall(f"[{AvSvgPath.SVG_CMDS}][^{AvSvgPath.SVG_CMDS}]*", path_string)
-        ret_commands = []
-
-        # Iterate over the commands
-        for command in org_commands:
-            command_letter = command[0]
-            args = re.findall(AvSvgPath.SVG_ARGS, command[1:])
-
-            # Check the type of command
-            if command_letter in "MLCSQT":  # (x,y) once or several times
-                # Iterate over the arguments
-                for i in range(0, len(args), 2):
-                    # Perform the transformation
-                    (args[i + 0], args[i + 1]) = transform(args[i + 0], args[i + 1])
-            elif command_letter in "H":  # (x) once or several times
-                # Iterate over the arguments
-                for i, _ in enumerate(args):
-                    # Perform the transformation
-                    (args[i], _) = transform(args[i], "1")
-            elif command_letter in "V":  # (y) once or several times
-                # Iterate over the arguments
-                for i, _ in enumerate(args):
-                    # Perform the transformation
-                    (_, args[i]) = transform("1", args[i])
-            elif command_letter in "A":  # (rx ry angle flag flag x y)+
-                # Iterate over the arguments
-                for i in range(0, len(args), 7):
-                    # Perform the transformation
-                    args[i + 0] = f"{float(args[i+0])*affine_trafo[0]:g}"
-                    args[i + 1] = f"{float(args[i+1])*affine_trafo[3]:g}"
-                    (args[i + 5], args[i + 6]) = transform(args[i + 5], args[i + 6])
-            # Append the transformed command to the output
-            ret_commands.append(command_letter.upper() + " ".join(args))
-
-        # Join the commands together
-        ret_path_string = " ".join(ret_commands)
-        return ret_path_string
+    # @staticmethod
+    # def transform_path_string(path_string: str, affine_trafo: AffineTransform) -> str:
+    #     """Transform the given SVG-_path_string_ by using the given _affine_trafo_.
+    #     Make sure the _path_string_ uses absolute coordinates.
+    #
+    #     The given _affine_trafo_ is a list of 6 floats, performing an affine transformation.
+    #     The transformation is defined as:
+    #         | x' | = | a00 a01 b0 |   | x |
+    #         | y' | = | a10 a11 b1 | * | y |
+    #         | 1  | = |  0   0  1  |   | 1 |
+    #     with
+    #         affine_trafo = [a00, a01, a10, a11, b0, b1]
+    #     See also shapely - Affine Transformations
+    #
+    #     Args:
+    #         path_string (str): SVG-path-string input
+    #         affine_trafo (AffineTransform): Affine transformation
+    #
+    #     Returns:
+    #         str: the transformed _path_string_
+    #     """
+    #
+    #     def transform(x_str: str, y_str: str) -> Tuple[str, str]:
+    #         """Perform an affine transformation on the given (x,y) point.
+    #
+    #         Args:
+    #             x_str (str): x-coordinate of the point
+    #             y_str (str): y-coordinate of the point
+    #
+    #         Returns:
+    #             Tuple[str, str]: the transformed (x,y) point
+    #         """
+    #         # Perform the transformation
+    #         x_new = affine_trafo[0] * float(x_str) + affine_trafo[1] * float(y_str) + affine_trafo[4]
+    #         y_new = affine_trafo[2] * float(x_str) + affine_trafo[3] * float(y_str) + affine_trafo[5]
+    #         # Round the result to the number of decimal places given by the SVG standard
+    #         return f"{x_new:g}", f"{y_new:g}"
+    #
+    #     # Split the path string into commands
+    #     org_commands = re.findall(f"[{AvSvgPath.SVG_CMDS}][^{AvSvgPath.SVG_CMDS}]*", path_string)
+    #     ret_commands = []
+    #
+    #     # Iterate over the commands
+    #     for command in org_commands:
+    #         command_letter = command[0]
+    #         args = re.findall(AvSvgPath.SVG_ARGS, command[1:])
+    #
+    #         # Check the type of command
+    #         if command_letter in "MLCSQT":  # (x,y) once or several times
+    #             # Iterate over the arguments
+    #             for i in range(0, len(args), 2):
+    #                 # Perform the transformation
+    #                 (args[i + 0], args[i + 1]) = transform(args[i + 0], args[i + 1])
+    #         elif command_letter in "H":  # (x) once or several times
+    #             # Iterate over the arguments
+    #             for i, _ in enumerate(args):
+    #                 # Perform the transformation
+    #                 (args[i], _) = transform(args[i], "1")
+    #         elif command_letter in "V":  # (y) once or several times
+    #             # Iterate over the arguments
+    #             for i, _ in enumerate(args):
+    #                 # Perform the transformation
+    #                 (_, args[i]) = transform("1", args[i])
+    #         elif command_letter in "A":  # (rx ry angle flag flag x y)+
+    #             # Iterate over the arguments
+    #             for i in range(0, len(args), 7):
+    #                 # Perform the transformation
+    #                 args[i + 0] = f"{float(args[i+0])*affine_trafo[0]:g}"
+    #                 args[i + 1] = f"{float(args[i+1])*affine_trafo[3]:g}"
+    #                 (args[i + 5], args[i + 6]) = transform(args[i + 5], args[i + 6])
+    #         # Append the transformed command to the output
+    #         ret_commands.append(command_letter.upper() + " ".join(args))
+    #
+    #     # Join the commands together
+    #     ret_path_string = " ".join(ret_commands)
+    #     return ret_path_string
 
 
 if __name__ == "__main__":

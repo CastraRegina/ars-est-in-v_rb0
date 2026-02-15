@@ -10,7 +10,7 @@ import numpy as np
 import shapely.geometry
 from numpy.typing import NDArray
 
-from ave.common import AffineTransform, AvGlyphCmds, sgn_sci
+from ave.common import AvGlyphCmds, sgn_sci
 from ave.geom import AvBox, AvPolygon
 from ave.path_support import (  # pylint: disable=unused-import
     CLOSED_SINGLE_PATH_CONSTRAINTS,
@@ -248,28 +248,29 @@ class AvPath:
         """
         return AvPath(self.points.copy(), list(self.commands), constraints)
 
-    def transformed_copy(self, affine_trafo: AffineTransform) -> AvPath:
-        """Return a copy with coordinates transformed by the given affine matrix.
+    def transformed_copy(self, scale: float, translate_x: float, translate_y: float) -> AvPath:
+        """Return a copy with coordinates transformed by scale and translation.
 
-        Applies the affine transformation:
-            x' = a00 * x + a01 * y + b0
-            y' = a10 * x + a11 * y + b1
+        Applies the transformation:
+            x' = x * scale + translate_x
+            y' = y * scale + translate_y
 
         The third column (point-type flags) and commands are preserved unchanged.
 
         Args:
-            affine: 6-element list [a00, a01, a10, a11, b0, b1] defining the transformation.
+            scale: Scale factor to apply to coordinates.
+            translate_x: X translation to apply.
+            translate_y: Y translation to apply.
 
         Returns:
             New ``AvPath`` with transformed coordinates and the same
             commands and constraints.
         """
-        # TODO: check if performance could be improved
-        a00, a01, a10, a11, b0, b1 = affine_trafo
         pts = self.points.copy()
-        x, y = pts[:, 0], pts[:, 1]
-        pts[:, 0] = a00 * x + a01 * y + b0
-        pts[:, 1] = a10 * x + a11 * y + b1
+        pts[:, 0] *= scale
+        pts[:, 0] += translate_x
+        pts[:, 1] *= scale
+        pts[:, 1] += translate_y
         return AvPath(pts, list(self.commands), self.constraints)
 
     def determine_appropriate_constraints(self) -> PathConstraints:
