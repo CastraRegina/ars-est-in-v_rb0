@@ -7,7 +7,7 @@ import sys
 import warnings
 from enum import Enum, auto
 from functools import wraps
-from typing import List, Literal
+from typing import Literal
 
 ###############################################################################
 # Types
@@ -40,12 +40,20 @@ AvGlyphCmds = Literal[  # Type-Definition for SvgPath-Commands used in AvGlyph
 ###############################################################################
 
 
-class Align(Enum):
+class AlignX(Enum):
     """Enum to define text alignment options."""
 
     LEFT = auto()
     RIGHT = auto()
     BOTH = auto()
+
+
+class CenterRef(Enum):
+    """Enum for specifying which reference point to use for centering."""
+
+    LETTER_BOX = "letter_box"
+    BOUNDING_BOX = "bounding_box"
+    CENTROID = "centroid"
 
 
 ###############################################################################
@@ -116,9 +124,9 @@ def main() -> None:
     print()
     print()
 
-    print(Align.LEFT, Align.LEFT.value)
-    print(Align.RIGHT, Align.RIGHT.value)
-    print(Align.BOTH, Align.BOTH.value)
+    print(AlignX.LEFT, AlignX.LEFT.value)
+    print(AlignX.RIGHT, AlignX.RIGHT.value)
+    print(AlignX.BOTH, AlignX.BOTH.value)
 
     print()
     print("sgn_sci(0.1234) =", sgn_sci(0.1234))

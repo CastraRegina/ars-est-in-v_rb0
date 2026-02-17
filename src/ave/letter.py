@@ -9,10 +9,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from ave.common import Align
+from ave.common import AlignX, CenterRef
 from ave.geom import AvBox
 from ave.glyph import AvGlyph
 from ave.glyph_factory import AvGlyphFactory
+from ave.letter_processing import AvLetterAlignment
 from ave.path import AvPath
 
 ###############################################################################
@@ -26,6 +27,13 @@ class AvLetter(ABC):
 
     A Letter is a visual representation of one or more glyphs positioned
     in real-world coordinates with scaling, alignment, and positioning.
+
+    Following properties / methods need to be implemented by child classes:
+        advance_width(self)
+        bounding_box(self)
+        letter_box(self)
+        polygonize_path(self, steps: int = 50)
+        svg_path_string(self)
     """
 
     _scale: float
@@ -149,7 +157,7 @@ class AvLetter(ABC):
         """
         return self.advance_width - (self.bounding_box.xmax - self.letter_box.xmin)
 
-    def width(self, align: Optional[Align] = None) -> float:
+    def width(self, align: Optional[AlignX] = None) -> float:
         """Returns the width calculated considering the alignment.
 
         For None: returns advance_width.
@@ -159,13 +167,15 @@ class AvLetter(ABC):
         """
         if align is None:
             return self.advance_width
-        if align == Align.LEFT:
+        if align == AlignX.LEFT:
             return self.advance_width - self.left_side_bearing
-        if align == Align.RIGHT:
+        if align == AlignX.RIGHT:
             return self.advance_width - self.right_side_bearing
-        if align == Align.BOTH:
+        if align == AlignX.BOTH:
             return self.bounding_box.width
         return self.advance_width
+
+    ####################################################################################
 
     @property
     @abstractmethod
@@ -217,6 +227,19 @@ class AvLetter(ABC):
         """Returns the SVG path representation of the letter."""
         raise NotImplementedError
 
+    @abstractmethod
+    def centroid(self) -> Tuple[float, float]:
+        """Returns the centroid of the letter in real dimensions.
+
+        The centroid is the geometric center of the letter's outline,
+        calculated from the actual path geometry (not from the bounding box)
+        and transformed to world coordinates.
+
+        Returns:
+            Tuple[float, float]: The (x, y) coordinates of the centroid.
+        """
+        raise NotImplementedError
+
 
 ###############################################################################
 # AvSingleGlyphLetter
@@ -236,14 +259,18 @@ class AvSingleGlyphLetter(AvLetter):
         scale: float = 1.0,  # scale from glyph-coordinates to real dimensions (font_size / units_per_em)
         xpos: float = 0.0,  # left-to-right, value in real dimensions
         ypos: float = 0.0,  # bottom-to-top, value in real dimensions
+        left_letter: Optional[AvLetter] = None,
+        right_letter: Optional[AvLetter] = None,
     ) -> None:
-        super().__init__(scale, xpos, ypos)
+        super().__init__(scale, xpos, ypos, left_letter, right_letter)
         self._glyph = glyph
 
     @property
     def glyph(self) -> AvGlyph:
         """The glyph of the letter."""
         return self._glyph
+
+    ####################################################################################
 
     @property
     def advance_width(self) -> float:
@@ -252,11 +279,11 @@ class AvSingleGlyphLetter(AvLetter):
 
     @property
     def bounding_box(self) -> AvBox:
-        """
-        Returns the tightest bounding box around the letter's outline in real dimensions.
+        """Returns the tightest bounding box around the outline in real dimensions.
 
-        The box is transformed to world coordinates including position and scale.
-        Coordinates are relative to baseline-origin (0,0) with orientation left-to-right, bottom-to-top.
+        Transforms glyph's bounding_box with scale and position.
+        Coordinates are relative to baseline-origin (0,0) with orientation
+        left-to-right, bottom-to-top.
 
         Returns:
             AvBox: The bounding box in world coordinates.
@@ -265,13 +292,10 @@ class AvSingleGlyphLetter(AvLetter):
 
     @property
     def letter_box(self) -> AvBox:
-        """
-        Returns the glyph's advance box in real dimensions.
+        """Returns the letter's advance box in real dimensions.
 
-        The glyph box (advance box) spans from the transformed position to
-        position + advanceWidth, and from descender to ascender.
-        Unlike the outline bounding box, this includes the full advance width.
-        The box is transformed to world coordinates including position and scale.
+        Transforms glyph's glyph_box (AvBox(0, descender, advance_width, ascender))
+        with scale and position. Unlike bounding_box, includes full advance width.
 
         Returns:
             AvBox: The transformed glyph advance box.
@@ -302,6 +326,8 @@ class AvSingleGlyphLetter(AvLetter):
             str: The SVG path string representing the letter.
         """
         return self._glyph.path.svg_path_string(self.scale, self.xpos, self.ypos)
+
+    ####################################################################################
 
     def svg_path_string_debug_polyline(self, stroke_width: float = 1.0) -> str:
         """
@@ -414,7 +440,7 @@ class AvMultiWeightLetter(AvLetter):
         scale: float = 1.0,
         xpos: float = 0.0,
         ypos: float = 0.0,
-    ) -> "AvMultiWeightLetter":
+    ) -> AvMultiWeightLetter:
         """
         Create AvMultiWeightLetter from multiple factories.
 
@@ -440,21 +466,52 @@ class AvMultiWeightLetter(AvLetter):
 
         return cls(letters=letters)
 
+    ####################################################################################
+
+    @property
+    def xpos(self) -> float:
+        """The x position of the letter in real dimensions."""
+        return super().xpos
+
+    @xpos.setter
+    def xpos(self, xpos: float) -> None:
+        """Sets the x position of the letter in real dimensions."""
+        delta_xpos = xpos - self.xpos
+        for letter in self._letters:
+            letter.xpos = letter.xpos + delta_xpos
+        self._xpos = xpos
+
+    @property
+    def ypos(self) -> float:
+        """The y position of the letter in real dimensions."""
+        return super().ypos
+
+    @ypos.setter
+    def ypos(self, ypos: float) -> None:
+        """Sets the y position of the letter in real dimensions."""
+        delta_ypos = ypos - self.ypos
+        for letter in self._letters:
+            letter.ypos = letter.ypos + delta_ypos
+        self._ypos = ypos
+
+    ####################################################################################
+
     @property
     def advance_width(self) -> float:
-        """Returns the maximum advance width of all letters."""
-        if len(self._letters) == 0:
+        """Returns the advance width of the combined letter box."""
+        if not self._letters:
             return 0.0
-        return max(letter.advance_width for letter in self._letters)
+        return self.letter_box.width
 
     @property
     def bounding_box(self) -> AvBox:
-        """Returns the combined bounding box encompassing all letters' outlines.
+        """Returns the combined bounding box around all letters' outlines.
 
-        Computes the tightest box that contains the transformed outlines of all letters.
+        Combines transformed bounding_boxes from all letters using AvBox.combine.
+        Returns empty box if no letters.
 
         Returns:
-            AvBox: Combined bounding box of all letters, or empty box if no letters.
+            AvBox: Combined bounding box of all letters.
         """
         if not self._letters:
             return AvBox(0.0, 0.0, 0.0, 0.0)
@@ -467,13 +524,14 @@ class AvMultiWeightLetter(AvLetter):
 
     @property
     def letter_box(self) -> AvBox:
-        """Returns the combined letter box encompassing all letters' advance boxes.
+        """Returns the combined letter box around all letters' advance boxes.
 
-        Computes the box that contains the transformed advance boxes of all letters,
-        including their full advance widths.
+        Combines transformed glyph_boxes (AvBox(0, descender, advance_width, ascender))
+        from all letters using AvBox.combine. Includes full advance widths of all letters.
+        Returns empty box if no letters.
 
         Returns:
-            AvBox: Combined letter box of all letters, or empty box if no letters.
+            AvBox: Combined letter box of all letters.
         """
         if not self._letters:
             return AvBox(0.0, 0.0, 0.0, 0.0)
@@ -510,10 +568,19 @@ class AvMultiWeightLetter(AvLetter):
 
         return " ".join(path_strings)
 
-    @property
-    def glyphs(self) -> List[AvGlyph]:
-        """Get the glyphs list."""
-        return [letter.glyph for letter in self._letters]
+    def centroid(self) -> Tuple[float, float]:
+        """Returns the centroid of the heaviest letter in real dimensions.
+
+        Returns the centroid from the first (heaviest) letter.
+
+        Returns:
+            Tuple[float, float]: The (x, y) coordinates of the centroid.
+        """
+        if not self._letters:
+            return (0.0, 0.0)
+        return self._letters[0].centroid()
+
+    ####################################################################################
 
     @property
     def letters(self) -> List[AvSingleGlyphLetter]:
@@ -934,57 +1001,51 @@ def main():
         )
         svg_page.add(svg_lbox, True)
 
-    # def render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width):
-    #     """Render alignment test letters (U and A) at both edges."""
-    #     # U at x-pos=0 with LEFT alignment
-    #     multi_letter_u_left = AvMultiWeightLetter.from_factories(
-    #         character="U",
-    #         factories=one_font_factories,
-    #         scale=scale,
-    #         xpos=0.0,
-    #         ypos=test_ypos,
-    #     )
-    #     multi_letter_u_left.align = Align.LEFT
-    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_left)
-    #     render_letter_with_boxes(svg_page, multi_letter_u_left, colors, stroke_width)
+    def render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width):
+        """Render alignment test letters (U and A) at both edges."""
+        # U at x-pos=0 with LEFT alignment
+        multi_letter_u_left = AvMultiWeightLetter.from_factories(
+            character="U",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=0.0,
+            ypos=test_ypos,
+        )
+        AvLetterAlignment.align_to_x_border(multi_letter_u_left, 0.0, AlignX.LEFT)
+        render_letter_with_boxes(svg_page, multi_letter_u_left, colors, stroke_width)
 
-    #     # U at x-pos=1.0 with RIGHT alignment
-    #     multi_letter_u_right = AvMultiWeightLetter.from_factories(
-    #         character="U",
-    #         factories=one_font_factories,
-    #         scale=scale,
-    #         xpos=1.0,
-    #         ypos=test_ypos,
-    #     )
-    #     multi_letter_u_right.align = Align.RIGHT
-    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_u_right)
-    #     multi_letter_u_right.xpos = 1.0 - multi_letter_u_right.width()
-    #     render_letter_with_boxes(svg_page, multi_letter_u_right, colors, stroke_width)
+        # U at x-pos=1.0 with RIGHT alignment
+        multi_letter_u_right = AvMultiWeightLetter.from_factories(
+            character="U",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=1.0,
+            ypos=test_ypos,
+        )
+        AvLetterAlignment.align_to_x_border(multi_letter_u_right, 1.0, AlignX.RIGHT)
+        render_letter_with_boxes(svg_page, multi_letter_u_right, colors, stroke_width)
 
-    #     # A at x-pos=0 with LEFT alignment (one font-size above)
-    #     multi_letter_a_left = AvMultiWeightLetter.from_factories(
-    #         character="A",
-    #         factories=one_font_factories,
-    #         scale=scale,
-    #         xpos=0.0,
-    #         ypos=test_ypos + font_size,
-    #     )
-    #     multi_letter_a_left.align = Align.LEFT
-    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_left)
-    #     render_letter_with_boxes(svg_page, multi_letter_a_left, colors, stroke_width)
+        # A at x-pos=0 with LEFT alignment (one font-size above)
+        multi_letter_a_left = AvMultiWeightLetter.from_factories(
+            character="A",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=0.0,
+            ypos=test_ypos + font_size,
+        )
+        AvLetterAlignment.align_to_x_border(multi_letter_a_left, 0.0, AlignX.LEFT)
+        render_letter_with_boxes(svg_page, multi_letter_a_left, colors, stroke_width)
 
-    #     # A at x-pos=1.0 with RIGHT alignment (one font-size above)
-    #     multi_letter_a_right = AvMultiWeightLetter.from_factories(
-    #         character="A",
-    #         factories=one_font_factories,
-    #         scale=scale,
-    #         xpos=1.0,
-    #         ypos=test_ypos + font_size,
-    #     )
-    #     multi_letter_a_right.align = Align.RIGHT
-    #     AvMultiWeightLetter.align_x_offsets_by_centering(multi_letter_a_right)
-    #     multi_letter_a_right.xpos = 1.0 - multi_letter_a_right.width()
-    #     render_letter_with_boxes(svg_page, multi_letter_a_right, colors, stroke_width)
+        # A at x-pos=1.0 with RIGHT alignment (one font-size above)
+        multi_letter_a_right = AvMultiWeightLetter.from_factories(
+            character="A",
+            factories=one_font_factories,
+            scale=scale,
+            xpos=1.0,
+            ypos=test_ypos + font_size,
+        )
+        AvLetterAlignment.align_to_x_border(multi_letter_a_right, 1.0, AlignX.RIGHT)
+        render_letter_with_boxes(svg_page, multi_letter_a_right, colors, stroke_width)
 
     # Example usage
     try:
@@ -1023,14 +1084,6 @@ def main():
         viewbox_height = 120  # viewbox height in mm
         vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
         font_size = vb_scale * 2.7  # in mm (already in viewbox units)
-
-        # Load the first font to get units_per_em
-        one_font_factories = load_cached_fonts("fonts/cache", font_basenames[0])
-        print(f"Loaded {len(one_font_factories)} fonts for units_per_em calculation")
-
-        # Get units_per_em from the first factory
-        units_per_em = one_font_factories[0].get_font_properties().units_per_em if one_font_factories else 2048.0
-        scale = font_size / units_per_em  # proper scale calculation
 
         # Create the SVG page
         svg_page = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
@@ -1082,6 +1135,10 @@ def main():
                     xpos=current_xpos,
                     ypos=current_ypos,
                 )
+                # Align multi-weight letter to center
+                if multi_letter.letters:
+                    center_x, center_y = multi_letter.letters[0].letter_box.center
+                    AvLetterAlignment.align_to_center(multi_letter.letters, center_x, center_y, CenterRef.LETTER_BOX)
 
                 # Render each weight variant with different opacity
                 render_letter_with_boxes(svg_page, multi_letter, colors, stroke_width)
@@ -1090,12 +1147,9 @@ def main():
                 current_xpos += multi_letter.width() + 0.002
 
             # Render alignment test letters
-            # TODO:
-            # test_ypos = current_ypos  # Same line as the characters
+            test_ypos = current_ypos  # Same line as the characters
             stroke_width = 0.0001
-
-            # TODO:
-            # render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width)
+            render_alignment_test(svg_page, one_font_factories, scale, font_size, test_ypos, colors, stroke_width)
 
             # Add font name at the end of the line
             font_display_name = font_basename.replace("-VariableFont_AA_", "")
@@ -1110,6 +1164,10 @@ def main():
                     xpos=current_xpos,
                     ypos=current_ypos,
                 )
+                # Align multi-weight letter to center
+                if multi_letter.letters:
+                    center_x, center_y = multi_letter.letters[0].letter_box.center
+                    AvLetterAlignment.align_to_center(multi_letter.letters, center_x, center_y, CenterRef.LETTER_BOX)
 
                 # Render heaviest weight in black (bottom layer) - index 0 is now heaviest
                 svg_path_heavy = svg_page.drawing.path(

@@ -516,6 +516,13 @@ class AvBox:
         return self._xmin, self._ymin, self._xmax, self._ymax
 
     @property
+    def center(self) -> Tuple[float, float]:
+        """The center of the box as Tuple (center_x, center_y)."""
+        center_x = self._xmin + (self._xmax - self._xmin) / 2
+        center_y = self._ymin + (self._ymax - self._ymin) / 2
+        return center_x, center_y
+
+    @property
     def width(self) -> float:
         """float: The width of the box (difference between xmax and xmin)."""
         return self._xmax - self._xmin

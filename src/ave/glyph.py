@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 from fontTools.ttLib import TTFont
 
-from ave.common import Align
+from ave.common import AlignX
 from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
 from ave.path import (
@@ -139,7 +139,7 @@ class AvGlyph:
         """
         return self._advance_width
 
-    def width(self, align: Optional[Align] = None) -> float:
+    def width(self, align: Optional[AlignX] = None) -> float:
         """
         Returns width considering align, or official advanceWidth if align is None.
 
@@ -153,11 +153,11 @@ class AvGlyph:
         if align is None:
             return self.advance_width
 
-        if align == Align.LEFT:
+        if align == AlignX.LEFT:
             return self.advance_width - self.left_side_bearing()
-        if align == Align.RIGHT:
+        if align == AlignX.RIGHT:
             return self.advance_width - self.right_side_bearing()
-        if align == Align.BOTH:
+        if align == AlignX.BOTH:
             return self.bounding_box.width
 
         raise ValueError(f"Invalid align value: {align}")

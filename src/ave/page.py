@@ -14,7 +14,7 @@ import svgwrite.elementfactory
 from fontTools.ttLib import TTFont
 from svgwrite.extensions import Inkscape
 
-from ave.common import Align
+from ave.common import AlignX
 from ave.fonttools import FontHelper
 from ave.glyph_factory import AvGlyphFactory
 from ave.letter import AvSingleGlyphLetter
@@ -292,12 +292,12 @@ def main():
     units_per_em = glyph_factory.get_font_properties().units_per_em
 
     glyph = glyph_factory.get_glyph("L")
-    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, 0.0, 0.0, Align.LEFT)
+    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, 0.0, 0.0, AlignX.LEFT)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
     glyph = glyph_factory.get_glyph("T")
-    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, align=Align.RIGHT)
+    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, align=AlignX.RIGHT)
     letter.xpos = 1.0 - letter.advance_width
     letter.ypos = vb_scale * vb_height_mm - letter.height
 

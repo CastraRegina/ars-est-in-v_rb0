@@ -291,7 +291,7 @@ def clean_glyphs_and_render_steps(
         svg_page.add(svg_bbox, True)
 
         # Add letter box in green
-        lbox = letter.letter_box()
+        lbox = letter.letter_box
         svg_lbox = svg_page.drawing.path(
             f"M {lbox.xmin:g} {lbox.ymin:g} "
             f"L {lbox.xmax:g} {lbox.ymin:g} "
