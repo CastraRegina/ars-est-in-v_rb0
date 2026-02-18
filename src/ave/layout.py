@@ -92,7 +92,7 @@ class AvCharLineLayouter:
                     letter.left_letter = self._letters[-1]
 
                 # Check if letter fits
-                letter_width = letter.advance_width
+                letter_width = letter.width()
                 letter_right_edge = current_x + letter_width
 
                 if letter_right_edge > self._x_end and self._letters:
@@ -138,7 +138,7 @@ class AvCharLineLayouter:
         elif len(self._letters) == 1:
             # Single letter, center it
             single_letter = self._letters[0]
-            single_letter_width = single_letter.advance_width
+            single_letter_width = single_letter.width()
             center_offset = (self._x_end - self._x_start - single_letter_width) / 2
             single_letter.xpos = self._x_start + center_offset
 
@@ -159,7 +159,7 @@ class AvSyllableLineLayouter(AvCharLineLayouter):
     contain multiple characters), and the layouter creates letters for each syllable.
 
     The layout algorithm is the same as AvCharLineLayouter - it places syllables
-    sequentially and distributes excess space among them.
+    sequentially and distributes excess space among the letters.
     """
 
     def __init__(
