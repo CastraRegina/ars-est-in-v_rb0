@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib
-from typing import List
+from typing import Any, Iterator, List
 
 from ave.common import AlignX
 from ave.geom import GeomMath
@@ -26,6 +26,42 @@ class AvCharLineLayouter:
     along the baseline, and distributes excess space among letters when needed.
     Supports different letter types (AvSingleGlyphLetter, AvMultiWeightLetter)
     and different stream types (AvCharacterStream, AvSyllableStream).
+
+    Algorithm:
+        1. Sequential Placement:
+            - Start with current_x = x_start
+            - For each item from stream:
+                * Create letter at current_x position
+                * For first letter: left-align bounding box to x_start using
+                    AvLetterAlignment.align_to_x_border(), then advance by width(LEFT)
+                * For subsequent letters: advance by width()
+                * Stop when next letter would exceed x_end (give it back to stream)
+            - Store all placed letters in _letters list
+
+        2. Edge Alignment:
+            - First letter is already left-aligned from step 1
+            - If more than 1 letter: right-align last letter to x_end using
+                AvLetterAlignment.align_to_x_border()
+
+        3. Excess-Space Distribution:
+            - Calculate excess space between last two letters:
+                excess_space = (last_letter.xpos - left_neighbor.xpos) - left_neighbor.width()
+            - Compute delta_x = excess_space / (n - 1) where n = total letters
+            - For each inner letter i (1 <= i <= n-2):
+                * Adjust position: xpos[i] += delta_x * i
+            - This creates uniform spacing where each gap increases by delta_x
+
+        4. Special Cases:
+            - Empty stream: Returns empty list
+            - 1 letter: Only left-aligned in step 1, no right alignment or distribution
+            - 2 letters: Edge alignment only, no distribution (no inner letters)
+
+    Implementation Details:
+        - Letters maintain left_neighbor references for width calculations
+        - Stream supports rewind() to return unfitted letters
+        - Position tracking uses current_x accumulator during placement
+        - Final adjustment preserves first/last letter positions while
+            interpolating inner letters
     """
 
     def __init__(
@@ -63,15 +99,34 @@ class AvCharLineLayouter:
         Returns:
             List of positioned AvLetter objects representing the line
 
-        Process:
-            1. Place letters sequentially until x_end is reached
-            2. If last letter doesn't fit, give it back to stream
-            3. Distribute excess space among letters, while keeping position of first and last letter
+        Algorithm:
+            1. Reset _letters list and set current_x = x_start
+
+            2. Sequential Placement Loop:
+                - Get next item from stream
+                - Create letter at current_x position
+                - Set left_neighbor reference for all but first letter
+                - For first letter: left-align to x_start and use width(LEFT)
+                - For others: use width() for advancement
+                - If letter would exceed x_end (and not first): rewind and break
+                - Add letter to list, advance current_x by letter_width
+
+            3. Edge Alignment:
+                - If no letters: return empty list
+                - If >1 letter: right-align last letter to x_end
+
+            4. Space Distribution:
+                - Calculate excess space between last two letters
+                - Compute delta_x = excess_space / (n - 1)
+                - Adjust inner letters: xpos[i] += delta_x * i
+                - This uniformly distributes space across all gaps
         """
         # Reset letters list
         self._letters = []
 
-        # First pass: place letters and check fit
+        # First pass: place letters sequentially and check fit.
+        # The first letter is placed left-aligned (bounding_box.xmin = x_start)
+        # and advances by width(LEFT); all others advance by width().
         current_x = self._x_start
 
         try:
@@ -91,18 +146,21 @@ class AvCharLineLayouter:
                 if self._letters:
                     letter.left_letter = self._letters[-1]
 
-                # Check if letter fits
-                letter_width = letter.width()
-                letter_right_edge = current_x + letter_width
+                if not self._letters:
+                    # First letter: left-align its bounding box to x_start
+                    AvLetterAlignment.align_to_x_border(letter, self._x_start, AlignX.LEFT)
+                    letter_width = letter.width(AlignX.LEFT)
+                else:
+                    letter_width = letter.width()
 
-                if letter_right_edge > self._x_end and self._letters:
+                if current_x + letter_width > self._x_end and self._letters:
                     # Letter doesn't fit, give it back to stream
                     self._stream.rewind(1)
                     break
 
                 # Letter fits, add to list
                 self._letters.append(letter)
-                current_x += letter_width
+                current_x = current_x + letter_width
 
         except StopIteration:
             # No more characters in stream
@@ -112,35 +170,21 @@ class AvCharLineLayouter:
         if not self._letters:
             return self._letters
 
-        # Save the initial positions before any adjustment
-        initial_positions = [letter.xpos for letter in self._letters]
-
-        # Ensure first letter is left-aligned at x_start
-        if len(self._letters) > 0:
-            AvLetterAlignment.align_to_x_border(self._letters[0], self._x_start, AlignX.LEFT)
-
         # Adjust last letter for right alignment
         if len(self._letters) > 1:
             AvLetterAlignment.align_to_x_border(self._letters[-1], self._x_end, AlignX.RIGHT)
 
-        # Distribute added spacing uniformly across all gaps.
-        # Interpolate each letter shift from first-letter shift to last-letter shift.
-        if len(self._letters) > 2:
-            first_shift = self._letters[0].xpos - initial_positions[0]
-            last_shift = self._letters[-1].xpos - initial_positions[-1]
-            shift_step = (last_shift - first_shift) / (len(self._letters) - 1)
-            for idx in range(1, len(self._letters) - 1):
-                self._letters[idx].xpos = initial_positions[idx] + first_shift + idx * shift_step
+        # Retrieve the space to be distributed among the letters
+        delta_x = 0
+        if len(self._letters) > 1:
+            last_letter = self._letters[-1]
+            left_neighbor = self._letters[-2]
+            excess_space = (last_letter.xpos - left_neighbor.xpos) - left_neighbor.width()
+            delta_x = excess_space / (len(self._letters) - 1)
 
-        elif len(self._letters) == 2:
-            # Last letter already positioned at x_end
-            pass
-        elif len(self._letters) == 1:
-            # Single letter, center it
-            single_letter = self._letters[0]
-            single_letter_width = single_letter.width()
-            center_offset = (self._x_end - self._x_start - single_letter_width) / 2
-            single_letter.xpos = self._x_start + center_offset
+        # Apply the calculated delta_x to adjust spacing between letters
+        for i in range(1, len(self._letters) - 1):
+            self._letters[i].xpos += delta_x * i
 
         return self._letters
 
@@ -362,19 +406,19 @@ class AvTightCharLineLayouter(AvCharLineLayouter):
 ###############################################################################
 
 
-def main():
+def main() -> None:
     """Test function demonstrating line layout with pi digits."""
-    page_module = importlib.import_module("ave.page")
+    page_module: Any = importlib.import_module("ave.page")
     AvSvgPage = page_module.AvSvgPage  # pylint: disable=invalid-name
 
     # Create SVG page
-    viewbox_width = 160  # viewbox width in mm
-    viewbox_height = 15  # viewbox height in mm
-    vb_scale = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
-    font_size = vb_scale * 3.0  # in mm (already in viewbox units)
+    viewbox_width: float = 160  # viewbox width in mm
+    viewbox_height: float = 15  # viewbox height in mm
+    vb_scale: float = 1.0 / viewbox_width  # scale viewbox so that x-coordinates are between 0 and 1
+    font_size: float = vb_scale * 3.0  # in mm (already in viewbox units)
 
     # Create the SVG page
-    svg_page = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
+    svg_page: Any = AvSvgPage.create_page_a4(viewbox_width, viewbox_height, vb_scale)
 
     # Draw viewbox border
     svg_page.add(
@@ -394,14 +438,16 @@ def main():
     )
 
     # Define layout parameters
-    line_spacing_mm = 3.0  # Line spacing in mm
-    line_spacing = line_spacing_mm * vb_scale  # Convert to normalized coordinates
-    x_start = 0.0  # Start at left edge of viewbox
-    x_end = 1.0  # End at right edge of viewbox
+    line_spacing_mm: float = 3.0  # Line spacing in mm
+    line_spacing: float = line_spacing_mm * vb_scale  # Convert to normalized coordinates
+    x_start: float = 0.0  # Start at left edge of viewbox
+    x_end: float = 1.0  # End at right edge of viewbox
 
     # Load font factory from cache
     # Option 1: Cache-only (works if all needed characters are in cache)
-    font_factory = AvGlyphFactory.load_from_file("fonts/cache/NotoSerif-VariableFont_AA_07_wght0300.json.zip")
+    font_factory: AvGlyphFactory = AvGlyphFactory.load_from_file(
+        "fonts/cache/NotoSerif-VariableFont_AA_07_wght0300.json.zip"
+    )
 
     # Option 2: With TTFont fallback for uncached characters (uncomment if needed)
     # ttfont = TTFont("fonts/NotoSerif[wdth,wght].ttf")
@@ -409,18 +455,18 @@ def main():
     #     "fonts/cache/NotoSerif-VariableFont_AA_07_wght0300.json.zip",
     #     source=TTFontGlyphSource(ttfont)
     # )
-    units_per_em = font_factory.get_font_properties().units_per_em
-    letter_scale = font_size / units_per_em
+    units_per_em: int = font_factory.get_font_properties().units_per_em
+    letter_scale: float = font_size / units_per_em
 
     # Create letter factory
-    letter_factory = AvSingleGlyphLetterFactory(font_factory)
+    letter_factory: AvSingleGlyphLetterFactory = AvSingleGlyphLetterFactory(font_factory)
 
     # Calculate how many lines fit in the viewbox
-    viewbox_height_normalized = viewbox_height * vb_scale
+    viewbox_height_normalized: float = viewbox_height * vb_scale
 
     # Create sample letter to get font metrics
-    sample_letter = letter_factory.create_letter("0", letter_scale, 0, 0)
-    sample_bbox = sample_letter.bounding_box
+    sample_letter: AvLetter = letter_factory.create_letter("0", letter_scale, 0, 0)
+    sample_bbox: Any = sample_letter.bounding_box
 
     # Calculate first baseline for top-left corner placement
     # In this coordinate system: y=0 is BOTTOM, y increases UPWARD
@@ -428,14 +474,14 @@ def main():
     # Letters extend above baseline, top is at baseline + sample_bbox.ymax
     # We want: baseline + sample_bbox.ymax = viewbox_height_normalized
     # So: baseline = viewbox_height_normalized - sample_bbox.ymax
-    first_baseline = viewbox_height_normalized - sample_bbox.ymax
+    first_baseline: float = viewbox_height_normalized - sample_bbox.ymax
 
     # Generate pi digits starting from "3.14..."
-    pi_gen = GeomMath.pi_digit_generator()
-    all_letters = []
-    current_baseline = first_baseline
-    line_count = 0
-    chars_used = 0
+    pi_gen: Iterator[str] = GeomMath.pi_digit_generator()
+    all_letters: List[AvLetter] = []
+    current_baseline: float = first_baseline
+    line_count: int = 0
+    chars_used: int = 0
 
     # Fill viewbox with lines from top to bottom
     while current_baseline + sample_bbox.ymin >= 0:  # Bottom of line should not go below y=0
@@ -443,7 +489,7 @@ def main():
         print(f"Working on line {line_count} at baseline y={current_baseline:.4f}...")
 
         # Generate enough digits for this line
-        pi_text = ""
+        pi_text: str = ""
         for _ in range(200):  # More than enough for one line
             try:
                 pi_text += next(pi_gen)
@@ -454,21 +500,21 @@ def main():
             break
 
         # Create character stream from pi digits for this line
-        char_stream = AvCharacterStream(pi_text)
+        char_stream: AvCharacterStream = AvCharacterStream(pi_text)
 
         # Create layouter and layout the line
-        layouter = AvTightCharLineLayouter(
-            # layouter = AvCharLineLayouter(
+        # layouter = AvTightCharLineLayouter(
+        layouter: AvCharLineLayouter = AvCharLineLayouter(
             x_start=x_start,
             x_end=x_end,
             y_baseline=current_baseline,
             stream=char_stream,
             letter_factory=letter_factory,
             scale=letter_scale,
-            margin=0.0,  # 0.1 * vb_scale,
+            # margin=0.0,  # 0.1 * vb_scale,
         )
 
-        letters = layouter.layout_line()
+        letters: List[AvLetter] = layouter.layout_line()
 
         if not letters:
             break
@@ -482,11 +528,14 @@ def main():
 
     # Add all letters to SVG page
     for letter in all_letters:
-        svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
+        svg_path: Any = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
+        # svg_path: Any = svg_page.drawing.path(
+        #     letter.svg_path_string_debug_polyline(stroke_width=0.001), fill="black", stroke="none"
+        # )
         svg_page.add(svg_path)
 
     # Save the page
-    svg_filename = "data/output/example/svg/layout/pi_line_layout.svgz"
+    svg_filename: str = "data/output/example/svg/layout/pi_line_layout.svgz"
     svg_page.save_as(svg_filename, include_debug_layer=True, pretty=True, compressed=True)
     print(f"Saved pi line layout to: {svg_filename}")
     print(f"Placed {len(all_letters)} characters across {line_count} lines")
