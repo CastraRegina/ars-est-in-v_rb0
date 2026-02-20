@@ -40,11 +40,52 @@ class HyphenationEncoder:
     All methods are static. The class converts text into a meta-text
     representation where syllables are separated by '-' characters.
 
-    Example:
-        >>> HyphenationEncoder.encode_text("Hello world", "en_US")
-        'Hel-lo world'
-        >>> HyphenationEncoder.decode_text("Hel-lo world")
-        'Hello world'
+    Special Character Handling:
+    -------------------------
+
+    **Input Characters:**
+    - Regular text: Processed normally with hyphenation points added
+    - Newlines (\\n): Treated as word separators, preserved in output
+    - Tabs (\\t): Treated as word separators, preserved in output
+    - Preserved hyphens: Escape with backslash (e.g., "X\\-ray")
+    - Preserved spaces: Escape with backslash (e.g., "word1\\sword2")
+    - Backslashes: Must be doubled (e.g., "path\\\\to\\\\file")
+    - Punctuation: Preserved unmodified (.,!?;:"'()[])
+
+    **Escape Sequences (Input):**
+    - "\\\\" → Literal backslash
+    - "\\-" → Preserved hyphen (not a syllable break)
+    - "\\s" → Preserved space (prevents word boundary)
+
+    **Output Format:**
+    - Hyphenation points: Marked with '-' (e.g., "ex-cep-tion-al")
+    - Preserved characters: Remain escaped (e.g., "X\\-ray")
+    - Whitespace: Normal spaces between words, newlines/tabs preserved
+    - Punctuation: Attached to preceding syllable
+
+    **Examples:**
+    >>> HyphenationEncoder.encode_text("Hello world", "en_US")
+    'Hel-lo world'
+    >>> HyphenationEncoder.encode_text("X-ray self\\\\-directed", "en_US")
+    'X\\-ray self\\-di-rect-ed'
+    >>> HyphenationEncoder.encode_text("line1\\nline2", "en_US")
+    'line1\\nline2'
+    >>> HyphenationEncoder.decode_text("Hel-lo world")
+    'Hello world'
+    >>> HyphenationEncoder.decode_text("X\\-ray self\\-di-rect-ed")
+    'X-ray self-directed'
+
+    **Language Support:**
+    - Uses hunspell dictionaries for hyphenation patterns
+    - Supports languages available in system dictionaries
+    - Language codes follow ISO 639-1 with country codes (e.g., "en_US")
+
+    **Implementation Notes:**
+    - Words are identified by whitespace boundaries (spaces, tabs, newlines)
+    - Each word is hyphenated independently
+    - Escape sequences are processed before hyphenation
+    - The process is fully reversible via decode_text()
+    - Whitespace characters are preserved but not escaped
     """
 
     _ESCAPE_MAP: dict[str, str] = {
@@ -553,6 +594,11 @@ class AvSyllableStream(AvStreamBase):
     and provides syllables one by one through navigation methods. The iteration
     is reversible and deterministic.
 
+    The stream automatically handles spacing:
+    - Syllables within the same word are returned without trailing spaces
+    - Syllables that end a word are returned with a trailing space added
+    - Trailing punctuation (.,;:!?) is preserved before the space
+
     Example:
         >>> stream = AvSyllableStream("Hel-lo world")
         >>> stream.next_item()
@@ -604,7 +650,9 @@ class AvSyllableStream(AvStreamBase):
             index: Index of the syllable unit.
 
         Returns:
-            Formatted syllable string.
+            Formatted syllable string with automatic spacing:
+            - If syllable ends a word: text + punctuation + space
+            - If syllable is within word: text only
         """
         unit = self._units[index]
 
@@ -786,3 +834,332 @@ class AvCharacterStream(AvStreamBase):
             The character at the given index.
         """
         return self._items[index]
+
+
+@staticmethod
+def sample_text_mc() -> str:
+    """Return sample text for testing."""
+
+    text = (
+        "Marie Curie (born Maria Sklodowska; 7 November 1867 - 4 July 1934) was a "
+        "pioneering physicist and chemist whose research on radioactivity "
+        "profoundly shaped modern science. She was the first woman to receive a "
+        "Nobel Prize, the first person to win Nobel Prizes in two different "
+        "scientific fields, and one of the most influential scientists of the "
+        "twentieth century. Her work laid the foundation for advances in "
+        "nuclear physics, medical diagnostics, and cancer therapy.\n"
+        "\n"
+        "Curie was born in Warsaw, in what was then part of the Russian Empire, "
+        "to a family of educators who valued learning despite political "
+        "repression. Growing up in Poland during a period when higher education "
+        "for women was severely restricted, she pursued her early studies "
+        "through clandestine classes and self-directed learning. In 1891 she "
+        "moved to Paris to continue her education at the University of Paris "
+        "(Sorbonne). There she studied physics and mathematics, graduating at "
+        "the top of her class in physics in 1893 and earning a second degree "
+        "in mathematics the following year.\n"
+        "\n"
+        "In 1895 she married Pierre Curie, a physicist known for his work on "
+        "crystallography and magnetism. The couple formed a scientific "
+        "partnership that proved exceptionally productive. Inspired by Henri "
+        "Becquerel's discovery that uranium salts emitted penetrating rays, "
+        "Marie Curie began investigating the phenomenon. She coined the term "
+        '"radioactivity" to describe the spontaneous emission of energy from '
+        "certain elements, recognizing that it was an atomic property rather "
+        "than a chemical reaction.\n"
+        "\n"
+        "Working under modest laboratory conditions, Marie and Pierre Curie "
+        "processed tons of pitchblende, a uranium-rich mineral, in order to "
+        "isolate previously unknown radioactive substances. In 1898 they "
+        "announced the discovery of two new elements: polonium, named after "
+        "Marie's native Poland, and radium. The isolation of radium in pure "
+        "metallic form required years of painstaking chemical separation and "
+        "measurement. Their research provided strong evidence that "
+        "radioactivity was linked to the internal structure of atoms, "
+        "challenging existing scientific models and contributing to the "
+        "development of atomic theory.\n"
+        "\n"
+        "In 1903 Marie Curie, Pierre Curie, and Henri Becquerel were jointly "
+        "awarded the Nobel Prize in Physics for their work on radiation "
+        "phenomena. Following Pierre Curie's sudden death in 1906, Marie Curie "
+        "succeeded him as professor at the University of Paris, becoming the "
+        "first woman to hold that position. In 1911 she received a second "
+        "Nobel Prize, this time in Chemistry, for the discovery of radium and "
+        "polonium and for her investigation of their properties. Her dual "
+        "achievements established her as an international scientific "
+        "authority.\n"
+        "\n"
+        "Beyond her laboratory research, Curie played a crucial role in "
+        "applying scientific knowledge for humanitarian purposes. During the "
+        "First World War, she helped develop mobile radiography units to "
+        "assist surgeons in locating bullets and shrapnel in wounded soldiers. "
+        'These units, sometimes called "Little Curies," brought X-ray '
+        "technology directly to battlefield hospitals. She also trained medical "
+        "personnel, including her daughter Irene, in the use of radiological "
+        "equipment, thereby expanding the practical impact of her scientific "
+        "expertise.\n"
+        "\n"
+        "Curie's later career was devoted to advancing research and medical "
+        "applications of radioactivity. She founded research institutes "
+        "dedicated to the study of radioactive elements and their therapeutic "
+        "potential, helping to establish radiology as a recognized medical "
+        "discipline. Although the long-term health risks of radiation exposure "
+        "were not yet fully understood, her work contributed to the "
+        "development of radiation therapy for cancer treatment, which remains an "
+        "important medical technique today.\n"
+        "\n"
+        "The hazards of prolonged radiation exposure ultimately affected Curie's "
+        "health. She died in 1934 from aplastic anemia, a condition widely "
+        "believed to have been caused by her years of handling radioactive "
+        "materials without protective measures. At the time, safety protocols "
+        "for radiation were minimal, and the risks were not comprehensively "
+        "documented. Her laboratory notebooks remain radioactive and are "
+        "preserved with special precautions.\n"
+        "\n"
+        "Curie's legacy extends beyond her scientific discoveries. She became "
+        "a symbol of intellectual rigor, perseverance, and the advancement of "
+        "women in science. In 1995 her remains were transferred to the "
+        "Pantheon in Paris, making her the first woman to be honored there on "
+        "her own merits. Her life and achievements have inspired generations of "
+        "scientists and students worldwide.\n"
+        "\n"
+        "Colleagues and contemporaries regarded Curie with deep respect. The "
+        "physicist Albert Einstein once praised her integrity and independence "
+        "of thought, noting her resistance to fame and public pressure. Despite "
+        "facing gender-based discrimination and personal hardship, Curie "
+        "maintained a strong commitment to scientific inquiry and public "
+        "service.\n"
+        "\n"
+        "Marie Curie's contributions transformed the understanding of atomic "
+        "science and opened new paths in physics, chemistry, and medicine. "
+        "Through her discoveries, leadership, and dedication to research, she "
+        "helped redefine the possibilities of modern science. Her name remains "
+        "closely associated with the study of radioactivity and with the "
+        "broader struggle to ensure equal access to education and scientific "
+        "careers."
+    )
+
+    return text
+
+
+def main() -> None:
+    """Demonstrate syllable stream functionality with intelligent line breaking.
+
+    This function demonstrates the AvSyllableStream by formatting a sample text
+    to a maximum line length of 50 characters, with hyphens only appearing at
+    line breaks where words are split.
+
+    Algorithm for intelligent word splitting and line formatting:
+
+    1. **Text Preparation**:
+       - Get sample text using sample_text_mc()
+       - Apply hyphenation using HyphenationEncoder.encode_text() with 'en_US'
+       - The hyphenated text contains:
+         - Hyphenation points marked with '-' (e.g., 'ex-cep-tion-al-ly')
+         - Original hyphens escaped as '\\-' (e.g., 'self\\-directed')
+
+    2. **Word Processing**:
+       - Split hyphenated text into words by spaces
+       - For each word, determine its type:
+         a) Words with escaped hyphens (original compound words)
+         b) Words with hyphenation marks (can be split at syllables)
+         c) Regular words (no hyphens)
+
+    3. **Line Building Algorithm**:
+       - Maintain current_line and build formatted_lines list
+       - For each word:
+         - Calculate clean_word (remove hyphenation marks, unescape original hyphens)
+         - Test if word fits on current line
+         - If it fits: append to current_line
+         - If it doesn't fit:
+           - Check if word can be hyphenated/split
+           - For hyphenated words: find optimal split point using syllables
+           - For compound words: try splitting at original hyphens
+           - Add hyphen only at line break
+           - Start next line with remaining part
+
+    4. **Splitting Strategy**:
+       - **Hyphenated words**: Try to fit maximum syllables on current line
+         - Iterate through syllables from left to right
+         - Stop when adding next syllable would exceed line limit
+         - Add hyphen to last fitting syllable
+       - **Compound words**: Try to split at original hyphens
+         - Test each hyphen position as potential split point
+         - Preserve original hyphens in output
+       - **Regular words**: Move to next line if too long
+
+    5. **Edge Cases Handled**:
+       - Words shorter than 6 characters are not hyphenated
+       - Original hyphens (X-ray, self-directed) are preserved
+       - Words can be split at both hyphenation points and original hyphens
+       - Empty lines and punctuation are properly handled
+
+    6. **Output**:
+       - Each line is exactly 50 characters or less
+       - Hyphens only appear at line breaks where splitting occurs
+       - Original compound word hyphens are preserved
+       - Text flows naturally with optimal space utilization
+    """
+    # Use sample text with hyphenation
+    sample = sample_text_mc()
+
+    # Apply hyphenation to the sample text
+    hyphenated = HyphenationEncoder.encode_text(sample, "en_US")
+
+    # Display the text formatted to 50 chars per line, with hyphens only at line breaks
+    print("Sample text (50 chars per line, hyphenated at line breaks):")
+    print("-" * 50)
+
+    # Process the text with improved hyphenation algorithm
+    words = hyphenated.split()
+    formatted_lines = []
+    current_line = ""
+
+    for word in words:
+        # Check if this is a word with hyphenation (not original hyphens)
+        # Original hyphens are escaped as "\-" in the hyphenated text
+        if "\\" in word and "\\-" in word:
+            # This word has escaped hyphens - keep them as-is for display
+            # But also check if we can hyphenate the parts
+            clean_word = word.replace("\\-", "-")
+
+            # Try to fit the whole word first
+            test_line = current_line + (" " if current_line else "") + clean_word
+            if len(test_line) <= 50:
+                # Word fits as-is
+                if current_line:
+                    current_line += " " + clean_word
+                else:
+                    current_line = clean_word
+            else:
+                # Word doesn't fit - try to split it
+                # Split by original hyphens and hyphenate each part
+                parts = clean_word.split("-")
+                if len(parts) > 1 and len(clean_word) > 5:
+                    # Try to fit parts with hyphenation
+                    best_fit = ""
+                    remaining_text = clean_word
+
+                    # Try different split points
+                    for i in range(len(parts)):
+                        # Join first i+1 parts
+                        first_part = "-".join(parts[: i + 1])
+                        test_partial = current_line + " " + first_part
+                        if len(test_partial) <= 50:
+                            best_fit = first_part
+                            if i < len(parts) - 1:
+                                remaining_text = "-".join(parts[i + 1 :])
+                            else:
+                                remaining_text = ""
+                        else:
+                            break
+
+                    if best_fit and remaining_text:
+                        # We can split at an original hyphen
+                        formatted_lines.append(current_line + " " + best_fit + "-")
+                        current_line = remaining_text
+                    else:
+                        # Can't split effectively - move to next line
+                        formatted_lines.append(current_line)
+                        current_line = clean_word
+                else:
+                    # No original hyphens or too short - move to next line
+                    formatted_lines.append(current_line)
+                    current_line = clean_word
+
+        elif "-" in word:
+            # This has hyphenation marks - remove them for normal display
+            clean_word = word.replace("-", "")
+
+            # Check if adding this clean word would exceed 50 chars
+            test_line = current_line + (" " if current_line else "") + clean_word
+            if len(test_line) <= 50:
+                # Word fits on current line without hyphenation
+                if current_line:
+                    current_line += " " + clean_word
+                else:
+                    current_line = clean_word
+            else:
+                # Word doesn't fit - we need to handle it
+                if current_line:
+                    # Try to split the word at a hyphenation point
+                    if len(clean_word) > 5:
+                        syllables = word.split("-")
+
+                        # Try to fit as many syllables as possible on current line
+                        best_fit_syllables = []
+                        remaining_syllables = syllables[:]
+
+                        # Try different split points
+                        for i in range(1, len(syllables)):
+                            partial = "".join(syllables[:i])
+                            test_partial = current_line + " " + partial
+                            if len(test_partial) <= 50:
+                                best_fit_syllables = syllables[:i]
+                                remaining_syllables = syllables[i:]
+                            else:
+                                break
+
+                        if best_fit_syllables:
+                            # Add the partial word with hyphen
+                            partial_word = "".join(best_fit_syllables)
+                            formatted_lines.append(current_line + " " + partial_word + "-")
+                            # Start next line with remaining syllables
+                            current_line = "".join(remaining_syllables)
+                        else:
+                            # Can't fit even the first syllable with space - move word to next line
+                            formatted_lines.append(current_line)
+                            current_line = clean_word
+                    else:
+                        # Word too short to hyphenate - move to next line
+                        formatted_lines.append(current_line)
+                        current_line = clean_word
+                else:
+                    # Start of line - try to split hyphenated word
+                    if len(clean_word) > 50:
+                        # Word is longer than line - must split it
+                        syllables = word.split("-")
+                        temp_line = ""
+                        for i, syllable in enumerate(syllables):
+                            if i == 0:
+                                temp_line = syllable
+                            else:
+                                if len(temp_line + "-" + syllable) <= 50:
+                                    temp_line += "-" + syllable
+                                else:
+                                    formatted_lines.append(temp_line + "-")
+                                    temp_line = syllable
+                        current_line = temp_line
+                    else:
+                        current_line = clean_word
+        else:
+            # No hyphens at all
+            clean_word = word
+
+            # Check if adding this word would exceed 50 chars
+            test_line = current_line + (" " if current_line else "") + clean_word
+            if len(test_line) <= 50:
+                # Word fits
+                if current_line:
+                    current_line += " " + clean_word
+                else:
+                    current_line = clean_word
+            else:
+                # Word doesn't fit - move to next line
+                if current_line:
+                    formatted_lines.append(current_line)
+                current_line = clean_word
+
+    # Add the last line
+    if current_line:
+        formatted_lines.append(current_line)
+
+    # Print all formatted lines
+    for line in formatted_lines:
+        print(line)
+
+    print("-" * 50)
+
+
+if __name__ == "__main__":
+    main()
