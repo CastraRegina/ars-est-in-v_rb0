@@ -426,3 +426,163 @@ class TestFormatHyphenatedLinesIntense:
         self._check(lines, 9)
         assert len(lines) >= 2
         assert lines[0].endswith("-")
+
+
+class TestAvStreamBase:
+    """Tests for the base stream functionality."""
+
+    def test_character_stream_basic(self):
+        """Test basic character stream functionality."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("Hello")
+        assert stream.has_next()
+        assert not stream.has_previous()
+        assert stream.position() == 0
+
+        assert stream.next_item() == "H"
+        assert stream.position() == 1
+        assert stream.next_item() == "e"
+        assert stream.position() == 2
+
+        # Test rewind
+        stream.rewind()
+        assert stream.position() == 1
+        assert stream.next_item() == "e"
+
+        # Test previous
+        assert stream.has_previous()
+        assert stream.previous_item() == "e"
+        assert stream.position() == 1
+
+    def test_character_stream_reset(self):
+        """Test reset functionality."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("Hello")
+        stream.next_item()
+        stream.next_item()
+        assert stream.position() == 2
+
+        stream.reset()
+        assert stream.position() == 0
+        assert stream.next_item() == "H"
+
+    def test_next_item_variants_basic(self):
+        """Test basic next_item_variants functionality."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("Hello")
+        variants = stream.next_item_variants(10)
+
+        # Should return tuples of (position, variant)
+        assert len(variants) == 5  # All 5 characters fit within length 10
+        assert variants[0] == (1, "H")
+        assert variants[1] == (2, "He")
+        assert variants[2] == (3, "Hel")
+        assert variants[3] == (4, "Hell")
+        assert variants[4] == (5, "Hello")
+
+        # Cursor should not change
+        assert stream.position() == 0
+
+    def test_next_item_variants_length_limit(self):
+        """Test next_item_variants respects length limit."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("Hello, world!")
+        variants = stream.next_item_variants(5)
+
+        # Should stop when accumulated string exceeds length 5
+        assert len(variants) == 5
+        assert variants[0] == (1, "H")
+        assert variants[1] == (2, "He")
+        assert variants[2] == (3, "Hel")
+        assert variants[3] == (4, "Hell")
+        assert variants[4] == (5, "Hello")
+
+        # "Hello," would be 6 chars, exceeding limit
+
+    def test_next_item_variants_empty_stream(self):
+        """Test next_item_variants with empty stream."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("")
+        variants = stream.next_item_variants(10)
+        assert variants == []
+
+    def test_next_item_variants_cursor_preservation(self):
+        """Test that next_item_variants preserves cursor position."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("Hello")
+
+        # Move cursor to position 2
+        stream.next_item()
+        stream.next_item()
+        assert stream.position() == 2
+
+        # Get variants - should not change cursor
+        variants = stream.next_item_variants(3)
+        assert stream.position() == 2
+
+        # Variants should be from current position
+        assert variants[0] == (3, "l")
+        assert variants[1] == (4, "ll")
+
+    def test_next_item_variants_position_accuracy(self):
+        """Test that returned positions are accurate."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("ABC")
+
+        # Get all variants
+        variants = stream.next_item_variants(10)
+
+        # Check each position
+        for i, (pos, variant) in enumerate(variants):
+            # Set cursor to the returned position
+            stream._cursor = pos
+            # Should be able to get next item (unless at end)
+            if pos < len("ABC"):
+                assert stream.has_next()
+            else:
+                assert not stream.has_next()
+
+    def test_stream_boundary_conditions(self):
+        """Test stream behavior at boundaries."""
+        from ave.text import AvCharacterStream
+
+        stream = AvCharacterStream("A")
+
+        # Test single character
+        assert stream.has_next()
+        assert stream.next_item() == "A"
+        assert not stream.has_next()
+
+        # Test rewind on single item
+        stream.rewind()
+        assert stream.position() == 0
+        assert stream.next_item() == "A"
+
+        # Test previous at start - need to reset to start first
+        stream.reset()
+        try:
+            stream.previous_item()
+            assert False, "Should have raised StopIteration"
+        except StopIteration:
+            pass  # Expected
+
+    def test_stream_iteration_complete(self):
+        """Test complete iteration through stream."""
+        from ave.text import AvCharacterStream
+
+        text = "Hello, World!"
+        stream = AvCharacterStream(text)
+        collected = []
+
+        while stream.has_next():
+            collected.append(stream.next_item())
+
+        assert collected == list(text)
+        assert stream.position() == len(text)

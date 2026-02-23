@@ -229,7 +229,7 @@ class Hyphenator:
 
 
 # -------------------------------------------------------------------------
-# Stream Classes (Updated for Soft Hyphen)
+# Stream Classes
 # -------------------------------------------------------------------------
 
 
@@ -272,7 +272,7 @@ class AvStreamBase(ABC):
 
     def has_next(self) -> bool:
         """Check if there are more items to consume."""
-        return self._cursor < len(self._items)
+        return self._cursor < self.count()
 
     def has_previous(self) -> bool:
         """Check if there are items to rewind to."""
@@ -286,109 +286,54 @@ class AvStreamBase(ABC):
         """Get the current cursor position."""
         return self._cursor
 
+    def set_position(self, position: int) -> None:
+        """Set the cursor to a specific position."""
+        self._cursor = max(0, min(position, self.count()))
 
-# class AvSyllableStream(AvStreamBase):
-#     """Syllable provider for Soft-Hyphenated text.
+    def count(self) -> int:
+        """Get the total number of items in the stream."""
+        return len(self._items)
 
-#     Parses text containing U+00AD and yields syllables.
-#     """
+    def item_at(self, position: int) -> str:
+        """Get item at specific position without consuming."""
+        if 0 <= position < len(self._items):
+            return self._items[position]
+        return ""
 
-#     @dataclass
-#     class _SyllableUnit:
-#         text: str
-#         ends_word: bool
-#         trailing_punct: str
+    def next_item_variants(self, char_length: int) -> list[tuple[int, str]]:
+        """Get variants of next items with their cursor positions.
 
-#     def _initialize_items(self, input_data: str) -> None:
-#         self._units: list[AvSyllableStream._SyllableUnit] = []
-#         self._parse(input_data)
-#         self._items = self._units
+        Returns a list of (new_cursor_position, variant) tuples where:
+        - First tuple: position after consuming next item, and the item
+        - Second tuple: position after consuming next two items, and the concatenated items
+        - Third tuple: position after consuming next three items, and the concatenated items
+        - And so on, until the concatenated string exceeds char_length
 
-#     def _format_item(self, index: int) -> str:
-#         unit = self._units[index]
-#         if unit.text == "\n":
-#             return "\n"
-#         if unit.ends_word:
-#             return unit.text + unit.trailing_punct + " "
-#         return unit.text
+        The cursor position is NOT changed by this method.
 
-#     def _parse(self, text: str) -> None:
-#         if not text:
-#             return
+        Args:
+            char_length: Maximum character length for the variants
 
-#         lines = text.split("\n")
-#         for i, line in enumerate(lines):
-#             if i > 0:
-#                 self._units.append(self._SyllableUnit("\n", True, ""))
+        Returns:
+            List of (new_cursor_position, variant_string) tuples
+        """
+        variants = []
+        current_pos = self._cursor
+        accumulated = ""
 
-#             if not line:
-#                 continue
+        while self.has_next() and len(accumulated) <= char_length:
+            item = self._format_item(self._cursor)
+            accumulated += item
+            if len(accumulated) <= char_length:
+                new_pos = current_pos + len(variants) + 1
+                variants.append((new_pos, accumulated))
+                self._cursor += 1
+            else:
+                break
 
-#             words = line.split(" ")
-#             for word_idx, word in enumerate(words):
-#                 if not word and word_idx < len(words) - 1:
-#                     continue
-#                 if not word:
-#                     continue
-
-#                 self._process_chunk(word)
-
-#     def _process_chunk(self, chunk: str) -> None:
-#         """Process a chunk (word + punct + hyphens)."""
-#         core, trailing_punct = self._extract_trailing_punct(chunk)
-
-#         # Split on SHY or Hard Hyphen.
-#         parts = re.split(f"({SOFT_HYPHEN}|-)", core)
-
-#         syllables = []
-#         current = ""
-
-#         for part in parts:
-#             if part == "-":
-#                 # Hard hyphen attaches to PREVIOUS syllable
-#                 if current:
-#                     current += "-"
-#                     syllables.append(current)
-#                     current = ""
-#                 elif syllables:
-#                     syllables[-1] += "-"
-#                 else:
-#                     # Hyphen at start?
-#                     current += "-"
-#             elif part == SOFT_HYPHEN:
-#                 # Soft hyphen is a break.
-#                 if current:
-#                     syllables.append(current)
-#                     current = ""
-#             else:
-#                 if part:
-#                     current += part
-
-#         if current:
-#             syllables.append(current)
-
-#         if not syllables:
-#             if trailing_punct:
-#                 self._units.append(self._SyllableUnit("", True, trailing_punct))
-#             return
-
-#         for idx, syl in enumerate(syllables):
-#             is_last = idx == len(syllables) - 1
-#             self._units.append(
-#                 self._SyllableUnit(
-#                     text=syl,
-#                     ends_word=is_last,
-#                     trailing_punct=trailing_punct if is_last else "",
-#                 )
-#             )
-
-#     def _extract_trailing_punct(self, text: str) -> tuple[str, str]:
-#         punct_chars = ".,;:!?"
-#         trailing = []
-#         while text and text[-1] in punct_chars:
-#             trailing.insert(0, text[-1])
-#             text = text[:-1]
-#         return text, "".join(trailing)
+        # Restore cursor position
+        self._cursor = current_pos
+        return variants
 
 
 class AvCharacterStream(AvStreamBase):
@@ -401,8 +346,326 @@ class AvCharacterStream(AvStreamBase):
         return self._items[index]
 
 
-# -------------------------------------------------------------------------
-# Formatting / Line Breaking Helpers
+class AvSyllableStream(AvStreamBase):
+    """Syllable provider for hyphenated text.
+
+    Takes text and a Hyphenator, splits text into syllables that can be
+    consumed as stream items.
+    """
+
+    def __init__(self, text: str, hyphenator: Hyphenator):
+        """Initialize with text and hyphenator.
+
+        Args:
+            text: The input text to split into syllables
+            hyphenator: Hyphenator instance to use for syllable detection
+        """
+        self._text = text
+        self._hyphenator = hyphenator
+        super().__init__(text)  # Pass text to parent for initialization
+
+    def _initialize_items(self, input_data: str) -> None:
+        """Initialize with syllables split from text."""
+        # Split text into syllables using the hyphenator
+        self._items = self._split_text_into_syllables(self._text)
+
+    def _split_text_into_syllables(self, text: str) -> list[str]:
+        """Split text into syllable items.
+
+        Each item is one of:
+        - A syllable (pure text, no hyphens or spaces)
+        - A space character ' '
+        - A newline character '\n'
+        - Punctuation
+        - A hard hyphen '-'
+
+        Note: Soft hyphens are NOT included in items. They are only
+        used internally to determine syllable boundaries.
+        """
+        items = []
+
+        # Process character by character to maintain exact structure
+        i = 0
+        while i < len(text):
+            char = text[i]
+
+            if char.isspace():
+                # Whitespace
+                items.append(char)
+                i += 1
+            elif not char.isalnum() and char != "-":
+                # Punctuation (except hyphen)
+                items.append(char)
+                i += 1
+            elif char.isalnum() or char == "-":
+                # Start of a word or contains hyphen
+                # Find the full word
+                word_start = i
+                while i < len(text) and (text[i].isalnum() or text[i] == "-"):
+                    i += 1
+                word = text[word_start:i]
+
+                # Skip if it's just a hyphen
+                if word == "-":
+                    items.append("-")
+                    continue
+
+                # Hyphenate the word (clean of hyphens first)
+                clean_word = word.replace("-", "")
+                if clean_word:
+                    # If word contains hyphens, treat each part separately
+                    if "-" in word:
+                        parts = word.split("-")
+                        for part_idx, part in enumerate(parts):
+                            if part:
+                                # Hyphenate this part
+                                part_hyphenated = self._hyphenator.hyphenate_text(part)
+                                part_syllables = part_hyphenated.split(SOFT_HYPHEN)
+                                for syllable in part_syllables:
+                                    if syllable:
+                                        items.append(syllable)
+                            # Add hyphen between parts (except after last)
+                            if part_idx < len(parts) - 1:
+                                items.append("-")
+                    else:
+                        # Regular word without hyphens
+                        hyphenated = self._hyphenator.hyphenate_text(clean_word)
+                        syllables = hyphenated.split(SOFT_HYPHEN)
+                        for syllable in syllables:
+                            if syllable:
+                                items.append(syllable)
+
+        return items
+
+    def _format_item(self, index: int) -> str:
+        """Format a syllable item for output.
+
+        Best practice: Each item should be ready to output as-is.
+        The stream items are structured so that concatenation produces
+        the original text exactly as input.
+        """
+        return self._items[index]
+
+    _CLOSING_PUNCT: set[str] = set(".,;:!?")
+    _OPENING_BRACKETS: set[str] = set("([{")
+    _CLOSING_BRACKETS: set[str] = set(")]}")
+    _WHITESPACE: set[str] = set(" \t\r\f\v")
+
+    def _is_forbidden_start(self, ch: str) -> bool:
+        """Check if character is forbidden at fragment start."""
+        return ch in self._WHITESPACE or ch in self._CLOSING_PUNCT or ch in self._CLOSING_BRACKETS or ch == "-"
+
+    def _is_forbidden_end(self, ch: str) -> bool:
+        """Check if character is forbidden at fragment end."""
+        return ch in self._OPENING_BRACKETS
+
+    def _skip_leading_ws(self, pos: int) -> int:
+        """Advance pos past non-newline whitespace."""
+        items = self._items
+        n = len(items)
+        while pos < n and items[pos].isspace() and items[pos] != "\n":
+            pos += 1
+        return pos
+
+    def next_item_variants(self, char_length: int) -> list[tuple[int, str]]:
+        """
+        Generate candidate text fragments for the next justified line segment.
+
+        This function produces all valid substrings starting at the current cursor
+        position that may be placed into the next output line whose target width is
+        `char_length`. The returned variants must respect word-processing and
+        typography rules required for fully justified text composition.
+
+        The function is intended to be used by a justification engine that selects
+        the best variant and later distributes inter-word spacing so that the line
+        exactly fills the target width.
+
+        ------------------------------------------------------------------------
+        FUNCTIONAL GUARANTEES
+        ------------------------------------------------------------------------
+
+        The returned variants must satisfy:
+
+        1. **Whitespace correctness**
+        • The fragment must never start or end with whitespace.
+        • Internal whitespace must remain unchanged (space collapsing is handled
+            by the justification phase).
+        • Preserved spaces (including non-breaking spaces and soft hyphens)
+            must not appear at fragment boundaries.
+        • Line breaks are not allowed before non-breaking spaces (U+00A0).
+
+        2. **Valid line break boundaries**
+        • A fragment must not start with punctuation that visually belongs to the
+            previous line (e.g. ", . ; : ! ? ) ] }").
+        • A fragment must not start with closing brackets or hyphens.
+        • A fragment must not end with opening brackets ("( [ {").
+
+        3. **Word integrity**
+        • The fragment must represent a valid word or partial word.
+        • When breaking mid-word, a hyphen is added if needed.
+        • Words may contain hyphenation points indicated by soft hyphens (U+00AD).
+        • Soft hyphens (U+00AD) are reserved spaces and must not be followed
+            by additional hyphens (prevents "word--" with soft hyphen).
+        • Possessive apostrophe-s ('s) must stay attached to the preceding word.
+
+        4. **Structural preservation**
+        • Existing newlines represent hard breaks and must not be crossed unless
+            explicitly allowed.
+        • Non-breaking sequences (e.g. protected tokens) must never be split.
+
+        5. **Length constraint**
+        • The visual length of the fragment must be ≤ `char_length`.
+        • The fragment length is measured before justification spacing expansion.
+
+        ------------------------------------------------------------------------
+        TYPOGRAPHIC REQUIREMENTS FOR JUSTIFIED TEXT
+        ------------------------------------------------------------------------
+
+        These variants enable the justification engine to later apply rules such as:
+
+        • Lines (except the final line of a paragraph) should visually align with
+        both margins by distributing extra space between words.
+        • Spacing expansion must remain within acceptable limits to avoid visual
+        gaps ("rivers") and uneven density.
+        • Hyphenation should be used when necessary to avoid excessive spacing and
+        provide additional break opportunities.
+        • Very short trailing words, widows, and orphans should be avoided where
+        possible.
+        • Non-breaking constructs (numbers with units, names, abbreviations) must
+        remain intact.
+
+        ------------------------------------------------------------------------
+        RETURNS
+        ------------------------------------------------------------------------
+
+        A list of (new_cursor_position, fragment_string) tuples representing all
+        valid next-line candidates, sorted by fragment length ascending (shortest first).
+        Each variant is one syllable longer than the previous, providing maximum
+        flexibility for the justification engine.
+        """
+        if char_length <= 0:
+            return []
+
+        items = self._items
+        n = len(items)
+        start = self._cursor
+
+        if start >= n:
+            return []
+
+        # Skip leading whitespace
+        while start < n and items[start].isspace() and items[start] != "\n":
+            start += 1
+
+        if start >= n:
+            return []
+
+        # Build variants by adding one item at a time
+        variants: list[tuple[int, str]] = []
+        seen_fragments: set[str] = set()  # Deduplicate by fragment text
+        fragment_parts: list[str] = []
+        fragment_len = 0
+        i = start
+        in_word = False  # Track if we're inside a word
+
+        while i < n:
+            item = items[i]
+
+            # Stop at newline (hard break)
+            if item == "\n":
+                break
+
+            # Check if adding this item would exceed char_length
+            item_len = len(item)
+            if fragment_len + item_len > char_length:
+                break
+
+            # Classify current item
+            is_syllable = item.isalnum() or (len(item) > 1 and item[0].isalnum())
+            is_whitespace = item.isspace()
+            is_hard_hyphen = item == "-"
+
+            # Update word tracking
+            if is_syllable:
+                in_word = True
+            elif is_whitespace or is_hard_hyphen or item in self._CLOSING_PUNCT:
+                in_word = False
+
+            # Add item to fragment
+            fragment_parts.append(item)
+            fragment_len += item_len
+            i += 1
+
+            # Skip creating variant if we just added whitespace
+            # (would create duplicate after stripping)
+            if is_whitespace:
+                continue
+
+            # Determine if we need a hyphen at this break point
+            # Add hyphen if: we're in a word AND next item continues the word
+            # (either a syllable or a hard hyphen in a compound word)
+            next_item = items[i] if i < n else None
+            next_is_syllable = next_item is not None and (
+                next_item.isalnum() or (len(next_item) > 1 and next_item[0].isalnum())
+            )
+            next_is_compound_hyphen = next_item == "-"
+            needs_hyphen = in_word and (next_is_syllable or next_is_compound_hyphen)
+
+            # Build the fragment
+            fragment = "".join(fragment_parts).strip()
+
+            if not fragment:
+                continue
+
+            # Skip if fragment starts with forbidden character
+            if self._is_forbidden_start(fragment[0]):
+                continue
+
+            # Skip if fragment ends with forbidden character (opening bracket),
+            # whitespace, or soft hyphen (preserved space)
+            if self._is_forbidden_end(fragment[-1]) or fragment[-1].isspace() or fragment[-1] == "\u00ad":
+                continue
+
+            # Add hyphen if breaking mid-word (but not if already ends with hyphen)
+            # Also don't add hyphen after soft hyphens (U+00AD) which are reserved spaces
+            if needs_hyphen and not fragment.endswith("-") and not fragment.endswith("\u00ad"):
+                # Check if hyphen would exceed length
+                if fragment_len + 1 > char_length:
+                    continue
+                display_fragment = fragment + "-"
+            else:
+                display_fragment = fragment
+
+            # Check if next item is a non-breaking space (should not be broken before)
+            if i < n and items[i] == "\u00a0":  # Non-breaking space
+                continue
+
+            # Calculate next cursor position (skip whitespace)
+            next_cursor = i
+            while next_cursor < n and items[next_cursor].isspace() and items[next_cursor] != "\n":
+                next_cursor += 1
+
+            # Check for orphaned punctuation at next position
+            if next_cursor < n:
+                next_start = items[next_cursor]
+                if next_start in self._CLOSING_PUNCT or next_start in self._CLOSING_BRACKETS:
+                    continue
+
+                # Check for possessive 's - should stay attached to previous word
+                if next_start == "'" and next_cursor + 1 < n and items[next_cursor + 1] == "s":
+                    # print(f"DEBUG2: Skipping {display_fragment} before 's", flush=True)
+                    continue
+
+            # Skip duplicates (same fragment text)
+            if display_fragment in seen_fragments:
+                continue
+            seen_fragments.add(display_fragment)
+
+            variants.append((next_cursor, display_fragment))
+
+        return variants
+
+
 # -------------------------------------------------------------------------
 
 
@@ -657,7 +920,7 @@ def sample_text_mc() -> str:
     return text
 
 
-def main() -> None:
+def main_test_hyphenator(max_width: int = 15) -> None:
     """Demonstrate syllable-based text formatting with 30 characters per line."""
     # Get the sample text
     sample = sample_text_mc()
@@ -667,7 +930,6 @@ def main() -> None:
     hyphenated = hyphenator.hyphenate_text(sample)
 
     # Format the text with maximum 30 characters per line
-    max_width = 17
     formatted_lines = _format_hyphenated_lines(hyphenated, max_width)
 
     # Print the result
@@ -714,5 +976,181 @@ def main() -> None:
     print("-" * 50)
 
 
+def main_test_avsyllablestream(max_width: int = 15) -> None:
+    """Demonstrate AvSyllableStream producing same output as main_test_Hyphenator."""
+    print("Sample text formatted with 15 characters per line using AvSyllableStream:")
+    print("-" * 50)
+
+    # Get the sample text and create Hyphenator
+    sample = sample_text_mc()
+    hyphenator = Hyphenator("en_US")
+    stream = AvSyllableStream(sample, hyphenator)
+
+    formatted_lines: list[str] = []
+
+    # Simple algorithm: pick the longest variant that fits for each line
+    # Variants are sorted shortest-first, so the last one is the longest
+    while stream.has_next():
+        variants = stream.next_item_variants(max_width)
+
+        if not variants:
+            # Skip position (e.g., at newline)
+            stream.set_position(min(stream.position() + 1, stream.count()))
+            continue
+
+        # Pick the longest variant (last in list)
+        new_pos, variant = variants[-1]
+        formatted_lines.append(variant)
+        stream.set_position(new_pos)
+
+    # Print the result with analysis (same as main_test_Hyphenator)
+    for i, line in enumerate(formatted_lines):
+        if line:
+            first_word = line.split()[0]
+            hyphenated_first = hyphenator.hyphenate_text(first_word)
+            if SOFT_HYPHEN in hyphenated_first:
+                first_syllable = hyphenated_first.split(SOFT_HYPHEN, maxsplit=1)[0]
+            elif "-" in hyphenated_first:
+                first_syllable = hyphenated_first.split("-", maxsplit=1)[0]
+            else:
+                first_syllable = first_word
+        else:
+            first_syllable = ""
+        first_syllable_len = len(first_syllable)
+
+        marker = ""
+        if i < len(formatted_lines) - 1:
+            next_line = formatted_lines[i + 1]
+            if next_line:
+                next_first_word = next_line.split()[0]
+                next_hyphenated = hyphenator.hyphenate_text(next_first_word)
+                if SOFT_HYPHEN in next_hyphenated:
+                    next_first_syllable = next_hyphenated.split(SOFT_HYPHEN, maxsplit=1)[0]
+                elif "-" in next_hyphenated:
+                    next_first_syllable = next_hyphenated.split("-", maxsplit=1)[0]
+                else:
+                    next_first_syllable = next_first_word
+                # Add 1 for hyphen if the word has more syllables after the first
+                needs_hyphen = next_first_syllable != next_first_word
+                next_first_syllable_len = len(next_first_syllable) + (1 if needs_hyphen else 0)
+                combined_len = len(line) + 1 + next_first_syllable_len
+                if combined_len <= max_width:
+                    marker = f"<-FIT(+{max_width - combined_len})>"
+
+        print(f"[{len(line):3}] [{first_syllable_len:2}] {line:_<{max_width}} {marker}")
+    print("-" * 50)
+
+
+def main_test_syllable_next_item_variants() -> None:
+    """Demonstrate next_item_variants functionality with syllable stream."""
+    print("Demonstrating next_item_variants with AvSyllableStream:")
+    print("-" * 60)
+
+    # Create a syllable stream with comprehensive test input
+    # Covers all rules and special cases:
+    # - Regular words and spaces
+    # - Punctuation (closing: .,;:!? and opening: ([{)
+    # - Hard hyphens
+    # - Non-breaking spaces
+    # - Newlines (hard breaks)
+    # - Words that can be hyphenated
+    # - Edge cases (single chars, orphaned punctuation)
+
+    sample = (
+        "Word1 word2-hyphenated word3. Punctuation! (opening brackets) "
+        "closing brackets]. Non\u00adbreaking\u00adspaces and soft-hyphens.\n"
+        "Newline creates hard break. Verylongwordthatneedshyphenation "
+        "short orphaned punctuation... () function() end ( multitopic ). END"
+    )
+    hyphenator = Hyphenator("en_US")
+    stream = AvSyllableStream(sample, hyphenator)
+
+    # First, show all items with positions for reference
+    print("Stream items (position: item):")
+    for i in range(stream.count()):
+        item = stream.item_at(i)
+        print(f"  {i:2}: {repr(item)}")
+    print()
+
+    # Test at specific interesting positions with different char_length values
+    test_cases = [
+        # (position, char_length, description)
+        (0, 20, "Start: regular words"),
+        (0, 8, "Start: short limit"),
+        (2, 15, "At hyphenated word (word2)"),
+        (3, 15, "At hard hyphen"),
+        (4, 15, "In hyphenated word (hy)"),
+        (9, 15, "At word before punctuation"),
+        (10, 20, "At closing punctuation (.)"),
+        (12, 20, "At word that needs hyphenation (Punc)"),
+        (15, 20, "After hyphenated word (tion)"),
+        (16, 20, "At exclamation mark"),
+        (18, 25, "At opening bracket"),
+        (24, 20, "At closing bracket"),
+        (34, 30, "At non-breaking spaces (Non)"),
+        (45, 20, "At soft hyphen"),
+        (46, 15, "After soft hyphen"),
+        (50, 20, "At newline"),
+        (51, 20, "After newline (hard break)"),
+        (52, 15, "At very long word (needs hyphenation)"),
+        (54, 10, "Short limit at long word"),
+        (57, 20, "At orphaned punctuation"),
+    ]
+
+    for pos, char_length, desc in test_cases:
+        if pos < stream.count():
+            stream.reset()
+            # Move to test position
+            for _ in range(pos):
+                if stream.has_next():
+                    stream.next_item()
+
+            # Get variants
+            variants = stream.next_item_variants(char_length)
+
+            print(f"\n{desc}")
+            print(f"Position {pos} (item: '{stream.item_at(pos)}'), " f"max_length={char_length}:")
+            if variants:
+                for i, (new_pos, variant) in enumerate(variants, 1):
+                    print(f"  Variant {i:2}: '{variant}' (length: {len(variant)}, new_pos: {new_pos})")
+            else:
+                print("  No variants (empty or at end)")
+        else:
+            print(f"\n{desc}")
+            print(f"Position {pos} is beyond stream length")
+
+    print()
+
+    # Test with empty stream
+    empty_stream = AvSyllableStream("", hyphenator)
+    empty_variants = empty_stream.next_item_variants(5)
+    print(f"Empty stream variants: {empty_variants}")
+    print("-" * 60)
+
+    # Get all variants from the entire sample
+    stream.reset()
+    all_variants = []
+    while stream.has_next():
+        variants = stream.next_item_variants(1000)  # Use a large limit to get all possible variants
+        if variants:
+            all_variants.extend(variants)
+            # Move to the position of the longest variant to avoid overlap
+            stream.set_position(variants[-1][0])
+        else:
+            stream.set_position(stream.position() + 1)
+
+    print("\nAll variants from the entire sample:")
+    print(sample)
+    for i, (pos, variant) in enumerate(all_variants, 1):
+        print(f"  {i:3}: '{variant}' (pos: {pos})")
+    print(f"Total variants: {len(all_variants)}")
+
+
 if __name__ == "__main__":
-    main()
+    print("main_test_Hyphenator()")
+    main_test_hyphenator(20)
+    print("-" * 50)
+    print("main_test_AvSyllableStream()")
+    main_test_avsyllablestream(20)
+    print("main_test_syllable_next_item_variants()")
+    main_test_syllable_next_item_variants()
