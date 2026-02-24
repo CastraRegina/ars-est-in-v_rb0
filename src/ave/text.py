@@ -1146,11 +1146,64 @@ def main_test_syllable_next_item_variants() -> None:
     print(f"Total variants: {len(all_variants)}")
 
 
+def main_test_character_variants() -> None:
+    """Demonstrate next_item_variants with AvCharacterStream."""
+    print("Demonstrating next_item_variants with AvCharacterStream:")
+    print("-" * 60)
+
+    # Create a character stream with sample text
+    sample = "Hello, world!"
+    stream = AvCharacterStream(sample)
+
+    # Test at different positions
+    test_positions = [0, 5, 7, 13]
+    char_length = 10
+
+    for pos in test_positions:
+        if pos < len(sample):
+            stream.reset()
+            # Move to test position
+            for _ in range(pos):
+                if stream.has_next():
+                    stream.next_item()
+
+            # Get variants
+            variants = stream.next_item_variants(char_length)
+
+            print(f"Position {pos} (char: '{sample[pos] if pos < len(sample) else ''}'), max_length={char_length}:")
+            for i, (new_pos, variant) in enumerate(variants, 1):
+                print(f"  Variant {i:2}: '{variant}' (length: {len(variant)}, new_pos: {new_pos})")
+
+            # Demonstrate jumping to a variant position
+            # Note: Variants are sorted shortest-first
+            if variants:
+                chosen_variant = 2  # Choose the second variant (second shortest)
+                if chosen_variant <= len(variants):
+                    target_pos, _ = variants[chosen_variant - 1]
+                    stream.reset()
+                    # Move to original position
+                    for _ in range(pos):
+                        if stream.has_next():
+                            stream.next_item()
+                    # Move cursor to the position after the consumed items
+                    stream.set_position(target_pos)
+                    print(f"  -> Jumped to variant {chosen_variant}, cursor now at position {stream.position()}")
+            print()
+
+    # Test with empty stream
+    empty_stream = AvCharacterStream("")
+    empty_variants = empty_stream.next_item_variants(5)
+    print(f"Empty stream variants: {empty_variants}")
+    print("-" * 60)
+
+
 if __name__ == "__main__":
-    print("main_test_Hyphenator()")
-    main_test_hyphenator(20)
-    print("-" * 50)
-    print("main_test_AvSyllableStream()")
-    main_test_avsyllablestream(20)
-    print("main_test_syllable_next_item_variants()")
-    main_test_syllable_next_item_variants()
+    # print("main_test_Hyphenator()")
+    # main_test_hyphenator(20)
+    # print("-" * 50)
+    # print("main_test_AvSyllableStream()")
+    # main_test_avsyllablestream(20)
+    # print("main_test_syllable_next_item_variants()")
+    # main_test_syllable_next_item_variants()
+    print("main_test_character_variants()")
+    main_test_character_variants()
