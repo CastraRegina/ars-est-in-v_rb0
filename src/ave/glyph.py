@@ -14,6 +14,7 @@ from ave.fonttools import AvGlyphPtsCmdsPen
 from ave.geom import AvBox
 from ave.path import (
     CLOSED_SINGLE_PATH_CONSTRAINTS,
+    SINGLE_POLYGON_CONSTRAINTS,
     AvClosedSinglePath,
     AvPath,
     AvSinglePath,
@@ -238,6 +239,92 @@ class AvGlyph:
             return (self.width() / 2, 0.0)
 
         return self._path.centroid
+
+    def exterior(self, steps: int = 20) -> List[AvSinglePolygonPath]:
+        """Convert glyph outline to one or more polygons without holes.
+
+        Takes the glyph path, polygonizes it using the specified number of steps,
+        and uses shapely to extract only the exterior rings (positive polygons).
+        All holes and cut-outs are removed, resulting in only positive polygons.
+
+        Algorithm:
+        1. Polygonize the path using the specified steps
+        2. Split into individual contours
+        3. Convert each contour to shapely Polygon
+        4. Use shapely.ops.unary_union to merge overlapping polygons and resolve holes
+        5. Extract only exterior rings (no holes)
+        6. Convert back to AvSinglePolygonPath objects
+
+        Args:
+            steps: Number of segments to use for curve approximation during polygonization
+
+        Returns:
+            List of AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes)
+        """
+        import shapely.geometry  # pylint: disable=import-outside-toplevel
+        import shapely.ops  # pylint: disable=import-outside-toplevel
+
+        # Handle empty path
+        if len(self._path.points) == 0:
+            return []
+
+        # Step 1: Polygonize the path
+        polygonized_path = self._path.polygonize(steps)
+
+        # Step 2: Split into individual contours
+        contours = polygonized_path.split_into_single_paths()
+
+        # Step 3: Convert each contour to shapely Polygon
+        shapely_polygons = []
+        for contour in contours:
+            # Only process closed contours with at least 3 points
+            if contour.commands and contour.commands[-1] == "Z" and len(contour.points) >= 3:
+                coords = contour.points[:, :2].tolist()
+                try:
+                    poly = shapely.geometry.Polygon(coords)
+                    if poly.is_valid and not poly.is_empty and poly.area > 1e-12:
+                        shapely_polygons.append(poly)
+                except (ValueError, TypeError):
+                    # Skip invalid polygon coordinates
+                    continue
+
+        # Handle case where no valid polygons were created
+        if not shapely_polygons:
+            return []
+
+        # Step 4: Use unary_union to merge overlapping polygons and resolve holes
+        union_result = shapely.ops.unary_union(shapely_polygons)
+
+        # Step 5: Extract only exterior rings (no holes)
+        result_paths = []
+
+        def extract_exterior(geom):
+            """Extract exterior ring from a polygon."""
+            if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
+                exterior_coords = list(geom.exterior.coords)
+                if len(exterior_coords) >= 4:
+                    exterior_coords = exterior_coords[:-1]
+                    if len(exterior_coords) >= 3:
+                        commands = ["M"] + ["L"] * (len(exterior_coords) - 1) + ["Z"]
+                        result_paths.append(
+                            AvSinglePolygonPath(
+                                np.array(exterior_coords, dtype=np.float64),
+                                commands,
+                                SINGLE_POLYGON_CONSTRAINTS,
+                            )
+                        )
+            elif isinstance(geom, shapely.geometry.MultiPolygon):
+                for poly in geom.geoms:
+                    extract_exterior(poly)
+            elif isinstance(geom, shapely.geometry.GeometryCollection):
+                for sub_geom in geom.geoms:
+                    if isinstance(sub_geom, (shapely.geometry.Polygon, shapely.geometry.MultiPolygon)):
+                        extract_exterior(sub_geom)
+
+        extract_exterior(union_result)
+
+        return result_paths
 
     def approx_equal(self, other: AvGlyph, rtol: float = 1e-9, atol: float = 1e-9) -> bool:
         """Check if two glyphs are approximately equal within numerical tolerances.
