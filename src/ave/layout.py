@@ -504,7 +504,7 @@ def main() -> None:
 
         # Create layouter and layout the line
         # layouter = AvTightCharLineLayouter(
-        layouter: AvCharLineLayouter = AvCharLineLayouter(
+        layouter = AvCharLineLayouter(
             x_start=x_start,
             x_end=x_end,
             y_baseline=current_baseline,
@@ -528,11 +528,27 @@ def main() -> None:
 
     # Add all letters to SVG page
     for letter in all_letters:
-        svg_path: Any = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
-        # svg_path: Any = svg_page.drawing.path(
-        #     letter.svg_path_string_debug_polyline(stroke_width=0.001), fill="black", stroke="none"
-        # )
+        svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
         svg_page.add(svg_path)
+
+        # svg_path_debug = svg_page.drawing.path(
+        #     letter.svg_path_string_debug_polyline(stroke_width=0.0001),
+        #     fill="none",
+        #     stroke="blue",
+        #     stroke_width=0.00002,
+        # )
+        # svg_page.add(svg_path_debug, True)
+
+        # Add exterior path in red
+        exterior_paths = letter.exterior(steps=20)
+        for exterior_path in exterior_paths:
+            svg_exterior = svg_page.drawing.path(
+                exterior_path.svg_path_string(),
+                fill="none",
+                stroke="red",
+                stroke_width=0.00003,
+            )
+            svg_page.add(svg_exterior, True)
 
     # Save the page
     svg_filename: str = "data/output/example/svg/layout/pi_line_layout.svgz"

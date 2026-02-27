@@ -14,7 +14,7 @@ from ave.geom import AvBox
 from ave.glyph import AvGlyph
 from ave.glyph_factory import AvGlyphFactory
 from ave.letter_processing import AvLetterAlignment
-from ave.path import AvPath
+from ave.path import AvPath, AvSinglePolygonPath
 
 ###############################################################################
 # AvLetter
@@ -34,6 +34,8 @@ class AvLetter(ABC):
         letter_box(self)
         polygonize_path(self, steps: int = 50)
         svg_path_string(self)
+        centroid(self)
+        exterior(self, steps: int = 20)
     """
 
     _scale: float
@@ -240,6 +242,23 @@ class AvLetter(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def exterior(self, steps: int = 20) -> List[AvSinglePolygonPath]:
+        """Get the exterior paths of the letter without holes.
+
+        Returns the exterior (positive) polygons of the letter with all holes
+        and cut-outs removed. The paths are transformed to the letter's
+        coordinate system.
+
+        Args:
+            steps: Number of segments to use for curve approximation during polygonization
+
+        Returns:
+            List of AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes) in the letter's coordinate system
+        """
+        raise NotImplementedError
+
 
 ###############################################################################
 # AvSingleGlyphLetter
@@ -327,6 +346,49 @@ class AvSingleGlyphLetter(AvLetter):
         """
         return self._glyph.path.svg_path_string(self.scale, self.xpos, self.ypos)
 
+    def centroid(self) -> Tuple[float, float]:
+        """
+        Returns the centroid of the letter in real dimensions.
+
+        The centroid is the geometric center of the letter's outline,
+        calculated from the actual path geometry (not from the bounding box)
+        and transformed to world coordinates.
+
+        Returns:
+            Tuple[float, float]: The (x, y) coordinates of the centroid.
+        """
+        # Get the glyph's centroid and transform it using the letter's transformation
+        glyph_centroid = self._glyph.centroid()
+
+        centroid_x = glyph_centroid[0] * self.scale + self.xpos
+        centroid_y = glyph_centroid[1] * self.scale + self.ypos
+
+        return (centroid_x, centroid_y)
+
+    def exterior(self, steps: int = 20) -> List[AvSinglePolygonPath]:
+        """Get the exterior paths of the letter without holes.
+
+        This method calls the glyph's exterior method and applies the same
+        scale and translation transformations as the letter.
+
+        Args:
+            steps: Number of segments to use for curve approximation during polygonization
+
+        Returns:
+            List of transformed AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes) in the letter's coordinate system
+        """
+        # Get exterior paths from the glyph
+        exterior_paths = self._glyph.exterior(steps)
+
+        # Apply the letter's transformation to each exterior path
+        transformed_paths = []
+        for path in exterior_paths:
+            transformed_path = path.transformed_copy(self.scale, self.xpos, self.ypos)
+            transformed_paths.append(transformed_path)
+
+        return transformed_paths
+
     ####################################################################################
 
     def svg_path_string_debug_polyline(self, stroke_width: float = 1.0) -> str:
@@ -356,25 +418,6 @@ class AvSingleGlyphLetter(AvLetter):
                     Uses the letter's scale and position for positioning.
         """
         return self._glyph.path.svg_path_string_debug_polyline(self.scale, self.xpos, self.ypos, stroke_width)
-
-    def centroid(self) -> Tuple[float, float]:
-        """
-        Returns the centroid of the letter in real dimensions.
-
-        The centroid is the geometric center of the letter's outline,
-        calculated from the actual path geometry (not from the bounding box)
-        and transformed to world coordinates.
-
-        Returns:
-            Tuple[float, float]: The (x, y) coordinates of the centroid.
-        """
-        # Get the glyph's centroid and transform it using the letter's transformation
-        glyph_centroid = self._glyph.centroid()
-
-        centroid_x = glyph_centroid[0] * self.scale + self.xpos
-        centroid_y = glyph_centroid[1] * self.scale + self.ypos
-
-        return (centroid_x, centroid_y)
 
 
 ###############################################################################
@@ -579,6 +622,22 @@ class AvMultiWeightLetter(AvLetter):
         if not self._letters:
             return (0.0, 0.0)
         return self._letters[0].centroid()
+
+    def exterior(self, steps: int = 20) -> List[AvSinglePolygonPath]:
+        """Get the exterior paths of the heaviest letter without holes.
+
+        Returns the exterior paths from the first (heaviest) letter.
+
+        Args:
+            steps: Number of segments to use for curve approximation during polygonization
+
+        Returns:
+            List of AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes) in the letter's coordinate system
+        """
+        if not self._letters:
+            return []
+        return self._letters[0].exterior(steps)
 
     ####################################################################################
 

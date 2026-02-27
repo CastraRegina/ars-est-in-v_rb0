@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import numpy as np
+import shapely.geometry
+import shapely.ops
 from fontTools.ttLib import TTFont
 
 from ave.common import AlignX
@@ -262,8 +264,6 @@ class AvGlyph:
             List of AvSinglePolygonPath objects representing only positive polygons
             (exterior rings without any holes)
         """
-        import shapely.geometry  # pylint: disable=import-outside-toplevel
-        import shapely.ops  # pylint: disable=import-outside-toplevel
 
         # Handle empty path
         if len(self._path.points) == 0:
