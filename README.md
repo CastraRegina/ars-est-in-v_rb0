@@ -696,16 +696,16 @@ Maybe check later if some of these packages are really needed...
 Create an artist name, check for it on [namecheckr.com](https://www.namecheckr.com/) and register/secure it at several online services:  
 - Googlemail (pwd+2factor)
 - Youtube (login using google account)
-- Pinterest (login using google account)
 - TikTok (login using google account)
-- Etsy (login using google account)  
-- reddit (login using google account)
-- patreon (login using google account)
 - Twitter (login using google account)
 - Instagram (pwd+2factor)
 - Xing (pwd+2factor)  
-- LinkedIn (pwd+2factor) 
+- LinkedIn (pwd+2factor)
 - GitHub (pwd+2factor+2ndSMS)
+- Pinterest (login using google account)
+- Etsy (login using google account)  
+- reddit (login using google account)
+- patreon (login using google account)
 -    redbubble (pwd w/o 2factor authentication)
 - ... further ...
 - stripe.com - multinational financial services
