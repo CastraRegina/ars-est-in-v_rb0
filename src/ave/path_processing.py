@@ -13,6 +13,7 @@ from ave.bezier import BezierCurve
 from ave.geom import AvBox, AvPolygon
 from ave.path import (
     MULTI_POLYGON_CONSTRAINTS,
+    SINGLE_POLYGON_CONSTRAINTS,
     AvMultiPolygonPath,
     AvMultiPolylinePath,
     AvPath,
@@ -1864,3 +1865,132 @@ class AvPathCreator:
             - Uses AvBox extent: (xmin, ymin, xmax, ymax)
         """
         return AvPathCreator.rectangle(avbox.xmin, avbox.ymin, avbox.xmax, avbox.ymax)
+
+    @staticmethod
+    def left_exterior_silhouette_list(
+        exteriors: List[AvSinglePolygonPath],
+    ) -> List[AvSinglePolygonPath]:
+        """Create left orthographic silhouette polygons with right blocking edge.
+
+        Transforms simple CCW polygons into new polygons representing the left
+        orthographic silhouette (undercut-free projection in +x direction) closed
+        on the right by a vertical blocking edge at x = max_x.
+
+        The left silhouette consists of all boundary edges whose outward normal
+        has a negative x-component. For a CCW polygon, this means edges where
+        dy = y2 - y1 < 0 (downward-going edges).
+
+        Args:
+            exteriors: List of simple CCW polygons (AvSinglePolygonPath) without curves
+
+        Returns:
+            List[AvSinglePolygonPath]: New polygons with:
+                - Left boundary: left orthographic silhouette (dy < 0 edges)
+                - Right boundary: vertical segment at x = max_x
+                - Top/bottom edges: connecting silhouette to blocking edge
+
+        Note:
+            - Input must be simple polygons (no self-intersections)
+            - Result is x-monotone and suitable for mold pull applications
+            - Uses Shapely for robust geometric operations
+            - Runs in O(n) time complexity per polygon
+        """
+        result_silhouettes = []
+
+        for exterior in exteriors:
+            silhouette = AvPathCreator.left_exterior_silhouette(exterior)
+            result_silhouettes.append(silhouette)
+
+        return result_silhouettes
+
+    @staticmethod
+    def left_exterior_silhouette(
+        exterior: AvSinglePolygonPath,
+    ) -> AvSinglePolygonPath:
+        """Compute left exterior silhouette for a single polygon.
+
+        Simple vertex-tracing algorithm: traces polygon vertices from the
+        point with minimum y-coordinate to the first point with maximum y-coordinate,
+        then closes with vertical edge at max x.
+
+        Args:
+            exterior: Simple CCW polygon (AvSinglePolygonPath) without curves
+
+        Returns:
+            AvSinglePolygonPath: Silhouette polygon
+        """
+        if len(exterior.points) == 0:
+            return AvSinglePolygonPath(np.empty((0, 3), dtype=np.float64), [], SINGLE_POLYGON_CONSTRAINTS)
+
+        # Get polygon points (x, y only)
+        points = exterior.points[:, :2]
+        n = len(points)
+
+        if n < 3:
+            return AvSinglePolygonPath(np.empty((0, 3), dtype=np.float64), [], SINGLE_POLYGON_CONSTRAINTS)
+
+        # Get bounding box
+        min_x = np.min(points[:, 0])
+        max_x = np.max(points[:, 0])
+        min_y = np.min(points[:, 1])
+        max_y = np.max(points[:, 1])
+
+        if max_y - min_y < 1e-10:
+            return AvSinglePolygonPath(np.empty((0, 3), dtype=np.float64), [], SINGLE_POLYGON_CONSTRAINTS)
+
+        # Find all points with minimum y-coordinate
+        min_y_indices = np.where(np.abs(points[:, 1] - min_y) < 1e-10)[0]
+
+        # Among points with min y, find the one with minimum x
+        min_y_points = points[min_y_indices]
+        min_x_among_min_y = np.min(min_y_points[:, 0])
+        start_candidates = min_y_indices[np.abs(min_y_points[:, 0] - min_x_among_min_y) < 1e-10]
+        start_idx = start_candidates[0]
+
+        # Trace polygon from start_idx BACKWARD until we reach a point with max_y
+        # Going backward traces the left side for CCW polygons
+        silhouette_points = []
+        current_idx = start_idx
+        found_max_y = False
+
+        for _ in range(n):
+            x, y = points[current_idx]
+            silhouette_points.append((x, y))
+
+            # Check if we've reached max_y
+            if abs(y - max_y) < 1e-10:
+                found_max_y = True
+                break
+
+            # Move to previous point (wrap around if at start)
+            current_idx = (current_idx - 1) % n
+
+        if not found_max_y or len(silhouette_points) < 2:
+            pts = np.array([[max_x, min_y], [max_x, max_y], [max_x, min_y], [max_x, min_y]])
+            return AvSinglePolygonPath(pts, ["M", "L", "L", "L", "Z"], SINGLE_POLYGON_CONSTRAINTS)
+
+        # Close polygon: add (max_x, max_y) and (max_x, min_y)
+        final_coords = []
+        final_coords.extend(silhouette_points)
+        final_coords.append((max_x, max_y))
+        final_coords.append((max_x, min_y))
+
+        # Remove consecutive duplicates
+        cleaned_coords = [final_coords[0]]
+        for i in range(1, len(final_coords)):
+            if not (
+                abs(final_coords[i][0] - cleaned_coords[-1][0]) < 1e-9
+                and abs(final_coords[i][1] - cleaned_coords[-1][1]) < 1e-9
+            ):
+                cleaned_coords.append(final_coords[i])
+
+        if len(cleaned_coords) < 3:
+            pts = np.array([[max_x, min_y], [max_x, max_y], [max_x, min_y], [max_x, min_y]])
+            return AvSinglePolygonPath(pts, ["M", "L", "L", "L", "Z"], SINGLE_POLYGON_CONSTRAINTS)
+
+        # Create result
+        result_coords = np.array(cleaned_coords)
+        n_points = len(result_coords)
+        commands = ["M"] + ["L"] * (n_points - 1) + ["Z"]
+
+        return AvSinglePolygonPath(result_coords, commands, SINGLE_POLYGON_CONSTRAINTS)
