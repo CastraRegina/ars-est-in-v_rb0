@@ -5,7 +5,7 @@ from __future__ import annotations
 import decimal
 import math
 from dataclasses import dataclass
-from typing import Generator, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Generator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -258,6 +258,87 @@ class GeomMath:
                 mismatches.append((index, spigot_digit, chud_digit, bbp_digit))
 
         return mismatches
+
+    @staticmethod
+    def bisect(
+        limit1: float,
+        limit2: float,
+        test_fn: Callable[[float], bool],
+        tolerance: float = 0.001,
+        max_iterations: int = 64,
+    ) -> float:
+        """Find the transition point where test_fn changes its boolean value.
+
+        Uses binary search to efficiently locate the point where test_fn
+        switches from one boolean value to another. The algorithm works
+        regardless of whether limit1 < limit2 or limit1 > limit2.
+
+        Args:
+            limit1: First boundary of the search interval
+            limit2: Second boundary of the search interval
+            test_fn: Function that takes a float and returns a boolean.
+                The algorithm finds where this function changes value.
+            tolerance: Relative tolerance (0.0 to 1.0) defining convergence.
+                The search stops when interval size < tolerance * |limit2 - limit1|
+                (default: 0.001)
+            max_iterations: Maximum number of iterations to prevent infinite loops
+                (default: 64)
+
+        Returns:
+            The midpoint of the refined interval where the transition occurs.
+            If test_fn never changes value, returns the midpoint of the original interval.
+
+        Raises:
+            ValueError: If limit1 == limit2, or tolerance not in (0, 1)
+
+        Example:
+            >>> def test(x): return x < 5.0
+            >>> transition = GeomMath.bisect(0.0, 10.0, test)
+            >>> # transition will be approximately 5.0 within 0.1% of the interval
+        """
+        if limit1 == limit2:
+            raise ValueError("limit1 and limit2 must be different")
+        if not 0.0 < tolerance < 1.0:
+            raise ValueError("tolerance must be in range (0.0, 1.0)")
+
+        fn = test_fn
+
+        # Normalize so lo < hi
+        if limit1 < limit2:
+            lo, hi = limit1, limit2
+        else:
+            lo, hi = limit2, limit1
+
+        # Calculate absolute tolerance once
+        abs_tolerance = tolerance * (hi - lo)
+
+        # Cache test values at boundaries
+        test_lo = fn(lo)
+        test_hi = fn(hi)
+
+        # If no transition exists, return midpoint of original interval
+        if test_lo == test_hi:
+            return (limit1 + limit2) / 2.0
+
+        for _ in range(max_iterations):
+            if hi - lo <= abs_tolerance:
+                break
+
+            mid = (lo + hi) / 2.0
+            if mid == lo:
+                break
+            if mid == hi:
+                break
+            test_mid = fn(mid)
+
+            # Update bounds to maintain: test_fn(lo) != test_fn(hi)
+            if test_mid == test_lo:
+                lo = mid
+            else:
+                hi = mid
+
+        # Return midpoint of the refined interval
+        return (lo + hi) / 2.0
 
 
 ###############################################################################
