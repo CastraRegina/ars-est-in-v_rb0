@@ -18,6 +18,7 @@ from ave.common import AlignX
 from ave.fonttools import FontHelper
 from ave.glyph_factory import AvGlyphFactory
 from ave.letter import AvSingleGlyphLetter
+from ave.letter_processing import AvLetterAlignment
 
 
 @dataclass
@@ -103,8 +104,8 @@ class AvSvgPage:
 
         # Assemble the tree structure: drawing -> root_group -> [debug_layer, main_layer]
         self.drawing.add(self.root_group)
-        self.root_group.add(self.debug_layer)
         self.root_group.add(self.main_layer)
+        self.root_group.add(self.debug_layer)
 
     def add(
         self,
@@ -292,13 +293,14 @@ def main():
     units_per_em = glyph_factory.get_font_properties().units_per_em
 
     glyph = glyph_factory.get_glyph("L")
-    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, 0.0, 0.0, AlignX.LEFT)
+    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, 0.0, 0.0)
+    AvLetterAlignment.align_to_x_border(letter, 0.0, AlignX.LEFT)
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
     svg_page.add(svg_path)
 
     glyph = glyph_factory.get_glyph("T")
-    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em, align=AlignX.RIGHT)
-    letter.xpos = 1.0 - letter.advance_width
+    letter = AvSingleGlyphLetter(glyph, font_size / units_per_em)
+    AvLetterAlignment.align_to_x_border(letter, 1.0, AlignX.RIGHT)
     letter.ypos = vb_scale * vb_height_mm - letter.height
 
     svg_path = svg_page.drawing.path(letter.svg_path_string(), fill="black", stroke="none")
