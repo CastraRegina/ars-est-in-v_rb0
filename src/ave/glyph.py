@@ -300,9 +300,11 @@ class AvGlyph:
         result_paths = []
 
         def extract_exterior(geom):
-            """Extract exterior ring from a polygon."""
+            """Extract exterior ring from a polygon, ensuring CCW orientation."""
             if isinstance(geom, shapely.geometry.Polygon) and not geom.is_empty:
-                exterior_coords = list(geom.exterior.coords)
+                # Ensure polygon is oriented CCW (counter-clockwise)
+                oriented_poly = shapely.orient_polygons(geom)
+                exterior_coords = list(oriented_poly.exterior.coords)
                 if len(exterior_coords) >= 4:
                     exterior_coords = exterior_coords[:-1]
                     if len(exterior_coords) >= 3:
