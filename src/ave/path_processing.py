@@ -8,7 +8,6 @@ import numpy as np
 import shapely.geometry
 from numpy.typing import NDArray
 from scipy.spatial import KDTree
-from shapely.geometry import LineString
 
 from ave.bezier import BezierCurve
 from ave.geom import AvBox, AvPolygon

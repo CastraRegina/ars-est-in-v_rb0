@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import numpy as np
+import shapely.geometry
 
 from ave.path import SINGLE_POLYGON_CONSTRAINTS, AvSinglePolygonPath
+from ave.path_exterior import AvPathExterior
 
 
 def test_left_silhouette_simple_rectangle():
     """Test left silhouette of a simple rectangle."""
-    from ave.path_processing import AvPathCreator
 
     # Simple rectangle: counter-clockwise from bottom-left
     points = np.array(
@@ -24,7 +25,7 @@ def test_left_silhouette_simple_rectangle():
     rect = AvSinglePolygonPath(points, commands, SINGLE_POLYGON_CONSTRAINTS)
 
     # Apply silhouette
-    result = AvPathCreator.left_exterior_silhouette_list([rect])
+    result = AvPathExterior.left_exterior_silhouette_list([rect])
     assert len(result) == 1
     silhouette = result[0]
 
@@ -43,7 +44,6 @@ def test_left_silhouette_simple_rectangle():
 
 def test_left_silhouette_convex_polygon():
     """Test left silhouette of a convex polygon (triangle)."""
-    from ave.path_processing import AvPathCreator
 
     # Triangle: CCW
     points = np.array(
@@ -56,7 +56,7 @@ def test_left_silhouette_convex_polygon():
     commands = ["M", "L", "L", "Z"]
     triangle = AvSinglePolygonPath(points, commands, SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([triangle])
+    result = AvPathExterior.left_exterior_silhouette_list([triangle])
     assert len(result) == 1
     silhouette = result[0]
 
@@ -67,7 +67,6 @@ def test_left_silhouette_convex_polygon():
 
 def test_left_silhouette_concave_polygon_with_undercut():
     """Test left silhouette of concave polygon with right-side notch."""
-    from ave.path_processing import AvPathCreator
 
     # L-shaped polygon with notch on RIGHT side
     # CCW from bottom-left
@@ -87,7 +86,7 @@ def test_left_silhouette_concave_polygon_with_undercut():
     commands = ["M"] + ["L"] * 7 + ["Z"]
     concave = AvSinglePolygonPath(points, commands, SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([concave])
+    result = AvPathExterior.left_exterior_silhouette_list([concave])
     assert len(result) == 1
     silhouette = result[0]
 
@@ -102,18 +101,16 @@ def test_left_silhouette_concave_polygon_with_undercut():
 
 def test_left_silhouette_empty_polygon():
     """Test left silhouette of empty polygon."""
-    from ave.path_processing import AvPathCreator
 
     empty = AvSinglePolygonPath(np.empty((0, 3), dtype=np.float64), [], SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([empty])
+    result = AvPathExterior.left_exterior_silhouette_list([empty])
     assert len(result) == 1
     assert len(result[0].points) == 0
 
 
 def test_left_silhouette_multiple_polygons():
     """Test left silhouette with multiple input polygons."""
-    from ave.path_processing import AvPathCreator
 
     # Two simple rectangles
     points1 = np.array([[0.0, 0.0], [5.0, 0.0], [5.0, 5.0], [0.0, 5.0]])
@@ -123,7 +120,7 @@ def test_left_silhouette_multiple_polygons():
     poly1 = AvSinglePolygonPath(points1, commands, SINGLE_POLYGON_CONSTRAINTS)
     poly2 = AvSinglePolygonPath(points2, commands, SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([poly1, poly2])
+    result = AvPathExterior.left_exterior_silhouette_list([poly1, poly2])
     assert len(result) == 2
     assert result[0].area > 0
     assert result[1].area > 0
@@ -131,7 +128,6 @@ def test_left_silhouette_multiple_polygons():
 
 def test_left_silhouette_no_downward_edges():
     """Test polygon with no downward edges (horizontal line)."""
-    from ave.path_processing import AvPathCreator
 
     # Horizontal line going right (degenerate case)
     # This should return a degenerate polygon or vertical line
@@ -146,14 +142,13 @@ def test_left_silhouette_no_downward_edges():
     commands = ["M", "L", "L", "L", "Z"]
     line = AvSinglePolygonPath(points, commands, SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([line])
+    result = AvPathExterior.left_exterior_silhouette_list([line])
     assert len(result) == 1
     # Should handle gracefully
 
 
 def test_left_silhouette_preserves_vertical_edges():
     """Test that vertical edges with dy < 0 are preserved."""
-    from ave.path_processing import AvPathCreator
 
     # Polygon with vertical left edge
     points = np.array(
@@ -167,7 +162,7 @@ def test_left_silhouette_preserves_vertical_edges():
     commands = ["M", "L", "L", "L", "Z"]
     rect = AvSinglePolygonPath(points, commands, SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([rect])
+    result = AvPathExterior.left_exterior_silhouette_list([rect])
     silhouette = result[0]
 
     # Should preserve the vertical left edge
@@ -176,9 +171,6 @@ def test_left_silhouette_preserves_vertical_edges():
 
 def test_left_silhouette_output_is_simple_polygon():
     """Test that output is always a simple (non-self-intersecting) polygon."""
-    import shapely.geometry
-
-    from ave.path_processing import AvPathCreator
 
     # Complex concave shape
     points = np.array(
@@ -196,7 +188,7 @@ def test_left_silhouette_output_is_simple_polygon():
     commands = ["M"] + ["L"] * 7 + ["Z"]
     poly = AvSinglePolygonPath(points, commands, SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([poly])
+    result = AvPathExterior.left_exterior_silhouette_list([poly])
     silhouette = result[0]
 
     # Create Shapely polygon and verify it's simple
@@ -208,7 +200,6 @@ def test_left_silhouette_output_is_simple_polygon():
 
 def test_left_silhouette_blocking_edge_at_max_x():
     """Test that the right blocking edge is at max_x of input."""
-    from ave.path_processing import AvPathCreator
 
     points = np.array(
         [
@@ -221,7 +212,7 @@ def test_left_silhouette_blocking_edge_at_max_x():
     commands = ["M", "L", "L", "L", "Z"]
     rect = AvSinglePolygonPath(points, commands, SINGLE_POLYGON_CONSTRAINTS)
 
-    result = AvPathCreator.left_exterior_silhouette_list([rect])
+    result = AvPathExterior.left_exterior_silhouette_list([rect])
     silhouette = result[0]
 
     # Max x of output should be same as input
