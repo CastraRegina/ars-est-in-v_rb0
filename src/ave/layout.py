@@ -342,11 +342,11 @@ class AvTightCharLineLayouter(AvCharLineLayouter):
                 if self._letters:
                     letter.left_letter = self._letters[-1]
 
-                    # Calculate space to left neighbor and move letter to touch
-                    space = LetterSpacing.space_between(letter.left_letter, letter)
-                    # Positive space means we can move left, negative means overlap
+                    # Calculate shift to left neighbor and move letter to touch
+                    shift = LetterSpacing.find_transition_shift(letter.left_letter, letter)
+                    # Positive shift means move right to separate, negative means move left till touching
                     # After touching, add margin to create minimum space
-                    letter.xpos -= space - self.margin
+                    letter.xpos += shift + self.margin
 
                 # Check if letter fits within bounds (entire letter must fit)
                 if letter.bounding_box.xmax > self._x_end:
@@ -503,15 +503,15 @@ def main() -> None:
         char_stream: AvCharacterStream = AvCharacterStream(pi_text)
 
         # Create layouter and layout the line
-        # layouter = AvTightCharLineLayouter(
-        layouter = AvCharLineLayouter(
+        layouter = AvTightCharLineLayouter(
+            # layouter = AvCharLineLayouter(
             x_start=x_start,
             x_end=x_end,
             y_baseline=current_baseline,
             stream=char_stream,
             letter_factory=letter_factory,
             scale=letter_scale,
-            # margin=0.0,  # 0.1 * vb_scale,
+            margin=0.0,  # 0.1 * vb_scale,
         )
 
         letters: List[AvLetter] = layouter.layout_line()
@@ -539,16 +539,27 @@ def main() -> None:
         # )
         # svg_page.add(svg_path_debug, True)
 
-        # Add exterior path in red
-        exterior_paths = letter.exterior(steps=20)
-        for exterior_path in exterior_paths:
-            svg_exterior = svg_page.drawing.path(
-                exterior_path.svg_path_string(),
+        # Add right exterior silhouette in red
+        silhouette_paths = letter.exterior_path_right_silhouette
+        for silhouette_path in silhouette_paths:
+            svg_silhouette = svg_page.drawing.path(
+                silhouette_path.svg_path_string(),
                 fill="none",
                 stroke="red",
                 stroke_width=0.00003,
             )
-            svg_page.add(svg_exterior, True)
+            svg_page.add(svg_silhouette, True)
+
+        # Add left exterior silhouette in green
+        left_silhouette_paths = letter.exterior_path_left_silhouette
+        for silhouette_path in left_silhouette_paths:
+            svg_silhouette = svg_page.drawing.path(
+                silhouette_path.svg_path_string(),
+                fill="none",
+                stroke="green",
+                stroke_width=0.00003,
+            )
+            svg_page.add(svg_silhouette, True)
 
     # Save the page
     svg_filename: str = "data/output/example/svg/layout/pi_line_layout.svgz"

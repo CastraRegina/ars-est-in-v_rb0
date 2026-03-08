@@ -36,6 +36,9 @@ class AvLetter(ABC):
         svg_path_string(self)
         centroid(self)
         exterior(self, steps: int = 20)
+        exterior_path(self)
+        exterior_path_left_silhouette(self)
+        exterior_path_right_silhouette(self)
     """
 
     _scale: float
@@ -229,6 +232,7 @@ class AvLetter(ABC):
         """Returns the SVG path representation of the letter."""
         raise NotImplementedError
 
+    @property
     @abstractmethod
     def centroid(self) -> Tuple[float, float]:
         """Returns the centroid of the letter in real dimensions.
@@ -256,6 +260,39 @@ class AvLetter(ABC):
         Returns:
             List of AvSinglePolygonPath objects representing only positive polygons
             (exterior rings without any holes) in the letter's coordinate system
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def exterior_path(self) -> List[AvSinglePolygonPath]:
+        """Convert glyph outline to one or more polygons without holes using fixed internal steps.
+
+        Returns:
+            List of transformed AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes) in the letter's coordinate system
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def exterior_path_left_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get left orthographic silhouette of the letter's exterior polygons.
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the left silhouette
+            with right blocking edge at x = max_x in the letter's coordinate system
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def exterior_path_right_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get right orthographic silhouette of the letter's exterior polygons.
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the right silhouette
+            with left blocking edge at x = min_x in the letter's coordinate system
         """
         raise NotImplementedError
 
@@ -346,6 +383,7 @@ class AvSingleGlyphLetter(AvLetter):
         """
         return self._glyph.path.svg_path_string(self.scale, self.xpos, self.ypos)
 
+    @property
     def centroid(self) -> Tuple[float, float]:
         """
         Returns the centroid of the letter in real dimensions.
@@ -358,7 +396,7 @@ class AvSingleGlyphLetter(AvLetter):
             Tuple[float, float]: The (x, y) coordinates of the centroid.
         """
         # Get the glyph's centroid and transform it using the letter's transformation
-        glyph_centroid = self._glyph.centroid()
+        glyph_centroid = self._glyph.centroid
 
         centroid_x = glyph_centroid[0] * self.scale + self.xpos
         centroid_y = glyph_centroid[1] * self.scale + self.ypos
@@ -384,6 +422,72 @@ class AvSingleGlyphLetter(AvLetter):
         # Apply the letter's transformation to each exterior path
         transformed_paths = []
         for path in exterior_paths:
+            transformed_path = path.transformed_copy(self.scale, self.xpos, self.ypos)
+            transformed_paths.append(transformed_path)
+
+        return transformed_paths
+
+    @property
+    def exterior_path(self) -> List[AvSinglePolygonPath]:
+        """Convert glyph outline to one or more polygons without holes using fixed internal steps.
+
+        Uses the glyph's cached exterior_path and applies the same scale and translation
+        transformations as the letter.
+
+        Returns:
+            List of transformed AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes) in the letter's coordinate system
+        """
+        # Get exterior paths from the glyph
+        exterior_paths = self._glyph.exterior_path
+
+        # Apply the letter's transformation to each exterior path
+        transformed_paths = []
+        for path in exterior_paths:
+            transformed_path = path.transformed_copy(self.scale, self.xpos, self.ypos)
+            transformed_paths.append(transformed_path)
+
+        return transformed_paths
+
+    @property
+    def exterior_path_left_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get left orthographic silhouette of the letter's exterior polygons.
+
+        Uses the glyph's cached exterior_path_left_silhouette and applies the same
+        scale and translation transformations as the letter.
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the left silhouette
+            with right blocking edge at x = max_x in the letter's coordinate system
+        """
+        # Get left silhouette paths from the glyph
+        silhouette_paths = self._glyph.exterior_path_left_silhouette
+
+        # Apply the letter's transformation to each silhouette path
+        transformed_paths = []
+        for path in silhouette_paths:
+            transformed_path = path.transformed_copy(self.scale, self.xpos, self.ypos)
+            transformed_paths.append(transformed_path)
+
+        return transformed_paths
+
+    @property
+    def exterior_path_right_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get right orthographic silhouette of the letter's exterior polygons.
+
+        Uses the glyph's cached exterior_path_right_silhouette and applies the same
+        scale and translation transformations as the letter.
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the right silhouette
+            with left blocking edge at x = min_x in the letter's coordinate system
+        """
+        # Get right silhouette paths from the glyph
+        silhouette_paths = self._glyph.exterior_path_right_silhouette
+
+        # Apply the letter's transformation to each silhouette path
+        transformed_paths = []
+        for path in silhouette_paths:
             transformed_path = path.transformed_copy(self.scale, self.xpos, self.ypos)
             transformed_paths.append(transformed_path)
 
@@ -611,6 +715,7 @@ class AvMultiWeightLetter(AvLetter):
 
         return " ".join(path_strings)
 
+    @property
     def centroid(self) -> Tuple[float, float]:
         """Returns the centroid of the heaviest letter in real dimensions.
 
@@ -621,7 +726,7 @@ class AvMultiWeightLetter(AvLetter):
         """
         if not self._letters:
             return (0.0, 0.0)
-        return self._letters[0].centroid()
+        return self._letters[0].centroid
 
     def exterior(self, steps: int = 20) -> List[AvSinglePolygonPath]:
         """Get the exterior paths of the heaviest letter without holes.
@@ -638,6 +743,42 @@ class AvMultiWeightLetter(AvLetter):
         if not self._letters:
             return []
         return self._letters[0].exterior(steps)
+
+    @property
+    def exterior_path(self) -> List[AvSinglePolygonPath]:
+        """Convert glyph outline to one or more polygons without holes using fixed internal steps.
+
+        Returns:
+            List of transformed AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes) in the letter's coordinate system
+        """
+        if not self._letters:
+            return []
+        return self._letters[0].exterior_path
+
+    @property
+    def exterior_path_left_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get left orthographic silhouette of the letter's exterior polygons.
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the left silhouette
+            with right blocking edge at x = max_x in the letter's coordinate system
+        """
+        if not self._letters:
+            return []
+        return self._letters[0].exterior_path_left_silhouette
+
+    @property
+    def exterior_path_right_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get right orthographic silhouette of the letter's exterior polygons.
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the right silhouette
+            with left blocking edge at x = min_x in the letter's coordinate system
+        """
+        if not self._letters:
+            return []
+        return self._letters[0].exterior_path_right_silhouette
 
     ####################################################################################
 

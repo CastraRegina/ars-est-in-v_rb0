@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from functools import cached_property
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -23,6 +24,7 @@ from ave.path import (
     AvSinglePolygonPath,
     PathSplitter,
 )
+from ave.path_exterior import AvPathExterior
 
 ###############################################################################
 # Glyph
@@ -45,6 +47,9 @@ class AvGlyph:
     _character: str
     _advance_width: float
     _path: AvPath
+
+    # Number of steps to use when polygonizing curves for internal approximations
+    POLYGONIZE_EXTERIOR_STEPS_INTERNAL: int = 10  # pylint: disable=invalid-name
 
     def __init__(
         self,
@@ -157,9 +162,9 @@ class AvGlyph:
             return self.advance_width
 
         if align == AlignX.LEFT:
-            return self.advance_width - self.left_side_bearing()
+            return self.advance_width - self.left_side_bearing
         if align == AlignX.RIGHT:
-            return self.advance_width - self.right_side_bearing()
+            return self.advance_width - self.right_side_bearing
         if align == AlignX.BOTH:
             return self.bounding_box.width
 
@@ -186,6 +191,7 @@ class AvGlyph:
         """
         return self.bounding_box.ymin
 
+    @property
     def left_side_bearing(self) -> float:
         """
         LSB: The horizontal space on the left side of a glyph (sign varies +/-).
@@ -195,6 +201,7 @@ class AvGlyph:
         """
         return self.bounding_box.xmin
 
+    @property
     def right_side_bearing(self) -> float:
         """
         RSB: The horizontal space on the right side of a glyph (sign varies +/-).
@@ -230,6 +237,7 @@ class AvGlyph:
         """
         return AvBox(0, self.descender, self.advance_width, self.ascender)
 
+    @property
     def centroid(self) -> Tuple[float, float]:
         """
         Returns the centroid of the glyph.
@@ -242,7 +250,7 @@ class AvGlyph:
 
         return self._path.centroid
 
-    def exterior(self, steps: int = 20) -> List[AvSinglePolygonPath]:
+    def exterior(self, steps: Optional[int] = None) -> List[AvSinglePolygonPath]:
         """Convert glyph outline to one or more polygons without holes.
 
         Takes the glyph path, polygonizes it using the specified number of steps,
@@ -264,6 +272,10 @@ class AvGlyph:
             List of AvSinglePolygonPath objects representing only positive polygons
             (exterior rings without any holes)
         """
+
+        # Use default steps if not provided
+        if steps is None:
+            steps = self.POLYGONIZE_EXTERIOR_STEPS_INTERNAL
 
         # Handle empty path
         if len(self._path.points) == 0:
@@ -327,6 +339,45 @@ class AvGlyph:
         extract_exterior(union_result)
 
         return result_paths
+
+    @cached_property
+    def exterior_path(self) -> List[AvSinglePolygonPath]:
+        """Convert glyph outline to one or more polygons without holes using fixed internal steps.
+
+        Uses POLYGONIZE_EXTERIOR_STEPS_INTERNAL for polygonization and caches the result.
+        This is a cached version of exterior() with fixed steps for performance.
+
+        Returns:
+            List of AvSinglePolygonPath objects representing only positive polygons
+            (exterior rings without any holes)
+        """
+        return self.exterior(self.POLYGONIZE_EXTERIOR_STEPS_INTERNAL)
+
+    @cached_property
+    def exterior_path_left_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get left orthographic silhouette of the glyph's exterior polygons.
+
+        Uses the cached exterior_path() and transforms it into left silhouette
+        polygons using AvPathExterior.left_exterior_silhouette_list().
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the left silhouette
+            with right blocking edge at x = max_x.
+        """
+        return AvPathExterior.left_exterior_silhouette_list(self.exterior_path)
+
+    @cached_property
+    def exterior_path_right_silhouette(self) -> List[AvSinglePolygonPath]:
+        """Get right orthographic silhouette of the glyph's exterior polygons.
+
+        Uses the cached exterior_path() and transforms it into right silhouette
+        polygons using AvPathExterior.right_exterior_silhouette_list().
+
+        Returns:
+            List of AvSinglePolygonPath objects representing the right silhouette
+            with left blocking edge at x = min_x.
+        """
+        return AvPathExterior.right_exterior_silhouette_list(self.exterior_path)
 
     def approx_equal(self, other: AvGlyph, rtol: float = 1e-9, atol: float = 1e-9) -> bool:
         """Check if two glyphs are approximately equal within numerical tolerances.

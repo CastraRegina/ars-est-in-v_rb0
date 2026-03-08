@@ -46,7 +46,7 @@ class AvLetterAlignment:
             # Handle single letter
             if reference == CenterRef.CENTROID:
                 # For centroid, get current coordinates directly
-                current_center_x, current_center_y = letter.centroid()
+                current_center_x, current_center_y = letter.centroid
             else:
                 # For box-based references, get the appropriate box
                 if reference == CenterRef.BOUNDING_BOX:
