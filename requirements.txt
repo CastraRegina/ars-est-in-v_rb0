@@ -53,7 +53,7 @@ MutatorMath==3.0.1
 mypy==1.19.1
 mypy_extensions==1.1.0
 numpy==2.4.3
-openstep_plist==0.5.1
+openstep_plist==0.5.2
 packaging==26.0
 pangocairocffi==0.7.0
 pangocffi==0.14.0
