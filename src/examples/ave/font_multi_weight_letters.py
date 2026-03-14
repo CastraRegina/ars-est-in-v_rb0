@@ -9,7 +9,8 @@ from typing import List
 
 from ave.common import AlignX, CenterRef
 from ave.glyph_factory import AvGlyphFactory
-from ave.letter import AvLetterAlignment, AvMultiWeightLetter
+from ave.letter import AvMultiWeightLetter
+from ave.letter_processing import AvLetterAlignment
 from ave.page import AvSvgPage
 
 
