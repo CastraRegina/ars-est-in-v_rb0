@@ -863,7 +863,13 @@ class AvPath:
 
     @cached_property
     def polygonized_path(self) -> AvMultiPolylinePath:
-        """Return the polygonized path with lazy evaluation and caching."""
+        """Return the polygonized path with lazy evaluation and caching.
+
+        The resulting AvMultiPolylinePath always stores points in the AvPath
+        3D format (x, y, type), where the third coordinate carries the point
+        type flag (0.0 for anchors, 2.0/3.0 for quadratic/cubic control
+        points).
+        """
         # Only polygonize if we actually have curves
         if self.has_curves:
             return self.polygonize(self.POLYGONIZE_STEPS_INTERNAL)
@@ -879,8 +885,11 @@ class AvPath:
                 If 0, the original path is returned unchanged.
 
         Returns:
-            AvPath: New path with curves replaced by line segments.
-                If this instance already has no curves, it is returned unchanged.
+            AvPath: New path with curves replaced by line segments. The returned
+            path stores points in the AvPath 3D format, so each point has
+            (x, y, type). The third coordinate carries the point-type flag
+            (0.0 for anchors, 2.0/3.0 for quadratic/cubic control points).
+            If this instance already has no curves, it is returned unchanged.
         """
         if steps == 0:
             return self

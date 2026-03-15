@@ -270,7 +270,9 @@ class AvGlyph:
 
         Returns:
             List of AvSinglePolygonPath objects representing only positive polygons
-            (exterior rings without any holes)
+            (exterior rings without any holes). Points are stored in the AvPath
+            3D format (x, y, type); for polygons the type column is 0.0, so the
+            geometry lives entirely in the x/y coordinates.
         """
 
         # Use default steps if not provided
@@ -349,7 +351,8 @@ class AvGlyph:
 
         Returns:
             List of AvSinglePolygonPath objects representing only positive polygons
-            (exterior rings without any holes)
+            (exterior rings without any holes). Points use the AvPath 3D format
+            (x, y, type) with type values of 0.0 for polygon vertices.
         """
         return self.exterior(self.POLYGONIZE_EXTERIOR_STEPS_INTERNAL)
 

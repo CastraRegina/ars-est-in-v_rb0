@@ -506,7 +506,12 @@ class PathPolygonizer:
             process_2d_to_3d_func: Function to convert 2D points to 3D with type column
 
         Returns:
-            Tuple of (polygonized_points, polygonized_commands)
+            Tuple of (polygonized_points, polygonized_commands). The returned
+            polygonized_points array always contains three elements per point
+            because inputs are normalized to 3D before polygonization. The third
+            coordinate stores the point type flag (e.g., 0.0 for anchors, 2.0/3.0
+            for quadratic/cubic control points) consistent with AvPath's
+            3D-point representation.
 
         Raises:
             ValueError: If steps is 0 or path has invalid structure

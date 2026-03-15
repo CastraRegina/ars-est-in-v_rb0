@@ -255,7 +255,9 @@ class AvLetter(ABC):
 
         Returns:
             List of AvSinglePolygonPath objects representing only positive polygons
-            (exterior rings without any holes) in the letter's coordinate system
+            (exterior rings without any holes) in the letter's coordinate system.
+            Points use the AvPath 3D format (x, y, type) with type values of 0.0
+            for polygon vertices.
         """
         raise NotImplementedError
 
@@ -266,7 +268,9 @@ class AvLetter(ABC):
 
         Returns:
             List of transformed AvSinglePolygonPath objects representing only positive polygons
-            (exterior rings without any holes) in the letter's coordinate system
+            (exterior rings without any holes) in the letter's coordinate system.
+            Points use the AvPath 3D format (x, y, type) with type values of 0.0
+            for polygon vertices.
         """
         raise NotImplementedError
 
@@ -277,7 +281,9 @@ class AvLetter(ABC):
 
         Returns:
             List of AvSinglePolygonPath objects representing the left silhouette
-            with right blocking edge at x = max_x in the letter's coordinate system
+            with right blocking edge at x = max_x in the letter's coordinate
+            system. Points remain in the AvPath 3D format (x, y, type) and use a
+            type value of 0.0 for polygon vertices.
         """
         raise NotImplementedError
 
@@ -288,7 +294,9 @@ class AvLetter(ABC):
 
         Returns:
             List of AvSinglePolygonPath objects representing the right silhouette
-            with left blocking edge at x = min_x in the letter's coordinate system
+            with left blocking edge at x = min_x in the letter's coordinate
+            system. Points remain in the AvPath 3D format (x, y, type) and use a
+            type value of 0.0 for polygon vertices.
         """
         raise NotImplementedError
 
@@ -410,7 +418,9 @@ class AvSingleGlyphLetter(AvLetter):
 
         Returns:
             List of transformed AvSinglePolygonPath objects representing only positive polygons
-            (exterior rings without any holes) in the letter's coordinate system
+            (exterior rings without any holes) in the letter's coordinate system.
+            Points use the AvPath 3D format (x, y, type) with type values of 0.0
+            for polygon vertices.
         """
         # Get exterior paths from the glyph
         exterior_paths = self._glyph.exterior(steps)
@@ -432,7 +442,9 @@ class AvSingleGlyphLetter(AvLetter):
 
         Returns:
             List of transformed AvSinglePolygonPath objects representing only positive polygons
-            (exterior rings without any holes) in the letter's coordinate system
+            (exterior rings without any holes) in the letter's coordinate system.
+            Points use the AvPath 3D format (x, y, type) with type values of 0.0
+            for polygon vertices.
         """
         # Get exterior paths from the glyph
         exterior_paths = self._glyph.exterior_path
@@ -454,7 +466,9 @@ class AvSingleGlyphLetter(AvLetter):
 
         Returns:
             List of AvSinglePolygonPath objects representing the left silhouette
-            with right blocking edge at x = max_x in the letter's coordinate system
+            with right blocking edge at x = max_x in the letter's coordinate system.
+            Points remain in the AvPath 3D format (x, y, type) and use a type
+            value of 0.0 for polygon vertices.
         """
         # Get left silhouette paths from the glyph
         silhouette_paths = self._glyph.exterior_path_left_silhouette
@@ -476,7 +490,9 @@ class AvSingleGlyphLetter(AvLetter):
 
         Returns:
             List of AvSinglePolygonPath objects representing the right silhouette
-            with left blocking edge at x = min_x in the letter's coordinate system
+            with left blocking edge at x = min_x in the letter's coordinate system.
+            Points remain in the AvPath 3D format (x, y, type) and use a type
+            value of 0.0 for polygon vertices.
         """
         # Get right silhouette paths from the glyph
         silhouette_paths = self._glyph.exterior_path_right_silhouette
