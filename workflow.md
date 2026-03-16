@@ -83,26 +83,39 @@ The "Catalogue raisonné in preparation" (Werkverzeichnis in Vorbereitung) webpa
   - Xing
 
   ...
+  - Facebook ([real-name policy](https://en.wikipedia.org/wiki/Facebook_real-name_policy_controversy))
   - Twitter / X
   - Shopify
   - Etsy
+  - Patreon
+  - Reddit
 
 ## Additional Information
 
+### Register to services
+
+- Check availability
+  - domain: `whois google.com`
+  - [https://namechk.com/](https://namechk.com/)
+  - [https://namecheckly.com/](https://namecheckly.com/)
+  - [https://namechecker.org](https://namechecker.org)
+  - [https://dnschecker.org/social-media-name-checker.php](https://dnschecker.org/social-media-name-checker.php)
+  - [https://qezir.com/check](https://qezir.com/check)
+  - [https://tools.namerobot.de/socialcheck](https://tools.namerobot.de/socialcheck)
+
 ### Web Presentation
 
-Where can I publish my art for free?
-
-- Facebook Groups
-- Instagram
-- Wetcanvas Forums
-- Reddit
-- Your Website & Blog
-- Steemit
-- Pinterest
-- Google My Business
-- Flickr
-- Jose Art Gallery
+- Where can I publish my art for free?
+  - Facebook Groups
+  - Instagram
+  - Wetcanvas Forums
+  - Reddit
+  - Your Website & Blog
+  - Steemit
+  - Pinterest
+  - Google My Business
+  - Flickr
+  - Jose Art Gallery
 
 ### Webpage
 
@@ -253,3 +266,4 @@ Selected Exhibitions
 #### Email
 
 - [Tutao](https://tuta.com/de) use with FIDO U2F
+- [Proton](https://proton.me/)
