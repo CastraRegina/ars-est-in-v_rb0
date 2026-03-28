@@ -76,15 +76,25 @@ The "Catalogue raisonné in preparation" (Werkverzeichnis in Vorbereitung) webpa
 - Update online shops
 - Update social media / newsletter / blog
   - Instagram
-  - Youtube
-  - TikTok
   - Pinterest
+  - TikTok
+  - Youtube
   - LinkedIn
-  - Xing
+  - (Xing)
 
   ...
+  - Cara
   - Facebook ([real-name policy](https://en.wikipedia.org/wiki/Facebook_real-name_policy_controversy))
-  - Twitter / X
+  - Behance
+  - FinerWorks
+  - ArtStation
+  - Society6 - Print-on-demand
+  - Saatchi Art - Fine art
+  - KubaParis
+  
+  ...
+  - Twitter / X - AI-learning
+  - Squarespace
   - Shopify
   - Etsy
   - Patreon
@@ -102,6 +112,49 @@ The "Catalogue raisonné in preparation" (Werkverzeichnis in Vorbereitung) webpa
   - [https://dnschecker.org/social-media-name-checker.php](https://dnschecker.org/social-media-name-checker.php)
   - [https://qezir.com/check](https://qezir.com/check)
   - [https://tools.namerobot.de/socialcheck](https://tools.namerobot.de/socialcheck)
+
+### List of services
+
+Create an account for each:
+
+- Googlemail (pwd+2factor)
+- GitHub (pwd+2factor+2ndSMS)
+- Instagram (pwd+2factor)
+- Pinterest (login using google account)
+- TikTok (login using google account)
+- Youtube (login using google account)
+- LinkedIn (pwd+2factor)
+
+- Xing (pwd+2factor)
+- X / Twitter (login using google account)
+
+- printful
+- redbubble (pwd w/o 2factor authentication)
+- printify
+- inprint
+- Gelato
+
+- Etsy (login using google account)
+- reddit (login using google account)
+- patreon (login using google account)
+
+- Squarespace
+- Shopify
+- Cara
+- Behance
+- FinerWorks
+- Society6 - Print-on-demand
+- Saatchi Art - Fine art
+- ArtStation
+- KubaParis
+
+### Print on Demand Sites for Artists
+
+- Printful - Best for branded stores
+- Redbubble - Best for starting
+- Printify - Low price focused
+- INPRNT - Best for fine art and collectors
+- Gelato - Best for global delivery
 
 ### Web Presentation
 
@@ -121,7 +174,7 @@ The "Catalogue raisonné in preparation" (Werkverzeichnis in Vorbereitung) webpa
 
 #### Webpage Requirements
 
-- Use AHA-stack:
+- Use AHA-stack (Astro, htmx, Alpine.js, Tailwind CSS):
   - A - Astro - server-side HTML, static pages
   - H - htmx - HTML-over-wire dynamics without SPA
   - A - Alpine.js - small client-side interactivity
@@ -131,7 +184,8 @@ The "Catalogue raisonné in preparation" (Werkverzeichnis in Vorbereitung) webpa
   - Reload whole page when switching between languages
 - Multi target devices with multi resolution:  
   support viewport-classes (XS, S, M, L, XL): use modern CSS with Container Queries,  
-  but for SmartTVs (10-Foot UI) special implementation is needed.
+  but for SmartTVs (10-Foot UI) special implementation is needed,
+  so do not consider/support it at the beginning.
 - Simple and robust
 - State-of-the-Art implementation
 - Fast preview and with reloading details if requested
@@ -144,7 +198,9 @@ The "Catalogue raisonné in preparation" (Werkverzeichnis in Vorbereitung) webpa
 - Intial start page with sub pages and files  
   All pages in footer with links to
   "About", "Contact", "Legal notice" and "Data privacy statement" on the left side of the page  
-  (and also links to social media services on the left side of the page)
+  (and also links to social media services
+  (Instagram, Youtube, TikTok, Pinterest, LinkedIn, Xing)
+  on the left side of the page)
   - About (Über)
   - Contact (Kontakt)
   - Legal notice (Impressum)
@@ -253,6 +309,120 @@ Selected Exhibitions
 - Process showcase adds value to limited editions
 - Multi-language support (/en/, /de/)
 - SEO: JSON-LD, OpenGraph, Twitter Cards
+
+#### Install AHA-stack (Astro, htmx, Alpine.js, Tailwind CSS)
+
+1. Prepare the system
+
+    ``` bash
+    sudo apt update && sudo apt upgrade -y
+    ```
+
+2. Install Node.js (via nvm – recommended)
+
+    ``` bash
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    source ~/.bashrc
+    nvm install --lts
+    nvm use --lts
+    node -v   # verify
+    npm -v
+    ```
+
+3. Create an Astro project
+
+    ``` bash
+    npm create astro@latest catalogue-aha
+    ```
+
+    When prompted, choose a template (e.g., empty or minimal).  
+    Select Yes for TypeScript and Git if desired.  
+    Then:
+
+    ``` bash
+    cd catalogue-aha
+    npm install
+    ```
+
+4. Add Tailwind CSS
+
+    ``` bash
+    npx astro add tailwind
+    ```
+
+    This automatically installs Tailwind, creates a `tailwind.config.js`, and sets up the CSS.
+
+5. Add htmx and Alpine.js locally
+
+    ``` bash
+    mkdir -p public/js
+    curl -o public/js/htmx.min.js https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js
+    curl -o public/js/alpine.min.js https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js
+    ```
+
+    Create a layout file (e.g., `src/layouts/BaseLayout.astro`):
+
+    ``` astro
+    ---
+    // frontmatter (optional)
+    ---
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script src="/js/htmx.min.js" defer></script>
+        <script src="/js/alpine.min.js" defer></script>
+      </head>
+      <body>
+        <slot />
+      </body>
+    </html>
+    ```
+
+6. Create additional directories (optional)
+
+    ``` bash
+    mkdir -p src/components src/layouts src/data public/images
+    ```
+
+7. Add example data (optional)
+
+    ``` bash
+    nano src/data/artworks.json   # or use your editor
+    ```
+
+    Paste sample content:
+
+    ``` bash
+    [
+      {
+        "id": "example-work",
+        "title": "Example Work",
+        "year": 2024,
+        "description": "Example description",
+        "image_preview": "/images/example.jpg",
+        "image_highres": "/images/example-large.jpg",
+        "edition": "Giclée print"
+      }
+    ]
+    ```  
+
+8. Run the development server
+
+    ``` bash
+    npm run dev
+    ```
+
+    Visit `http://localhost:4321` to see your project.
+
+9. Build for production
+
+    ``` bash
+    npm run build
+    ```
+
+    The static output will be in the `dist/` folder.
 
 ### Privacy
 
