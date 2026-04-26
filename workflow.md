@@ -58,7 +58,7 @@ potrace temp.pbm -s -o output.svg
 - Define specific number of the artwork (format: YYxxx)
 - Define name of the artwork
 - Check name for copyright infringements and other legal issues --> TODO
-- Check if it belongs to a series / collection
+- Check if it belongs to a series / (collection)
   - [Diptych](https://en.wikipedia.org/wiki/Diptych)
   - [Triptych](https://en.wikipedia.org/wiki/Triptych)
   - [Polyptych](https://en.wikipedia.org/wiki/Polyptych)
@@ -224,12 +224,52 @@ Create an account for each:
   - the digital creation process, which adds value to limited edition Giclée prints.
 - Notes to [Edition](https://en.wikipedia.org/wiki/Edition_%28printmaking%29)
 
+#### Title Image Sizing (Recommended)
+
+| Width        | Device        | Recommended Height | Aspect Ratio   |
+|--------------|---------------|--------------------|----------------|
+| 640px (XS)   | Smartphone    | 360-480px          | 16:9 to 4:3    |
+| 1024px (S/M) | Tablet        | 480-600px          | 16:9 to 16:10  |
+| 1920px (L)   | Desktop       | 540-720px          | 16:9 to 16:10  |
+| 2560px (XL)  | Large Desktop | 600-800px          | 16:9 to 16:10  |
+
+#### Artwork Preview Image Sizing (Recommended)
+
+##### Preview Images (Grid Thumbnails)
+
+| Device        | Width (px) | Height (px) | Aspect Ratio | Max File Size |
+|---------------|------------|-------------|--------------|---------------|
+| Smartphone    | 300-400    | 300-400     | 1:1          | 50-100 KB     |
+| Tablet        | 400-600    | 400-600     | 1:1          | 100-150 KB    |
+| Desktop       | 500-700    | 500-700     | 1:1          | 150-200 KB    |
+| Large Desktop | 600-800    | 600-800     | 1:1          | 200-250 KB    |
+
+##### Detail View Images (High-Res)
+
+| Device        | Width (px) | Height (px) | Aspect Ratio | Max File Size |
+|---------------|------------|-------------|--------------|---------------|
+| Smartphone    | 800-1200   | 800-1200    | 1:1 or 4:3   | 300-500 KB    |
+| Tablet        | 1200-1600  | 1200-1600   | 1:1 or 4:3   | 500-800 KB    |
+| Desktop       | 1600-2400  | 1600-2400   | 1:1 or 4:3   | 800KB-1.5 MB  |
+| Large Desktop | 2400-3200  | 2400-3200   | 1:1 or 4:3   | 1.5-2.5 MB    |
+
+##### Implementation Approach
+
+- Use `srcset` with 4 sizes per image (300w, 600w, 1200w, 2400w)
+- Browser selects optimal size based on device
+- Preview images: smaller, lighter, faster loading
+- Detail images: larger, higher quality for zoom/inspection
+- Fixed aspect ratio (CSS `aspect-ratio` or intrinsic dimensions)
+- Lazy loading (`loading="lazy"`) for grid images
+- Reserve space to avoid layout shift
+- Alt text required for accessibility
+
 #### Recommendations by AI
 
 **Essential Pages (Minimum):**
 
 1. **Home/Portfolio**
-   - Hero section with 1-3 featured artworks
+   - Title section with 1-3 featured artworks
    - Brief artist statement (2-3 sentences)
    - Clear navigation to gallery and shop
    - Call-to-action: "View Collection" or "Shop Prints"
@@ -268,7 +308,7 @@ Create an account for each:
 **Homepage:**
 
 ```text
-[Hero Image: Featured Artwork]
+[Title Image: Featured Artwork]
 John Doe - Digital Artist
 Creating limited edition Giclée prints from original digital paintings
 
@@ -356,8 +396,8 @@ Selected Exhibitions
 
     ``` bash
     mkdir -p public/js
-    curl -o public/js/htmx.min.js https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js
-    curl -o public/js/alpine.min.js https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js
+    curl -o public/js/htmx.min.js https://unpkg.com/htmx.org@2.0.9/dist/htmx.min.js
+    curl -o public/js/alpine.min.js https://unpkg.com/alpinejs@3.15.11/dist/cdn.min.js
     ```
 
     Create a layout file (e.g., `src/layouts/BaseLayout.astro`):
@@ -408,7 +448,7 @@ Selected Exhibitions
     ]
     ```  
 
-8. Run the development server
+8. Run the development server in folder `catalogue-aha`
 
     ``` bash
     npm run dev
@@ -424,6 +464,41 @@ Selected Exhibitions
 
     The static output will be in the `dist/` folder.
 
+10. Test the AHA Stack
+
+    To see a working page, you need to create an Astro file inside src/pages/. For example:
+
+    - Create a homepage
+
+      ```bash
+      nano src/pages/index.astro
+      ```
+
+    - Add simple content
+
+      ```astro
+      ---
+      // Component script (optional)
+      ---
+
+      <html lang="en">
+        <head>
+          <title>My AHA App</title>
+        </head>
+        <body>
+          <h1>Hello, AHA stack!</h1>
+          <div x-data="{ count: 0 }">
+            <button @click="count++" x-text="count"></button>
+          </div>
+          <div hx-get="/api/hello" hx-trigger="load">Loading...</div>
+        </body>
+      </html>
+      ```
+
+    - Save and refresh <http://localhost:4321>
+
+    You should now see a page with a counter (Alpine.js) and a loading placeholder (htmx – you'd need a backend endpoint for the actual request, but it demonstrates the libraries are working).
+
 ### Privacy
 
 - [www.privacytools.io](https://www.privacytools.io)
@@ -437,3 +512,27 @@ Selected Exhibitions
 
 - [Tutao](https://tuta.com/de) use with FIDO U2F
 - [Proton](https://proton.me/)
+
+### Artwork Classification Terminology
+
+**Body of Work / Work Group (Werkgruppe)**  
+A distinct set of artworks linked by a common theme, technique, or conceptual approach, regardless of the timeframe.
+
+**Series (Serie)**  
+A sequence of related works created in succession, often exploring variations of the same subject or visual idea.
+
+**Cycle (Zyklus)**  
+A cohesive group of works designed to be viewed together as a whole, often following a narrative or a specific chronological order.
+
+- Diptych: A work consisting of two associated artistic panels.
+- Triptych: A work divided into three sections or panels.
+- Polyptych: A work composed of more than three connected panels.
+
+**Portfolio (Portfolio)**  
+A curated selection of an artist's best or most representative works, often used for presentation or professional showcase.
+
+**Collection (Kollektion / Sammlung)**  
+An assembled group of works, usually referring to the holdings of a collector or institution, or a thematic grouping by the artist.
+
+**Edition (Edition)**  
+A series of identical or similar copies (e.g., prints or sculptures) produced from a single master or mold, usually in a limited number.
