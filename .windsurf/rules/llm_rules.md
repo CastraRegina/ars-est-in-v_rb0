@@ -6,15 +6,18 @@ globs: .py
 
 ## ABSOLUTE
 
-- English only.
-- US-ASCII only.
-- Use only " ' and -.
-- Python only (python3 mandatory).
-- After ANY code-affecting change, run the FULL test suite AFTER the change:
+- Use English and US-ASCII only; no Unicode.
+- Keep documentation concise, precise, and complete.
+- Target Python 3.11+; prefer 3.11+ compatibility.
+- Research and prefer well-established best practices and proven solutions.
+- Consider state-of-the-art approaches when stable and appropriate.
+- Avoid experimental or bleeding-edge approaches unless explicitly justified.
+- Use precise type annotations.
+- After ANY code-affecting change, run the FULL test suite AFTER the change:  
   Use `PYTHONPATH=./src ./venv/bin/python -m pytest -q`.
 - Non-code-only edits (comments/docstrings/whitespace) do NOT require running tests.
 - Every response that changes code MUST explicitly state that the full test suite was run and passed.
-- Run linter repeatedly and fix all newly introduced linter errors until clean:
+- Run linter repeatedly and fix all newly introduced linter errors until clean:  
   Use `PYTHONPATH=./src ./venv/bin/python -m pylint src` or a lint run for the changed file.
 
 ## DO NOT (HALLUCINATION PREVENTION)
