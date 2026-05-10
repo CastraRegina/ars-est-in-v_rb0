@@ -174,46 +174,25 @@ Create an account for each:
 
 #### Webpage Requirements
 
-- Use AHA-stack (Astro, htmx, Alpine.js, Tailwind CSS):
-  - A - Astro - server-side HTML, static pages
-  - H - htmx - HTML-over-wire dynamics without SPA
-  - A - Alpine.js - small client-side interactivity
-- Accessibility: comply with WCAG 2.2 AA and EN 301 549 or newer
-- Multi language (i18n)
-  - Use example.com/en/ , example.com/de/ ...
-  - Reload whole page when switching between languages
-- Multi target devices with multi resolution:  
-  support viewport-classes (XS, S, M, L, XL): use modern CSS with Container Queries,  
-  but for SmartTVs (10-Foot UI) special implementation is needed,
-  so do not consider/support it at the beginning.
+- Use AHA-stack (Astro, htmx, Alpine.js, Tailwind CSS)
+- Multi language (i18n): /en/, /de/
+- Multi target devices with multi resolution (XS, S, M, L, XL)
+- No SmartTV (10-Foot UI) support initially
 - Simple and robust
 - State-of-the-Art implementation
 - Fast preview and with reloading details if requested
 - No reloading of parts from external sources, e.g. Google fonts or similar
-- Optimization for SEO, provide
-  - JSON-LD
-  - OpenGraph
-  - Twitter Cards
-- Webpage should be also full functional without JavaScript
-- Intial start page with sub pages and files  
-  All pages in footer with links to
-  "About", "Contact", "Legal notice" and "Data privacy statement" on the left side of the page  
-  (and also links to social media services
-  (Instagram, Youtube, TikTok, Pinterest, LinkedIn, Xing)
-  on the left side of the page)
+- Optimization for SEO (JSON-LD, OpenGraph, Twitter Cards)
+- Webpage should be also full functional without JavaScript (progressive enhancement)
+- Initial start page with sub pages and files
+  All pages in footer with links to "About", "Contact", "Legal notice" and "Data privacy statement"
   - About (Über)
   - Contact (Kontakt)
   - Legal notice (Impressum)
   - Data privacy statement (Datenschutzerklärung / DSGVO)
   - 404-Page (multi language)
   - robots.txt and sitemap.xml
-- htmx usage  
-  Constraint: Achieve dynamic "Single Page Application" behavior using only static HTML fragments (no backend).
-  - Infinite Scroll: Implement seamless loading of additional content/images as the user scrolls down.
-  - High-Res Detail View: Enable loading and displaying high-resolution images (or detail fragments)
-    into a specific container when a thumbnail / preview image is clicked.
-- CSS details
-  - Use Tailwind CSS
+- CSS details: Use Tailwind CSS
 
 #### Webpage Content
 
@@ -224,45 +203,23 @@ Create an account for each:
   - the digital creation process, which adds value to limited edition Giclée prints.
 - Notes to [Edition](https://en.wikipedia.org/wiki/Edition_%28printmaking%29)
 
-#### Title Image Sizing (Recommended)
+#### Future Functionalities of Webpage
 
-| Width        | Device        | Recommended Height | Aspect Ratio   |
-|--------------|---------------|--------------------|----------------|
-| 640px (XS)   | Smartphone    | 360-480px          | 16:9 to 4:3    |
-| 1024px (S/M) | Tablet        | 480-600px          | 16:9 to 16:10  |
-| 1920px (L)   | Desktop       | 540-720px          | 16:9 to 16:10  |
-| 2560px (XL)  | Large Desktop | 600-800px          | 16:9 to 16:10  |
-
-#### Artwork Preview Image Sizing (Recommended)
-
-##### Preview Images (Grid Thumbnails)
-
-| Device        | Width (px) | Height (px) | Aspect Ratio | Max File Size |
-|---------------|------------|-------------|--------------|---------------|
-| Smartphone    | 300-400    | 300-400     | 1:1          | 50-100 KB     |
-| Tablet        | 400-600    | 400-600     | 1:1          | 100-150 KB    |
-| Desktop       | 500-700    | 500-700     | 1:1          | 150-200 KB    |
-| Large Desktop | 600-800    | 600-800     | 1:1          | 200-250 KB    |
-
-##### Detail View Images (High-Res)
-
-| Device        | Width (px) | Height (px) | Aspect Ratio | Max File Size |
-|---------------|------------|-------------|--------------|---------------|
-| Smartphone    | 800-1200   | 800-1200    | 1:1 or 4:3   | 300-500 KB    |
-| Tablet        | 1200-1600  | 1200-1600   | 1:1 or 4:3   | 500-800 KB    |
-| Desktop       | 1600-2400  | 1600-2400   | 1:1 or 4:3   | 800KB-1.5 MB  |
-| Large Desktop | 2400-3200  | 2400-3200   | 1:1 or 4:3   | 1.5-2.5 MB    |
-
-##### Implementation Approach
-
-- Use `srcset` with 4 sizes per image (300w, 600w, 1200w, 2400w)
-- Browser selects optimal size based on device
-- Preview images: smaller, lighter, faster loading
-- Detail images: larger, higher quality for zoom/inspection
-- Fixed aspect ratio (CSS `aspect-ratio` or intrinsic dimensions)
-- Lazy loading (`loading="lazy"`) for grid images
-- Reserve space to avoid layout shift
-- Alt text required for accessibility
+- Support searching the list of artworks by date of creation, category, technique, dimensions, price range
+- Support subpages for Series (Serie), Portfolio (Mappe), exhibitions, and artist statement
+- Implement "Image Protection Measures" / "Digital Rights Management (DRM)" for featured high-res images
+  - Digital watermarking (pre-applied to images)
+  - Canvas-based rendering (prevents direct download)
+  - Terms of service prohibiting unauthorized use
+  - Techniques not applicable to static GitHub Pages:
+    - Backend watermarking on-demand (requires backend server)
+    - Hotlinking protection via referrer checking (limited control on GitHub Pages)
+  - Ineffective/outdated techniques (considered but not recommended):
+    - Right-click/disable save functionality (easily bypassed)
+    - Overlay protection (disabled in browser dev tools)
+    - EXIF copyright metadata (stripped on upload, irrelevant for web)
+    - Image slicing (outdated, easily reconstructed by browsers)
+  - Note: General images displayed as low-resolution; only selected featured images shown in high-res
 
 #### Recommendations by AI
 
@@ -515,24 +472,55 @@ Selected Exhibitions
 
 ### Artwork Classification Terminology
 
-**Body of Work / Work Group (Werkgruppe)**  
-A distinct set of artworks linked by a common theme, technique, or conceptual approach, regardless of the timeframe.
+#### Individual Works
+
+**One-Off / Standalone Work (Einzelwerk)**  
+Individual artwork not part of a series, cycle, or body of work.
+
+#### Panel Formats
+
+- Diptych (Diptychon): Two-panel work
+- Triptych (Triptychon): Three-panel work
+- Tetraptych/Quadriptych (Tetrapttychon/Quadriptychon): Four-panel work
+- Pentaptych (Pentaptychon): Five-panel work
+- Polyptych (Polyptychon): Multi-panel work (more than three sections)
+
+#### Groupings by Artists
+
+**Suite (Suite)**  
+Cohesive group of works created together, common in printmaking.  
+Similar to series but typically smaller and more tightly unified.
 
 **Series (Serie)**  
-A sequence of related works created in succession, often exploring variations of the same subject or visual idea.
+Related works created in succession, exploring variations of a subject, technique, or visual idea.  
+A series may constitute a body of work or be part of a larger body of work.
 
 **Cycle (Zyklus)**  
-A cohesive group of works designed to be viewed together as a whole, often following a narrative or a specific chronological order.
+Works designed to be viewed together as a unified whole,
+often following a narrative progression or specific chronological order.
 
-- Diptych: A work consisting of two associated artistic panels.
-- Triptych: A work divided into three sections or panels.
-- Polyptych: A work composed of more than three connected panels.
+**Body of Work / Work Group (Werkgruppe)**  
+A cohesive set of artworks unified by common theme, technique, style, or conceptual approach. Typically comprises 10-20+ substantial pieces demonstrating depth and consistency. Distinct from an artist's complete oeuvre.
 
-**Portfolio (Portfolio)**  
-A curated selection of an artist's best or most representative works, often used for presentation or professional showcase.
+**Portfolio (Mappe)**  
+Curated selection of works intended to remain together for complete understanding, focused on narrative rather than artist career. Unlike series, portfolios represent thematic completeness.
+
+#### Multiples
+
+**Edition (Auflage)**  
+Multiple copies produced from a single master (prints, sculptures, photographs). Each piece is individually created and considered unique. Limited editions have predetermined quantity; open editions are unlimited. Distinct from reproductions.
+
+#### Collections and Holdings
 
 **Collection (Kollektion / Sammlung)**  
-An assembled group of works, usually referring to the holdings of a collector or institution, or a thematic grouping by the artist.
+Grouped works held by a collector or institution, or a thematic assembly by an artist.
 
-**Edition (Edition)**  
-A series of identical or similar copies (e.g., prints or sculptures) produced from a single master or mold, usually in a limited number.
+#### Complete Output
+
+**Oeuvre (Gesamtwerk)**  
+The complete body of work produced by an artist throughout their lifetime.
+
+#### Documentation
+
+**Catalogue Raisonné (Werkverzeichnis)**  
+Comprehensive annotated listing of all works by an artist, organized by medium, period, or other parameters. Used for authentication and scholarship.
