@@ -2,7 +2,7 @@
 trigger: always_on
 globs: [.py, .md]
 ---
-# LLM RULES (STRICT)
+# AI Assistant Guidelines
 
 ## ABSOLUTE
 
