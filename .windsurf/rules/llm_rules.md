@@ -1,6 +1,6 @@
 ---
 trigger: always_on
-globs: .py
+globs: [.py, .md]
 ---
 # LLM RULES (STRICT)
 
@@ -54,6 +54,7 @@ globs: .py
 - Imports: stdlib -> third-party -> local; absolute imports; at top of file only.
 - Naming: snake_case, CamelCase, UPPER_CASE.
 - Use `from __future__ import annotations` for forward references instead of string quotes.
+- Writing: concise but complete - avoid verbosity while preserving all essential meaning
 
 ## DOCS & TYPES
 
@@ -62,13 +63,11 @@ globs: .py
 - PEP 257 + Google style.
 - Triple double-quotes only.
 - Type hints required for all params, returns, and variables with significant business logic.
-- Docstrings MUST match actual implementation; update when logic changes.
 
 ## QUALITY
 
 - Code works as intended and meets requirements.
 - Code is readable and maintainable.
-- Code matches docstrings and type hints.
 - Handle edge cases.
 - Prefer simple, idiomatic Python.
 - pylint disable comments (`# pylint: disable=`) require user approval.
@@ -98,6 +97,15 @@ globs: .py
 - Refactor duplicated logic into shared functions/classes.
 - Prefer DRY principle over copy-paste.
 - Refactoring is allowed for eliminating duplication or when requested.
+
+## DOCUMENTATION CONSISTENCY
+
+- Verify file references in documentation (.md, docstrings, comments) exist with correct paths/names
+- Ensure documentation matches current implementation
+- Validate cross-references between documentation files
+- Ensure project structure diagrams match actual layout
+- Update all documentation references when renaming/moving files
+- Verify function/class/module references in docstrings/comments exist at cited locations
 
 ## LAYOUT
 
@@ -138,7 +146,7 @@ Before presenting code, verify in this order:
 4. Check security: No vulnerabilities, proper input validation, no hardcoded secrets
 5. Assess clarity: Code is readable, well-named, well-documented
 6. Consider performance: Efficient algorithms, no unnecessary complexity, measure if claiming gains
-7. Complete documentation: Docstrings for public APIs, docstrings match implementation
+7. Complete documentation: Docstrings for public APIs
 8. Verify maintainability: Code is modular, not duplicated, easy to modify
 
 ## QUALITY VERIFICATION
