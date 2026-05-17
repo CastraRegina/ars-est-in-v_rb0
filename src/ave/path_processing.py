@@ -968,8 +968,9 @@ class AvPathCleaner:
         if cleaned_paths:
             try:
                 joined = AvPath.join_paths(*cleaned_paths)
-                # Return with MULTI_POLYGON_CONSTRAINTS
-                return AvMultiPolygonPath(joined.points, joined.commands, MULTI_POLYGON_CONSTRAINTS)
+                result_path = AvMultiPolygonPath(joined.points, joined.commands, MULTI_POLYGON_CONSTRAINTS)
+                cleaned = AvPathCleaner.remove_duplicate_consecutive_points_from_multipolylinepath(result_path)
+                return AvMultiPolygonPath(cleaned.points, cleaned.commands, MULTI_POLYGON_CONSTRAINTS)
             except (TypeError, ValueError) as e:
                 print(f"Error during path joining: {e}. Returning empty path.")
                 return AvMultiPolygonPath(constraints=MULTI_POLYGON_CONSTRAINTS)
