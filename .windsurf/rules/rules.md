@@ -138,7 +138,7 @@ globs: [.py, .md]
 
 ## REVIEW CRITERIA
 
-Before presenting code, verify in this order:
+Before presenting any content (code, documentation, etc.), verify in this order:
 
 1. Verify correctness: Code works as intended, handles edge cases, matches requirements
 2. Ensure tests pass: All tests pass, adequate test coverage, tests cover edge cases
@@ -148,6 +148,7 @@ Before presenting code, verify in this order:
 6. Consider performance: Efficient algorithms, no unnecessary complexity, measure if claiming gains
 7. Complete documentation: Docstrings for public APIs
 8. Verify maintainability: Code is modular, not duplicated, easy to modify
+9. Check all content for copyright infringements
 
 ## QUALITY VERIFICATION
 
