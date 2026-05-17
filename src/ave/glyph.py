@@ -624,7 +624,7 @@ class AvGlyph:
                 return 15.0
 
             # Class 1: Everything else (letters, digits, most symbols)
-            return 10.0
+            return 12.0
 
         # Step 1: Check correct direction of segments
         revised_glyph = self.revise_direction()
