@@ -654,6 +654,15 @@ Maybe check later if some of these packages are really needed...
       - wght:   100.0 to   700.0, default:   400.0 
     ```
 
+- Inter ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
+    --> see [fonts.google.com](https://fonts.google.com/specimen/Inter)
+    ```
+    Available axes of Inter:
+      - ital:    0.0 to     1.0, default:     0.0
+      - opsz:   14.0 to    32.0, default:    14.0
+      - wght:  100.0 to   900.0, default:   400.0
+    ```
+
 - Cantarell ([Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL))
     --> see [fonts.google.com](https://fonts.google.com/specimen/Cantarell)  
   It is a non-variable font but can be well interpolated between *Regular* and *Bold*.  

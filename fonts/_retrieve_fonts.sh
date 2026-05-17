@@ -16,6 +16,7 @@ FONTS=(
     recursive
     robotoflex
     robotomono
+    inter
     cantarell
     petrona
     caveat
