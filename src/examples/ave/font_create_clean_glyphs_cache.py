@@ -583,11 +583,11 @@ def main():
         #     "num_wghts": 9,
         # },
         # {
-        #     "in_fn": "fonts/RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
-        #     "out_name": "RobotoFlexTEST-VariableFont_AA_",
+        #     "in_fn": "fonts/Inter[opsz,wght].ttf",
+        #     "out_name": "Inter-VariableFont_AA_",
         #     "wghts_min": 100,
-        #     "wghts_max": 1000,
-        #     "num_wghts": 2,
+        #     "wghts_max": 900,
+        #     "num_wghts": 9,
         # },
     ]
 
