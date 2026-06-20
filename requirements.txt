@@ -1,6 +1,6 @@
 afdko==5.0.1
 aiohappyeyeballs==2.6.2
-aiohttp==3.14.0
+aiohttp==3.14.1
 aiosignal==1.4.0
 annotated-types==0.7.0
 appdirs==1.4.4
@@ -48,7 +48,7 @@ librt==0.11.0
 lxml==6.1.1
 lz4==4.4.5
 markdown-it-py==4.2.0
-matplotlib==3.10.9
+matplotlib==3.11.0
 mccabe==0.7.0
 mdurl==0.1.2
 mpmath==1.3.0
@@ -75,18 +75,18 @@ pydantic==2.13.4
 pydantic_core==2.47.0
 pyflakes==3.4.0
 Pygments==2.20.0
-pylint==4.0.5
+pylint==4.0.6
 pyparsing==3.3.2
 pyphen==0.17.2
 pypng==0.20220715.0
-pytest==9.0.3
+pytest==9.1.1
 python-dateutil==2.9.0.post0
 pytokens==0.4.1
 PyYAML==6.0.3
 rich==15.0.0
 ruamel.yaml==0.19.1
 ruamel.yaml.clib==0.2.15
-scipy==1.17.1
+scipy==1.18.0
 semver==3.0.4
 setuptools==82.0.1
 shapely==2.1.2
@@ -104,10 +104,10 @@ sympy==1.14.0
 tinycss2==1.5.1
 tomli==2.4.1
 tomlkit==0.15.0
-tqdm==4.68.1
+tqdm==4.68.3
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-ufo2ft==3.8.1
+ufo2ft==3.8.2
 ufoLib2==0.18.1
 ufonormalizer==0.6.3
 ufoProcessor==1.14.1
@@ -116,4 +116,4 @@ unicodedata2==17.0.1
 webencodings==0.5.1
 wheel==0.47.0
 yarl==1.24.2
-zopfli==0.4.2
+zopfli==0.4.3

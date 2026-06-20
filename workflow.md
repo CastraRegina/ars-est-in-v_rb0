@@ -13,6 +13,7 @@
 - Check text for copyright infringements and other legal issues --> TODO
   - TODO: which tools are available to check for copyright infringements?
   - Document text license
+- Check text for AI-smell: AI-detector [https://www.scribbr.com/ai-detector/](https://www.scribbr.com/ai-detector/)
 
 ### Hyphenation of Input Text
 
