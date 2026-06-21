@@ -108,7 +108,7 @@ globs: [.py, .md]
 - tests/ for permanent tests (test_*.py)
 - src/examples/ for AI verify/check/temp files (verify_*.py, check_*.py)
 - Descriptive filenames required
-- Naming: verify_<feature>.py, check_<component>.py, test_<behavior>.py
+- Naming: verify_`<feature>`.py, check_`<component>`.py, test_`<behavior>`.py
 
 ## TEST EXECUTION
 
