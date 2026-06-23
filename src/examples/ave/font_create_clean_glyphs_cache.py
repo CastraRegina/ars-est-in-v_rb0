@@ -1,3 +1,8 @@
+# Example: Processes font glyphs through cleaning pipeline (direction revision, polygonization,
+# intersection resolution, curve rebuilding), renders visualization steps to SVG, and
+# serializes cleaned glyphs to cache files for multiple weight variations.
+# Takes some time to execute.
+
 """Single font glyph details SVG page example."""
 
 from typing import Dict, Optional

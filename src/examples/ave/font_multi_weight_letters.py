@@ -1,3 +1,7 @@
+# Example: Loads cached font files, renders multi-weight letters with alignment tests,
+# and outputs to compressed SVG with bounding box visualization.
+# Quick execution.
+
 """Multi-weight letter rendering example using cached font files."""
 
 from __future__ import annotations

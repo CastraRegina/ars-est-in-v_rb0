@@ -1,3 +1,7 @@
+# Example: Demonstrates variable font handling by instantiating Roboto Flex with different
+# weight axes, rendering character sets to SVG, and printing font metadata.
+# Quick execution.
+
 """Variable font handling utilities and Roboto Flex font analysis example."""
 
 from typing import Dict, List, Optional

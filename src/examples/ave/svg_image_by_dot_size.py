@@ -1,3 +1,7 @@
+# Example: Converts PNG images to SVG using variable-sized dots based on grayscale values,
+# creating halftone-style representations with circle diameter mapped to brightness.
+# Quick execution.
+
 """Multi-glyph container that extends AvGlyph for managing collections of AvGlyph objects."""
 
 from __future__ import annotations
